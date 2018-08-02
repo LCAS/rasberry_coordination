@@ -1,0 +1,53 @@
+<?xml version="1.0" ?>
+<launch>
+  <!-- launch file relay topics between a local ROS system and a remote remote server -->
+
+  <!-- the name prefix of the robot (important in multirobot setup) -->
+  <arg name="robot_name" default="$(optenv ROBOT_NAME thorvald)" />
+
+  <!-- the IP of the coordination_server rosbridge server -->
+  <arg name="rosbridge_ip" default="$(optenv ROSBRIDGE_IP localhost)" />
+
+  <!-- the port of the coordination_server rosbridge server -->
+  <arg name="rosbridge_port" default="$(optenv ROSBRIDGE_PORT 9090)" />
+
+
+  <include 
+      file="$(find rasberry_coordination)/launch/websocket_toponav_adapter.launch"
+      pass_all_args="true">
+  </include>
+
+  <node pkg="topic_tools" name="relay_move_base_simple_goal" type="relay" args="/$(arg robot_name)/move_base_simple/goal /move_base_simple/goal" />
+
+  <group ns="$(arg robot_name)">
+    <!-- 
+      an example of throttling a local topic to a 
+      namespaced topic to be sent across to the server 
+    -->
+    <node pkg="topic_tools" name="throttle_robot_pose" type="throttle" args="messages /robot_pose 1.0 /$(arg robot_name)/robot_pose" />
+    
+    <node pkg="rosduct" name="rosduct" type="rosduct_main.py" output="screen">
+      <rosparam subst_value="True">
+rosbridge_ip: $(arg rosbridge_ip)
+rosbridge_port: $(arg rosbridge_port)
+
+# Topics being published in the server to expose locally
+remote_topics: [
+                    ['/$(arg robot_name)/move_base_simple/goal', 'geometry_msgs/PoseStamped']
+               ]
+# Topics being published in the local roscore to expose remotely
+local_topics: [
+                    ['/$(arg robot_name)/robot_pose', 'geometry_msgs/Pose'],
+                    ['/hedge_pos_a', 'marvelmind_nav/hedge_pos_a']
+              ]
+# Services running in the server to expose locally
+remote_services: []
+# Services running locally to expose to the robot
+local_services: []
+# Parameters to be sync, they will be polled to stay in sync
+#parameters: ['/robot_description', '/test_suite/param_1']
+#parameter_polling_hz: 1
+      </rosparam>
+    </node>
+  </group>
+</launch>

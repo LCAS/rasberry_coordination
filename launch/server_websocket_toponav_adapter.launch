@@ -1,0 +1,56 @@
+<?xml version="1.0" ?>
+<launch>
+  <!-- launch file relay topics between a local ROS system and a remote remote server -->
+
+  <!-- the name prefix of the robot (important in multirobot setup) -->
+  <arg name="robot_name" default="$(optenv ROBOT_NAME thorvald)" />
+
+  <!-- the IP of the rosbridge server -->
+  <arg name="rosbridge_ip" default="$(optenv ROSBRIDGE_IP localhost)" />
+
+  <!-- the port of the rosbridge server -->
+  <arg name="rosbridge_port" default="$(optenv ROSBRIDGE_PORT 9090)" />
+
+  <!-- expose local topological navigation action -->
+  <include 
+      file="$(find rasberry_coordination)/launch/websocket_action_adapter.launch"
+      pass_all_args="true">
+    <arg name="action" value="/topological_navigation" />
+    <arg name="action_type" value="topological_navigation/GotoNode" />
+  </include>
+
+  <group ns="$(arg robot_name)/topological_navigation_adapter">
+
+    <!-- relays for topics from local to remote -->
+
+    <!-- relays for topics from remote to local -->
+
+
+    <node pkg="rosduct" name="rosduct" type="rosduct_main.py" output="screen">
+      <rosparam subst_value="True">
+rosbridge_ip: $(arg rosbridge_ip)
+rosbridge_port: $(arg rosbridge_port)
+
+# Topics being published in the robot to expose locally
+remote_topics: [
+                    ['/$(arg robot_name)/current_node', 'std_msgs/String'],
+                    ['/$(arg robot_name)/closest_node', 'std_msgs/String']
+               ]
+# Topics being published in the local roscore to expose remotely
+local_topics: [
+                    ['/map', 'nav_msgs/OccupancyGrid'],
+                    ['/topological_map', 'strands_navigation_msgs/TopologicalMap']
+              ]
+# Services running in the robot to expose locally
+remote_services: []
+# Services running locally to expose to the robot
+local_services: [
+                    ['/topological_map_manager/get_tags', 'strands_navigation_msgs/GetTags'],
+                    ['/topological_map_manager/get_node_tags', 'strands_navigation_msgs/GetNodeTags'],
+                    ['/topological_map_manager/get_tagged_nodes', 'strands_navigation_msgs/GetTaggedNodes'],
+                    ['/topological_map_publisher/get_topological_map', 'strands_navigation_msgs/GetTopologicalMap']
+                ]
+      </rosparam>
+    </node>
+  </group>
+</launch>

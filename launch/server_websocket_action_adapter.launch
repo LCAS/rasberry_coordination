@@ -1,0 +1,53 @@
+<?xml version="1.0" ?>
+<launch>
+  <!-- launch file allow to call actionlib server running locally from a remote server -->
+
+
+  <!-- the name prefix of the robot (important in multirobot setup) -->
+  <arg name="robot_name" default="$(optenv ROBOT_NAME thorvald)" />
+
+  <!-- the absolute topic prefix of the action, starting with '/' -->
+  <arg name="action" default="/topological_navigation" />
+
+  <!-- the action type prefix, with the suffix "Goal" etc. -->
+  <arg name="action_type" default="topological_navigation/GotoNode" />
+
+  <!-- the IP of the robot rosbridge server -->
+  <arg name="rosbridge_ip" default="$(optenv ROSBRIDGE_IP localhost)" />
+
+  <!-- the port of the robot rosbridge server -->
+  <arg name="rosbridge_port" default="$(optenv ROSBRIDGE_PORT 9090)" />
+
+
+  <group ns="$(arg robot_name)/websocket_action_adapter$(arg action)">
+    <!-- relays for topics from remote to local -->
+
+    <!-- relays for topics from local to remote -->
+
+
+    <node pkg="rosduct" name="rosduct" type="rosduct_main.py" output="screen">
+      <rosparam subst_value="True">
+rosbridge_ip: $(arg rosbridge_ip)
+rosbridge_port: $(arg rosbridge_port)
+# Topics being published in the robot to expose locally
+remote_topics: [
+                    ['/$(arg robot_name)$(arg action)/status', 'actionlib_msgs/GoalStatusArray'],
+                    ['/$(arg robot_name)$(arg action)/result', '$(arg action_type)Result'],
+                    ['/$(arg robot_name)$(arg action)/feedback', '$(arg action_type)Feedback']
+               ]
+# Topics being published in the local roscore to expose remotely
+local_topics: [
+                    ['/$(arg robot_name)$(arg action)/goal', '$(arg action_type)Goal'],
+                    ['/$(arg robot_name)$(arg action)/cancel', 'actionlib_msgs/GoalID']
+              ]
+# Services running in the robot to expose locally
+remote_services: []
+# Services running locally to expose to the robot
+local_services: []
+# Parameters to be sync, they will be polled to stay in sync
+parameters: []
+parameter_polling_hz: 1
+      </rosparam>
+    </node>
+  </group>
+</launch>
