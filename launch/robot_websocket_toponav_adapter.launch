@@ -35,7 +35,6 @@ rosbridge_port: $(arg rosbridge_port)
 
 # Topics being published in the server to expose locally
 remote_topics: [
-                    ['/map', 'nav_msgs/OccupancyGrid'],
                     ['/topological_map', 'strands_navigation_msgs/TopologicalMap']
                ]
 # Topics being published in the local roscore to expose remotely
