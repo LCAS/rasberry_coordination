@@ -13,7 +13,7 @@
 
   <!-- expose local topological navigation action -->
   <include 
-      file="$(find rasberry_coordination)/launch/websocket_action_adapter.launch"
+      file="$(find rasberry_coordination)/launch/server_websocket_action_adapter.launch"
       pass_all_args="true">
     <arg name="action" value="/topological_navigation" />
     <arg name="action_type" value="topological_navigation/GotoNode" />

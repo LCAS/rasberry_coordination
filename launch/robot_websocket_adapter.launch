@@ -13,7 +13,7 @@
 
 
   <include 
-      file="$(find rasberry_coordination)/launch/websocket_toponav_adapter.launch"
+      file="$(find rasberry_coordination)/launch/robot_websocket_toponav_adapter.launch"
       pass_all_args="true">
   </include>
 
