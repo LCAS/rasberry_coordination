@@ -17,8 +17,6 @@
       pass_all_args="true">
   </include>
 
-  <node pkg="topic_tools" name="relay_move_base_simple_goal" type="relay" args="/$(arg robot_name)/move_base_simple/goal /move_base_simple/goal" />
-
   <group ns="$(arg robot_name)">
     <!-- 
       an example of throttling a local topic to a 
@@ -32,9 +30,7 @@ rosbridge_ip: $(arg rosbridge_ip)
 rosbridge_port: $(arg rosbridge_port)
 
 # Topics being published in the server to expose locally
-remote_topics: [
-                    ['/$(arg robot_name)/move_base_simple/goal', 'geometry_msgs/PoseStamped']
-               ]
+remote_topics: []
 # Topics being published in the local roscore to expose remotely
 local_topics: [
                     ['/$(arg robot_name)/robot_pose', 'geometry_msgs/Pose'],
