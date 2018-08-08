@@ -56,7 +56,7 @@ if __name__ == '__main__':
         rospy.sleep(1) # give a second to let everything settle
 
         # picker_monitor after coordinator
-        picker_monitor = rasberry_coordination.picker_state_monitor.PickerStateMonitor()
+        picker_monitor = rasberry_coordination.picker_state_monitor.PickerStateMonitor(unified)
 
         coordinator.run()
 

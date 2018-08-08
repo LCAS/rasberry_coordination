@@ -18,7 +18,8 @@ import rasberry_coordination.srv
 class PickerStateMonitor(object):
     """A class to monitor all pickers' state changes
     """
-    def __init__(self, ):
+    def __init__(self, unified=False):
+        self.unified = unified
         self.n_pickers = 0
         self.picker_ids = []
         self.picker_states = {}
@@ -131,7 +132,11 @@ class PickerStateMonitor(object):
                     else:
                         robot_id = self.task_robot[task_id]
                         if robot_id not in self.tray_loaded:
-                            self.tray_loaded[robot_id] = rospy.ServiceProxy("/%s/tray_loaded" %(robot_id), std_srvs.srv.Trigger)
+                            if self.unified:
+                                # there willbe only one robot
+                                self.tray_loaded[robot_id] = rospy.ServiceProxy("/tray_loaded", std_srvs.srv.Trigger)
+                            else:
+                                self.tray_loaded[robot_id] = rospy.ServiceProxy("/%s/tray_loaded" %(robot_id), std_srvs.srv.Trigger)
                         self.tray_loaded[robot_id]()
                         # remove task_id from task_picker
                         self.task_state[task_id] = "LOADED" # this needs to be set here to avoid problems with task_updates_cb
@@ -192,7 +197,12 @@ class PickerStateMonitor(object):
             picker_id = self.task_picker[msg.task_id]
             self.task_robot[msg.task_id] = msg.robot_id
             if msg.robot_id not in self.tray_loaded:
-                self.tray_loaded[msg.robot_id] = rospy.ServiceProxy("/%s/tray_loaded" %(msg.robot_id), std_srvs.srv.Trigger)
+                if self.unified:
+                    # there will be only one robot
+                    self.tray_loaded[msg.robot_id] = rospy.ServiceProxy("/tray_loaded", std_srvs.srv.Trigger)
+                else:
+                    self.tray_loaded[msg.robot_id] = rospy.ServiceProxy("/%s/tray_loaded" %(msg.robot_id), std_srvs.srv.Trigger)
+
             self.picker_prev_states[picker_id] = self.picker_states[picker_id]
             self.set_picker_state(picker_id, "ACCEPT")
 

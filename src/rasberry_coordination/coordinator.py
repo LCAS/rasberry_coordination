@@ -25,10 +25,15 @@ class Coordinator:
         self.ns = "/rasberry_coordination/"
 
         self.picker_ids = picker_ids
-        self.robot_ids = robot_ids
-        self.verbose = False
+#        self.robot_ids = robot_ids
 
-        self.robots = {robot_id:rasberry_coordination.robot.Robot(robot_id, local_storage, charging_node, base_station, unified) for robot_id in robot_ids}
+        if unified:
+            # create only one robot
+            self.robot_ids = robot_ids[:1]
+            self.robots = {robot_id:rasberry_coordination.robot.Robot(robot_id, local_storage, charging_node, base_station, unified) for robot_id in self.robot_ids}
+        else:
+            self.robot_ids = robot_ids
+            self.robots = {robot_id:rasberry_coordination.robot.Robot(robot_id, local_storage, charging_node, base_station, unified) for robot_id in self.robot_ids}
 
         self.advertise_services()
         # don't queue more than 1000 tasks
@@ -132,7 +137,9 @@ class Coordinator:
         robot_dists = {}
         for robot_id in idle_robots:
             start_node = self.robots[robot_id].closest_node
-            if start_node != goal_node:
+            if start_node =="none" or goal_node == "none" or start_node is None or goal_node is None:
+                route_dists = [float("inf")]
+            elif start_node != goal_node:
                 route_nodes, route_edges, route_dists = self.get_path_details(start_node, goal_node)
             else:
                 route_dists = [0]
@@ -150,6 +157,10 @@ class Coordinator:
         """
         route_distance = []
         route = self.route_search.search_route(start_node, goal_node)
+        if route is None:
+            rosinfomsg = "no route between %s and %s" %(start_node, goal_node)
+            rospy.loginfo(rosinfomsg)
+            return ([], [], [float("inf")])
         route_nodes = route.source
         route_edges = route.edge_id
 
@@ -218,6 +229,8 @@ class Coordinator:
 
                     # find the closest robot
                     robot_id = self.find_closest_robot(task, idle_robots)
+                    rosinfomsg = "selected robot-%s to task %d" %(robot_id, task.task_id)
+                    rospy.loginfo(rosinfomsg)
 
                     self.task_robot[task_id] = robot_id
 
