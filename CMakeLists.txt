@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_srvs
   strands_executive_msgs
   strands_navigation_msgs
+  topic_tools
   topological_navigation
 )
 

@@ -62,6 +62,7 @@
   <build_depend>std_srvs</build_depend>
   <build_depend>strands_executive_msgs</build_depend>
   <build_depend>strands_navigation_msgs</build_depend>
+  <build_depend>topic_tools</build_depend>
   <build_depend>topological_navigation</build_depend>
 
   <build_export_depend>actionlib</build_export_depend>
@@ -75,6 +76,7 @@
   <build_export_depend>std_srvs</build_export_depend>
   <build_export_depend>strands_executive_msgs</build_export_depend>
   <build_export_depend>strands_navigation_msgs</build_export_depend>
+  <build_export_depend>topic_tools</build_export_depend>
   <build_export_depend>topological_navigation</build_export_depend>
 
   <exec_depend>actionlib</exec_depend>
@@ -89,6 +91,7 @@
   <exec_depend>std_srvs</exec_depend>
   <exec_depend>strands_executive_msgs</exec_depend>
   <exec_depend>strands_navigation_msgs</exec_depend>
+  <build_export_depend>topic_tools</build_export_depend>
   <exec_depend>topological_navigation</exec_depend>
 
 
