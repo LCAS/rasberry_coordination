@@ -144,7 +144,8 @@ class Coordinator:
             else:
                 route_dists = [0]
 
-            robot_dists[robot_id] = sum(route_dists)
+            if abs(sum(route_dists)) != float("inf"):
+                robot_dists[robot_id] = sum(route_dists)
 
         return self.closest_robot(robot_dists)[0][0]
 
