@@ -55,6 +55,7 @@
   <build_depend>geometry_msgs</build_depend>
   <build_depend>message_generation</build_depend>
   <build_depend>rasberry_des</build_depend>
+  <build_depend>rasberry_people_perception</build_depend>
   <build_depend>rosbridge_server</build_depend>
   <build_depend>rosduct</build_depend>
   <build_depend>rospy</build_depend>
@@ -69,6 +70,7 @@
   <build_export_depend>actionlib_msgs</build_export_depend>
   <build_export_depend>geometry_msgs</build_export_depend>
   <build_export_depend>rasberry_des</build_export_depend>
+  <build_export_depend>rasberry_people_perception</build_export_depend>
   <build_export_depend>rosbridge_server</build_export_depend>
   <build_export_depend>rosduct</build_export_depend>
   <build_export_depend>rospy</build_export_depend>
@@ -84,6 +86,7 @@
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>message_runtime</exec_depend>
   <exec_depend>rasberry_des</exec_depend>
+  <exec_depend>rasberry_people_perception</exec_depend>
   <exec_depend>rosbridge_server</exec_depend>
   <exec_depend>rosduct</exec_depend>
   <exec_depend>rospy</exec_depend>

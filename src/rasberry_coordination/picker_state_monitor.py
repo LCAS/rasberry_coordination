@@ -39,7 +39,7 @@ class PickerStateMonitor(object):
 
         self.car_event_sub = rospy.Subscriber("/car_client/get_states", std_msgs.msg.String, self.car_event_cb)
 
-        self.car_state_pub = rospy.Publisher("/car_client/set_states", std_msgs.msg.String, queue_size=5)
+        self.car_state_pub = rospy.Publisher("/car_client/set_states", std_msgs.msg.String, latch=True, queue_size=5)
 
         rospy.wait_for_service("/rasberry_coordination/add_task")
         self.add_task_client = rospy.ServiceProxy("/rasberry_coordination/add_task", strands_executive_msgs.srv.AddTask)
@@ -53,7 +53,7 @@ class PickerStateMonitor(object):
         self.task_state = {}
 
         self.task_updates_sub = rospy.Subscriber("/picker_state_monitor/task_updates", rasberry_coordination.msg.TaskUpdates, self.task_updates_cb)
-        rospy.loginfo("Picker state monitor initialised")
+        rospy.loginfo("PickerStateMonitor object is successfully initialised")
 
     def car_event_cb(self, msg):
         """callback function for /car_client/get_states
@@ -67,9 +67,9 @@ class PickerStateMonitor(object):
                     self.picker_states[user_id] = msg_data["states"][user_id]
                     self.picker_posestamped[user_id] = None
                     self.picker_posestamped_subs[user_id] = rospy.Subscriber("/%s/posestamped" %(user_id), geometry_msgs.msg.PoseStamped, self.picker_posestamped_cb, callback_args="%s" %(user_id))
-                    self.picker_closest_nodes[user_id] = None
+                    self.picker_closest_nodes[user_id] = "none"
                     self.picker_closest_node_subs[user_id] = rospy.Subscriber("/%s/closest_node" %(user_id), std_msgs.msg.String, self.picker_closest_node_cb, callback_args="%s" %(user_id))
-                    self.picker_current_nodes[user_id] = None
+                    self.picker_current_nodes[user_id] = "none"
                     self.picker_current_node_subs[user_id] = rospy.Subscriber("/%s/current_node" %(user_id), std_msgs.msg.String, self.picker_current_node_cb, callback_args="%s" %(user_id))
                     self.picker_task[user_id] = False
                     self.picker_ids.append(user_id)
@@ -108,13 +108,28 @@ class PickerStateMonitor(object):
                 elif user_id in self.picker_ids and self.picker_states[user_id] == "CALLED" and self.picker_prev_states[user_id] == "INIT":
                     # add a task, track the task with picker, task_id
                     if not self.picker_task[user_id]:
-                        task = strands_executive_msgs.msg.Task()
-                        task.action = "CollectTray"
-                        task.start_node_id = self.picker_closest_nodes[user_id] # this is the picker_node
+                        if self.picker_closest_nodes[user_id] == "none":
+                            # picker is not localised. do not add a task
+                            # reset picker state
+                            # prev_state is set to INIT as this is not a cancellation by picker
+                            rosinfo_msg = "picker %s is not localised. ignoring the call and resettig picker state" %(user_id)
+                            rospy.loginfo(rosinfo_msg)
+                            self.picker_prev_states[user_id] = "INIT"
+                            self.set_picker_state(user_id, "INIT")
 
-                        task_id = self.add_task_client(task)
-                        self.task_picker[task_id.task_id] = user_id
-                        self.picker_task[user_id] = True
+                        else:
+                            task = strands_executive_msgs.msg.Task()
+                            task.action = "CollectTray"
+                            task.start_node_id = self.picker_closest_nodes[user_id] # this is the picker_node
+
+                            task_id = self.add_task_client(task)
+                            self.task_picker[task_id.task_id] = user_id
+                            self.picker_task[user_id] = True
+
+                    else:
+                        # this shouldn't happen as a task already exists
+                        msg = "Picker %s has a callarobot task being processed"
+                        raise Exception(msg)
 
                 elif user_id in self.picker_ids and self.picker_states[user_id] == "ARRIVED":
                     # this state is set from robot's feedback that it arrived at picker_node to coordinator
@@ -176,11 +191,12 @@ class PickerStateMonitor(object):
         msg.data = '{\"user\":\"%s\", \"state\": \"%s\"}' %(picker_id, state)
 #        rospy.loginfo(msg)
         #rostopic pub /car_client/set_states std_msgs/String "data: '{\"user\":\"picker01\", \"state\": \"ACCEPT\"}'"
-        for i in range(5):
-            # publish multiple times to make sure it is set
-            # TODO: make sure it is set?
-            rospy.sleep(0.1)
-            self.car_state_pub.publish(msg)
+#        for i in range(5):
+#            # publish multiple times to make sure it is set
+#            # TODO: make sure it is set?
+#            rospy.sleep(0.1)
+#            self.car_state_pub.publish(msg)
+        self.car_state_pub.publish(msg)
 
     def task_updates_cb(self, msg):
         """call back for task_updates

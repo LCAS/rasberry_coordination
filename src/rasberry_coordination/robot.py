@@ -5,14 +5,17 @@
 # @date:
 # ----------------------------------
 
+import threading
 import actionlib
 import rospy
 
+import geometry_msgs.msg
 import std_msgs.msg
 import std_srvs.srv
 import topological_navigation.msg
 import topological_navigation.tmap_utils
 import topological_navigation.route_search
+import rasberry_people_perception.topological_localiser
 
 import rasberry_coordination.msg
 
@@ -20,7 +23,7 @@ import rasberry_coordination.msg
 class Robot(object):
     """Robot class to wrap all ros interfaces to the physical/simulated robot
     """
-    def __init__(self, robot_id, local_storage=None, charging_node=None, base_station=None, unified=False):
+    def __init__(self, robot_id, local_storage, charging_node, base_station, unified=False):
         """initialise the Robot class
 
         Keyword arguments:
@@ -39,7 +42,15 @@ class Robot(object):
         self.charging_node = charging_node # charging area node
         self.base_station = base_station # base station where the robot should wait
 
-        self.closest_node = None
+        self.topo_localiser = rasberry_people_perception.topological_localiser.TopologicalNavLoc()
+
+        self.lock = threading.Lock()
+
+        self.pose = geometry_msgs.msg.PoseStamped()
+        self.pose.header.frame_id = "map"
+        self._pose_sub = rospy.Subscriber(self.ns + "robot_pose", geometry_msgs.msg.Pose, self._update_pose_cb)
+
+        self.closest_node = "none"
         # TODO: at the moment the topological navigation stack does n't respect name spacing and work with base ros_names
         self._closest_node_sub = rospy.Subscriber(self.ns + "closest_node", std_msgs.msg.String, self._update_closest_cb)
 
@@ -75,9 +86,30 @@ class Robot(object):
 
         self.task_id = None
 
+    def _update_pose_cb(self, msg):
+        """callback function to update robot_pose topics.
+        it alse tries to update the closest_node if lock can be acquired
+        """
+        self.pose.pose = msg
+        # TODO: check this is thread safe
+        locked = self.lock.acquire(False)
+        if locked:
+            _, closeststr = self.topo_localiser.localise_pose(self.pose)
+            if closeststr != "none":
+                self.closest_node = closeststr
+            self.lock.release()
+
     def _update_closest_cb(self, msg):
-        if msg.data != "none":
-            self.closest_node = msg.data
+        """callback function to update closest_node topics.
+        this is a latched topics and with multiple roscores, the updates may
+        not be at an ideal rate which can cause problems for scheduling.
+        so robot_pose subscriber callback also updates closest_node.
+        """
+        locked = self.lock.acquire(False)
+        if locked:
+            if msg.data != "none":
+                self.closest_node = msg.data
+            self.lock.release()
 
     def _tray_loaded_cb(self, req):
         """callback for tray_loaded service
@@ -245,7 +277,11 @@ class Robot(object):
                 if self._cancelled:
                     reached_picker = False
                 else:
-                    reached_picker = self._topo_nav.get_result().success
+                    result = self._topo_nav.get_result()
+                    if result is None:
+                        reached_picker = False
+                    else:
+                        reached_picker = result.success
 
                 if reached_picker:
                     rospy.loginfo("robot-%s reached the picker" %(self.ns[1:]))
@@ -284,7 +320,11 @@ class Robot(object):
                 if self._cancelled:
                     reached_storage = False
                 else:
-                    reached_storage = self._topo_nav.get_result().success
+                    result = self._topo_nav.get_result()
+                    if result is None:
+                        reached_storage = False
+                    else:
+                        reached_storage = result.success
 
                 if reached_storage:
                     rospy.loginfo("robot-%s reached storage" %(self.ns[1:]))
@@ -325,7 +365,11 @@ class Robot(object):
                 if self._cancelled:
                     reached_base = False
                 else:
-                    reached_base = self._topo_nav.get_result().success
+                    result = self._topo_nav.get_result()
+                    if result is None:
+                        reached_base = False
+                    else:
+                        reached_base = result.success
 
                 if reached_base:
                     rospy.loginfo("robot-%s reached base station" %(self.ns[1:]))

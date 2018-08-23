@@ -21,7 +21,7 @@ import rasberry_coordination.srv
 
 
 class Coordinator:
-    def __init__(self, picker_ids=[], robot_ids=[], local_storage=None, charging_node=None, base_station=None, unified=False):
+    def __init__(self, local_storage, charging_node, base_station, picker_ids=[], robot_ids=[], unified=False):
         self.ns = "/rasberry_coordination/"
 
         self.picker_ids = picker_ids
@@ -121,8 +121,14 @@ class Coordinator:
         """
         idle_robots = []
         for robot_id in self.robot_ids:
-            if self.robots[robot_id].is_idle():
+            if self.robots[robot_id].is_idle() and self.robots[robot_id].closest_node != "none":
+                # if the robot is idle and its closest_node is not 'none' (topo_nav ready for that robot)
                 idle_robots.append(robot_id)
+            else:
+#                rospy.loginfo(robot_id)
+#                rospy.loginfo(self.robots[robot_id].closest_node)
+#                rospy.loginfo(self.robots[robot_id].is_idle())
+                pass
         return idle_robots
 
     def find_closest_robot(self, task, idle_robots):
@@ -217,6 +223,7 @@ class Coordinator:
 #        rospy.loginfo(idle_robots)
 
         while not rospy.is_shutdown():
+#            rospy.loginfo(idle_robots)
             if len(idle_robots) != 0:
                 if not self.tasks.empty():
                     msg = "unassigned tasks present. no. idle robots: %d" %(len(idle_robots))
@@ -240,7 +247,7 @@ class Coordinator:
 
                     collect_tray_goal.task_id = task_id
                     collect_tray_goal.picker_node = task.start_node_id
-#                    collect_tray_goal.storage_node = None # uses local_storage
+#                    collect_tray_goal.storage_node = "none" # uses local_storage
                     # hard coding duration now
                     collect_tray_goal.min_load_duration.secs = 10.
                     collect_tray_goal.max_load_duration.secs = 20.

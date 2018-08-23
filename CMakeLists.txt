@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   message_generation
   rasberry_des
+  rasberry_people_perception
   rosbridge_server
   rosduct
   rospy

@@ -1,0 +1,4 @@
+base_station_node: WayPoint0
+local_storage_node: WayPoint1
+charging_station_node: WayPoint2
+robot_ids: [robot00]
