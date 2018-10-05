@@ -237,7 +237,7 @@ class Coordinator:
 
                     # find the closest robot
                     robot_id = self.find_closest_robot(task, idle_robots)
-                    rosinfomsg = "selected robot-%s to task %d" %(robot_id, task.task_id)
+                    rosinfomsg = "selected robot-%s to task %d" %(robot_id, task_id)
                     rospy.loginfo(rosinfomsg)
 
                     self.task_robot[task_id] = robot_id
@@ -245,9 +245,7 @@ class Coordinator:
                     # call collecttray action -- action selection must be from the task details
                     collect_tray_goal = rasberry_coordination.msg.CollectTrayGoal()
 
-                    collect_tray_goal.task_id = task_id
-                    collect_tray_goal.picker_node = task.start_node_id
-#                    collect_tray_goal.storage_node = "none" # uses local_storage
+                    collect_tray_goal.task = task
                     # hard coding duration now
                     collect_tray_goal.min_load_duration.secs = 10.
                     collect_tray_goal.max_load_duration.secs = 20.
