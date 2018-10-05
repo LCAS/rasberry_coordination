@@ -102,7 +102,7 @@ add_action_files(
 # )
 
 generate_messages(
-  DEPENDENCIES std_msgs actionlib_msgs
+  DEPENDENCIES std_msgs actionlib_msgs strands_executive_msgs
 )
 
 ################################################
