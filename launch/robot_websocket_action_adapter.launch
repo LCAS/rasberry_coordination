@@ -20,15 +20,6 @@
 
 
   <group ns="$(arg robot_name)/websocket_action_adapter$(arg action)">
-    <!-- relays for topics from remote to local -->
-    <node pkg="topic_tools" name="relay_goal" type="relay" args="/$(arg robot_name)$(arg action)/goal $(arg action)/goal" />
-    <node pkg="topic_tools" name="relay_cancel" type="relay" args="/$(arg robot_name)$(arg action)/cancel $(arg action)/cancel" />
-
-    <!-- relays for topics from local to remote -->
-    <node pkg="topic_tools" name="relay_status" type="relay" args=" $(arg action)/status /$(arg robot_name)$(arg action)/status" />
-    <node pkg="topic_tools" name="relay_feedback" type="relay" args=" $(arg action)/feedback /$(arg robot_name)$(arg action)/feedback" />
-    <node pkg="topic_tools" name="relay_result" type="relay" args=" $(arg action)/result /$(arg robot_name)$(arg action)/result" />
-
 
     <node pkg="rosduct" name="rosduct" type="rosduct_main.py" output="screen">
       <rosparam subst_value="True">
@@ -36,14 +27,14 @@ rosbridge_ip: $(arg rosbridge_ip)
 rosbridge_port: $(arg rosbridge_port)
 # Topics being published in the server to expose locally
 remote_topics: [
-                    ['/$(arg robot_name)$(arg action)/goal', '$(arg action_type)Goal'],
-                    ['/$(arg robot_name)$(arg action)/cancel', 'actionlib_msgs/GoalID']
+                    ['/$(arg robot_name)$(arg action)/goal', '$(arg action_type)Goal', '$(arg action)/goal'],
+                    ['/$(arg robot_name)$(arg action)/cancel', 'actionlib_msgs/GoalID', '$(arg action)/cancel']
                ]
 # Topics being published in the local roscore to expose remotely
 local_topics: [
-                    ['/$(arg robot_name)$(arg action)/status', 'actionlib_msgs/GoalStatusArray'],
-                    ['/$(arg robot_name)$(arg action)/result', '$(arg action_type)Result'],
-                    ['/$(arg robot_name)$(arg action)/feedback', '$(arg action_type)Feedback']
+                    ['$(arg action)/status', 'actionlib_msgs/GoalStatusArray', '/$(arg robot_name)$(arg action)/status'],
+                    ['$(arg action)/result', '$(arg action_type)Result', '/$(arg robot_name)$(arg action)/result'],
+                    ['$(arg action)/feedback', '$(arg action_type)Feedback', '/$(arg robot_name)$(arg action)/feedback']
               ]
 # Services running in the server to expose locally
 remote_services: []

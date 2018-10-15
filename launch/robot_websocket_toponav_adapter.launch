@@ -21,13 +21,6 @@
 
   <group ns="$(arg robot_name)/topological_navigation_adapter">
 
-    <!-- relays for topics from local to remote -->
-    <node pkg="topic_tools" name="relay_current_node" type="relay" args="/current_node /$(arg robot_name)/current_node" />
-    <node pkg="topic_tools" name="relay_closest_node" type="relay" args="/closest_node /$(arg robot_name)/closest_node" />
-
-    <!-- relays for topics from remote to local -->
-
-
     <node pkg="rosduct" name="rosduct" type="rosduct_main.py" output="screen">
       <rosparam subst_value="True">
 rosbridge_ip: $(arg rosbridge_ip)
@@ -35,12 +28,12 @@ rosbridge_port: $(arg rosbridge_port)
 
 # Topics being published in the server to expose locally
 remote_topics: [
-                    ['/topological_map', 'strands_navigation_msgs/TopologicalMap'],
+                    ['/topological_map', 'strands_navigation_msgs/TopologicalMap', '/topological_map', True],
                ]
 # Topics being published in the local roscore to expose remotely
 local_topics: [
-                    ['/$(arg robot_name)/current_node', 'std_msgs/String'],
-                    ['/$(arg robot_name)/closest_node', 'std_msgs/String'],
+                    ['/current_node', 'std_msgs/String', '/$(arg robot_name)/current_node', True],
+                    ['/closest_node', 'std_msgs/String', '/$(arg robot_name)/closest_node', True],
               ]
 # Services running in the server to expose locally
 remote_services: [
