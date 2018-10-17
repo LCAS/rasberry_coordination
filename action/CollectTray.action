@@ -13,9 +13,7 @@ string BOOL_TYPE="____bool____"
 string STRING_TYPE="____str____"
 
 #goal definition
-int64 task_id
-string picker_node
-string storage_node
+strands_executive_msgs/Task task
 duration min_load_duration
 duration max_load_duration
 duration min_unload_duration

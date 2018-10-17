@@ -70,6 +70,7 @@ class Robot(object):
         self._preempted = False
 
         self.is_idle = lambda: True if self.mode==0 else False
+        self.get_state = lambda: self.mode
 
         # topological navigation action client
         # TODO: at the moment the topological navigation stack does n't respect name spacing and work with base ros_names
@@ -90,7 +91,7 @@ class Robot(object):
         self.collect_tray = actionlib.SimpleActionClient(self.ns + "collect_tray", rasberry_coordination.msg.CollectTrayAction)
         self._fb_msg = rasberry_coordination.msg.CollectTrayFeedback()
 
-        self.task_id = None
+        self.task = None
 
     def get_state(self, ):
 
@@ -182,7 +183,7 @@ class Robot(object):
     def _fb_cb(self, fb):
         """feedback callback for
         """
-        self._fb_msg.task_id = self.task_id
+        self._fb_msg.task_id = self.task.task_id
         self._fb_msg.mode = str(self.mode)
         self._fb_msg.closest_node = self.closest_node
         self._fb_msg.route = fb.route
@@ -193,14 +194,14 @@ class Robot(object):
         """done callback for to_storage topo_nav action
         """
         if result.success:
-            self._fb_msg.task_id = self.task_id
+            self._fb_msg.task_id = self.task.task_id
             self._fb_msg.mode = str(self.mode)
             self._fb_msg.closest_node = self.closest_node
             self._fb_msg.route = "reached storage"
             self.collect_tray_action.publish_feedback(self._fb_msg)
 #            rospy.loginfo("robot-%s reached storage" %(self.robot_id))
         elif not rospy.is_shutdown():
-            self._fb_msg.task_id = self.task_id
+            self._fb_msg.task_id = self.task.task_id
             self._fb_msg.mode = str(self.mode)
             self._fb_msg.closest_node = self.closest_node
             self._fb_msg.route = "failed to reach storage"
@@ -211,14 +212,14 @@ class Robot(object):
         """done callback for to_picker topo_nav action
         """
         if result.success:
-            self._fb_msg.task_id = self.task_id
+            self._fb_msg.task_id = self.task.task_id
             self._fb_msg.mode = str(self.mode)
             self._fb_msg.closest_node = self.closest_node
             self._fb_msg.route = "reached picker"
             self.collect_tray_action.publish_feedback(self._fb_msg)
 #            rospy.loginfo("robot-%s reached picker" %(self.robot_id))
         elif not rospy.is_shutdown():
-            self._fb_msg.task_id = self.task_id
+            self._fb_msg.task_id = self.task.task_id
             self._fb_msg.mode = str(self.mode)
             self._fb_msg.closest_node = self.closest_node
             self._fb_msg.route = "failed to reach the picker"
@@ -241,7 +242,7 @@ class Robot(object):
                 self.tray_loaded = True
                 break
             else:
-                self._fb_msg.task_id = self.task_id
+                self._fb_msg.task_id = self.task.task_id
                 self._fb_msg.mode = str(self.mode)
                 self._fb_msg.closest_node = self.closest_node
                 self._fb_msg.route = "robot-%s loading now: remaining time max %d s" %(self.robot_id, time_delta.secs)
@@ -266,7 +267,7 @@ class Robot(object):
                 self.tray_unloaded = True
                 break
             else:
-                self._fb_msg.task_id = self.task_id
+                self._fb_msg.task_id = self.task.task_id
                 self._fb_msg.mode = str(self.mode)
                 self._fb_msg.closest_node = self.closest_node
                 self._fb_msg.route = "unloading now: remaining time max %d s" %(time_delta.secs)
@@ -280,7 +281,7 @@ class Robot(object):
         """
         rospy.loginfo("robot-%s received goal" %(self.robot_id))
         rospy.loginfo(goal)
-        self.task_id = goal.task_id
+        self.task = goal.task
 
         _result = False
         reached_picker = False
@@ -293,7 +294,7 @@ class Robot(object):
 
             if not reached_picker:
                 # go to picker action
-                self._go_to_picker(goal.picker_node)
+                self._go_to_picker(goal.task.start_node_id)
                 if self._cancelled:
                     reached_picker = False
                 else:
@@ -319,14 +320,14 @@ class Robot(object):
                     tray_loaded = False
 
                 if tray_loaded:
-                    self._fb_msg.task_id = self.task_id
+                    self._fb_msg.task_id = self.task.task_id
                     self._fb_msg.mode = str(self.mode)
                     self._fb_msg.closest_node = self.closest_node
                     self._fb_msg.route = "tray loaded"
                     self.collect_tray_action.publish_feedback(self._fb_msg)
                     rospy.loginfo("robot-%s tray loaded" %(self.robot_id))
                 elif not tray_loaded:
-                    self._fb_msg.task_id = self.task_id
+                    self._fb_msg.task_id = self.task.task_id
                     self._fb_msg.mode = str(self.mode)
                     self._fb_msg.closest_node = self.closest_node
                     self._fb_msg.route = "failed to load tray"
@@ -360,14 +361,14 @@ class Robot(object):
                     tray_unloaded = False
 
                 if tray_unloaded:
-                    self._fb_msg.task_id = self.task_id
+                    self._fb_msg.task_id = self.task.task_id
                     self._fb_msg.mode = str(self.mode)
                     self._fb_msg.closest_node = self.closest_node
                     self._fb_msg.route = "tray unloaded"
                     self.collect_tray_action.publish_feedback(self._fb_msg)
                     rospy.loginfo("robot-%s tray unloaded" %(self.robot_id))
                 elif not tray_unloaded:
-                    self._fb_msg.task_id = self.task_id
+                    self._fb_msg.task_id = self.task.task_id
                     self._fb_msg.mode = str(self.mode)
                     self._fb_msg.closest_node = self.closest_node
                     self._fb_msg.route = "failed to unload tray"
@@ -402,7 +403,7 @@ class Robot(object):
                 _result = True
 
         if self._cancelled or self._preempted or not _result:
-            result = rasberry_coordination.msg.CollectTrayResult(task_id=self.task_id, success=False)
+            result = rasberry_coordination.msg.CollectTrayResult(task_id=self.task.task_id, success=False)
             self.collect_tray_action.set_succeeded(result)
             # TODO: mode here?
             self.mode = 0
@@ -410,12 +411,13 @@ class Robot(object):
             self.start_time = rospy.get_rostime()
         else:
             # if _result
-            result = rasberry_coordination.msg.CollectTrayResult(task_id=self.task_id, success=True)
+            result = rasberry_coordination.msg.CollectTrayResult(task_id=self.task.task_id, success=True)
             self.collect_tray_action.set_succeeded(result)
             self.mode = 0
             self.goal_node = "none"
             self.start_time = rospy.get_rostime()
-        self.task_id = None
+
+        self.task = None
 
     def _preempt_cb(self, ):
         """preempt callback for collect_tray action
