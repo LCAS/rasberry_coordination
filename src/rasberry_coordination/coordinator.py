@@ -21,7 +21,7 @@ import rasberry_coordination.srv
 
 
 class Coordinator:
-    def __init__(self, local_storage, charging_node, base_station, picker_ids=[], robot_ids=[], unified=False):
+    def __init__(self, local_storage, charging_node, base_stations, picker_ids=[], robot_ids=[], unified=False):
         self.ns = "/rasberry_coordination/"
 
         self.picker_ids = picker_ids
@@ -30,10 +30,10 @@ class Coordinator:
         if unified:
             # create only one robot
             self.robot_ids = robot_ids[:1]
-            self.robots = {robot_id:rasberry_coordination.robot.Robot(robot_id, local_storage, charging_node, base_station, unified) for robot_id in self.robot_ids}
+            self.robots = {robot_id:rasberry_coordination.robot.Robot(robot_id, local_storage, charging_node, base_stations[robot_id], unified) for robot_id in self.robot_ids}
         else:
             self.robot_ids = robot_ids
-            self.robots = {robot_id:rasberry_coordination.robot.Robot(robot_id, local_storage, charging_node, base_station, unified) for robot_id in self.robot_ids}
+            self.robots = {robot_id:rasberry_coordination.robot.Robot(robot_id, local_storage, charging_node, base_stations[robot_id], unified) for robot_id in self.robot_ids}
 
         self.advertise_services()
         # don't queue more than 1000 tasks
@@ -69,6 +69,37 @@ class Coordinator:
         """
         self.topo_map = msg
         self.rec_map = True
+
+    def get_robot_state_ros_srv(self, req):
+        """get the state of a robot"""
+        resp = rasberry_coordination.srv.RobotStateResponse()
+        if req.robot_id in self.robot_ids:
+            resp.state, resp.goal_node, resp.start_time = self.robots[req.robot_id].get_state()
+        else:
+            err_msg = "%s is not a among the robots configured" %(req.robot_id)
+            rospy.logerr(err_msg)
+        return resp
+
+    get_robot_state_ros_srv.type = rasberry_coordination.srv.RobotState
+
+    def get_robot_states_ros_srv(self, req):
+        """get the state of a set of robots"""
+        resp = rasberry_coordination.srv.RobotStatesResponse()
+        for robot_id in req.robot_ids:
+            if robot_id in self.robot_ids:
+                state, goal_node, start_time = self.robots[robot_id].get_state()
+                resp.states.append(state)
+                resp.goal_nodes.append(goal_node)
+                resp.start_times.append(start_time)
+            else:
+                resp.states.append("")
+                resp.goal_nodes.append("")
+                resp.start_times.append(rospy.Time())
+                err_msg = "%s is not a among the robots configured" %(robot_id)
+                rospy.logerr(err_msg)
+        return resp
+
+    get_robot_states_ros_srv.type = rasberry_coordination.srv.RobotStates
 
     def add_task_ros_srv(self, req):
         """

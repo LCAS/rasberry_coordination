@@ -1,0 +1,5 @@
+string[] robot_ids
+---
+string[] states
+string[] goal_nodes
+time[] start_times

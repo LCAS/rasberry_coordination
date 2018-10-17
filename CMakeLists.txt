@@ -80,6 +80,8 @@ add_message_files(
 add_service_files(
   FILES
   CancelTask.srv
+  RobotState.srv
+  RobotStates.srv
 )
 
 ## Generate actions in the 'action' folder
