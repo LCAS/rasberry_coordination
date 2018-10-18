@@ -60,7 +60,7 @@ class Robot(object):
         # 6 - return to base from storage
         self.states = {0:"Idle", 1:"Going to picker", 2:"Waiting for loading",
                        3:"Waiting for unloading", 4:"Going to storage",
-                       5:"Charging", 6:"Going to base"}
+                       5:"Charging", 6:"Going to base", 7:"Stuck"}
         self.mode = 0
         self.goal_node = "none"
         self.start_time = rospy.get_rostime()
@@ -94,7 +94,9 @@ class Robot(object):
         self.task = None
 
     def get_state(self, ):
-
+        """return the state of the robot, goal_node if any and the time at which
+        the robot reached this mode
+        """
         return (self.states[self.mode], self.goal_node, self.start_time)
 
     def _update_pose_cb(self, msg):
@@ -279,8 +281,7 @@ class Robot(object):
     def _collect_tray_cb(self, goal):
         """execution callback for collect_tray
         """
-        rospy.loginfo("robot-%s received goal" %(self.robot_id))
-        rospy.loginfo(goal)
+        rospy.loginfo("robot-%s received CollectTray task-%d" %(self.robot_id, goal.task.task_id))
         self.task = goal.task
 
         _result = False
@@ -310,7 +311,7 @@ class Robot(object):
                     rospy.loginfo("robot-%s failed to reach the picker" %(self.robot_id))
                     rospy.loginfo(self._topo_nav.get_result())
                     rospy.loginfo(self._topo_nav.get_state())
-                    self._topo_nav.cancel_all_goals()
+#                    self._topo_nav.cancel_all_goals()
                     break
 
             elif reached_picker and not tray_loaded:
@@ -351,7 +352,7 @@ class Robot(object):
                     rospy.loginfo("robot-%s reached storage" %(self.robot_id))
                 else:
                     rospy.loginfo("robot-%s failed to reach storage" %(self.robot_id))
-                    self._topo_nav.cancel_all_goals()
+#                    self._topo_nav.cancel_all_goals()
                     break
 
             elif reached_storage and not tray_unloaded:
@@ -396,7 +397,7 @@ class Robot(object):
                     rospy.loginfo("robot-%s reached base station" %(self.robot_id))
                 else:
                     rospy.loginfo("robot-%s failed to reach base station" %(self.robot_id))
-                    self._topo_nav.cancel_all_goals()
+#                    self._topo_nav.cancel_all_goals()
                     break
 
             else:
@@ -404,11 +405,20 @@ class Robot(object):
 
         if self._cancelled or self._preempted or not _result:
             result = rasberry_coordination.msg.CollectTrayResult(task_id=self.task.task_id, success=False)
-            self.collect_tray_action.set_succeeded(result)
-            # TODO: mode here?
-            self.mode = 0
-            self.goal_node = "none"
-            self.start_time = rospy.get_rostime()
+            self.collect_tray_action.set_aborted(result)
+            # Send robot to base
+            self._go_to_base()
+            result = self._topo_nav.get_result()
+            if result is None:
+                reached_base = False
+                self.mode = 7
+                self.goal_node = "none"
+                self.start_time = rospy.get_rostime()
+            else:
+                reached_base = result.success
+                self.mode = 0
+                self.goal_node = "none"
+                self.start_time = rospy.get_rostime()
         else:
             # if _result
             result = rasberry_coordination.msg.CollectTrayResult(task_id=self.task.task_id, success=True)
@@ -417,12 +427,14 @@ class Robot(object):
             self.goal_node = "none"
             self.start_time = rospy.get_rostime()
 
+        self._cancelled = False
+        self._preempted = False
         self.task = None
 
     def _preempt_cb(self, ):
         """preempt callback for collect_tray action
         """
-        self._topo_nav.cancel_all_goals()
+        self._topo_nav.cancel_goal()
         self._cancelled = True
         self._preempted = True
 

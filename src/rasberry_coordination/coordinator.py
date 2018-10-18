@@ -21,7 +21,11 @@ import rasberry_coordination.srv
 
 
 class Coordinator:
+    """
+    """
     def __init__(self, local_storage, charging_node, base_stations, picker_ids=[], robot_ids=[], unified=False):
+        """
+        """
         self.ns = "/rasberry_coordination/"
 
         self.picker_ids = picker_ids
@@ -39,9 +43,13 @@ class Coordinator:
         # don't queue more than 1000 tasks
         self.tasks = Queue.PriorityQueue(maxsize=1000)
         self.last_id = 0
+        # track the tasks to be cancelled
+        self.to_be_cancelled = [] # task_ids to be cancelled
 
+        self.all_task_ids = []
         self.processing_tasks = {}
         self.completed_tasks = {}
+        self.cancelled_tasks = {}
 
         self.task_robot = {}
 
@@ -102,32 +110,64 @@ class Coordinator:
     get_robot_states_ros_srv.type = rasberry_coordination.srv.RobotStates
 
     def add_task_ros_srv(self, req):
-        """
-        Adds a task into the task execution framework.
+        """Adds a task into the task execution framework.
         """
         self.last_id += 1
         task_id = self.last_id
         req.task.task_id = task_id
-        rospy.loginfo('received task: %s' % req.task)
+        rospy.loginfo('received task: %s to %s' %(req.task.task_id, req.task.start_node_id))
         self.tasks.put(
             (task_id, req.task)
         )
+        self.all_task_ids.append(task_id)
         return task_id
 
     add_task_ros_srv.type = strands_executive_msgs.srv.AddTask
 
     def cancel_task_ros_srv(self, req):
-        success = True
-        # TODO: coordinator cancelling task after picker request
-        rospy.loginfo("TODO: coordinator cancelling task after picker request")
-#        self.robots[req.robot_id].collect_tray.cancel_all_goals()
-        return success
+        """cancels a task from execution
+        """
+        cancelled = False
+        # Two scenarios:
+        # 1. task is already being processed
+        #    this also implies the robot has not reached the picker, as
+        #    the CAR interface to cancel task won't be available after that.
+        #    the topo_nav goal to the robot has to be cancelled
+        #    the robot will have to be sent to the base after the cancellation
+        # 2. task is still queued
+        #    pop the task from the queue
 
-    cancel_task_ros_srv.type = rasberry_coordination.srv.CancelTask
+        if req.task_id in self.all_task_ids:
+            if ((req.task_id in self.completed_tasks) or
+                  (req.task_id in self.cancelled_tasks) or
+                  (req.task_id in self.to_be_cancelled)):
+                # cannot be here
+                raise("cancel_task_ros_srv cannot be in this condition")
+                pass
+            elif req.task_id in self.processing_tasks:
+                # task is being processed
+                # cancel topo_nav and return status
+                robot_id = self.task_robot[req.task_id]
+                self.robots[robot_id].collect_tray.cancel_goal()
+                info_msg = "cancelling task-%d" %(req.task_id)
+                rospy.loginfo(info_msg)
+                cancelled = True
+            else:
+                # not yet processed, but will not be taken for processing
+                self.to_be_cancelled.append(req.task_id)
+                info_msg = "cancelling task-%d" %(req.task_id)
+                rospy.loginfo(info_msg)
+                cancelled = True
+        else:
+            # invalid task_id
+            rospy.logerr("cancel_task is invoked with invalid task_id")
+
+        return cancelled
+
+    cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
 
     def advertise_services(self):
-        """
-        Adverstise ROS services.
+        """Adverstise ROS services.
         Only call at the end of constructor to avoid calls during construction.
         """
         # advertise ros services
@@ -142,13 +182,12 @@ class Coordinator:
                 rospy.loginfo('advertised %s' % attr[:-8])
 
     def handle_task(self):
-        """
-        this is to be overwritten if used as a superclass
+        """this is to be overwritten if used as a superclass
         """
         pass
 
     def get_idle_robots(self, ):
-        """
+        """get the list of robots which are idle
         """
         idle_robots = []
         for robot_id in self.robot_ids:
@@ -161,6 +200,15 @@ class Coordinator:
 #                rospy.loginfo(self.robots[robot_id].is_idle())
                 pass
         return idle_robots
+
+    def get_stuck_robots(self, ):
+        """get the list of robots which are stuck after their task was cancelled
+        """
+        stuck_robots = []
+        for robot_id in self.robot_ids:
+            self.robots[robot_id].get_state()
+
+        return stuck_robots
 
     def find_closest_robot(self, task, idle_robots):
         """find the robot closest to the task location (picker_node)
@@ -249,6 +297,8 @@ class Coordinator:
         return edge_ids
 
     def run(self):
+        """the main loop of the coordinator
+        """
         # get idle robots
         idle_robots = self.get_idle_robots()
 #        rospy.loginfo(idle_robots)
@@ -263,32 +313,36 @@ class Coordinator:
                 # try assigning a robot if there is an idle robot
                 try:
                     (task_id, task) = self.tasks.get(True, 1)
-                    self.processing_tasks[task_id] = task
-                    rospy.loginfo('process task %d' % task_id)
+                    if task_id in self.to_be_cancelled:
+                        self.cancelled_tasks[task_id] = task
+                        info_msg = "ignoring cancelled task-%d" %(task_id)
+                        rospy.loginfo(info_msg)
+                    else:
+                        self.processing_tasks[task_id] = task
+                        rospy.loginfo('process task %d' % task_id)
 
-                    # find the closest robot
-                    robot_id = self.find_closest_robot(task, idle_robots)
-                    rosinfomsg = "selected robot-%s to task %d" %(robot_id, task_id)
-                    rospy.loginfo(rosinfomsg)
+                        # find the closest robot
+                        robot_id = self.find_closest_robot(task, idle_robots)
+                        rosinfomsg = "selected robot-%s to task %d" %(robot_id, task_id)
+                        rospy.loginfo(rosinfomsg)
 
-                    self.task_robot[task_id] = robot_id
+                        self.task_robot[task_id] = robot_id
 
-                    # call collecttray action -- action selection must be from the task details
-                    collect_tray_goal = rasberry_coordination.msg.CollectTrayGoal()
+                        # call collecttray action -- action selection must be from the task details
+                        collect_tray_goal = rasberry_coordination.msg.CollectTrayGoal()
 
-                    collect_tray_goal.task = task
-                    # hard coding duration now
-                    collect_tray_goal.min_load_duration.secs = 10.
-                    collect_tray_goal.max_load_duration.secs = 20.
-                    collect_tray_goal.min_unload_duration.secs = 10.
-                    collect_tray_goal.max_unload_duration.secs = 20.
-                    self.robots[robot_id].collect_tray.send_goal(collect_tray_goal, done_cb=self.done_cb, feedback_cb=self.feedback_cb)
+                        collect_tray_goal.task = task
+                        # hard coding duration now
+                        collect_tray_goal.min_load_duration.secs = 10.
+                        collect_tray_goal.max_load_duration.secs = 20.
+                        collect_tray_goal.min_unload_duration.secs = 10.
+                        collect_tray_goal.max_unload_duration.secs = 20.
+                        self.robots[robot_id].collect_tray.send_goal(collect_tray_goal, done_cb=self.done_cb, feedback_cb=self.feedback_cb)
 
-                    task_state = rasberry_coordination.msg.TaskUpdates()
-                    task_state.task_id = task_id
-                    task_state.robot_id = self.task_robot[task_id]
-                    task_state.state = "ACCEPT"
-                    for i in range(3):
+                        task_state = rasberry_coordination.msg.TaskUpdates()
+                        task_state.task_id = task_id
+                        task_state.robot_id = self.task_robot[task_id]
+                        task_state.state = "ACCEPT"
                         self.picker_task_updates_pub.publish(task_state)
                         rospy.sleep(0.01)
 
@@ -303,14 +357,15 @@ class Coordinator:
     def done_cb(self, status, result):
         """done callback for collect_tray action
         """
-        # TODO:
         if result.success:
             self.task_robot.pop(result.task_id)
             task = self.processing_tasks.pop(result.task_id)
             self.completed_tasks[result.task_id] = task
-
         else:
-            pass
+            # failed
+            self.task_robot.pop(result.task_id)
+            task = self.processing_tasks.pop(result.task_id)
+            self.cancelled_tasks[result.task_id] = task
 
     def feedback_cb(self, fb):
         """feedback callback for collect_tray action
@@ -320,9 +375,8 @@ class Coordinator:
             task_state.task_id = fb.task_id
             task_state.robot_id = self.task_robot[fb.task_id]
             task_state.state = "ARRIVED"
-            for i in range(3):
-                self.picker_task_updates_pub.publish(task_state)
-                rospy.sleep(0.01)
+            self.picker_task_updates_pub.publish(task_state)
+            rospy.sleep(0.01)
 
         elif fb.route == "tray loaded":
             # in case this is set by robot after a delay
@@ -330,9 +384,8 @@ class Coordinator:
             task_state.task_id = fb.task_id
             task_state.robot_id = self.task_robot[fb.task_id]
             task_state.state = "LOADED"
-            for i in range(3):
-                self.picker_task_updates_pub.publish(task_state)
-                rospy.sleep(0.01)
+            self.picker_task_updates_pub.publish(task_state)
+            rospy.sleep(0.01)
 
         elif fb.route == "reached storage":
             # TODO: tray unloading is not considered
@@ -344,9 +397,8 @@ class Coordinator:
             task_state.task_id = fb.task_id
             task_state.robot_id = self.task_robot[fb.task_id]
             task_state.state = "DELIVERED"
-            for i in range(3):
-                self.picker_task_updates_pub.publish(task_state)
-                rospy.sleep(0.01)
+            self.picker_task_updates_pub.publish(task_state)
+            rospy.sleep(0.01)
 
         elif ((fb.route == "failed to reach the picker") or
               (fb.route == "failed to reach storage") or

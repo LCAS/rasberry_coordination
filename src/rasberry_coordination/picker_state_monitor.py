@@ -11,8 +11,7 @@ import geometry_msgs.msg
 import std_msgs.msg
 import std_srvs.srv
 import strands_executive_msgs.msg
-
-import rasberry_coordination.srv
+import rasberry_coordination.msg
 
 
 class PickerStateMonitor(object):
@@ -45,10 +44,12 @@ class PickerStateMonitor(object):
         self.add_task_client = rospy.ServiceProxy("/rasberry_coordination/add_task", strands_executive_msgs.srv.AddTask)
 
         rospy.wait_for_service("/rasberry_coordination/cancel_task")
-        self.cancel_task_client = rospy.ServiceProxy("/rasberry_coordination/cancel_task", rasberry_coordination.srv.CancelTask)
+        self.cancel_task_client = rospy.ServiceProxy("/rasberry_coordination/cancel_task", strands_executive_msgs.srv.CancelTask)
 
         self.task_picker = {} # tasks by which picker {task_id: picker_id}
+        self.task_time = {} # time at which task is added {task_id: time}
         self.task_robot = {} # assigned robots {task_id: robot_id}
+
         self.tray_loaded = {} # service clients to send loaded status to robots
         self.task_state = {}
 
@@ -61,88 +62,96 @@ class PickerStateMonitor(object):
         msg_data = eval(msg.data)
         if "states" in msg_data:
             # state updates for all users
-            for user_id in msg_data["states"]:
-                if user_id not in self.picker_ids and user_id.lower().startswith("picker"):
-                    self.picker_prev_states[user_id] = msg_data["states"][user_id]
-                    self.picker_states[user_id] = msg_data["states"][user_id]
-                    self.picker_posestamped[user_id] = None
-                    self.picker_posestamped_subs[user_id] = rospy.Subscriber("/%s/posestamped" %(user_id), geometry_msgs.msg.PoseStamped, self.picker_posestamped_cb, callback_args="%s" %(user_id))
-                    self.picker_closest_nodes[user_id] = "none"
-                    self.picker_closest_node_subs[user_id] = rospy.Subscriber("/%s/closest_node" %(user_id), std_msgs.msg.String, self.picker_closest_node_cb, callback_args="%s" %(user_id))
-                    self.picker_current_nodes[user_id] = "none"
-                    self.picker_current_node_subs[user_id] = rospy.Subscriber("/%s/current_node" %(user_id), std_msgs.msg.String, self.picker_current_node_cb, callback_args="%s" %(user_id))
-                    self.picker_task[user_id] = False
-                    self.picker_ids.append(user_id)
+            for picker_id in msg_data["states"]:
+                if picker_id not in self.picker_ids and picker_id.lower().startswith("picker"):
+                    self.picker_prev_states[picker_id] = msg_data["states"][picker_id]
+                    self.picker_states[picker_id] = msg_data["states"][picker_id]
+                    self.picker_posestamped[picker_id] = None
+                    self.picker_posestamped_subs[picker_id] = rospy.Subscriber("/%s/posestamped" %(picker_id), geometry_msgs.msg.PoseStamped, self.picker_posestamped_cb, callback_args="%s" %(picker_id))
+                    self.picker_closest_nodes[picker_id] = "none"
+                    self.picker_closest_node_subs[picker_id] = rospy.Subscriber("/%s/closest_node" %(picker_id), std_msgs.msg.String, self.picker_closest_node_cb, callback_args="%s" %(picker_id))
+                    self.picker_current_nodes[picker_id] = "none"
+                    self.picker_current_node_subs[picker_id] = rospy.Subscriber("/%s/current_node" %(picker_id), std_msgs.msg.String, self.picker_current_node_cb, callback_args="%s" %(picker_id))
+                    self.picker_task[picker_id] = False
+                    self.picker_ids.append(picker_id)
                     self.n_pickers += 1
 
-                elif user_id in self.picker_ids:
-#                    rospy.loginfo(">> %s" %(user_id))
-#                    rospy.loginfo(self.picker_prev_states[user_id])
-#                    rospy.loginfo(self.picker_states[user_id])
-#                    rospy.loginfo(msg_data["states"][user_id])
+                elif picker_id in self.picker_ids:
                     # update state only if the state for this user has been changed
-                    if self.picker_states[user_id] != msg_data["states"][user_id]:
+                    if self.picker_states[picker_id] != msg_data["states"][picker_id]:
                         rospy.loginfo("updating picker states")
-                        self.picker_prev_states[user_id] = self.picker_states[user_id]
-                        self.picker_states[user_id] = msg_data["states"][user_id]
+                        self.picker_prev_states[picker_id] = self.picker_states[picker_id]
+                        self.picker_states[picker_id] = msg_data["states"][picker_id]
 
-                if user_id in self.picker_ids and self.picker_states[user_id] == "INIT":
+                if picker_id in self.picker_ids and self.picker_states[picker_id] == "INIT":
                     # if prev_state was CALLED, cancel the task
-                    if self.picker_prev_states[user_id] == "CALLED" or self.picker_prev_states[user_id] == "ACCEPT":
+                    if self.picker_prev_states[picker_id] == "CALLED" or self.picker_prev_states[picker_id] == "ACCEPT":
+                        task_id = self.get_pickers_task(picker_id)
                         try:
-#                            assert req.task_id is not None
-                            assert self.get_pickers_task(user_id) is not None
+                            assert task_id is not None
                         except:
                             pass
                         else:
-                            # TODO: picker cancelling task
-                            rospy.loginfo("TODO: picker cancelling task")
-#                            self.cancel_task_client(self.get_pickers_task(user_id), self.task_robot[self.get_pickers_task(user_id)])
-#                            self.picker_prev_states[user_id] = "INIT"
-#                            self.set_picker_state(user_id, "INIT")
+                            info_msg = "picker-%s is cancelling task-%d" %(picker_id, task_id)
+                            rospy.loginfo(info_msg)
+                            cancelled = self.cancel_task_client(task_id)
+                            if cancelled:
+                                # setting previous state as INIT
+                                self.picker_prev_states[picker_id] = "INIT"
+                                self.set_picker_state(picker_id, "INIT")
+                                self.picker_task[picker_id] = False
+                                self.task_robot[task_id] = None
 
-                    elif self.picker_prev_states[user_id] == "LOADED":
+                    elif self.picker_prev_states[picker_id] == "LOADED":
                         # continue picking.
                         pass
+                    else:
+                        # for some inactive pickers it could come here based
+                        # on whether he is already in call-a-robot users, but
+                        # is a problem for active pickers
+                        # TODO: Checking whether active pickers come here
+                        pass
 
-                elif user_id in self.picker_ids and self.picker_states[user_id] == "CALLED" and self.picker_prev_states[user_id] == "INIT":
+                elif picker_id in self.picker_ids and self.picker_states[picker_id] == "CALLED" and self.picker_prev_states[picker_id] == "INIT":
                     # add a task, track the task with picker, task_id
-                    if not self.picker_task[user_id]:
-                        if self.picker_closest_nodes[user_id] == "none":
+                    if not self.picker_task[picker_id]:
+                        if self.picker_closest_nodes[picker_id] == "none":
                             # picker is not localised. do not add a task
                             # reset picker state
                             # prev_state is set to INIT as this is not a cancellation by picker
-                            rosinfo_msg = "picker %s is not localised. ignoring the call and resettig picker state" %(user_id)
+                            rosinfo_msg = "ignoring call as picker %s is not localised" %(picker_id)
                             rospy.loginfo(rosinfo_msg)
-                            self.picker_prev_states[user_id] = "INIT"
-                            self.set_picker_state(user_id, "INIT")
+                            self.picker_prev_states[picker_id] = "INIT"
+                            self.set_picker_state(picker_id, "INIT")
 
                         else:
                             task = strands_executive_msgs.msg.Task()
                             task.action = "CollectTray"
-                            task.start_node_id = self.picker_closest_nodes[user_id] # this is the picker_node
+                            task.start_node_id = self.picker_closest_nodes[picker_id] # this is the picker_node
 
-                            task_id = self.add_task_client(task)
-                            self.task_picker[task_id.task_id] = user_id
-                            self.picker_task[user_id] = True
+                            add_task_resp = self.add_task_client(task)
+                            self.task_picker[add_task_resp.task_id] = picker_id
+                            self.task_time[add_task_resp.task_id] = rospy.get_rostime()
+                            self.picker_task[picker_id] = True
 
                     else:
                         # this shouldn't happen as a task already exists
                         msg = "Picker %s has a callarobot task being processed"
                         raise Exception(msg)
 
-                elif user_id in self.picker_ids and self.picker_states[user_id] == "ARRIVED":
+                elif picker_id in self.picker_ids and self.picker_states[picker_id] == "ARRIVED":
                     # this state is set from robot's feedback that it arrived at picker_node to coordinator
                     # no action needed to be taken here
                     pass
 
-                elif user_id in self.picker_ids and self.picker_states[user_id] == "LOADED" and self.picker_prev_states[user_id] == "ARRIVED":
+                elif picker_id in self.picker_ids and self.picker_states[picker_id] == "LOADED" and self.picker_prev_states[picker_id] == "ARRIVED":
                     # set the tray loaded directly to the corresponding robot (how?)
-                    task_id = self.get_pickers_task(user_id)
+                    task_id = self.get_pickers_task(picker_id)
                     try:
                         assert task_id is not None
                     except:
-                        rospy.loginfo("task_id is None in car_event_cb")
+                        info_msg = "updating tray_loaded status, but picker - %s doesn't have any tasks!!!" %(picker_id)
+                        rospy.loginfo(info_msg)
                         pass
                     else:
                         robot_id = self.task_robot[task_id]
@@ -156,20 +165,21 @@ class PickerStateMonitor(object):
                         # remove task_id from task_picker
                         self.task_state[task_id] = "LOADED" # this needs to be set here to avoid problems with task_updates_cb
                         self.task_picker.pop(task_id)
-                        self.picker_prev_states[user_id] = self.picker_states[user_id]
-                        self.set_picker_state(user_id, "INIT")
-                        self.picker_task[user_id] = False
+                        self.picker_prev_states[picker_id] = self.picker_states[picker_id]
+                        self.set_picker_state(picker_id, "INIT")
+                        self.picker_task[picker_id] = False
+                        self.task_robot[task_id] = None # resetting the robot assigned info
 
                 else:
                     pass
 
         elif "state" in msg_data:
             # resetting state, ARRIVED -> LOADED
-            user_id = msg_data["user"]
-            if user_id in self.picker_ids:
-                if self.picker_states[user_id] != msg_data["state"]:
-                    self.picker_prev_states[user_id] = self.picker_states[user_id]
-                    self.picker_states[user_id] = msg_data["state"]
+            picker_id = msg_data["user"]
+            if picker_id in self.picker_ids:
+                if self.picker_states[picker_id] != msg_data["state"]:
+                    self.picker_prev_states[picker_id] = self.picker_states[picker_id]
+                    self.picker_states[picker_id] = msg_data["state"]
 
     def picker_posestamped_cb(self, msg, picker_id):
         """call back to /picker_id/posestamped topics
@@ -189,13 +199,6 @@ class PickerStateMonitor(object):
     def set_picker_state(self, picker_id, state):
         msg = std_msgs.msg.String()
         msg.data = '{\"user\":\"%s\", \"state\": \"%s\"}' %(picker_id, state)
-#        rospy.loginfo(msg)
-        #rostopic pub /car_client/set_states std_msgs/String "data: '{\"user\":\"picker01\", \"state\": \"ACCEPT\"}'"
-#        for i in range(5):
-#            # publish multiple times to make sure it is set
-#            # TODO: make sure it is set?
-#            rospy.sleep(0.1)
-#            self.car_state_pub.publish(msg)
         self.car_state_pub.publish(msg)
 
     def task_updates_cb(self, msg):
@@ -245,10 +248,16 @@ class PickerStateMonitor(object):
 
     def get_pickers_task(self, picker_id):
         """get the picker's task.
+        each picker can have only one valid task. the latest task will be
+        returned
         """
-        # assuming
+        picker_task = None
+        # for all tasks made by all pickers
         for task_id in self.task_picker:
-            if task_id in self.task_robot:
-                if self.task_picker[task_id] == picker_id and self.task_robot[task_id] is not None:
-                    return task_id
-        return None
+            if self.task_picker[task_id] == picker_id:
+                if picker_task is not None:
+                    if self.task_time[task_id] > self.task_time[picker_task]:
+                        picker_task = task_id
+                else:
+                    picker_task = task_id
+        return picker_task
