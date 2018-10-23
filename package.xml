@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>rasberry_coordination</name>
-  <version>0.0.0</version>
+  <version>0.0.4</version>
   <description>The rasberry_coordination package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
