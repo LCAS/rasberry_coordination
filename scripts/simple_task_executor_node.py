@@ -16,7 +16,6 @@ if __name__ == '__main__':
         rosrun rasberry_coordination simple_task_executor_node.py config_file.yaml
         """
     else:
-        print sys.argv
         config_file = sys.argv[1]
         config_data = rasberry_des.config_utils.get_config_data(config_file)
         config_keys = rasberry_des.config_utils.get_config_keys(config_file)
