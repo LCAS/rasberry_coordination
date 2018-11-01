@@ -136,7 +136,7 @@ class PickerStateMonitor(object):
 
                     else:
                         # this shouldn't happen as a task already exists
-                        msg = "Picker %s has a callarobot task being processed"
+                        msg = "Picker %s has a callarobot task being processed" %(picker_id)
                         raise Exception(msg)
 
                 elif picker_id in self.picker_ids and self.picker_states[picker_id] == "ARRIVED":
