@@ -2,8 +2,8 @@
 Changelog for package rasberry_coordination
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.0 (2018-11-02)
+------------------
 * tidied up and made version compatible (`#152 <https://github.com/LCAS/RASberry/issues/152>`_)
   * tidied up and made version compatible
   * dep update for rasberry_bringup (persistent_topics)
