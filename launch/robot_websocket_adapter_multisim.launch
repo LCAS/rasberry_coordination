@@ -26,7 +26,7 @@ rosbridge_port: $(arg rosbridge_port)
 
 # Topics being published in the server to expose locally
 remote_topics: [
-                    ['/picker00/posestamped', 'geometry_msgs/PoseStamped', '/picker00/posestamped'],
+                    ['/picker01/posestamped', 'geometry_msgs/PoseStamped', '/picker01/posestamped'],
                     ['/picker02/posestamped', 'geometry_msgs/PoseStamped', '/picker02/posestamped'],
                ]
 # Topics being published in the local roscore to expose remotely
