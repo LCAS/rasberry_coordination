@@ -174,12 +174,52 @@ class PickerStateMonitor(object):
                     pass
 
         elif "state" in msg_data:
-            # resetting state, ARRIVED -> LOADED
             picker_id = msg_data["user"]
             if picker_id in self.picker_ids:
+                # resetting state, ARRIVED -> LOADED
                 if self.picker_states[picker_id] != msg_data["state"]:
                     self.picker_prev_states[picker_id] = self.picker_states[picker_id]
                     self.picker_states[picker_id] = msg_data["state"]
+            elif picker_id not in self.picker_ids and picker_id.lower().startswith("picker"):
+                # new picker - first message could be CALLED
+                self.picker_prev_states[picker_id] = "INIT"
+                self.picker_states[picker_id] = msg_data["state"]
+                self.picker_posestamped[picker_id] = None
+                self.picker_posestamped_subs[picker_id] = rospy.Subscriber("/%s/posestamped" %(picker_id), geometry_msgs.msg.PoseStamped, self.picker_posestamped_cb, callback_args="%s" %(picker_id))
+                self.picker_closest_nodes[picker_id] = "none"
+                self.picker_closest_node_subs[picker_id] = rospy.Subscriber("/%s/closest_node" %(picker_id), std_msgs.msg.String, self.picker_closest_node_cb, callback_args="%s" %(picker_id))
+                self.picker_current_nodes[picker_id] = "none"
+                self.picker_current_node_subs[picker_id] = rospy.Subscriber("/%s/current_node" %(picker_id), std_msgs.msg.String, self.picker_current_node_cb, callback_args="%s" %(picker_id))
+                self.picker_task[picker_id] = False
+                self.picker_ids.append(picker_id)
+                self.n_pickers += 1
+
+                if self.picker_states[picker_id] == "CALLED" and self.picker_prev_states[picker_id] == "INIT":
+                    # add a task, track the task with picker, task_id
+                    if not self.picker_task[picker_id]:
+                        if self.picker_closest_nodes[picker_id] == "none":
+                            # picker is not localised. do not add a task
+                            # reset picker state
+                            # prev_state is set to INIT as this is not a cancellation by picker
+                            rosinfo_msg = "ignoring call as picker %s is not localised" %(picker_id)
+                            rospy.loginfo(rosinfo_msg)
+                            self.picker_prev_states[picker_id] = "INIT"
+                            self.set_picker_state(picker_id, "INIT")
+
+                        else:
+                            task = strands_executive_msgs.msg.Task()
+                            task.action = "CollectTray"
+                            task.start_node_id = self.picker_closest_nodes[picker_id] # this is the picker_node
+
+                            add_task_resp = self.add_task_client(task)
+                            self.task_picker[add_task_resp.task_id] = picker_id
+                            self.task_time[add_task_resp.task_id] = rospy.get_rostime()
+                            self.picker_task[picker_id] = True
+
+                    else:
+                        # this shouldn't happen as a task already exists
+                        msg = "Picker %s has a callarobot task being processed" %(picker_id)
+                        raise Exception(msg)
 
     def picker_posestamped_cb(self, msg, picker_id):
         """call back to /picker_id/posestamped topics
