@@ -255,7 +255,7 @@ class Coordinator:
         route_nodes.append(goal_node)
 
         for i in range(len(route_nodes) - 1):
-            route_distance.append(self.get_distance_between_nodes(route_nodes[i], route_nodes[i + 1]))
+            route_distance.append(self.get_distance_between_adjacent_nodes(route_nodes[i], route_nodes[i + 1]))
 
         return (route_nodes, route_edges, route_distance)
 
@@ -268,8 +268,8 @@ class Coordinator:
         node -- name of the node in topological map"""
         return topological_navigation.tmap_utils.get_node(self.topo_map, node)
 
-    def get_distance_between_nodes(self, from_node, to_node):
-        """get_distance_between_nodes: Given names of two nodes, return the distance of the edge
+    def get_distance_between_adjacent_nodes(self, from_node, to_node):
+        """get_distance_between_adjacent_nodes: Given names of two nodes, return the distance of the edge
         between their node objects. A wrapper for the get_distance_to_node function in tmap_utils.
         Works only for adjacent nodes.
 
