@@ -1,0 +1,36 @@
+<?xml version="1.0" ?>
+<launch>
+  <!-- launch file relay topics between a local ROS system and a remote remote server -->
+
+  <!-- the IP of the coordination_server rosbridge server -->
+  <arg name="rosbridge_ip" default="$(optenv ROSBRIDGE_IP localhost)" />
+
+  <!-- the port of the coordination_server rosbridge server -->
+  <arg name="rosbridge_port" default="$(optenv ROSBRIDGE_PORT 9090)" />
+
+  <group ns="des">
+    
+    <node pkg="rosduct" name="rosduct" type="rosduct_main.py" output="screen">
+      <rosparam subst_value="True">
+rosbridge_ip: $(arg rosbridge_ip)
+rosbridge_port: $(arg rosbridge_port)
+
+# Topics being published in the server to expose locally
+remote_topics: [
+                    ['/picker101/posestamped', 'geometry_msgs/PoseStamped', '/picker101/posestamped'],
+                    ['/picker102/posestamped', 'geometry_msgs/PoseStamped', '/picker102/posestamped'],
+                    ['/picker103/posestamped', 'geometry_msgs/PoseStamped', '/picker103/posestamped'],
+               ]
+# Topics being published in the local roscore to expose remotely
+local_topics: []
+# Services running in the server to expose locally
+remote_services: []
+# Services running locally to expose to the robot
+local_services: []
+# Parameters to be sync, they will be polled to stay in sync
+parameters: []
+#parameter_polling_hz: 1
+      </rosparam>
+    </node>
+  </group>
+</launch>

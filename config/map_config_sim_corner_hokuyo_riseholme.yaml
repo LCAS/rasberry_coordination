@@ -1,0 +1,5 @@
+base_station_nodes: [WayPoint56, WayPoint73]
+local_storage_node: WayPoint69
+charging_station_node: WayPoint72
+robot_ids: [thorvald_001, thorvald_002]
+unified: false
