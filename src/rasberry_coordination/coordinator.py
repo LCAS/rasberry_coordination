@@ -147,8 +147,9 @@ class Coordinator:
             elif req.task_id in self.processing_tasks:
                 # task is being processed
                 # cancel topo_nav and return status
-                robot_id = self.task_robot[req.task_id]
-                self.robots[robot_id].collect_tray.cancel_goal()
+                if req.task_id in self.task_robot:
+                    robot_id = self.task_robot[req.task_id]
+                    self.robots[robot_id].collect_tray.cancel_goal()
                 info_msg = "cancelling task-%d" %(req.task_id)
                 rospy.loginfo(info_msg)
                 cancelled = True
@@ -232,6 +233,8 @@ class Coordinator:
             if abs(sum(route_dists)) != float("inf"):
                 robot_dists[robot_id] = sum(route_dists)
 
+        if len(robot_dists) == 0 or min(robot_dists.values()) == float("inf"):
+            return None
         return self.closest_robot(robot_dists)[0][0]
 
     def get_path_details(self, start_node, goal_node):
@@ -251,8 +254,11 @@ class Coordinator:
         route_edges = route.edge_id
 
         edge_to_goal = self.get_edges_between_nodes(route_nodes[-1], goal_node)
-        route_edges.append(edge_to_goal[0])
-        route_nodes.append(goal_node)
+        if len(edge_to_goal) != 0:
+            route_edges.append(edge_to_goal[0])
+            route_nodes.append(goal_node)
+        else:
+            return ([], [], [float("inf")])
 
         for i in range(len(route_nodes) - 1):
             route_distance.append(self.get_distance_between_adjacent_nodes(route_nodes[i], route_nodes[i + 1]))
@@ -323,28 +329,29 @@ class Coordinator:
 
                         # find the closest robot
                         robot_id = self.find_closest_robot(task, idle_robots)
-                        rosinfomsg = "selected robot-%s to task %d" %(robot_id, task_id)
-                        rospy.loginfo(rosinfomsg)
+                        if robot_id is not None:
+                            rosinfomsg = "selected robot-%s to task %d" %(robot_id, task_id)
+                            rospy.loginfo(rosinfomsg)
 
-                        self.task_robot[task_id] = robot_id
+                            self.task_robot[task_id] = robot_id
 
-                        # call collecttray action -- action selection must be from the task details
-                        collect_tray_goal = rasberry_coordination.msg.CollectTrayGoal()
+                            # call collecttray action -- action selection must be from the task details
+                            collect_tray_goal = rasberry_coordination.msg.CollectTrayGoal()
 
-                        collect_tray_goal.task = task
-                        # hard coding duration now
-                        collect_tray_goal.min_load_duration.secs = 10.
-                        collect_tray_goal.max_load_duration.secs = 20.
-                        collect_tray_goal.min_unload_duration.secs = 10.
-                        collect_tray_goal.max_unload_duration.secs = 20.
-                        self.robots[robot_id].collect_tray.send_goal(collect_tray_goal, done_cb=self.done_cb, feedback_cb=self.feedback_cb)
+                            collect_tray_goal.task = task
+                            # hard coding duration now
+                            collect_tray_goal.min_load_duration.secs = 10.
+                            collect_tray_goal.max_load_duration.secs = 20.
+                            collect_tray_goal.min_unload_duration.secs = 10.
+                            collect_tray_goal.max_unload_duration.secs = 20.
+                            self.robots[robot_id].collect_tray.send_goal(collect_tray_goal, done_cb=self.done_cb, feedback_cb=self.feedback_cb)
 
-                        task_state = rasberry_coordination.msg.TaskUpdates()
-                        task_state.task_id = task_id
-                        task_state.robot_id = self.task_robot[task_id]
-                        task_state.state = "ACCEPT"
-                        self.picker_task_updates_pub.publish(task_state)
-                        rospy.sleep(0.01)
+                            task_state = rasberry_coordination.msg.TaskUpdates()
+                            task_state.task_id = task_id
+                            task_state.robot_id = self.task_robot[task_id]
+                            task_state.state = "ACCEPT"
+                            self.picker_task_updates_pub.publish(task_state)
+                            rospy.sleep(0.01)
 
                 except Queue.Empty:
                     # update idle robots
