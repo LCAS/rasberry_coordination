@@ -29,6 +29,8 @@ rosbridge_port: $(arg rosbridge_port)
 # Topics being published in the server to expose locally
 remote_topics: [
                     ['/topological_map', 'strands_navigation_msgs/TopologicalMap', '/topological_map', True],
+                    ['/available_topological_map', 'strands_navigation_msgs/TopologicalMap', '/available_topological_map', True],
+                    ['/unavailable_nodes', 'std_msgs/String', '/unavailable_nodes', True],
                ]
 # Topics being published in the local roscore to expose remotely
 local_topics: [
