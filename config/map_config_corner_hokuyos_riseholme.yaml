@@ -1,6 +1,4 @@
-base_station_nodes: [WayPoint56]
-#, WayPoint73]
+base_station_nodes: [WayPoint140, WayPoint141]
 local_storage_node: WayPoint69
 charging_station_node: WayPoint72
-robot_ids: [thorvald_008]
-#, thorvald_014]
+robot_ids: [thorvald_008, thorvald_014]
