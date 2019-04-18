@@ -36,6 +36,7 @@ remote_topics: [
 local_topics: [
                     ['/current_node', 'std_msgs/String', '/$(arg robot_name)/current_node', True],
                     ['/closest_node', 'std_msgs/String', '/$(arg robot_name)/closest_node', True],
+                    ['/topological_navigation/Route', 'strands_navigation_msgs/TopologicalRoute', '/$(arg robot_name)/topological_navigation/Route', False],
               ]
 # Services running in the server to expose locally
 remote_services: [
