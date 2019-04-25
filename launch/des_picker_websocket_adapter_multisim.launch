@@ -10,7 +10,7 @@
 
   <group ns="des">
     
-    <node pkg="rosduct" name="rosduct" type="rosduct_main.py" output="screen">
+    <node pkg="rosduct" name="rosduct" type="rosduct_main.py" output="screen" respawn="true">
       <rosparam subst_value="True">
 rosbridge_ip: $(arg rosbridge_ip)
 rosbridge_port: $(arg rosbridge_port)
