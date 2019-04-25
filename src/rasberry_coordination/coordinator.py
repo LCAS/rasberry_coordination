@@ -115,7 +115,7 @@ class Coordinator:
         self.last_id += 1
         task_id = self.last_id
         req.task.task_id = task_id
-        rospy.loginfo('received task: %s to %s' %(req.task.task_id, req.task.start_node_id))
+        rospy.loginfo('received task: %s to %s', req.task.task_id, req.task.start_node_id)
         self.tasks.put(
             (task_id, req.task)
         )
@@ -142,22 +142,21 @@ class Coordinator:
                   (req.task_id in self.cancelled_tasks) or
                   (req.task_id in self.to_be_cancelled)):
                 # cannot be here
-                raise("cancel_task_ros_srv cannot be in this condition")
+                raise Exception("cancel_task_ros_srv cannot be in this condition")
                 pass
             elif req.task_id in self.processing_tasks:
-                # task is being processed
+                # task is being processed. remove it
+                self.processing_tasks.pop(req.task_id)
                 # cancel topo_nav and return status
                 if req.task_id in self.task_robot:
                     robot_id = self.task_robot[req.task_id]
                     self.robots[robot_id].collect_tray.cancel_goal()
-                info_msg = "cancelling task-%d" %(req.task_id)
-                rospy.loginfo(info_msg)
+                rospy.loginfo("cancelling task-%d", req.task_id)
                 cancelled = True
             else:
                 # not yet processed, but will not be taken for processing
                 self.to_be_cancelled.append(req.task_id)
-                info_msg = "cancelling task-%d" %(req.task_id)
-                rospy.loginfo(info_msg)
+                rospy.loginfo("cancelling task-%d", req.task_id)
                 cancelled = True
         else:
             # invalid task_id
@@ -180,7 +179,7 @@ class Coordinator:
                     service.type,
                     service
                 )
-                rospy.loginfo('advertised %s' % attr[:-8])
+                rospy.loginfo('advertised %s', attr[:-8])
 
     def handle_task(self):
         """this is to be overwritten if used as a superclass
@@ -196,9 +195,6 @@ class Coordinator:
                 # if the robot is idle and its closest_node is not 'none' (topo_nav ready for that robot)
                 idle_robots.append(robot_id)
             else:
-#                rospy.loginfo(robot_id)
-#                rospy.loginfo(self.robots[robot_id].closest_node)
-#                rospy.loginfo(self.robots[robot_id].is_idle())
                 pass
         return idle_robots
 
@@ -247,8 +243,7 @@ class Coordinator:
         route_distance = []
         route = self.route_search.search_route(start_node, goal_node)
         if route is None:
-            rosinfomsg = "no route between %s and %s" %(start_node, goal_node)
-            rospy.loginfo(rosinfomsg)
+            rospy.loginfo("no route between %s and %s", start_node, goal_node)
             return ([], [], [float("inf")])
         route_nodes = route.source
         route_edges = route.edge_id
@@ -307,32 +302,32 @@ class Coordinator:
         """
         # get idle robots
         idle_robots = self.get_idle_robots()
-#        rospy.loginfo(idle_robots)
 
         while not rospy.is_shutdown():
+            rospy.sleep(0.01)
 #            rospy.loginfo(idle_robots)
-            if len(idle_robots) != 0:
-                if not self.tasks.empty():
-                    msg = "unassigned tasks present. no. idle robots: %d" %(len(idle_robots))
-                    rospy.loginfo(msg)
+            if len(idle_robots) != 0 and not self.tasks.empty():
+                rospy.loginfo("unassigned tasks present. no. idle robots: %d", len(idle_robots))
 
                 # try assigning a robot if there is an idle robot
                 try:
                     (task_id, task) = self.tasks.get(True, 1)
                     if task_id in self.to_be_cancelled:
                         self.cancelled_tasks[task_id] = task
-                        info_msg = "ignoring cancelled task-%d" %(task_id)
-                        rospy.loginfo(info_msg)
+                        rospy.loginfo("ignoring cancelled task-%d", task_id)
                     else:
-                        self.processing_tasks[task_id] = task
-                        rospy.loginfo('process task %d' % task_id)
-
+                        rospy.loginfo('process task %d', task_id)
                         # find the closest robot
                         robot_id = self.find_closest_robot(task, idle_robots)
-                        if robot_id is not None:
-                            rosinfomsg = "selected robot-%s to task %d" %(robot_id, task_id)
-                            rospy.loginfo(rosinfomsg)
+                        if robot_id is None:
+                            rospy.loginfo("No free robot for task %d. Putting task back in the queue", task_id)
+                            self.tasks.put(
+                                (task_id, task)
+                            )
+                        else:
+                            rospy.loginfo("selected robot-%s to task %d", robot_id, task_id)
 
+                            self.processing_tasks[task_id] = task
                             self.task_robot[task_id] = robot_id
 
                             # call collecttray action -- action selection must be from the task details
@@ -351,14 +346,12 @@ class Coordinator:
                             task_state.robot_id = self.task_robot[task_id]
                             task_state.state = "ACCEPT"
                             self.picker_task_updates_pub.publish(task_state)
-                            rospy.sleep(0.01)
 
                 except Queue.Empty:
-                    # update idle robots
-                    idle_robots = self.get_idle_robots()
-                    continue
+                    pass
 
             # update idle robots
+            rospy.sleep(0.01)
             idle_robots = self.get_idle_robots()
 
     def done_cb(self, status, result):
@@ -369,10 +362,8 @@ class Coordinator:
             task = self.processing_tasks.pop(result.task_id)
             self.completed_tasks[result.task_id] = task
         else:
-            # failed
-            self.task_robot.pop(result.task_id)
-            task = self.processing_tasks.pop(result.task_id)
-            self.cancelled_tasks[result.task_id] = task
+            # already updated based on feedback
+            pass
 
     def feedback_cb(self, fb):
         """feedback callback for collect_tray action
@@ -408,15 +399,36 @@ class Coordinator:
             rospy.sleep(0.01)
 
         elif ((fb.route == "failed to reach the picker") or
-              (fb.route == "failed to reach storage") or
-              (fb.route == "failed to load tray") or
-              (fb.route == "failed to unload tray")):
-            # TODO: fb saying failed. nothing to do at this stage
-            pass
+              (fb.route == "failed to load tray")):
+            # this task should be readded to the queue if not cancelled by the picker !!!
+            if fb.task_id in self.processing_tasks:
+                rospy.loginfo("Assigned robot failed to reach picker, adding the task back into the queue")
+                robot_id = self.task_robot.pop(fb.task_id) # remove from the assigned robot
+                task = self.processing_tasks.pop(fb.task_id) # remove from processing tasks
+
+                task_state = rasberry_coordination.msg.TaskUpdates()
+                task_state.task_id = fb.task_id
+                task_state.robot_id = robot_id
+                task_state.state = "CALLED"
+                self.picker_task_updates_pub.publish(task_state)
+
+                self.tasks.put(
+                    (fb.task_id, task)
+                )
+
+            rospy.sleep(0.01)
+
+        elif ((fb.route == "failed to reach the storage") or
+              (fb.route == "failed to unload tray") or
+              (fb.route == "failed to reach the base station")):
+            # trays are already collected, so there is no point in assigning another robot
+            # failed
+            self.task_robot.pop(fb.task_id)
+            task = self.processing_tasks.pop(fb.task_id)
+            self.cancelled_tasks[fb.task_id] = task
 
     def on_shutdown(self, ):
         print "shutting down all actions"
-        pass
         for robot_id in self.robot_ids:
             print robot_id, self.robots[robot_id].is_idle()
             if not self.robots[robot_id].is_idle():
