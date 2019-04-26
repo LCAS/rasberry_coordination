@@ -133,9 +133,11 @@ class PickerStateMonitor(object):
                             self.picker_task[picker_id] = True
 
                     else:
-                        # this shouldn't happen as a task already exists
-                        msg = "Picker %s has a callarobot task being processed" %(picker_id)
-                        raise Exception(msg)
+                        # this may happen as multiple status messages with the same state for one picker
+                        # may be received if any other picker changed his state
+                        pass
+#                        msg = "Picker %s has a callarobot task being processed" %(picker_id)
+#                        raise Exception(msg)
 
                 elif picker_id in self.picker_ids and self.picker_states[picker_id] == "ARRIVED":
                     # this state is set from robot's feedback that it arrived at picker_node to coordinator
