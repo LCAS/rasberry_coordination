@@ -69,8 +69,8 @@ class Robot(object):
         self._cancelled = False
         self._preempted = False
 
-        self.is_idle = lambda: True if self.mode==0 else False
-        self.get_state = lambda: self.mode
+#        self.is_idle = lambda: True if self.mode==0 else False
+#        self.get_state = lambda: self.mode
 
         # topological navigation action client
         # TODO: at the moment the topological navigation stack does n't respect name spacing and work with base ros_names
@@ -92,6 +92,14 @@ class Robot(object):
         self._fb_msg = rasberry_coordination.msg.CollectTrayFeedback()
 
         self.task = None
+
+    def is_idle(self, ):
+        """return True/False depending on mode==0 or not
+        """
+        rospy.sleep(0.01)
+        if self.mode == 0:
+            return True
+        return False
 
     def get_state(self, ):
         """return the state of the robot, goal_node if any and the time at which
