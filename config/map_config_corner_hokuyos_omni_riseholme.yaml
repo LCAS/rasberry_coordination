@@ -1,4 +1,1 @@
-base_station_nodes: [WayPoint140, WayPoint141]
-local_storage_node: WayPoint69
-charging_station_node: WayPoint72
-robot_ids: [thorvald_008, thorvald_014]
+map_config_riseholme.yaml
