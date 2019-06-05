@@ -326,7 +326,7 @@ class Coordinator:
                         # find the closest robot
                         robot_id = self.find_closest_robot(task, idle_robots)
                         if robot_id is None:
-                            rospy.loginfo("No free robot for task %d. Putting task back in the queue", task_id)
+                            #rospy.loginfo("No free robot for task %d. Putting task back in the queue", task_id)
                             self.tasks.put(
                                 (task_id, task)
                             )
