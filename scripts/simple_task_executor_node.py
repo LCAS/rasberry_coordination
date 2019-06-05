@@ -21,7 +21,7 @@ if __name__ == '__main__':
         config_keys = rasberry_des.config_utils.get_config_keys(config_file)
 
         # check for required parameters
-        req_params = ["base_station_nodes", "local_storage_node", "charging_station_node", "robot_ids"]
+        req_params = ["base_station_nodes", "local_storage_node", "charging_station_node", "robot_ids", "max_task_priorities"]
 
         for key in config_keys:
             if key in req_params:
@@ -38,18 +38,31 @@ if __name__ == '__main__':
         local_storage = config_data["local_storage_node"] # list of local storage nodes
         charging_node = config_data["charging_station_node"]
         robot_ids = config_data["robot_ids"]
+        _max_task_priorities = config_data["max_task_priorities"]
+        virtual_pickers = []
+        if "virtual_pickers" in config_data:
+            virtual_pickers = config_data["virtual_pickers"]
         if "unified" in config_keys:
             unified = config_data["unified"]
         else:
             unified = False
 
         if _base_stations.__class__ == str:
+            if len(robot_ids) > 1:
+                raise Exception("Not enough base stations (1) for %d robots!!!" %(len(robot_ids)))
             base_stations = {robot_id:_base_stations for robot_id in robot_ids}
         elif _base_stations.__class__ == list:
-            if len(_base_stations) == 1:
-                base_stations = {robot_id:_base_stations[0] for robot_id in robot_ids}
-            elif len(_base_stations) == len(robot_ids):
-                base_stations = {robot_ids[i]:_base_stations[i] for i in range(len(robot_ids))}
+            if len(_base_stations) != len(robot_ids):
+                raise Exception("Not enough base stations (%d) for %d robots!!!" %(len(_base_stations), len(robot_ids)))
+            base_stations = {robot_ids[i]:_base_stations[i] for i in range(len(robot_ids))}
+
+        if _max_task_priorities.__class__ == list:
+            if len(_max_task_priorities) != len(robot_ids):
+                raise Exception("Not enough min task priorities defined (%d) for %d robots!!!" %(len(_max_task_priorities), len(robot_ids)))
+            max_task_priorities = {robot_ids[i]:_max_task_priorities[i] for i in range(len(robot_ids))}
+        elif _max_task_priorities.__class__ == int:
+            max_task_priorities = {robot_ids[i]:_max_task_priorities for i in range(len(robot_ids))}
+
 
         rospy.init_node('simple_task_coordinator', anonymous=False)
 
@@ -57,13 +70,15 @@ if __name__ == '__main__':
         coordinator = rasberry_coordination.coordinator.Coordinator(local_storage=local_storage,
                                                           charging_node=charging_node,
                                                           base_stations=base_stations,
+                                                          picker_ids=[],
                                                           robot_ids=robot_ids,
+                                                          max_task_priorities=max_task_priorities,
                                                           unified=unified)
         rospy.on_shutdown(coordinator.on_shutdown)
         rospy.sleep(1) # give a second to let everything settle
 
         # picker_monitor after coordinator
-        picker_monitor = rasberry_coordination.picker_state_monitor.PickerStateMonitor(unified)
+        picker_monitor = rasberry_coordination.picker_state_monitor.PickerStateMonitor(virtual_pickers, unified)
 
         coordinator.run()
 

@@ -23,7 +23,7 @@ import rasberry_coordination.srv
 class Coordinator:
     """
     """
-    def __init__(self, local_storage, charging_node, base_stations, picker_ids=[], robot_ids=[], unified=False):
+    def __init__(self, local_storage, charging_node, base_stations, picker_ids, robot_ids, max_task_priorities, unified=False):
         """
         """
         self.ns = "/rasberry_coordination/"
@@ -38,6 +38,8 @@ class Coordinator:
         else:
             self.robot_ids = robot_ids
             self.robots = {robot_id:rasberry_coordination.robot.Robot(robot_id, local_storage, charging_node, base_stations[robot_id], unified) for robot_id in self.robot_ids}
+
+        self.max_task_priorities = max_task_priorities
 
         self.advertise_services()
         # don't queue more than 1000 tasks
@@ -218,6 +220,10 @@ class Coordinator:
         goal_node = task.start_node_id
         robot_dists = {}
         for robot_id in idle_robots:
+            # ignore if the task priority is less than the min task priority for the robot
+            if task.priority > self.max_task_priorities[robot_id]:
+                continue
+
             start_node = self.robots[robot_id].closest_node
             if start_node =="none" or goal_node == "none" or start_node is None or goal_node is None:
                 route_dists = [float("inf")]

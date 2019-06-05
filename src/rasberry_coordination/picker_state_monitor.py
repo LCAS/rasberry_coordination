@@ -17,13 +17,15 @@ import rasberry_coordination.msg
 class PickerStateMonitor(object):
     """A class to monitor all pickers' state changes
     """
-    def __init__(self, unified=False):
+    def __init__(self, virtual_pickers, unified=False):
         self.unified = unified
         self.n_pickers = 0
         self.picker_ids = []
         self.picker_states = {}
         self.picker_prev_states = {}
         self.picker_posestamped = {}
+
+        self.virtual_pickers = virtual_pickers
 
         self.picker_posestamped_subs = {}
         self.collect_trays = {}
@@ -126,6 +128,10 @@ class PickerStateMonitor(object):
                             task = strands_executive_msgs.msg.Task()
                             task.action = "CollectTray"
                             task.start_node_id = self.picker_closest_nodes[picker_id] # this is the picker_node
+                            if picker_id in self.virtual_pickers:
+                                task.priority = 0
+                            else:
+                                task.priority = 1
 
                             add_task_resp = self.add_task_client(task)
                             self.task_picker[add_task_resp.task_id] = picker_id
