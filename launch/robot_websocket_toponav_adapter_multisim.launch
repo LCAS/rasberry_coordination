@@ -19,6 +19,14 @@
     <arg name="action_type" value="topological_navigation/GotoNodeAction" />
   </include>
 
+  <!-- expose local execute policy mode action -->
+  <include 
+      file="$(find rasberry_coordination)/launch/robot_websocket_action_adapter_multisim.launch"
+      pass_all_args="true">
+    <arg name="action" value="/topological_navigation/execute_policy_mode" />
+    <arg name="action_type" value="strands_navigation_msgs/ExecutePolicyMode" />
+  </include>
+
   <group ns="$(arg robot_name)/topological_navigation_adapter">
 
     <node pkg="rosduct" name="rosduct" type="rosduct_main.py" output="screen" respawn="true">
