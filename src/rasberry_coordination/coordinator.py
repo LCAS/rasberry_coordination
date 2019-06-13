@@ -8,7 +8,6 @@
 import operator
 import Queue
 import copy
-import numpy
 
 import rospy
 
@@ -77,6 +76,8 @@ class Coordinator:
                                                               std_msgs.msg.String,
                                                               self.closest_node_cb,
                                                               callback_args=agent_name) for agent_name in self.presence_agents}
+
+        self.max_task_priorities = max_task_priorities
 
         self.advertise_services()
         # don't queue more than 1000 tasks

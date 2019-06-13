@@ -2,3 +2,5 @@ base_station_nodes: [WayPoint140, WayPoint141]
 local_storage_node: WayPoint69
 charging_station_node: WayPoint72
 robot_ids: [thorvald_001, thorvald_002]
+max_task_priorities: [0, 255]
+virtual_pickers: ["picker101", "picker102", "picker103"]

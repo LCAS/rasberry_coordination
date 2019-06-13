@@ -56,15 +56,16 @@ if __name__ == '__main__':
                 raise Exception("Not enough min task priorities defined (%d) for %d robots!!!" %(len(_max_task_priorities), len(robot_ids)))
             max_task_priorities = {robot_ids[i]:_max_task_priorities[i] for i in range(len(robot_ids))}
 
-
         rospy.init_node('simple_task_coordinator', anonymous=False)
 
         # initialise the coordinator and internally all robots
         coordinator = rasberry_coordination.coordinator.Coordinator(local_storage=local_storage,
                                                           charging_node=charging_node,
                                                           base_stations=base_stations,
+                                                          picker_ids=[],
                                                           robot_ids=robot_ids,
                                                           max_task_priorities=max_task_priorities)
+
         rospy.on_shutdown(coordinator.on_shutdown)
         rospy.sleep(1) # give a second to let everything settle
 
