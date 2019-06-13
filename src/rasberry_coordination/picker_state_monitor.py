@@ -12,18 +12,22 @@ import std_msgs.msg
 import std_srvs.srv
 import strands_executive_msgs.msg
 import rasberry_coordination.msg
+import rasberry_coordination.srv
 
 
 class PickerStateMonitor(object):
     """A class to monitor all pickers' state changes
     """
-    def __init__(self, unified=False):
-        self.unified = unified
+    def __init__(self, virtual_pickers):
+        """
+        """
         self.n_pickers = 0
         self.picker_ids = []
         self.picker_states = {}
         self.picker_prev_states = {}
         self.picker_posestamped = {}
+
+        self.virtual_pickers = virtual_pickers
 
         self.picker_posestamped_subs = {}
         self.collect_trays = {}
@@ -126,6 +130,10 @@ class PickerStateMonitor(object):
                             task = strands_executive_msgs.msg.Task()
                             task.action = "CollectTray"
                             task.start_node_id = self.picker_closest_nodes[picker_id] # this is the picker_node
+                            if picker_id in self.virtual_pickers:
+                                task.priority = 0
+                            else:
+                                task.priority = 1
 
                             add_task_resp = self.add_task_client(task)
                             self.task_picker[add_task_resp.task_id] = picker_id
@@ -154,13 +162,15 @@ class PickerStateMonitor(object):
                         pass
                     else:
                         robot_id = self.task_robot[task_id]
-                        if robot_id not in self.tray_loaded:
-                            if self.unified:
-                                # there willbe only one robot
-                                self.tray_loaded[robot_id] = rospy.ServiceProxy("/tray_loaded", std_srvs.srv.Trigger)
-                            else:
-                                self.tray_loaded[robot_id] = rospy.ServiceProxy("/%s/tray_loaded" %(robot_id), std_srvs.srv.Trigger)
-                        self.tray_loaded[robot_id]()
+                        if picker_id not in self.tray_loaded:
+                            self.tray_loaded[picker_id] = rospy.ServiceProxy("/rasberry_coordination/tray_loaded",
+                                                                             rasberry_coordination.srv.TrayLoaded)
+                        req = rasberry_coordination.srv.TrayLoadedRequest()
+                        req.picker_id = picker_id
+                        req.robot_id = robot_id
+                        req.task_id = task_id
+                        self.tray_loaded[picker_id](req)
+
                         # remove task_id from task_picker
                         self.task_state[task_id] = "LOADED" # this needs to be set here to avoid problems with task_updates_cb
                         self.task_picker.pop(task_id)
@@ -253,12 +263,7 @@ class PickerStateMonitor(object):
             self.task_state[msg.task_id] = "ACCEPT"
             picker_id = self.task_picker[msg.task_id]
             self.task_robot[msg.task_id] = msg.robot_id
-            if msg.robot_id not in self.tray_loaded:
-                if self.unified:
-                    # there will be only one robot
-                    self.tray_loaded[msg.robot_id] = rospy.ServiceProxy("/tray_loaded", std_srvs.srv.Trigger)
-                else:
-                    self.tray_loaded[msg.robot_id] = rospy.ServiceProxy("/%s/tray_loaded" %(msg.robot_id), std_srvs.srv.Trigger)
+            self.tray_loaded[msg.picker_id] = rospy.ServiceProxy("/rasberry_coordination/tray_loaded", rasberry_coordination.srv.TrayLoaded)
 
             self.picker_prev_states[picker_id] = self.picker_states[picker_id]
             self.set_picker_state(picker_id, "ACCEPT")
