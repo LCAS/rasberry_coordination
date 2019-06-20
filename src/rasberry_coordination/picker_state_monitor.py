@@ -129,7 +129,12 @@ class PickerStateMonitor(object):
                         else:
                             task = strands_executive_msgs.msg.Task()
                             task.action = "CollectTray"
-                            task.start_node_id = self.picker_closest_nodes[picker_id] # this is the picker_node
+                            # task_start_node is the picker_node
+                            if self.picker_closest_nodes[picker_id] != "none":
+                                task.start_node_id = self.picker_current_nodes[picker_id]
+                            else:
+                                task.start_node_id = self.picker_closest_nodes[picker_id]
+
                             if picker_id in self.virtual_pickers:
                                 task.priority = 0
                             else:
@@ -217,7 +222,11 @@ class PickerStateMonitor(object):
                         else:
                             task = strands_executive_msgs.msg.Task()
                             task.action = "CollectTray"
-                            task.start_node_id = self.picker_closest_nodes[picker_id] # this is the picker_node
+                            # task_start_node is the picker_node
+                            if self.picker_closest_nodes[picker_id] != "none":
+                                task.start_node_id = self.picker_current_nodes[picker_id]
+                            else:
+                                task.start_node_id = self.picker_closest_nodes[picker_id]
 
                             add_task_resp = self.add_task_client(task)
                             self.task_picker[add_task_resp.task_id] = picker_id
@@ -263,7 +272,7 @@ class PickerStateMonitor(object):
             self.task_state[msg.task_id] = "ACCEPT"
             picker_id = self.task_picker[msg.task_id]
             self.task_robot[msg.task_id] = msg.robot_id
-            self.tray_loaded[msg.picker_id] = rospy.ServiceProxy("/rasberry_coordination/tray_loaded", rasberry_coordination.srv.TrayLoaded)
+            self.tray_loaded[picker_id] = rospy.ServiceProxy("/rasberry_coordination/tray_loaded", rasberry_coordination.srv.TrayLoaded)
 
             self.picker_prev_states[picker_id] = self.picker_states[picker_id]
             self.set_picker_state(picker_id, "ACCEPT")

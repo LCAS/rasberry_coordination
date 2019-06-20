@@ -14,24 +14,6 @@ import topological_navigation.route_search
 
 import strands_navigation_msgs.msg
 
-#from strands_navigation_msgs.msg import ExecutePolicyModeAction, ExecutePolicyModeGoal
-
-# Has to be done here because the policy execution server waits for a topo map.
-#        self.client = actionlib.SimpleActionClient("topological_navigation/execute_policy_mode", strands_navigation_msgs.msg.ExecutePolicyModeAction)
-#        self.client.wait_for_server()
-#rospy.loginfo(" ... started")
-#
-#s = rospy.ServiceProxy("get_simple_policy/get_route_to", GetRouteTo)
-#        s.wait_for_service()
-#self._policy = s(self._robot_goal_node)
-#
-#s = rospy.ServiceProxy("get_simple_policy/get_route_to", GetRouteTo)
-#            s.wait_for_service()
-#            policy = s(self._robot_start_node)
-#self.client.send_goal(ExecutePolicyModeGoal(route=policy.route))
-#self.client.wait_for_result(timeout=rospy.Duration(self._timeout))
-#            res = self.client.get_state() == actionlib_msgs.msg.GoalStatus.SUCCEEDED
-#self.client.cancel_all_goals()
 
 class Robot(object):
     """Robot class to wrap all ros interfaces to the physical/simulated robot
@@ -89,10 +71,18 @@ class Robot(object):
         self.toponav_status = status
         self.toponav_result = result
 
+    def cancel_toponav_goal(self, ):
+        """
+        """
+        self._topo_nav.cancel_all_goals()
+        self.toponav_result = None
+        self.toponav_route = None
+        self.toponav_status = None
+
     def set_execpolicy_goal(self, goal, done_cb=None, active_cb=None, feedback_cb=None):
         """send_goal to execute_policy_mode action client
         """
-        rospy.loginfo("robot-%s has an edge_policy goal", goal)
+        rospy.loginfo("robot-%s has an edge_policy goal", self.robot_id)
         if done_cb is None:
             done_cb = self._done_execpolicy_cb
         if feedback_cb is None:
@@ -115,3 +105,11 @@ class Robot(object):
         """
         self.execpolicy_status = status
         self.execpolicy_result = result
+
+    def cancel_execpolicy_goal(self, ):
+        """
+        """
+        self._exec_policy.cancel_all_goals()
+        self.execpolicy_current_wp = None
+        self.execpolicy_result = None
+        self.execpolicy_status = None

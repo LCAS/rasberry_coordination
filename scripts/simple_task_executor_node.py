@@ -51,7 +51,8 @@ if __name__ == '__main__':
             if len(_base_stations) != len(robot_ids):
                 raise Exception("Not enough base stations (%d) for %d robots!!!" %(len(_base_stations), len(robot_ids)))
             base_stations = {robot_ids[i]:_base_stations[i] for i in range(len(robot_ids))}
-        elif _max_task_priorities.__class__ == list:
+
+        if _max_task_priorities.__class__ == list:
             if len(_max_task_priorities) != len(robot_ids):
                 raise Exception("Not enough min task priorities defined (%d) for %d robots!!!" %(len(_max_task_priorities), len(robot_ids)))
             max_task_priorities = {robot_ids[i]:_max_task_priorities[i] for i in range(len(robot_ids))}
@@ -62,7 +63,6 @@ if __name__ == '__main__':
         coordinator = rasberry_coordination.coordinator.Coordinator(local_storage=local_storage,
                                                           charging_node=charging_node,
                                                           base_stations=base_stations,
-                                                          picker_ids=[],
                                                           robot_ids=robot_ids,
                                                           max_task_priorities=max_task_priorities)
 
