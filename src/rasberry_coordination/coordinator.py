@@ -68,7 +68,7 @@ class Coordinator:
         self.rec_topo_map = False
         rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self.map_cb)
         rospy.loginfo("Waiting for Topological map ...")
-        while not self.rec_map:
+        while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
         rospy.loginfo("Received for Topological map ...")
         self.available_topo_map = copy.deepcopy(self.topo_map)
@@ -186,13 +186,11 @@ class Coordinator:
                 # task is being processed. remove it
                 task = self.processing_tasks.pop(req.task_id)
                 self.cancelled_tasks[req.task_id] = task
-                # cancel topo_nav and return status
+                # cancel goal of assigned robot and return it to its base
                 if req.task_id in self.task_robot:
                     robot_id = self.task_robot[req.task_id]
-                    self.robots[robot_id].cancel_execpolicy_goal()
-#                    self.send_robot_to_base(robot_id)
-                    # TODO: sending the robot to base also needs planning
-#                    self.task_stages[robot_id] = "go_to_base"
+                    self.robots[robot_id].set_dummy_execpolicy_goal()
+                    self.send_robot_to_base(robot_id)
                 rospy.loginfo("cancelling task-%d", req.task_id)
                 cancelled = True
             else:
@@ -265,6 +263,7 @@ class Coordinator:
     def send_robot_to_base(self, robot_id):
         """
         """
+        rospy.loginfo("sending %s to its base", robot_id)
         curr_node = None
         if self.current_nodes[robot_id] != "none":
             curr_node = self.current_nodes[robot_id]
@@ -332,6 +331,7 @@ class Coordinator:
         """get route_nodes, route_edges and route_distance from start_node to goal_node
 
         Keyword arguments:
+
         start_node -- name of the starting node
         goal_node -- name of the goal node
         """
@@ -393,7 +393,9 @@ class Coordinator:
         return edge_ids
 
     def assign_tasks(self, ):
-        """
+        """assign task to idle robots
+        high priority tasks are assigned first
+        among equal priority tasks, low task_id is assigned first
         """
         trigger_replan = False
         # get all tasks from queue
@@ -455,7 +457,7 @@ class Coordinator:
         return trigger_replan
 
     def finish_route_fragment(self, robot_id):
-        """
+        """finish fragment of a route in a task stage
         """
         self.moving_robots.remove(robot_id)
         self.routes.pop(robot_id)
@@ -463,26 +465,27 @@ class Coordinator:
         self.robots[robot_id].execpolicy_result = None
 
     def finish_task_stage(self, robot_id, curr_stage=None):
+        """finish a stage of the collect tray
         """
-        """
-        assert curr_stage in ["go_to_picker", "go_to_storage", "go_to_base"]
-        next_stage = {"go_to_picker":"wait_loading", "go_to_storage":"wait_unloading", "go_to_base":None}
+        next_stage = {"go_to_picker":"wait_loading", "wait_loading":"go_to_storage", "go_to_storage":"wait_unloading", "wait_unloading":"go_to_base", "go_to_base":None}
+        if curr_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
+            self.finish_route_fragment(robot_id)
+
         self.task_stages[robot_id] = next_stage[curr_stage]
-        self.finish_route_fragment(robot_id)
         self.start_time[robot_id] = rospy.get_rostime()
 
     def finish_task(self, robot_id):
+        """set the task assigned to the robot as finished whenever trays are unloaded
         """
-        """
-        self.finish_task_stage(robot_id, "go_to_base")
+        self.finish_task_stage(robot_id, "wait_unloading")
         # move task from processing to completed
-        self.task_stages[robot_id] = None
+        self.task_stages[robot_id] = "go_to_base"
         task_id = self.robot_task_id[robot_id]
         self.robot_task_id[robot_id] = None
         self.completed_tasks[task_id] = self.processing_tasks.pop(task_id)
-        # move robot from active to idle
-        self.active_robots.remove(robot_id)
-        self.idle_robots.append(robot_id)
+        # move robot from moving robots
+        if robot_id in self.moving_robots:
+            self.moving_robots.remove(robot_id)
 
     def set_task_failed(self, task_id):
         """set task state as failed
@@ -492,7 +495,7 @@ class Coordinator:
         self.failed_tasks[task_id] = task
 
     def publish_task_state(self, task_id, robot_id, state):
-        """
+        """publish the state of task (or picker) in CAR
         """
         self.task_state_msg.task_id = task_id
         self.task_state_msg.robot_id = robot_id
@@ -500,14 +503,14 @@ class Coordinator:
         self.picker_task_updates_pub.publish(self.task_state_msg)
         rospy.sleep(0.01)
 
-    def readd_task(self, robot_id):
+    def readd_task(self, task_id):
+        """if robot assigned to a task fails before reaching the picker, the task can be
+        reassigned. so readd into the task queue.
         """
-        """
+        robot_id = self.task_robot[task_id]
         # this task should be readded to the queue if not cancelled by the picker !!!
-        task_id = self.robot_task_id[robot_id]
         if task_id in self.processing_tasks:
             rospy.loginfo("Assigned robot failed to reach picker, adding the task back into the queue")
-            self.robot_task_id.pop(robot_id) # remove from assigned task
             self.task_robot.pop(task_id) # remove from the assigned robot
             task = self.processing_tasks.pop(task_id) # remove from processing tasks
 
@@ -520,8 +523,7 @@ class Coordinator:
         rospy.sleep(0.01)
 
     def handle_tasks(self):
-        """
-
+        """update task execution progress for all robots
         """
         # trigger replan if there is a new task assignment, a robot waiting completed
         # or task update from a robot
@@ -570,26 +572,31 @@ class Coordinator:
 
                         elif self.task_stages[robot_id] == "go_to_base":
                             # task is finished
-                            self.finish_task(robot_id)
+                            self.finish_task_stage(robot_id, "go_to_base")
+                            if robot_id in self.robot_task_id:
+                                self.robot_task_id.pop(robot_id)
+                            self.task_stages[robot_id] = None
+                            # move robot from active to idle
+                            self.active_robots.remove(robot_id)
+                            self.idle_robots.append(robot_id)
 
                     else:
                         # finished only a fragment. may have to wait for clearance
                         self.finish_route_fragment(robot_id)
+                        self.robot_task_id[robot_id] = None
                 else:
-                    # TODO: failed execution. robot will be stranded
+                    # robot failed execution
                     rospy.loginfo("%s failed to complete task %s at stage %s!!!" , robot_id, task_id, self.task_stages[robot_id])
-                    self.robots[robot_id].cancel_execpolicy_goal()
-                    if task_id not in self.cancelled_tasks:
-                        self.set_task_failed(task_id)
-#                    if self.task_stages[robot_id] == "go_to_picker":
-#                        pass
-#                        # TODO: enable readd task
-#                        # to enable readding, sending robot to base other than as part of a task stage needs to be implemented
-##                        # readd task
-##                        self.readd_task(robot_id)
-##                        # send robot to base
-#                    else:
-#                        pass
+                    self.robots[robot_id].set_dummy_execpolicy_goal()
+                    if self.task_stages[robot_id] == "go_to_picker":
+                        # task is good enough to be assigned to another robot
+                        self.readd_task(task_id)
+                        self.send_robot_to_base(robot_id)
+                    else:
+                        # set the task as failed as it cannot be readded at this stage
+                        if task_id not in self.cancelled_tasks:
+                            self.set_task_failed(task_id)
+
             else:
                 # wait_loading or wait_unloading
                 if self.task_stages[robot_id] == "wait_loading":
@@ -611,9 +618,7 @@ class Coordinator:
 
                     if finish_waiting:
                         self.publish_task_state(task_id, robot_id, "LOADED")
-
-                        self.task_stages[robot_id] = "go_to_storage"
-                        self.start_time[robot_id] = rospy.get_rostime()
+                        self.finish_task_stage(robot_id, "wait_loading")
                         trigger_replan = True
 
                 elif self.task_stages[robot_id] == "wait_unloading":
@@ -622,9 +627,7 @@ class Coordinator:
                     if rospy.get_rostime() - self.start_time[robot_id] > self.max_unload_duration:
                         # delay
                         self.publish_task_state(task_id, robot_id, "DELIVERED")
-
-                        self.task_stages[robot_id] = "go_to_base"
-                        self.start_time[robot_id] = rospy.get_rostime()
+                        self.finish_task(robot_id)
                         trigger_replan = True
                     else:
                         rospy.sleep(0.5)
@@ -641,12 +644,10 @@ class Coordinator:
         return trigger_replan
 
     def critical_points(self, ):
-        """
+        """find points where agent paths cross
         """
         critical_points = {}
         for agent_id in self.presence_agents:
-#            if agent_id in self.robot_ids and self.task_stages[agent_id] in ["wait_loading", "wait_unloading"]:
-#                continue
             r_outer = self.routes[agent_id]
             critical_points[str(r_outer)] = set([])
             for r_inner in self.routes[agent_id]:
@@ -657,14 +658,11 @@ class Coordinator:
         return critical_points
 
     def split_critical_paths(self, ):
-        """
+        """split robot paths at critical points
         """
         cp = self.critical_points()
         res_routes = {}
         for agent_id in self.presence_agents:
-#            if agent_id in self.robot_ids and self.task_stages[agent_id] in ["wait_loading", "wait_unloading"]:
-#                continue
-
             r = self.routes[agent_id]
             rr = []
             partial_route = []
@@ -689,8 +687,6 @@ class Coordinator:
                 # remove goal node from last fragment
                 # if start and goal nodes are different, there will be at least one node remaining and an edge
                 self.route_fragments[robot_id][-1].pop(-1)
-#                print ">>>", self.route_edges
-#                print "<<<", self.route_fragments
                 # move the last node of all fragments to the start of next fragment
                 for i in range(len(self.route_fragments[robot_id]) - 1):
                     self.route_fragments[robot_id][i+1].insert(0, self.route_fragments[robot_id][i][-1])
@@ -721,14 +717,15 @@ class Coordinator:
             self.robots[robot_id].set_execpolicy_goal(goal)
             if goal.route.edge_id and robot_id not in self.moving_robots:
                 self.moving_robots.append(robot_id)
-            print robot_id
-            print goal
+#            print robot_id
+#            print goal
 
             # will this be blocked here???
             # after sending goal to one robot, will the execution wait here because of send goal and wait ?
 
     def replan(self, ):
-        """
+        """replan - find indiviual paths, find critical points in these paths, and fragment the
+        paths at critical points - whenever triggered
         """
         for robot_id in self.robot_ids:
             if robot_id in self.active_robots:
@@ -841,6 +838,8 @@ class Coordinator:
                 pass
 
     def on_shutdown(self, ):
+        """on shutdown cancel all goals
+        """
         print "shutting down all actions"
         for robot_id in self.robot_ids:
             if robot_id in self.active_robots:

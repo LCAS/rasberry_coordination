@@ -113,3 +113,10 @@ class Robot(object):
         self.execpolicy_current_wp = None
         self.execpolicy_result = None
         self.execpolicy_status = None
+
+    def set_dummy_execpolicy_goal(self, ):
+        """for intermediate cancellation, sending another empty goal to preempt
+        current goal
+        """
+        goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
+        self.set_execpolicy_goal(goal)
