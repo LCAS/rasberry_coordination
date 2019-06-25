@@ -83,6 +83,7 @@ class Robot(object):
         """send_goal to execute_policy_mode action client
         """
         rospy.loginfo("robot-%s has an edge_policy goal", self.robot_id)
+        rospy.loginfo(goal)
         if done_cb is None:
             done_cb = self._done_execpolicy_cb
         if feedback_cb is None:
