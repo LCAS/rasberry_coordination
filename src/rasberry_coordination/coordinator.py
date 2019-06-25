@@ -222,13 +222,17 @@ class Coordinator:
                 rospy.loginfo('advertised %s', attr[:-8])
 
     def update_available_topo_map(self, ):
-        """This function updates the available_topological_map
+        """This function updates the available_topological_map, which is topological_map
+        without the edges going into the nodes occupied by the agents. When current node
+        of an agent is none, the closest node of the agent is taken.
         """
         topo_map = copy.deepcopy(self.topo_map)
         agent_nodes = []
         for agent_id in self.presence_agents:
             if self.current_nodes[agent_id] != "none":
                 agent_nodes.append(self.current_nodes[agent_id])
+            elif self.closest_nodes[agent_id] != "none":
+                agent_nodes.append(self.closest_nodes[agent_id])
 
         for node in topo_map.nodes:
             to_pop=[]
