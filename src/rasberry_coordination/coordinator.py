@@ -75,7 +75,7 @@ class Coordinator:
 
         self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
 
-        self.presence_agents = rospy.get_param("topological_map_manager/presence_agents", [])
+        self.presence_agents = rospy.get_param("rasberry_coordination/presence_agents", [])
         self.current_nodes = {agent_name:"none" for agent_name in self.presence_agents}
         self.prev_current_nodes = {agent_name:"none" for agent_name in self.presence_agents}
         self.closest_nodes = {agent_name:"none" for agent_name in self.presence_agents}
@@ -172,8 +172,8 @@ class Coordinator:
         #    the CAR interface to cancel task won't be available after that.
         #    the topo_nav goal to the robot has to be cancelled
         #    the robot will have to be sent to the base after the cancellation
-        # 2. task is still queued
-        #    pop the task from the queue
+        # 2. task is still queued or is in processed (if allocated)
+        #    pop the task from the queue and add to cancelled
 
         if req.task_id in self.all_task_ids:
             if ((req.task_id in self.completed_tasks) or
@@ -656,7 +656,6 @@ class Coordinator:
                     continue
                 r_inner = self.routes[robot_id]
                 if r_outer is not r_inner:
-#                    print(set(r_outer).intersection(set(r_inner)))
                     critical_points[str(r_outer)] = critical_points[str(r_outer)].union(set(r_outer).intersection(set(r_inner)))
 
         return critical_points
@@ -686,7 +685,6 @@ class Coordinator:
                     # allow critical point once for a robot among all agents
                     if (agent_id in self.robot_ids and
                         v not in allowed_cps):
-                        print ">>>>>>"
                         partial_route.append(v)
                         allowed_cps.append(v)
 #                        # TODO: fragment after the critical point for the let other robot replan soon
@@ -722,8 +720,6 @@ class Coordinator:
                 # split the edges
                 res_edges[robot_id] = []
                 for i in range(len(self.route_fragments[robot_id])):
-#                    idx = 0 if i==0 else len(self.route_fragments[robot_id][i-1])
-#                    res_edges[robot_id].append(self.route_edges[robot_id][idx:len(self.route_fragments[robot_id][i])])
                     res_edges[robot_id].append(self.route_edges[robot_id][:len(self.route_fragments[robot_id][i])])
                     self.route_edges[robot_id] = self.route_edges[robot_id][len(self.route_fragments[robot_id][i]):]
             else:
@@ -875,10 +871,6 @@ class Coordinator:
                 self.replan()
                 # assign first fragment of each robot
                 self.set_execute_policy_routes()
-
-                # TODO: if the robot was moving and now there are no goals (route fragment):
-                # send current node as the goal ?
-                pass
 
     def on_shutdown(self, ):
         """on shutdown cancel all goals
