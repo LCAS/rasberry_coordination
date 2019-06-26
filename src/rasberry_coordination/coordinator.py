@@ -490,7 +490,8 @@ class Coordinator:
     def set_task_failed(self, task_id):
         """set task state as failed
         """
-        self.task_robot_id.pop(task_id)
+        robot_id = self.task_robot_id.pop(task_id)
+        self.robots[robot_id].set_dummy_execpolicy_goal()
         task = self.processing_tasks.pop(task_id)
         self.failed_tasks[task_id] = task
 
@@ -594,8 +595,9 @@ class Coordinator:
                         self.send_robot_to_base(robot_id)
                     else:
                         # set the task as failed as it cannot be readded at this stage
-                        if task_id not in self.cancelled_tasks:
+                        if task_id not in self.cancelled_tasks or task_id not in self.failed_tasks :
                             self.set_task_failed(task_id)
+                        self.send_robot_to_base(robot_id)
 
             else:
                 # wait_loading or wait_unloading
