@@ -593,6 +593,19 @@ class Coordinator:
                         # task is good enough to be assigned to another robot
                         self.readd_task(task_id)
                         self.send_robot_to_base(robot_id)
+                    elif self.task_stages[robot_id] == "go_to_base":
+                        # robot failed exececute_policy_mode goal. there are two options.
+                        # 1. retry going to base
+#                        self.send_robot_to_base(robot_id)
+                        # 2. leave the robot out there with a request for help. (TODO)
+                        #    also it removes robot from active_robots and adds to idle_robots.
+                        #    so it can be considered for future tasks.
+                        self.robots[robot_id].set_dummy_execpolicy_goal()
+                        self.active_robots.remove(robot_id)
+                        if robot_id in self.moving_robots:
+                            self.moving_robots.remove(robot_id)
+                        self.idle_robots.append(robot_id)
+
                     else:
                         # set the task as failed as it cannot be readded at this stage
                         if task_id not in self.cancelled_tasks or task_id not in self.failed_tasks :
