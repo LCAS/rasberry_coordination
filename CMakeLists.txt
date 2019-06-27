@@ -9,7 +9,6 @@ project(rasberry_coordination)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   actionlib
-  actionlib_msgs
   geometry_msgs
   message_generation
   rasberry_des
@@ -90,12 +89,11 @@ add_service_files(
 #   Action1.action
 #   Action2.action
 # )
-add_action_files(
-  DIRECTORY
-    action
-  FILES
-    CollectTray.action
-)
+#add_action_files(
+#  DIRECTORY
+#    action
+#  FILES
+#)
 
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
@@ -104,7 +102,7 @@ add_action_files(
 # )
 
 generate_messages(
-  DEPENDENCIES std_msgs actionlib_msgs strands_executive_msgs
+  DEPENDENCIES std_msgs strands_executive_msgs
 )
 
 ################################################
@@ -139,7 +137,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES rasberry_coordination
-  CATKIN_DEPENDS actionlib_msgs std_msgs message_runtime
+  CATKIN_DEPENDS std_msgs message_runtime
 #  DEPENDS system_lib
 )
 
@@ -219,7 +217,7 @@ install(PROGRAMS
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
 
-foreach (dir launch config action srv msg callarobot)
+foreach (dir launch config srv msg callarobot)
     install(DIRECTORY ${dir}/
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/${dir}/)
 endforeach(dir)
