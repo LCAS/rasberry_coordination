@@ -147,6 +147,57 @@ class Coordinator:
         self.tray_loaded[req.robot_id] = True
         return []
 
+    def _get_robot_state(self, robot_id):
+        state, goal_node, start_time = "", "", rospy.Time()
+        if self.task_stages[robot_id] is not None:
+            state = self.task_stages[robot_id]
+            if state == "go_to_picker":
+                goal_node = self.processing_tasks[self.robot_task_id[robot_id]].start_node_id
+            elif state == "go_to_storage":
+                goal_node = self.storage
+            elif state  == "go_to_base":
+                goal_node = self.base_stations[robot_id]
+            else:
+                goal_node = ""
+        else:
+            state = "idle"
+            goal_node = ""
+        start_time = self.start_time[robot_id]
+        return (state, goal_node, start_time)
+
+    def get_robot_state_ros_srv(self, req):
+        """get the state of a robot
+        """
+        resp = rasberry_coordination.srv.RobotStateResponse()
+        if req.robot_id in self.robot_ids:
+            resp.state, resp.goal_node, resp.start_time = self._get_robot_state(req.robot_id)
+        else:
+            err_msg = "%s is not a among the robots configured" %(req.robot_id)
+            rospy.logerr(err_msg)
+        return resp
+
+    get_robot_state_ros_srv.type = rasberry_coordination.srv.RobotState
+
+    def get_robot_states_ros_srv(self, req):
+        """get the state of a set of robots
+        """
+        resp = rasberry_coordination.srv.RobotStatesResponse()
+        for robot_id in req.robot_ids:
+            if robot_id in self.robot_ids:
+                state, goal_node, start_time = self._get_robot_state(robot_id)
+                resp.states.append(state)
+                resp.goal_nodes.append(goal_node)
+                resp.start_times.append(start_time)
+            else:
+                resp.states.append("")
+                resp.goal_nodes.append("")
+                resp.start_times.append(rospy.Time())
+                err_msg = "%s is not a among the robots configured" %(robot_id)
+                rospy.logerr(err_msg)
+        return resp
+
+    get_robot_states_ros_srv.type = rasberry_coordination.srv.RobotStates
+
     def add_task_ros_srv(self, req):
         """Adds a task into the task execution framework.
         """
@@ -467,7 +518,11 @@ class Coordinator:
     def finish_task_stage(self, robot_id, curr_stage=None):
         """finish a stage of the collect tray
         """
-        next_stage = {"go_to_picker":"wait_loading", "wait_loading":"go_to_storage", "go_to_storage":"wait_unloading", "wait_unloading":"go_to_base", "go_to_base":None}
+        next_stage = {"go_to_picker":"wait_loading",
+                      "wait_loading":"go_to_storage",
+                      "go_to_storage":"wait_unloading",
+                      "wait_unloading":"go_to_base",
+                      "go_to_base":None}
         if curr_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
             self.finish_route_fragment(robot_id)
 
