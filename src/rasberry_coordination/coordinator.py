@@ -19,6 +19,8 @@ import strands_navigation_msgs.srv
 import topological_navigation.msg
 import topological_navigation.route_search
 import topological_navigation.tmap_utils
+import nav_msgs.msg
+import geometry_msgs.msg
 
 import rasberry_coordination.robot
 import rasberry_coordination.srv
@@ -56,6 +58,10 @@ class Coordinator:
         self.route_edges = {robot_id:[] for robot_id in self.robot_ids}
         self.route_fragments = {robot_id:[] for robot_id in self.robot_ids}
         self.edge_policy_routes = {} # {robot_id: }
+        self.route_publishers = {robot_id:rospy.Publisher("%s/current_route" %(robot_id), nav_msgs.msg.Path, latch=True, queue_size=5) for robot_id in self.robot_ids}
+        # publish empty current route
+        for robot_id in self.robot_ids:
+            self.publish_route(robot_id)
 
         self.task_stages = {robot_id: None for robot_id in self.robot_ids} # keeps track of current stage of the robot
         self.start_time = {robot_id: rospy.get_rostime() for robot_id in self.robot_ids}
@@ -240,7 +246,7 @@ class Coordinator:
                 # cancel goal of assigned robot and return it to its base
                 if req.task_id in self.task_robot_id:
                     robot_id = self.task_robot_id[req.task_id]
-                    self.robots[robot_id].set_dummy_execpolicy_goal()
+                    self.set_empty_execpolicy_goal(robot_id)
                     self.send_robot_to_base(robot_id)
                 rospy.loginfo("cancelling task-%d", req.task_id)
                 cancelled = True
@@ -546,7 +552,7 @@ class Coordinator:
         """set task state as failed
         """
         robot_id = self.task_robot_id.pop(task_id)
-        self.robots[robot_id].set_dummy_execpolicy_goal()
+        self.set_empty_execpolicy_goal(robot_id)
         task = self.processing_tasks.pop(task_id)
         self.failed_tasks[task_id] = task
 
@@ -598,6 +604,7 @@ class Coordinator:
                 # check for robots which are moving, not waiting before a critical point
                 if self.robots[robot_id].execpolicy_result.success:
                     # trigger replan whenever a segment comppletion is reported
+                    self.publish_route(robot_id)
                     trigger_replan = True
                     # if the robot's route is finished, progress to the next stage of the collect tray process
                     # has it finished the stage?
@@ -642,8 +649,9 @@ class Coordinator:
 
                 else:
                     # robot failed execution
+                    self.publish_route(robot_id)
                     rospy.loginfo("%s failed to complete task %s at stage %s!!!" , robot_id, task_id, self.task_stages[robot_id])
-                    self.robots[robot_id].set_dummy_execpolicy_goal()
+                    self.set_empty_execpolicy_goal(robot_id)
                     if self.task_stages[robot_id] == "go_to_picker":
                         # task is good enough to be assigned to another robot
                         self.readd_task(task_id)
@@ -655,7 +663,7 @@ class Coordinator:
                         # 2. leave the robot out there with a request for help. (TODO)
                         #    also it removes robot from active_robots and adds to idle_robots.
                         #    so it can be considered for future tasks.
-                        self.robots[robot_id].set_dummy_execpolicy_goal()
+                        self.set_empty_execpolicy_goal(robot_id)
                         self.active_robots.remove(robot_id)
                         if robot_id in self.moving_robots:
                             self.moving_robots.remove(robot_id)
@@ -669,6 +677,7 @@ class Coordinator:
 
             else:
                 # wait_loading or wait_unloading
+                self.publish_route(robot_id)
                 if self.task_stages[robot_id] == "wait_loading":
                     # if conditions are satisfied, finish waiting
                     # 1. LOADED from CAR
@@ -812,10 +821,48 @@ class Coordinator:
                 goal.route.source = self.route_fragments[robot_id][0]
                 goal.route.edge_id = self.route_edges[robot_id][0]
             self.robots[robot_id].set_execpolicy_goal(goal)
+            self.publish_route(robot_id, goal.route.source, goal.route.edge_id)
             if goal.route.edge_id and robot_id not in self.moving_robots:
                 self.moving_robots.append(robot_id)
 #            rospy.loginfo(robot_id)
 #            rospy.loginfo(goal)
+
+
+    def set_empty_execpolicy_goal(self, robot_id):
+        """for intermediate cancellation, sending another empty goal to preempt
+        current goal
+        """
+        goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
+        self.publish_route(robot_id)
+        self.robots[robot_id].set_execpolicy_goal(goal)
+
+    def publish_route(self, robot_id, source=[], edge_id=[]):
+        """publish route that can be visualised in rviz
+        """
+        route = nav_msgs.msg.Path()
+        route.header.frame_id = "map"
+        if source:
+            for node in source:
+                # if there is any elements in the route
+                node_obj = self.get_node(node)
+                pose_stamped = geometry_msgs.msg.PoseStamped()
+                pose_stamped.header.frame_id = "map"
+                pose_stamped.pose.position.x = node_obj.pose.position.x
+                pose_stamped.pose.position.y = node_obj.pose.position.y
+                route.poses.append(pose_stamped)
+
+            # add the goal node, by looking for the edge in the last source node
+            for edge in node_obj.edges:
+                if edge.edge_id == edge_id[-1]:
+                    node_obj = self.get_node(edge.node)
+                    pose_stamped = geometry_msgs.msg.PoseStamped()
+                    pose_stamped.header.frame_id = "map"
+                    pose_stamped.pose.position.x = node_obj.pose.position.x
+                    pose_stamped.pose.position.y = node_obj.pose.position.y
+                    route.poses.append(pose_stamped)
+                    break
+
+        self.route_publishers[robot_id].publish(route)
 
     def replan(self, ):
         """replan - find indiviual paths, find critical points in these paths, and fragment the

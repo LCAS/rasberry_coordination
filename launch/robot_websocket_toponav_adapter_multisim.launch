@@ -37,6 +37,7 @@ rosbridge_port: $(arg rosbridge_port)
 # Topics being published in the server to expose locally
 remote_topics: [
                     ['/topological_map', 'strands_navigation_msgs/TopologicalMap', '/topological_map', True],
+                    ['/$(arg robot_name)/current_route', 'nav_msgs/Path', '/$(arg robot_name)/current_route', True],
                ]
 # Topics being published in the local roscore to expose remotely
 local_topics: [

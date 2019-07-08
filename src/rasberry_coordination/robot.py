@@ -9,9 +9,6 @@ import actionlib
 import rospy
 
 import topological_navigation.msg
-import topological_navigation.tmap_utils
-import topological_navigation.route_search
-
 import strands_navigation_msgs.msg
 
 
@@ -115,9 +112,3 @@ class Robot(object):
         self.execpolicy_result = None
         self.execpolicy_status = None
 
-    def set_dummy_execpolicy_goal(self, ):
-        """for intermediate cancellation, sending another empty goal to preempt
-        current goal
-        """
-        goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
-        self.set_execpolicy_goal(goal)
