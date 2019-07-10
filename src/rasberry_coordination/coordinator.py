@@ -601,10 +601,12 @@ class Coordinator:
                     # task/fragment not finished
                     continue
 
+
+                self.publish_route(robot_id)
+
                 # check for robots which are moving, not waiting before a critical point
                 if self.robots[robot_id].execpolicy_result.success:
                     # trigger replan whenever a segment comppletion is reported
-                    self.publish_route(robot_id)
                     trigger_replan = True
                     # if the robot's route is finished, progress to the next stage of the collect tray process
                     # has it finished the stage?
@@ -649,7 +651,6 @@ class Coordinator:
 
                 else:
                     # robot failed execution
-                    self.publish_route(robot_id)
                     rospy.loginfo("%s failed to complete task %s at stage %s!!!" , robot_id, task_id, self.task_stages[robot_id])
                     self.set_empty_execpolicy_goal(robot_id)
                     if self.task_stages[robot_id] == "go_to_picker":
