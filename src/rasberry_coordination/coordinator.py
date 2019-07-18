@@ -512,6 +512,7 @@ class Coordinator:
     def finish_route_fragment(self, robot_id):
         """finish fragment of a route in a task stage
         """
+        self.publish_route(robot_id)
         if robot_id in self.moving_robots:
             self.moving_robots.remove(robot_id)
         self.routes.pop(robot_id)
@@ -529,6 +530,7 @@ class Coordinator:
         if curr_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
             self.finish_route_fragment(robot_id)
 
+        rospy.loginfo("setting %s's state from %s to %s", robot_id, curr_stage, next_stage[curr_stage])
         self.task_stages[robot_id] = next_stage[curr_stage]
         self.start_time[robot_id] = rospy.get_rostime()
 
@@ -660,7 +662,6 @@ class Coordinator:
                         # 2. leave the robot out there with a request for help. (# TODO)
                         #    also it removes robot from active_robots and adds to idle_robots.
                         #    so it can be considered for future tasks.
-                        self.set_empty_execpolicy_goal(robot_id)
                         self.active_robots.remove(robot_id)
                         if robot_id in self.moving_robots:
                             self.moving_robots.remove(robot_id)
@@ -700,7 +701,7 @@ class Coordinator:
                         trigger_replan = True
 
                 elif self.task_stages[robot_id] == "wait_unloading":
-                    # if conditions satisy, finish waiting
+                    # if conditions satisfy, finish waiting
                     # 1. delay
                     if rospy.get_rostime() - self.start_time[robot_id] > self.max_unload_duration:
                         # delay
@@ -760,7 +761,7 @@ class Coordinator:
                 c_points[str(self.routes[robot_id])] == set([self.processing_tasks[self.robot_task_id[robot_id]].start_node_id])):
                 c_points[str(self.routes[robot_id])] = set([])
 
-        rospy.loginfo(c_points)
+#        rospy.loginfo(c_points)
 
         allowed_cpoints = []
         res_routes = {}
@@ -840,7 +841,6 @@ class Coordinator:
 #            rospy.loginfo(robot_id)
 #            rospy.loginfo(goal)
 
-
     def set_empty_execpolicy_goal(self, robot_id):
         """for intermediate cancellation, sending another empty goal to preempt
         current goal
@@ -913,13 +913,12 @@ class Coordinator:
                     # goal is robot's base node
                     goal_node = self.base_stations[robot_id]
 
-                rospy.loginfo("start: %s, goal: %s", start_node, goal_node)
+#                rospy.loginfo("start: %s, goal: %s", start_node, goal_node)
                 # if current node is goal node, don't search for a path, but set the task stage as finished
                 if start_node == goal_node:
-                    rospy.loginfo("here")
                     # this is a moving robot, so must be in a go_to task stage (picker, storage or base)
                     if self.task_stages[robot_id] == "go_to_storage":
-                        self.finish_task(robot_id)
+                        self.finish_task_stage(robot_id, self.task_stages[robot_id])
                     elif self.task_stages[robot_id] == "go_to_picker":
                         self.finish_task_stage(robot_id, self.task_stages[robot_id])
                         task_id = self.robot_task_id[robot_id]
@@ -947,7 +946,8 @@ class Coordinator:
                 route_nodes = []
                 route_edges = []
                 if route is None:
-                    rospy.loginfo("no route between %s and %s", start_node, goal_node)
+                    pass
+#                    rospy.loginfo("no route between %s and %s", start_node, goal_node)
                 else:
                     route_nodes = route.source
                     route_edges = route.edge_id
