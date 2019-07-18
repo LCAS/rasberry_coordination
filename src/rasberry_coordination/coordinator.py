@@ -263,6 +263,24 @@ class Coordinator:
 
     cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
 
+
+    def all_tasks_info_ros_srv(self, req):
+        """Get all tasks grouped into processing, failed, cancelled and completed tasks.
+        """
+        resp = rasberry_coordination.srv.AllTasksInfoResponse()
+        for task_id in self.processing_tasks:
+            resp.processing_tasks.append(self.processing_tasks[task_id])
+        for task_id in self.failed_tasks:
+            resp.failed_tasks.append(self.failed_tasks[task_id])
+        for task_id in self.cancelled_tasks:
+            resp.cancelled_tasks.append(self.cancelled_tasks[task_id])
+        for task_id in self.completed_tasks:
+            resp.completed_tasks.append(self.completed_tasks[task_id])
+
+        return resp
+
+    all_tasks_info_ros_srv.type = rasberry_coordination.srv.AllTasksInfo
+
     def advertise_services(self):
         """Adverstise ROS services.
         Only call at the end of constructor to avoid calls during construction.

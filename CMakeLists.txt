@@ -78,6 +78,7 @@ add_message_files(
 
 add_service_files(
   FILES
+  AllTasksInfo.srv
   RobotState.srv
   RobotStates.srv
   TrayLoaded.srv
