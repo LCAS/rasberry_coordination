@@ -54,6 +54,7 @@ class Coordinator:
         self.robots = {robot_id: rasberry_coordination.robot.Robot(robot_id) for robot_id in self.robot_ids}
 
         # collect_tray_stages = ["go_to_picker", "wait_loading", "go_to_storage", "wait_unloading", "got_to_base"]
+        self.trigger_replan = False
         self.routes = {robot_id:[] for robot_id in self.robot_ids}
         self.route_edges = {robot_id:[] for robot_id in self.robot_ids}
         self.route_fragments = {robot_id:[] for robot_id in self.robot_ids}
@@ -119,9 +120,6 @@ class Coordinator:
         # TODO: these durations should come from a config
         self.max_load_duration = rospy.Duration(secs=20)
         self.max_unload_duration = rospy.Duration(secs=20)
-
-        # return a list of (key, value) tuples sorted based on values
-        self.closest_robot = lambda x: sorted(x.items(), key=operator.itemgetter(1))
 
         self.picker_task_updates_pub = rospy.Publisher("/picker_state_monitor/task_updates", rasberry_coordination.msg.TaskUpdates, queue_size=5)
 
@@ -340,7 +338,8 @@ class Coordinator:
         return available_topo_map
 
     def send_robot_to_base(self, robot_id):
-        """
+        """send robot to base. very specific goal.
+        happens after task is finished (unloaded trays) or task failed
         """
         rospy.loginfo("sending %s to its base", robot_id)
 
@@ -399,7 +398,8 @@ class Coordinator:
 
         if len(robot_dists) == 0 or min(robot_dists.values()) == float("inf"):
             return None
-        return self.closest_robot(robot_dists)[0][0]
+
+        return sorted(robot_dists.items(), key=operator.itemgetter(1))[0][0]
 
     def get_path_details(self, start_node, goal_node):
         """get route_nodes, route_edges and route_distance from start_node to goal_node
@@ -415,14 +415,8 @@ class Coordinator:
             rospy.loginfo("no route between %s and %s", start_node, goal_node)
             return ([], [], [float("inf")])
         route_nodes = route.source
+        route_nodes.append(goal_node)
         route_edges = route.edge_id
-
-        edge_to_goal = self.get_edges_between_nodes(route_nodes[-1], goal_node)
-        if len(edge_to_goal) != 0:
-            route_edges.append(edge_to_goal[0])
-            route_nodes.append(goal_node)
-        else:
-            return ([], [], [float("inf")])
 
         for i in range(len(route_nodes) - 1):
             route_distance.append(self.get_distance_between_adjacent_nodes(route_nodes[i], route_nodes[i + 1]))
@@ -450,21 +444,6 @@ class Coordinator:
         from_node_obj = self.get_node(from_node)
         to_node_obj = self.get_node(to_node)
         return topological_navigation.tmap_utils.get_distance_to_node(from_node_obj, to_node_obj)
-
-    def get_edges_between_nodes(self, from_node, to_node):
-        """get_edges_between_nodes: Given names of two nodes, return the direct edges
-        between their node objects. A wrapper for the get_edges_between function in tmap_utils.
-        Works only for adjacent nodes.
-
-        Keyword arguments:
-
-        from_node -- name of the starting node
-        to_node -- name of the ending node name"""
-        edge_ids = []
-        edges = topological_navigation.tmap_utils.get_edges_between(self.topo_map, from_node, to_node)
-        for edge in edges:
-            edge_ids.append(edge.edge_id)
-        return edge_ids
 
     def assign_tasks(self, ):
         """assign task to idle robots
@@ -528,7 +507,7 @@ class Coordinator:
         for (task_id, task) in tasks:
             self.tasks.put((task_id, task))
 
-        return trigger_replan
+        self.trigger_replan = self.trigger_replan or trigger_replan
 
     def finish_route_fragment(self, robot_id):
         """finish fragment of a route in a task stage
@@ -619,7 +598,6 @@ class Coordinator:
                     # task/fragment not finished
                     continue
 
-
                 self.publish_route(robot_id)
 
                 # check for robots which are moving, not waiting before a critical point
@@ -679,7 +657,7 @@ class Coordinator:
                         # robot failed exececute_policy_mode goal. there are two options.
                         # 1. retry going to base
 #                        self.send_robot_to_base(robot_id)
-                        # 2. leave the robot out there with a request for help. (TODO)
+                        # 2. leave the robot out there with a request for help. (# TODO)
                         #    also it removes robot from active_robots and adds to idle_robots.
                         #    so it can be considered for future tasks.
                         self.set_empty_execpolicy_goal(robot_id)
@@ -742,16 +720,21 @@ class Coordinator:
                     else:
                         # should wait until one of the moving robots to finish its route fragment
                         pass
-
-        return trigger_replan
+        self.trigger_replan = self.trigger_replan or trigger_replan
 
     def critical_points(self, ):
-        """find points where agent's path cross with those of active robots
+        """find points where agent's path cross with those of active robots.
+        also find active robots which cross paths at these critical points.
         """
         critical_points = {}
+        critical_robots = {} # all robots touching on each route
         for agent_id in self.presence_agents:
             r_outer = self.routes[agent_id]
             critical_points[str(r_outer)] = set([])
+            if agent_id in self.active_robots:
+                critical_robots[str(r_outer)] = set([agent_id])
+            else:
+                critical_robots[str(r_outer)] = set([])
             # check route of agent_id_1 to routes of all robots
             for robot_id in self.active_robots:
                 if agent_id == robot_id:
@@ -760,39 +743,45 @@ class Coordinator:
                 if r_outer is not r_inner:
                     critical_points[str(r_outer)] = critical_points[str(r_outer)].union(set(r_outer).intersection(set(r_inner)))
 
-        return critical_points
+                    if len(set(r_outer).intersection(set(r_inner))) != 0:
+                        critical_robots[str(r_outer)] = critical_robots[str(r_outer)].union(robot_id)
+
+        return (critical_points, critical_robots)
 
     def split_critical_paths(self, ):
         """split robot paths at critical points
         """
-        cp = self.critical_points()
+        c_points, c_robots = self.critical_points()
 
         # for robots in go_to_picker mode, if the only critical point is the picker node, reset it
         for robot_id in self.active_robots:
             if (self.task_stages[robot_id] == "go_to_picker" and
-                len(cp[str(self.routes[robot_id])]) == 1 and
-                cp[str(self.routes[robot_id])] == set([self.processing_tasks[self.robot_task_id[robot_id]].start_node_id])):
-                cp[str(self.routes[robot_id])] = set([])
+                len(c_points[str(self.routes[robot_id])]) == 1 and
+                c_points[str(self.routes[robot_id])] == set([self.processing_tasks[self.robot_task_id[robot_id]].start_node_id])):
+                c_points[str(self.routes[robot_id])] = set([])
 
-        rospy.loginfo(cp)
+        rospy.loginfo(c_points)
 
-        allowed_cps = []
+        allowed_cpoints = []
         res_routes = {}
         for agent_id in self.presence_agents:
+            allowed_to_pass = False
             r = self.routes[agent_id]
             rr = []
             partial_route = []
             for v in r:
-                if v in cp[str(r)]: # vertice is critical point
+                if v in c_points[str(r)]: # vertice is critical point
                     # allow critical point once for a robot among all agents
+                    # once a critical point is passed
                     if (agent_id in self.robot_ids and
-                        v not in allowed_cps):
+                        v not in allowed_cpoints and
+                        not allowed_to_pass):
                         partial_route.append(v)
-                        allowed_cps.append(v)
-#                        # TODO: fragment after the critical point for the let other robot replan soon
+                        allowed_cpoints.append(v)
+                        allowed_to_pass = True
+#                        # TODO: fragment after the critical point for the robot that was
+#                        # allowed to pass. will allow blocked robots to replan soon
 #                        # stopping at the ciritical node does not help though
-#                        rr.append(partial_route)
-#                        partial_route = []
                         continue
 
                     if partial_route:
@@ -800,6 +789,11 @@ class Coordinator:
                     partial_route = [v]
                 else:
                     partial_route.append(v)
+                    # force route fragmentation after passing a critical point
+                    if allowed_to_pass:
+                        rr.append(partial_route)
+                        partial_route = []
+                        allowed_to_pass = False
 
             if partial_route:
                 rr.append(partial_route)
@@ -957,9 +951,8 @@ class Coordinator:
                 else:
                     route_nodes = route.source
                     route_edges = route.edge_id
-                    edge_to_goal = self.get_edges_between_nodes(route_nodes[-1], goal_node)
-                    if len(edge_to_goal) != 0:
-                        route_nodes.append(goal_node)
+                    # add goal_node to route_nodes as it could be a critical point
+                    route_nodes.append(goal_node)
 
                 self.routes[robot_id] = route_nodes
                 self.route_edges[robot_id] = route_edges
@@ -993,20 +986,19 @@ class Coordinator:
         """
         while not rospy.is_shutdown():
             rospy.sleep(0.01)
-            trigger_replan_1 = False
-            trigger_replan_2 = False
+            self.trigger_replan = False
 
 #            rospy.loginfo(self.idle_robots)
             if self.idle_robots and not self.tasks.empty():
                 rospy.loginfo("unassigned tasks present. no. idle robots: %d", len(self.idle_robots))
                 # try to assign all tasks
-                trigger_replan_1 = self.assign_tasks()
+                self.assign_tasks()
 
             # check progress of active robots
-            trigger_replan_2 = self.handle_tasks()
+            self.handle_tasks()
 
             # replan if needed
-            if trigger_replan_1 or trigger_replan_2:
+            if self.trigger_replan:
                 # check for critical points replan
                 self.replan()
                 # assign first fragment of each robot
