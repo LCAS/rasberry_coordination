@@ -244,7 +244,7 @@ class Coordinator:
                 # cancel goal of assigned robot and return it to its base
                 if req.task_id in self.task_robot_id:
                     robot_id = self.task_robot_id[req.task_id]
-                    self.set_empty_execpolicy_goal(robot_id)
+                    self.robots[robot_id].cancel_execpolicy_goal()
                     self.send_robot_to_base(robot_id)
                 rospy.loginfo("cancelling task-%d", req.task_id)
                 cancelled = True
@@ -550,8 +550,6 @@ class Coordinator:
     def set_task_failed(self, task_id):
         """set task state as failed
         """
-        robot_id = self.task_robot_id.pop(task_id)
-        self.set_empty_execpolicy_goal(robot_id)
         task = self.processing_tasks.pop(task_id)
         self.failed_tasks[task_id] = task
 
@@ -648,24 +646,18 @@ class Coordinator:
                         self.finish_route_fragment(robot_id)
 
                 else:
+                    trigger_replan = True # triggger replan as robot is being sent back to base
                     # robot failed execution
                     rospy.loginfo("%s failed to complete task %s at stage %s!!!" , robot_id, task_id, self.task_stages[robot_id])
-                    self.set_empty_execpolicy_goal(robot_id)
                     if self.task_stages[robot_id] == "go_to_picker":
                         # task is good enough to be assigned to another robot
                         self.readd_task(task_id)
                         self.send_robot_to_base(robot_id)
                     elif self.task_stages[robot_id] == "go_to_base":
-                        # robot failed exececute_policy_mode goal. there are two options.
-                        # 1. retry going to base
-#                        self.send_robot_to_base(robot_id)
-                        # 2. leave the robot out there with a request for help. (# TODO)
-                        #    also it removes robot from active_robots and adds to idle_robots.
-                        #    so it can be considered for future tasks.
-                        self.active_robots.remove(robot_id)
-                        if robot_id in self.moving_robots:
-                            self.moving_robots.remove(robot_id)
-                        self.idle_robots.append(robot_id)
+                        # robot failed exececute_policy_mode goal. retry going to base
+                        self.send_robot_to_base(robot_id)
+                        # another option is to leave the robot out there with a request for help. (# TODO)
+                        # in that case, remove robot from active_robots and don't add to idle_robots.
 
                     else:
                         # set the task as failed as it cannot be readded at this stage
