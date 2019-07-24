@@ -56,6 +56,7 @@ class Coordinator:
         # collect_tray_stages = ["go_to_picker", "wait_loading", "go_to_storage", "wait_unloading", "got_to_base"]
         self.trigger_replan = False
         self.routes = {robot_id:[] for robot_id in self.robot_ids}
+        self.route_dists = {robot_id:[] for robot_id in self.robot_ids}
         self.route_edges = {robot_id:[] for robot_id in self.robot_ids}
         self.route_fragments = {robot_id:[] for robot_id in self.robot_ids}
         self.edge_policy_routes = {} # {robot_id: }
@@ -73,7 +74,7 @@ class Coordinator:
 
         self.topo_map = None
         self.rec_topo_map = False
-        rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self.map_cb)
+        rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
         rospy.loginfo("Waiting for Topological map ...")
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
@@ -88,11 +89,11 @@ class Coordinator:
         self.closest_nodes = {agent_name:"none" for agent_name in self.presence_agents}
         self.current_node_subs = {agent_name:rospy.Subscriber(agent_name.strip()+"/current_node",
                                                               std_msgs.msg.String,
-                                                              self.current_node_cb,
+                                                              self._current_node_cb,
                                                               callback_args=agent_name) for agent_name in self.presence_agents}
         self.closest_node_subs = {agent_name:rospy.Subscriber(agent_name.strip()+"/closest_node",
                                                               std_msgs.msg.String,
-                                                              self.closest_node_cb,
+                                                              self._closest_node_cb,
                                                               callback_args=agent_name) for agent_name in self.presence_agents}
 
         self.max_task_priorities = max_task_priorities
@@ -125,13 +126,13 @@ class Coordinator:
 
         rospy.loginfo("coordinator initialised")
 
-    def map_cb(self, msg):
+    def _map_cb(self, msg):
         """This function receives the Topological Map
         """
         self.topo_map = msg
         self.rec_topo_map = True
 
-    def current_node_cb(self, msg, agent_name):
+    def _current_node_cb(self, msg, agent_name):
         """
         """
         if self.current_nodes[agent_name] != "none":
@@ -139,7 +140,7 @@ class Coordinator:
         self.current_nodes[agent_name] = msg.data
         self.update_available_topo_map()
 
-    def closest_node_cb(self, msg, agent_name):
+    def _closest_node_cb(self, msg, agent_name):
         """
         """
         self.closest_nodes[agent_name] = msg.data
@@ -445,6 +446,36 @@ class Coordinator:
         to_node_obj = self.get_node(to_node)
         return topological_navigation.tmap_utils.get_distance_to_node(from_node_obj, to_node_obj)
 
+    def get_edge_distances(self, robot_id):
+        """find and fill distances of all edges of a robot's planned route, if at least one edge is there.
+        the route must contain the goal_node as the last node in the list.
+
+        Keyword arguments:
+
+        robot_id --
+        """
+        self.route_dists[robot_id] = []
+        if len(self.route_edges[robot_id]) >= 1:
+            for i in range (len(self.routes[robot_id]) - 1):
+                self.route_dists[robot_id].append(self.get_distance_between_adjacent_nodes(self.routes[robot_id][i], self.routes[robot_id][i+1]))
+
+    def get_route_distance_to_node(self, robot_id, node_id):
+        """get the total distance to a node in a robot's route
+
+        Keyword arguments:
+
+        robot_id --
+        node_id --
+        """
+        dist = 0.0
+        if len(self.route_edges[robot_id]) > 1:
+            for i in range(len(self.routes[robot_id])):
+                if self.routes[robot_id][i] == node_id:
+                    break
+                # add edge_distance only if the source node is not the one we look for
+                dist += self.route_dists[robot_id][i]
+        return dist
+
     def assign_tasks(self, ):
         """assign task to idle robots
         high priority tasks are assigned first
@@ -720,14 +751,11 @@ class Coordinator:
         also find active robots which cross paths at these critical points.
         """
         critical_points = {}
-        critical_robots = {} # all robots touching on each route
+        critical_robots = {} # {critical_point: [robot_ids]} all robots touching a critical point
         for agent_id in self.presence_agents:
             r_outer = self.routes[agent_id]
             critical_points[str(r_outer)] = set([])
-            if agent_id in self.active_robots:
-                critical_robots[str(r_outer)] = set([agent_id])
-            else:
-                critical_robots[str(r_outer)] = set([])
+
             # check route of agent_id_1 to routes of all robots
             for robot_id in self.active_robots:
                 if agent_id == robot_id:
@@ -736,10 +764,30 @@ class Coordinator:
                 if r_outer is not r_inner:
                     critical_points[str(r_outer)] = critical_points[str(r_outer)].union(set(r_outer).intersection(set(r_inner)))
 
-                    if len(set(r_outer).intersection(set(r_inner))) != 0:
-                        critical_robots[str(r_outer)] = critical_robots[str(r_outer)].union(robot_id)
+                    for node_id in set(r_outer).intersection(set(r_inner)):
+                        if node_id not in critical_robots:
+                            critical_robots[node_id] = [robot_id]
+                        elif robot_id not in critical_robots[node_id]:
+                            critical_robots[node_id].append(robot_id)
+
+                        if agent_id in self.active_robots and agent_id not in critical_robots[node_id]:
+                            critical_robots[node_id].append(agent_id)
 
         return (critical_points, critical_robots)
+
+    def shortest_route_to_node(self, robot_ids, node_id):
+        """from a list of robot_ids, find the robot with shortest route distance to a given node
+
+        Keyword arguments:
+
+        robot_ids -- []
+        node_id --
+        """
+        dists = {}
+        for robot_id in robot_ids:
+            dists[robot_id] = self.get_route_distance_to_node(robot_id, node_id)
+
+        return sorted(dists.items(), key=operator.itemgetter(1))[0][0]
 
     def split_critical_paths(self, ):
         """split robot paths at critical points
@@ -766,7 +814,8 @@ class Coordinator:
                 if v in c_points[str(r)]: # vertice is critical point
                     # allow critical point once for a robot among all agents
                     # once a critical point is passed
-                    if (agent_id in self.robot_ids and
+                    nearest_robot = self.shortest_route_to_node(c_robots[v], v)
+                    if (agent_id == nearest_robot and
                         v not in allowed_cpoints and
                         not allowed_to_pass):
                         partial_route.append(v)
@@ -885,6 +934,7 @@ class Coordinator:
                     else:
                         self.routes[robot_id] = [self.closest_nodes[robot_id]]
                     self.route_edges[robot_id] = []
+                    self.get_edge_distances(robot_id)
                     continue
 
                 if self.current_nodes[robot_id] != "none":
@@ -926,6 +976,7 @@ class Coordinator:
                     #reset routes and route_edges
                     self.routes[robot_id] = [start_node]
                     self.route_edges[robot_id] = []
+                    self.get_edge_distances(robot_id)
                     continue
 
                 avail_topo_map = copy.deepcopy(self.available_topo_map)
@@ -948,6 +999,7 @@ class Coordinator:
 
                 self.routes[robot_id] = route_nodes
                 self.route_edges[robot_id] = route_edges
+                self.get_edge_distances(robot_id)
 
             else:
                 # put the current node of the idle robots as their route - to avoid other robots planning routes through those nodes
@@ -958,6 +1010,7 @@ class Coordinator:
                 else:
                     self.routes[robot_id] = [self.closest_nodes[robot_id]]
                 self.route_edges[robot_id] = []
+                self.get_edge_distances(robot_id)
 
         for agent_id in self.presence_agents:
             if agent_id not in self.robot_ids:
@@ -969,6 +1022,7 @@ class Coordinator:
                 else:
                     self.routes[agent_id] = [self.closest_nodes[agent_id]]
                 self.route_edges[agent_id] = []
+                self.get_edge_distances(robot_id)
 
         # find critical points and fragment routes to avoid critical point collistions
         self.split_critical_paths()
