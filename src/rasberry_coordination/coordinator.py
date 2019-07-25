@@ -264,7 +264,7 @@ class Coordinator:
 
 
     def all_tasks_info_ros_srv(self, req):
-        """Get all tasks grouped into processing, failed, cancelled and completed tasks.
+        """Get all tasks grouped into processing, failed, cancelled, unassigned and completed tasks.
         """
         resp = rasberry_coordination.srv.AllTasksInfoResponse()
         for task_id in self.processing_tasks:
@@ -275,6 +275,24 @@ class Coordinator:
             resp.cancelled_tasks.append(self.cancelled_tasks[task_id])
         for task_id in self.completed_tasks:
             resp.completed_tasks.append(self.completed_tasks[task_id])
+
+        # unassigned tasks
+        # retrieve tasks from queue and put them back
+        tasks = []
+        while not rospy.is_shutdown():
+            try:
+                task_id, task = self.tasks.get(True, 1)
+                if task_id in self.to_be_cancelled:
+                    resp.cancelled_tasks.append(task)
+                else:
+                    # only non-cancelled tasks will be allocated here
+                    tasks.append((task_id, task))
+            except Queue.Empty:
+                break
+
+        for (task_id, task) in tasks:
+            resp.unassigned_tasks.append(task)
+            self.tasks.put((task_id, task))
 
         return resp
 
@@ -1022,7 +1040,7 @@ class Coordinator:
                 else:
                     self.routes[agent_id] = [self.closest_nodes[agent_id]]
                 self.route_edges[agent_id] = []
-                self.get_edge_distances(robot_id)
+#                self.get_edge_distances(robot_id)
 
         # find critical points and fragment routes to avoid critical point collistions
         self.split_critical_paths()
