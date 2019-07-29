@@ -564,8 +564,13 @@ class Coordinator:
         self.publish_route(robot_id)
         if robot_id in self.moving_robots:
             self.moving_robots.remove(robot_id)
-        self.routes.pop(robot_id)
-        self.route_fragments.pop(robot_id)
+        # this may be called multiple times when a robot is stuck
+        # so being cautious here
+        try:
+            self.routes.pop(robot_id)
+            self.route_fragments.pop(robot_id)
+        except KeyError:
+            pass
         self.robots[robot_id].execpolicy_result = None
 
     def finish_task_stage(self, robot_id, curr_stage=None):
@@ -893,12 +898,14 @@ class Coordinator:
             if self.route_fragments[robot_id]:
                 goal.route.source = self.route_fragments[robot_id][0]
                 goal.route.edge_id = self.route_edges[robot_id][0]
-            self.robots[robot_id].set_execpolicy_goal(goal)
-            self.publish_route(robot_id, goal.route.source, goal.route.edge_id)
-            if goal.route.edge_id and robot_id not in self.moving_robots:
-                self.moving_robots.append(robot_id)
-#            rospy.loginfo(robot_id)
-#            rospy.loginfo(goal)
+            if goal != self.robots[robot_id].execpolicy_goal:
+                rospy.loginfo(robot_id)
+                rospy.loginfo(goal)
+                rospy.loginfo(self.robots[robot_id].execpolicy_goal)
+                self.robots[robot_id].set_execpolicy_goal(goal)
+                self.publish_route(robot_id, goal.route.source, goal.route.edge_id)
+                if goal.route.edge_id and robot_id not in self.moving_robots:
+                    self.moving_robots.append(robot_id)
 
     def set_empty_execpolicy_goal(self, robot_id):
         """for intermediate cancellation, sending another empty goal to preempt
