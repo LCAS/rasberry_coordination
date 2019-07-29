@@ -29,7 +29,7 @@ import rasberry_coordination.srv
 class Coordinator:
     """
     """
-    def __init__(self, local_storage, charging_node, base_stations, robot_ids, max_task_priorities):
+    def __init__(self, local_storage, charging_node, base_stations, wait_nodes, robot_ids, max_task_priorities):
         """
         """
         self.ns = "/rasberry_coordination/"
@@ -42,6 +42,7 @@ class Coordinator:
         self.storage = local_storage
         self.charging_node = charging_node
         self.base_stations = base_stations
+        self.wait_nodes = wait_nodes
         self.max_task_priorities = max_task_priorities
 
         # 0 - idle, 1 - transporting_to_picker, 2 - waiting for loading,
@@ -1013,9 +1014,18 @@ class Coordinator:
                 route = avail_route_search.search_route(start_node, goal_node)
                 route_nodes = []
                 route_edges = []
+
+                # replan to wait_station if in go_to_storage and there is no route
+                if (route is None and
+                    self.task_stages[robot_id] == "go_to_storage" and
+                    self.wait_nodes[robot_id] != "none"):
+                    rospy.loginfo("%s has no route to %s. will try going to %s to wait there", robot_id, self.storage, self.wait_nodes[robot_id])
+                    goal_node = self.wait_nodes[robot_id]
+                    avail_route_search = topological_navigation.route_search.TopologicalRouteSearch(avail_topo_map)
+                    route = avail_route_search.search_route(start_node, goal_node)
+
                 if route is None:
-                    pass
-#                    rospy.loginfo("no route between %s and %s", start_node, goal_node)
+                    rospy.loginfo("no route between %s and %s", start_node, goal_node)
                 else:
                     route_nodes = route.source
                     route_edges = route.edge_id
