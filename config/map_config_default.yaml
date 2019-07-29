@@ -1,4 +1,6 @@
-base_station_nodes: [WayPoint0]
+base_station_nodes: &id_base_stations
+  - WayPoint0
+wait_nodes: *id_base_stations
 local_storage_node: WayPoint1
 charging_station_node: WayPoint2
 robot_ids: [robot00]

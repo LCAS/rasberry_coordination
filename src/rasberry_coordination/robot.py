@@ -27,10 +27,12 @@ class Robot(object):
 
         self.goal_node = "none"
         self.start_time = rospy.get_rostime()
+        self.toponav_goal = topological_navigation.msg.GotoNodeGoal()
         self.toponav_result = None
         self.toponav_status = None
         self.toponav_route = None
 
+        self.execpolicy_goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
         self.execpolicy_result = None
         self.execpolicy_status = None
         self.execpolicy_current_wp = None
@@ -50,6 +52,7 @@ class Robot(object):
         if feedback_cb is None:
             feedback_cb = self._fb_toponav_cb
 
+        self.toponav_goal = goal
         self.toponav_result = None
         self.toponav_route = None
         self.toponav_status = None
@@ -65,6 +68,7 @@ class Robot(object):
     def _done_toponav_cb(self, status, result):
         """done callback
         """
+        self.toponav_goal = topological_navigation.msg.GotoNodeGoal()
         self.toponav_status = status
         self.toponav_result = result
 
@@ -72,6 +76,7 @@ class Robot(object):
         """
         """
         self._topo_nav.cancel_all_goals()
+        self.toponav_goal = topological_navigation.msg.GotoNodeGoal()
         self.toponav_result = None
         self.toponav_route = None
         self.toponav_status = None
@@ -86,6 +91,7 @@ class Robot(object):
         if feedback_cb is None:
             feedback_cb = self._fb_execpolicy_cb
 
+        self.execpolicy_goal = goal
         self.execpolicy_current_wp = None
         self.execpolicy_result = None
         self.execpolicy_status = None
@@ -103,11 +109,13 @@ class Robot(object):
         """
         self.execpolicy_status = status
         self.execpolicy_result = result
+        self.execpolicy_goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
 
     def cancel_execpolicy_goal(self, ):
         """
         """
         self._exec_policy.cancel_all_goals()
+        self.execpolicy_goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
         self.execpolicy_current_wp = None
         self.execpolicy_result = None
         self.execpolicy_status = None

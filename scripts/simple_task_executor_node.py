@@ -34,11 +34,16 @@ if __name__ == '__main__':
         elif len(config_data["robot_ids"]) == 0:
             raise Exception("robot_ids should not be an empty list in the config file")
 
-        _base_stations = config_data["base_station_nodes"] # list of local storage nodes
+        _base_stations = config_data["base_station_nodes"] # list of base station nodes
+        if "wait_nodes" in config_keys:
+            _wait_nodes = config_data["wait_nodes"]# list of waiting nodes
+        else:
+            _wait_nodes = None
         local_storage = config_data["local_storage_node"] # list of local storage nodes
         charging_node = config_data["charging_station_node"]
         robot_ids = config_data["robot_ids"]
         _max_task_priorities = config_data["max_task_priorities"]
+
         virtual_pickers = []
         if "virtual_pickers" in config_data:
             virtual_pickers = config_data["virtual_pickers"]
@@ -52,6 +57,17 @@ if __name__ == '__main__':
                 raise Exception("Not enough base stations (%d) for %d robots!!!" %(len(_base_stations), len(robot_ids)))
             base_stations = {robot_ids[i]:_base_stations[i] for i in range(len(robot_ids))}
 
+        if _wait_nodes is None:
+            wait_nodes = {robot_id:"none" for robot_id in robot_ids}
+        elif _wait_nodes.__class__ == str:
+            if len(robot_ids) > 1:
+                raise Exception("Not enough wait nodes (1) for %d robots!!!" %(len(robot_ids)))
+            wait_nodes = {robot_id:_wait_nodes for robot_id in robot_ids}
+        elif _wait_nodes.__class__ == list:
+            if len(_wait_nodes) != len(robot_ids):
+                raise Exception("Not enough base stations (%d) for %d robots!!!" %(len(_wait_nodes), len(robot_ids)))
+            wait_nodes = {robot_ids[i]:_wait_nodes[i] for i in range(len(robot_ids))}
+
         if _max_task_priorities.__class__ == list:
             if len(_max_task_priorities) != len(robot_ids):
                 raise Exception("Not enough min task priorities defined (%d) for %d robots!!!" %(len(_max_task_priorities), len(robot_ids)))
@@ -63,6 +79,7 @@ if __name__ == '__main__':
         coordinator = rasberry_coordination.coordinator.Coordinator(local_storage=local_storage,
                                                           charging_node=charging_node,
                                                           base_stations=base_stations,
+                                                          wait_nodes=wait_nodes,
                                                           robot_ids=robot_ids,
                                                           max_task_priorities=max_task_priorities)
 
