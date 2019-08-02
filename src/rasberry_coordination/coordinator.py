@@ -1018,7 +1018,8 @@ class Coordinator:
                 # replan to wait_station if in go_to_storage and there is no route
                 if (route is None and
                     self.task_stages[robot_id] == "go_to_storage" and
-                    self.wait_nodes[robot_id] != "none"):
+                    self.wait_nodes[robot_id] != "none" and
+                    self.wait_nodes[robot_id] != self.current_nodes[robot_id]):
                     rospy.loginfo("%s has no route to %s. will try going to %s to wait there", robot_id, self.storage, self.wait_nodes[robot_id])
                     goal_node = self.wait_nodes[robot_id]
                     avail_route_search = topological_navigation.route_search.TopologicalRouteSearch(avail_topo_map)
