@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<launch>
+
+  <arg name="scenario" default="riseholme" />
+
+  <rosparam command="load" file="$(find rasberry_coordination)/config/topological_presence_agents.yaml" />
+
+  <node pkg="rasberry_coordination" name="rasberry_coordination" type="simple_task_executor_node.py" args="$(find rasberry_coordination)/config/map_config_$(arg scenario).yaml" output="screen" /> 
+
+</launch>
+
+

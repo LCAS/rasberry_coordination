@@ -1,4 +1,7 @@
-base_station_nodes: [WayPoint140, WayPoint141]
+base_station_nodes: &id_base_stations
+  - WayPoint140
+  - WayPoint141
+wait_nodes: *id_base_stations
 local_storage_node: WayPoint69
 charging_station_node: WayPoint72
 robot_ids: [thorvald_008, thorvald_014]

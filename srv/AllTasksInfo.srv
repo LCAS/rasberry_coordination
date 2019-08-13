@@ -1,0 +1,6 @@
+---
+strands_executive_msgs/Task[] processing_tasks
+strands_executive_msgs/Task[] failed_tasks
+strands_executive_msgs/Task[] cancelled_tasks
+strands_executive_msgs/Task[] completed_tasks
+strands_executive_msgs/Task[] unassigned_tasks
