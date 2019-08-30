@@ -19,25 +19,30 @@ class PoseFramePublisher(object):
         """
         """
         self.robot_name = robot_name
-        self.pose_sub = rospy.Subscriber(self.robot_name+"/robot_pose", geometry_msgs.msg.Pose, self.pose_cb)
+        if robot_name == "":
+            self.pose_sub = rospy.Subscriber("/robot_pose", geometry_msgs.msg.Pose, self.pose_cb)
+            self.base_frame = "/base_link"
+        else:
+            self.pose_sub = rospy.Subscriber("/"+self.robot_name + "/robot_pose", geometry_msgs.msg.Pose, self.pose_cb)
+            self.base_frame = self.robot_name + "/base_link"
         self.tf_broadcaster = tf.TransformBroadcaster()
 
     def pose_cb(self, msg):
         self.tf_broadcaster.sendTransform((msg.position.x, msg.position.y, msg.position.z),
                                           (msg.position.x, msg.position.y, msg.position.z, msg.position.w),
                                           rospy.Time.now(),
-                                          self.robot_name + "/base_link",
+                                          self.base_link,
                                           "map")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print (sys.argv)
-        raise Exception("not enough arguments")
+        robot_name = ""
     else:
         robot_name = sys.argv[1]
-        print (robot_name)
 
-    rospy.init_node(robot_name + "_pose_frame_publisher")
+    print (robot_name)
+
+    rospy.init_node("pose_frame_publisher")
 
     pose_frame_publisher = PoseFramePublisher(robot_name)
 
