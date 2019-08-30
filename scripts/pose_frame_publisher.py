@@ -37,6 +37,8 @@ if __name__ == "__main__":
         robot_name = sys.argv[1]
         print (robot_name)
 
+    rospy.init_node(robot_name + "_pose_frame_publisher")
+
     pose_frame_publisher = PoseFramePublisher(robot_name)
 
     rospy.spin()
