@@ -29,7 +29,7 @@ class PoseFramePublisher(object):
 
     def pose_cb(self, msg):
         self.tf_broadcaster.sendTransform((msg.position.x, msg.position.y, msg.position.z),
-                                          (msg.position.x, msg.position.y, msg.position.z, msg.position.w),
+                                          (msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w),
                                           rospy.Time.now(),
                                           self.base_link,
                                           "map")
