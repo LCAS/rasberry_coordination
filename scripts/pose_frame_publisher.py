@@ -31,8 +31,9 @@ class PoseFramePublisher(object):
         self.tf_broadcaster.sendTransform((msg.position.x, msg.position.y, msg.position.z),
                                           (msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w),
                                           rospy.Time.now(),
-                                          self.base_link,
+                                          self.base_frame,
                                           "map")
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
