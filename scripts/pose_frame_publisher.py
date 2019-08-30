@@ -30,11 +30,11 @@ class PoseFramePublisher(object):
                                           "map")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 4:
+    if len(sys.argv) < 2:
         print (sys.argv)
         raise Exception("not enough arguments")
     else:
-        robot_name = sys.argv[3]
+        robot_name = sys.argv[1]
         print (robot_name)
 
     pose_frame_publisher = PoseFramePublisher(robot_name)
