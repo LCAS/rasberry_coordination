@@ -1,12 +1,13 @@
 base_station_nodes: &id_base_stations
-  - WayPoint52
-  - WayPoint53
+  - WayPoint140
+  - WayPoint141
 wait_nodes: *id_base_stations
-local_storage_node: WayPoint54
-charging_station_node: WayPoint54
+local_storage_node: WayPoint69
+charging_station_node: WayPoint72
 robot_ids: 
-  - thorvald_010
-  - thorvald_015
+  - thorvald_001
+  - thorvald_002
+# max priority of task executable by the above robots
 max_task_priorities: 
   - 255
   - 255
