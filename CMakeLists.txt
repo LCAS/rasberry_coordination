@@ -194,7 +194,7 @@ include_directories(
 ## in contrast to setup.py, you can choose the destination
 install(PROGRAMS
   scripts/simple_task_executor_node.py
-  scripts/pose_frame_publisher.py
+  scripts/visualise_agent_markers.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
