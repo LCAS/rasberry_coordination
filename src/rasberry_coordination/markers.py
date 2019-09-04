@@ -318,7 +318,7 @@ class HumanMarkerPublisher(object):
         body_marker.pose.orientation.y = quat[1]
         body_marker.pose.orientation.z = quat[2]
         body_marker.pose.orientation.w = quat[3]
-        body_marker.scale.x = 0.25
+        body_marker.scale.x = 0.15
         body_marker.scale.y = 0.25
         body_marker.scale.z = 0.5
         body_marker.color.r = 1.0
