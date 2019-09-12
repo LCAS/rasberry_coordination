@@ -2,8 +2,33 @@ base_station_nodes: &id_base_stations
   - WayPoint140
   - WayPoint141
 wait_nodes: *id_base_stations
-local_storage_node: WayPoint69
+local_storage_node: WayPoint68
 charging_station_node: WayPoint72
-robot_ids: [thorvald_008, thorvald_014]
-max_task_priorities: [0, 255]
-virtual_pickers: ["picker101", "picker102", "picker103"]
+robot_ids: 
+  - thorvald_014
+  - thorvald_019
+max_task_priorities: 
+  - 255
+  - 255
+picker_ids:
+  - picker01
+  - picker02
+  - picker03
+  - picker04
+  - picker05
+  - picker06
+  - picker07
+  - picker08
+  - picker09
+  - picker10
+virtual_picker_ids:
+  - picker101
+  - picker102
+  - picker103
+  - picker104
+  - picker105
+  - picker106
+  - picker107
+  - picker108
+  - picker109
+  - picker110
