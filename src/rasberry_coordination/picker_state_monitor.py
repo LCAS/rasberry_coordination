@@ -9,7 +9,6 @@ import rospy
 
 import geometry_msgs.msg
 import std_msgs.msg
-import std_srvs.srv
 import strands_executive_msgs.msg
 import rasberry_coordination.msg
 import rasberry_coordination.srv
@@ -18,7 +17,7 @@ import rasberry_coordination.srv
 class PickerStateMonitor(object):
     """A class to monitor all pickers' state changes
     """
-    def __init__(self, virtual_pickers):
+    def __init__(self, picker_ids, virtual_picker_ids):
         """
         """
         self.n_pickers = 0
@@ -27,7 +26,7 @@ class PickerStateMonitor(object):
         self.picker_prev_states = {}
         self.picker_posestamped = {}
 
-        self.virtual_pickers = virtual_pickers
+        self.virtual_picker_ids = virtual_picker_ids
 
         self.picker_posestamped_subs = {}
         self.collect_trays = {}
@@ -135,7 +134,7 @@ class PickerStateMonitor(object):
                             else:
                                 task.start_node_id = self.picker_closest_nodes[picker_id]
 
-                            if picker_id in self.virtual_pickers:
+                            if picker_id in self.virtual_picker_ids:
                                 task.priority = 0
                             else:
                                 task.priority = 1
