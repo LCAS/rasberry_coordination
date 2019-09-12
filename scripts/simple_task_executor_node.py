@@ -21,7 +21,7 @@ if __name__ == '__main__':
         config_keys = rasberry_des.config_utils.get_config_keys(config_file)
 
         # check for required parameters
-        req_params = ["base_station_nodes", "local_storage_node", "charging_station_node", "robot_ids", "max_task_priorities"]
+        req_params = ["base_station_nodes", "local_storage_node", "charging_station_node", "robot_ids", "max_task_priorities", "picker_ids"]
 
         for key in config_keys:
             if key in req_params:
@@ -44,9 +44,11 @@ if __name__ == '__main__':
         robot_ids = config_data["robot_ids"]
         _max_task_priorities = config_data["max_task_priorities"]
 
-        virtual_pickers = []
-        if "virtual_pickers" in config_data:
-            virtual_pickers = config_data["virtual_pickers"]
+        picker_ids = config_data["picker_ids"]
+
+        virtual_picker_ids = []
+        if "virtual_picker_ids" in config_data:
+            virtual_picker_ids = config_data["virtual_picker_ids"]
 
         if _base_stations.__class__ == str:
             if len(robot_ids) > 1:
@@ -87,7 +89,7 @@ if __name__ == '__main__':
         rospy.sleep(1) # give a second to let everything settle
 
         # picker_monitor after coordinator
-        picker_monitor = rasberry_coordination.picker_state_monitor.PickerStateMonitor(virtual_pickers)
+        picker_monitor = rasberry_coordination.picker_state_monitor.PickerStateMonitor(picker_ids, virtual_picker_ids)
 
         coordinator.run()
 
