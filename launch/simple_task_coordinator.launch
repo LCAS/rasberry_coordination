@@ -1,11 +1,7 @@
 <?xml version="1.0" ?>
 <launch>
 
-  <arg name="site_name" default="riseholme" />
-  <arg name="use_sim" default="false" />
-
-  <arg name="config_file" value="$(find rasberry_coordination)/config/map_config_$(arg site_name).yaml" unless="$(arg use_sim)" />
-  <arg name="config_file" value="$(find rasberry_coordination)/config/map_config_$(arg site_name)_sim.yaml" if="$(arg use_sim)" />
+  <arg name="config_file" />
 
   <rosparam command="load" file="$(find rasberry_coordination)/config/topological_presence_agents.yaml" />
 
