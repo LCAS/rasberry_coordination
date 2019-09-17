@@ -341,11 +341,21 @@ class Coordinator:
         robot must be already set as unfit
         """
         resp = rasberry_coordination.srv.TriggerRobotResponse()
+        if req.robot_id not in self.robot_ids:
+            resp.success = False
+            resp.message = "Robot - %s is not configured" %(req.robot_id)
+            return resp
+
         if req.robot_id in self.unfit_robots:
             self.unfit_robots.remove(req.robot_id)
             # move to healthy_robots. will be added to idle during next low_battery_check
             self.healthy_robots.append(req.robot_id)
             self.force_robot_status_check = True
+            resp.success = True
+            resp.message = "Robot - %s is queued to be marked as healthy" %(req.robot_id)
+        else:
+            resp.success = False
+            resp.message = "Robot - %s is not unfit to be marked as healthy now" %(req.robot_id)
         return resp
 
     set_healthy_robot_ros_srv.type = rasberry_coordination.srv.TriggerRobot
@@ -355,9 +365,20 @@ class Coordinator:
         robot must be a configured one and is not set as unhealthy or unfit already
         """
         resp = rasberry_coordination.srv.TriggerRobotResponse()
-        if req.robot_id in self.robot_ids and req.robot_id not in self.unhealthy_robots and req.robot_id not in self.unfit_robots:
+        if req.robot_id not in self.robot_ids:
+            resp.success = False
+            resp.message = "Robot - %s is not configured" %(req.robot_id)
+            return resp
+
+        if req.robot_id not in self.unhealthy_robots and req.robot_id not in self.unfit_robots:
             self.unhealthy_robots.append(req.robot_id)
             self.force_robot_status_check = True
+            resp.success = True
+            resp.message = "Robot - %s is queued to be marked as unhealthy" %(req.robot_id)
+        else:
+            resp.success = False
+            resp.message = "Robot - %s is not healthy to be marked as unhealthy now" %(req.robot_id)
+
         return resp
 
     set_unhealthy_robot_ros_srv.type = rasberry_coordination.srv.TriggerRobot
