@@ -383,6 +383,54 @@ class Coordinator:
 
     set_unhealthy_robot_ros_srv.type = rasberry_coordination.srv.TriggerRobot
 
+    def set_robot_reached_picker_ros_srv(self, req):
+        """Set a robot reached the storage. finish the go_to_picker stage. robot will go to wait_loading
+        """
+        resp = rasberry_coordination.srv.TriggerRobotResponse()
+        if req.robot_id not in self.robot_ids:
+            resp.success = False
+            resp.message = "Robot - %s is not configured" %(req.robot_id)
+            return resp
+
+        if req.robot_id in self.moving_robots and self.task_stages[req.robot_id] == "go_to_picker":
+            self.robots[req.robot_id].cancel_execpolicy_goal()
+            self.finish_task_stage(req.robot_id, "go_to_picker")
+            task_id = self.robot_task_id[req.robot_id]
+            self.publish_task_state(task_id, req.robot_id, "ARRIVED")
+            resp.success = True
+            resp.message = "Robot - %s is set to have reached the picker" %(req.robot_id)
+        else:
+            resp.success = False
+            resp.message = "Robot - %s is not in moving_robots now" %(req.robot_id)
+
+        return resp
+
+    set_robot_reached_picker_ros_srv.type = rasberry_coordination.srv.TriggerRobot
+
+    def set_robot_reached_storage_ros_srv(self, req):
+        """Set a robot reached the storage. finish the go_to_storage stage. robot will go to wait_unloading
+        """
+        resp = rasberry_coordination.srv.TriggerRobotResponse()
+        if req.robot_id not in self.robot_ids:
+            resp.success = False
+            resp.message = "Robot - %s is not configured" %(req.robot_id)
+            return resp
+
+        if req.robot_id in self.moving_robots and self.task_stages[req.robot_id] == "go_to_storage":
+            self.robots[req.robot_id].cancel_execpolicy_goal()
+            self.finish_task_stage(req.robot_id, "go_to_storage")
+            task_id = self.robot_task_id[req.robot_id]
+            self.publish_task_state(task_id, req.robot_id, "STORAGE")
+            resp.success = True
+            resp.message = "Robot - %s is set to have reached the storage" %(req.robot_id)
+        else:
+            resp.success = False
+            resp.message = "Robot - %s is not in moving_robots now" %(req.robot_id)
+
+        return resp
+
+    set_robot_reached_storage_ros_srv.type = rasberry_coordination.srv.TriggerRobot
+
     def advertise_services(self):
         """Adverstise ROS services.
         Only call at the end of constructor to avoid calls during construction.
@@ -1211,7 +1259,7 @@ class Coordinator:
     def on_shutdown(self, ):
         """on shutdown cancel all goals
         """
-        print "shutting down all actions"
+        print("shutting down all actions")
         for robot_id in self.robot_ids:
             if robot_id in self.active_robots:
                 self.robots[robot_id].cancel_execpolicy_goal()
