@@ -483,6 +483,10 @@ class Coordinator:
             self.finish_task_stage(req.robot_id, "go_to_picker")
             task_id = self.robot_task_id[req.robot_id]
             self.publish_task_state(task_id, req.robot_id, "ARRIVED")
+            self.write_log({"action_type": "car_update",
+                            "task_updates": "ARRIVED",
+                            "task_id": task_id,
+                            })
             resp.success = True
             resp.message = "Robot - %s is set to have reached the picker" %(req.robot_id)
 
@@ -521,6 +525,10 @@ class Coordinator:
             self.finish_task_stage(req.robot_id, "go_to_storage")
             task_id = self.robot_task_id[req.robot_id]
             self.publish_task_state(task_id, req.robot_id, "STORAGE")
+            self.write_log({"action_type": "car_update",
+                            "task_updates": "STORAGE",
+                            "task_id": task_id,
+                            })
             resp.success = True
             resp.message = "Robot - %s is set to have reached the storage" %(req.robot_id)
 
@@ -979,11 +987,19 @@ class Coordinator:
                             # go_to_picker stage is finished
                             self.finish_task_stage(robot_id, "go_to_picker")
                             self.publish_task_state(task_id, robot_id, "ARRIVED")
+                            self.write_log({"action_type": "car_update",
+                                            "task_updates": "ARRIVED",
+                                            "task_id": task_id,
+                                            })
 
                         elif self.task_stages[robot_id] == "go_to_storage":
                             # go_to_storage stage is finished
                             self.finish_task_stage(robot_id, "go_to_storage")
                             self.publish_task_state(task_id, robot_id, "STORAGE")
+                            self.write_log({"action_type": "car_update",
+                                            "task_updates": "STORAGE",
+                                            "task_id": task_id,
+                                            })
 
                         elif self.task_stages[robot_id] == "go_to_base":
                             # task is finished
@@ -1302,6 +1318,10 @@ class Coordinator:
                         self.finish_task_stage(robot_id, self.task_stages[robot_id])
                         task_id = self.robot_task_id[robot_id]
                         self.publish_task_state(task_id, robot_id, "ARRIVED")
+                        self.write_log({"action_type": "car_update",
+                            "task_updates": "ARRIVED",
+                            "task_id": task_id,
+                            })
                     elif self.task_stages[robot_id] == "go_to_base":
                         self.finish_task_stage(robot_id, self.task_stages[robot_id])
                         if robot_id in self.moving_robots:
