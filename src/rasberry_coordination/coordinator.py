@@ -151,7 +151,7 @@ class Coordinator:
         self.task_state_msg = rasberry_coordination.msg.TaskUpdates()
 
         # TODO: these durations should come from a config
-        self.max_load_duration = rospy.Duration(secs=20)
+        self.max_load_duration = rospy.Duration(secs=60)
         self.max_unload_duration = rospy.Duration(secs=10)
 
         self.picker_task_updates_pub = rospy.Publisher("/rasberry_coordination/task_updates", rasberry_coordination.msg.TaskUpdates, queue_size=5)
