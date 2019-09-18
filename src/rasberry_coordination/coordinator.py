@@ -122,11 +122,11 @@ class Coordinator:
                                                               self._closest_node_cb,
                                                               callback_args=agent_name) for agent_name in self.presence_agents}
 
-        self.battery_voltage = {robot_id:0.0 for robot_id in self.robot_ids}
-        self.battery_state_subs = {robot_id:rospy.Subscriber(robot_id+"/battery_state",
-                                                             thorvald_base.msg.BatteryArray,
-                                                             self._battery_state_cb,
-                                                             callback_args=robot_id) for robot_id in self.robot_ids}
+        self.battery_voltage = {robot_id:55.0 for robot_id in self.robot_ids}
+#        self.battery_state_subs = {robot_id:rospy.Subscriber(robot_id+"/battery_state",
+#                                                             thorvald_base.msg.BatteryArray,
+#                                                             self._battery_state_cb,
+#                                                             callback_args=robot_id) for robot_id in self.robot_ids}
 
         self.max_task_priorities = max_task_priorities
 
