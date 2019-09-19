@@ -21,15 +21,21 @@ import topological_navigation.route_search
 import topological_navigation.tmap_utils
 import nav_msgs.msg
 import geometry_msgs.msg
+import thorvald_base.msg
 
 import rasberry_coordination.robot
 import rasberry_coordination.srv
 
+import os
+import csv
+import time
+import datetime
 
 class Coordinator:
     """
     """
-    def __init__(self, local_storage, charging_node, base_stations, wait_nodes, robot_ids, max_task_priorities):
+    def __init__(self, local_storage, charging_node, base_stations, wait_nodes,
+                 robot_ids, max_task_priorities, low_battery_voltage):
         """
         """
         self.ns = "/rasberry_coordination/"
@@ -44,6 +50,20 @@ class Coordinator:
         self.base_stations = base_stations
         self.wait_nodes = wait_nodes
         self.max_task_priorities = max_task_priorities
+        self.low_battery_voltage = low_battery_voltage
+
+        logs_dir = os.path.join(os.environ["HOME"], "rasberry_coordination_logs")
+        if not os.path.exists(logs_dir):
+            os.makedirs(logs_dir)
+        dt = datetime.datetime.now()
+        self.log_file = open(os.path.join(logs_dir, dt.strftime("%Y%m%d-%H%M%S.csv")), "w")
+        self.log_headers = ["id", "time", "datetime", "action_type",
+                            "task_id", "robot_id", "robot_task_stage",
+                            "task_updates", "details"]
+        self.log_count = 0
+        self.log_writer = csv.DictWriter(self.log_file, fieldnames=self.log_headers)
+        self.log_writer.writeheader()
+        self.write_log({"action_type": "starting coordinator"})
 
         # 0 - idle, 1 - transporting_to_picker, 2 - waiting for loading,
         # 3 - waiting for unloading, 4 - transporting to storage, 5- charging
@@ -72,6 +92,11 @@ class Coordinator:
         self.idle_robots = self.robot_ids + [] # a copy of robot_ids
         self.active_robots = [] # all robots executing a task
         self.moving_robots = [] # all robots which are having an active topo_nav goal (not waiting before critical points for clearance)
+        self.unfit_robots = [] # robots which should be taked away for maintenance. if doing a task now, move to this as soon as it is finished
+        # intermediatory lists
+        self.healthy_robots = [] # a list between unfit and idle to avoid idle_robot being modified during task assignments
+        self.unhealthy_robots = [] # a list between idle and unfit to avoid idle_robot being modified during task assignments
+        self.force_robot_status_check = False
 
         self.topo_map = None
         self.rec_topo_map = False
@@ -97,7 +122,16 @@ class Coordinator:
                                                               self._closest_node_cb,
                                                               callback_args=agent_name) for agent_name in self.presence_agents}
 
+        self.battery_voltage = {robot_id:55.0 for robot_id in self.robot_ids}
+#        self.battery_state_subs = {robot_id:rospy.Subscriber(robot_id+"/battery_state",
+#                                                             thorvald_base.msg.BatteryArray,
+#                                                             self._battery_state_cb,
+#                                                             callback_args=robot_id) for robot_id in self.robot_ids}
+
         self.max_task_priorities = max_task_priorities
+
+        self.tray_loaded = {robot_id:False for robot_id in self.robot_ids}
+        self.tray_unloaded = {robot_id:True for robot_id in self.robot_ids}
 
         self.advertise_services()
         # don't queue more than 1000 tasks
@@ -115,15 +149,12 @@ class Coordinator:
         self.task_robot_id = {}
         self.robot_task_id = {robot_id: None for robot_id in self.robot_ids}
         self.task_state_msg = rasberry_coordination.msg.TaskUpdates()
-        self.tray_loaded_srv = rospy.Service(self.ns + "tray_loaded", rasberry_coordination.srv.TrayLoaded, self._tray_loaded_cb)
-        self.tray_loaded = {robot_id:False for robot_id in self.robot_ids}
-        self.tray_unloaded = {robot_id:True for robot_id in self.robot_ids}
 
         # TODO: these durations should come from a config
-        self.max_load_duration = rospy.Duration(secs=20)
-        self.max_unload_duration = rospy.Duration(secs=20)
+        self.max_load_duration = rospy.Duration(secs=60)
+        self.max_unload_duration = rospy.Duration(secs=10)
 
-        self.picker_task_updates_pub = rospy.Publisher("/picker_state_monitor/task_updates", rasberry_coordination.msg.TaskUpdates, queue_size=5)
+        self.picker_task_updates_pub = rospy.Publisher("/rasberry_coordination/task_updates", rasberry_coordination.msg.TaskUpdates, queue_size=5)
 
         rospy.loginfo("coordinator initialised")
 
@@ -134,7 +165,7 @@ class Coordinator:
         self.rec_topo_map = True
 
     def _current_node_cb(self, msg, agent_name):
-        """
+        """callback for current node msgs from presence agents
         """
         if self.current_nodes[agent_name] != "none":
             self.prev_current_nodes[agent_name] = self.current_nodes[agent_name]
@@ -142,18 +173,28 @@ class Coordinator:
         self.update_available_topo_map()
 
     def _closest_node_cb(self, msg, agent_name):
-        """
+        """callback for closest node msgs from presence agents
         """
         self.closest_nodes[agent_name] = msg.data
 
-    def _tray_loaded_cb(self, req):
-        """callback for tray_loaded service
+    def _battery_state_cb(self, msg, robot_id):
+        """callback for battery state msgs from robots
         """
-        self.tray_unloaded[req.robot_id] = False
-        self.tray_loaded[req.robot_id] = True
-        return []
+        self.battery_voltage[robot_id] = 0.0
+        count = 0
+        for battery_data in msg.battery_data:
+            self.battery_voltage[robot_id] += battery_data.battery_voltage
+            count += 1
+
+        self.battery_voltage /= count
 
     def _get_robot_state(self, robot_id):
+        """get the state of a robot
+
+        Keyword arguments:
+
+        robot_id -- robot_id
+        """
         state, goal_node, start_time = "", "", rospy.Time()
         if self.task_stages[robot_id] is not None:
             state = self.task_stages[robot_id]
@@ -165,11 +206,30 @@ class Coordinator:
                 goal_node = self.base_stations[robot_id]
             else:
                 goal_node = ""
-        else:
+        elif robot_id in self.idle_robots:
             state = "idle"
+            goal_node = ""
+        elif robot_id in self.unfit_robots:
+            state = "unfit"
+            goal_node = ""
+        else:
+            state = ""
             goal_node = ""
         start_time = self.start_time[robot_id]
         return (state, goal_node, start_time)
+
+    def tray_loaded_ros_srv(self, req):
+        """tray_loaded service
+        """
+        self.tray_unloaded[req.robot_id] = False
+        self.tray_loaded[req.robot_id] = True
+
+        self.write_log({"action_type": "tray_loaded_ros_srv",
+                        "robot_id": req.robot_id,
+                        })
+        return []
+
+    tray_loaded_ros_srv.type = rasberry_coordination.srv.TrayLoaded
 
     def get_robot_state_ros_srv(self, req):
         """get the state of a robot
@@ -209,12 +269,22 @@ class Coordinator:
         """
         self.last_id += 1
         task_id = self.last_id
+
+        self.write_log({"action_type": "car_update",
+                        "task_updates": "CALLED",
+                        "task_id": task_id,
+                        "details": req.task.start_node_id,
+                        })
+
         req.task.task_id = task_id
         rospy.loginfo('received task: %s to %s', req.task.task_id, req.task.start_node_id)
         self.tasks.put(
             (task_id, req.task)
         )
         self.all_task_ids.append(task_id)
+        self.write_log({"action_type":"add_task_srv",
+                        "task_id": task_id,
+                        })
         return task_id
 
     add_task_ros_srv.type = strands_executive_msgs.srv.AddTask
@@ -231,12 +301,19 @@ class Coordinator:
         #    the robot will have to be sent to the base after the cancellation
         # 2. task is still queued or is in processed (if allocated)
         #    pop the task from the queue and add to cancelled
-
+        self.write_log({"action_type": "car_update",
+                        "task_updates": "CANCEL",
+                        "task_id": req.task_id,
+                        })
         if req.task_id in self.all_task_ids:
             if ((req.task_id in self.completed_tasks) or
                   (req.task_id in self.cancelled_tasks) or
                   (req.task_id in self.to_be_cancelled)):
                 # cannot be here
+                self.write_log({"action_type": "cancel_task_srv_fail",
+                                "task_id": req.task_id,
+                                "details": "cancel_task_ros_srv cannot be in this condition"
+                                })
                 raise Exception("cancel_task_ros_srv cannot be in this condition")
                 pass
             elif req.task_id in self.processing_tasks:
@@ -250,14 +327,26 @@ class Coordinator:
                     self.send_robot_to_base(robot_id)
                 rospy.loginfo("cancelling task-%d", req.task_id)
                 cancelled = True
+
+                self.write_log({"action_type":"cancel_task_srv_success",
+                                "task_id": req.task_id,
+                                })
             else:
                 # not yet processed, but will not be taken for processing
                 self.to_be_cancelled.append(req.task_id)
                 rospy.loginfo("cancelling task-%d", req.task_id)
                 cancelled = True
+
+                self.write_log({"action_type":"cancel_task_srv_success",
+                                "task_id": req.task_id,
+                                })
         else:
             # invalid task_id
             rospy.logerr("cancel_task is invoked with invalid task_id")
+            self.write_log({"action_type": "cancel_task_srv_fail",
+                                "task_id": req.task_id,
+                                "details": "cancel_task is invoked with invalid task_id"
+                                })
 
         return cancelled
 
@@ -298,6 +387,166 @@ class Coordinator:
         return resp
 
     all_tasks_info_ros_srv.type = rasberry_coordination.srv.AllTasksInfo
+
+    def set_healthy_robot_ros_srv(self, req):
+        """Set a robot as healthy if marked as unfit. will then be moved to idle.
+        robot must be already set as unfit
+        """
+        resp = rasberry_coordination.srv.TriggerRobotResponse()
+        if req.robot_id not in self.robot_ids:
+            resp.success = False
+            resp.message = "Robot - %s is not configured" %(req.robot_id)
+
+            self.write_log({"action_type": "set_healthy_robot_srv_fail",
+                            "robot_id": req.robot_id,
+                            "details": "Robot - %s is not configured" %(req.robot_id)
+                            })
+            return resp
+
+        if req.robot_id in self.unfit_robots:
+            self.unfit_robots.remove(req.robot_id)
+            # move to healthy_robots. will be added to idle during next low_battery_check
+            self.healthy_robots.append(req.robot_id)
+            self.force_robot_status_check = True
+            resp.success = True
+            resp.message = "Robot - %s is queued to be marked as healthy" %(req.robot_id)
+
+            self.write_log({"action_type": "set_healthy_robot_srv_success",
+                            "robot_id": req.robot_id,
+                            })
+        else:
+            resp.success = False
+            resp.message = "Robot - %s is not unfit to be marked as healthy now" %(req.robot_id)
+
+            self.write_log({"action_type": "set_healthy_robot_srv_fail",
+                            "robot_id": req.robot_id,
+                            "details": "Robot - %s is not unfit to be marked as healthy now" %(req.robot_id)
+                            })
+        return resp
+
+    set_healthy_robot_ros_srv.type = rasberry_coordination.srv.TriggerRobot
+
+    def set_unhealthy_robot_ros_srv(self, req):
+        """Set a robot as unhealthy if marked as unhealthy which will then be moved to unfit.
+        robot must be a configured one and is not set as unhealthy or unfit already
+        """
+        resp = rasberry_coordination.srv.TriggerRobotResponse()
+        if req.robot_id not in self.robot_ids:
+            resp.success = False
+            resp.message = "Robot - %s is not configured" %(req.robot_id)
+
+            self.write_log({"action_type": "set_unhealthy_robot_srv_fail",
+                            "robot_id": req.robot_id,
+                            "details": "Robot - %s is not configured" %(req.robot_id)
+                            })
+            return resp
+
+        if req.robot_id not in self.unhealthy_robots and req.robot_id not in self.unfit_robots:
+            self.unhealthy_robots.append(req.robot_id)
+            self.force_robot_status_check = True
+            resp.success = True
+            resp.message = "Robot - %s is queued to be marked as unhealthy" %(req.robot_id)
+
+            self.write_log({"action_type": "set_unhealthy_robot_srv_success",
+                            "robot_id": req.robot_id,
+                            })
+
+        else:
+            resp.success = False
+            resp.message = "Robot - %s is not healthy to be marked as unhealthy now" %(req.robot_id)
+
+            self.write_log({"action_type": "set_unhealthy_robot_srv_fail",
+                            "robot_id": req.robot_id,
+                            "details": "Robot - %s is not healthy to be marked as unhealthy now" %(req.robot_id)
+                            })
+
+        return resp
+
+    set_unhealthy_robot_ros_srv.type = rasberry_coordination.srv.TriggerRobot
+
+    def set_robot_reached_picker_ros_srv(self, req):
+        """Set a robot reached the storage. finish the go_to_picker stage. robot will go to wait_loading
+        """
+        resp = rasberry_coordination.srv.TriggerRobotResponse()
+        if req.robot_id not in self.robot_ids:
+            resp.success = False
+            resp.message = "Robot - %s is not configured" %(req.robot_id)
+
+            self.write_log({"action_type": "set_robot_reached_picker_srv_fail",
+                            "robot_id": req.robot_id,
+                            "details": "Robot - %s is not configured" %(req.robot_id)
+                            })
+            return resp
+
+        if req.robot_id in self.moving_robots and self.task_stages[req.robot_id] == "go_to_picker":
+            self.robots[req.robot_id].cancel_execpolicy_goal()
+            self.finish_task_stage(req.robot_id, "go_to_picker")
+            task_id = self.robot_task_id[req.robot_id]
+            self.publish_task_state(task_id, req.robot_id, "ARRIVED")
+            self.write_log({"action_type": "car_update",
+                            "task_updates": "ARRIVED",
+                            "task_id": task_id,
+                            })
+            resp.success = True
+            resp.message = "Robot - %s is set to have reached the picker" %(req.robot_id)
+
+            self.write_log({"action_type": "set_robot_reached_picker_srv_success",
+                            "robot_id": req.robot_id,
+                            })
+        else:
+            resp.success = False
+            resp.message = "Robot - %s is not in moving_robots now" %(req.robot_id)
+
+            self.write_log({"action_type": "set_robot_reached_picker_srv_fail",
+                            "robot_id": req.robot_id,
+                            "details": "Robot - %s is not in moving_robots now" %(req.robot_id)
+                            })
+
+        return resp
+
+    set_robot_reached_picker_ros_srv.type = rasberry_coordination.srv.TriggerRobot
+
+    def set_robot_reached_storage_ros_srv(self, req):
+        """Set a robot reached the storage. finish the go_to_storage stage. robot will go to wait_unloading
+        """
+        resp = rasberry_coordination.srv.TriggerRobotResponse()
+        if req.robot_id not in self.robot_ids:
+            resp.success = False
+            resp.message = "Robot - %s is not configured" %(req.robot_id)
+
+            self.write_log({"action_type": "set_robot_reached_storage_srv_fail",
+                            "robot_id": req.robot_id,
+                            "details": "Robot - %s is not configured" %(req.robot_id)
+                            })
+            return resp
+
+        if req.robot_id in self.moving_robots and self.task_stages[req.robot_id] == "go_to_storage":
+            self.robots[req.robot_id].cancel_execpolicy_goal()
+            self.finish_task_stage(req.robot_id, "go_to_storage")
+            task_id = self.robot_task_id[req.robot_id]
+            self.publish_task_state(task_id, req.robot_id, "STORAGE")
+            self.write_log({"action_type": "car_update",
+                            "task_updates": "STORAGE",
+                            "task_id": task_id,
+                            })
+            resp.success = True
+            resp.message = "Robot - %s is set to have reached the storage" %(req.robot_id)
+
+            self.write_log({"action_type": "set_robot_reached_storage_srv_success",
+                            "robot_id": req.robot_id,
+                            })
+        else:
+            resp.success = False
+            resp.message = "Robot - %s is not in moving_robots now" %(req.robot_id)
+
+            self.write_log({"action_type": "set_robot_reached_storage_srv_fail",
+                            "robot_id": req.robot_id,
+                            "details": "Robot - %s is not in moving_robots now" %(req.robot_id)
+                            })
+
+        return resp
+
+    set_robot_reached_storage_ros_srv.type = rasberry_coordination.srv.TriggerRobot
 
     def advertise_services(self):
         """Adverstise ROS services.
@@ -379,6 +628,11 @@ class Coordinator:
                 self.idle_robots.remove(robot_id)
                 self.active_robots.append(robot_id)
             self.task_stages[robot_id] = "go_to_base"
+
+            self.write_log({"action_type": "robot_update",
+                            "robot_task_stage": "go_to_base_start",
+                            "robot_id": robot_id,
+                            })
 
     def find_closest_robot(self, task):
         """find the robot closest to the task location (picker_node)
@@ -553,6 +807,19 @@ class Coordinator:
                 self.task_state_msg.state = "ACCEPT"
                 self.picker_task_updates_pub.publish(self.task_state_msg)
 
+                self.write_log({"action_type": "car_update",
+                                "task_updates": "ACCEPT",
+                                "task_id": task_id,
+                                "robot_id": robot_id,
+                                })
+
+                self.write_log({"action_type": "robot_update",
+                                "robot_task_stage": "go_to_picker_start",
+                                "task_id": task_id,
+                                "robot_id": robot_id,
+                                "details": "from %s to %s" %(self.current_nodes[robot_id] if self.current_nodes[robot_id]!="none" else self.closest_nodes[robot_id], task.start_node_id)
+                                })
+
         # putting unassigned tasks back in the queue
         for (task_id, task) in tasks:
             self.tasks.put((task_id, task))
@@ -585,9 +852,24 @@ class Coordinator:
         if curr_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
             self.finish_route_fragment(robot_id)
 
+        self.write_log({"action_type": "robot_update",
+                        "robot_task_stage": curr_stage+"_finish",
+                        "task_id": self.robot_task_id[robot_id] if self.robot_task_id[robot_id] is not None else "",
+                        "robot_id": robot_id,
+                        "details": "now at %s" %(self.current_nodes[robot_id] if self.current_nodes[robot_id]!="none" else self.closest_nodes[robot_id]),
+                        })
+
         rospy.loginfo("setting %s's state from %s to %s", robot_id, curr_stage, next_stage[curr_stage])
         self.task_stages[robot_id] = next_stage[curr_stage]
         self.start_time[robot_id] = rospy.get_rostime()
+
+        if curr_stage != "go_to_base":
+            self.write_log({"action_type": "robot_update",
+                            "robot_task_stage": next_stage[curr_stage]+"_start",
+                            "task_id": self.robot_task_id[robot_id] if self.robot_task_id[robot_id] is not None else "",
+                            "robot_id": robot_id,
+                            "details": "now at %s" %(self.current_nodes[robot_id] if self.current_nodes[robot_id]!="none" else self.closest_nodes[robot_id]),
+                            })
 
     def finish_task(self, robot_id):
         """set the task assigned to the robot as finished whenever trays are unloaded
@@ -602,11 +884,25 @@ class Coordinator:
         if robot_id in self.moving_robots:
             self.moving_robots.remove(robot_id)
 
+        self.write_log({"action_type": "task_update",
+                        "task_updates": "task_finish",
+                        "task_id": task_id,
+                        "robot_id": robot_id,
+                        "details": "now at %s" %(self.current_nodes[robot_id] if self.current_nodes[robot_id]!="none" else self.closest_nodes[robot_id]),
+                        })
+
     def set_task_failed(self, task_id):
         """set task state as failed
         """
         task = self.processing_tasks.pop(task_id)
         self.failed_tasks[task_id] = task
+
+        self.write_log({"action_type": "task_update",
+                        "task_updates": "task_failed",
+                        "task_id": task_id,
+                        "details": "Assigned robot failed to complete task after reaching picker(?)"
+                        })
+
 
     def publish_task_state(self, task_id, robot_id, state):
         """publish the state of task (or picker) in CAR
@@ -633,6 +929,17 @@ class Coordinator:
             self.tasks.put(
                 (task_id, task)
             )
+
+            self.write_log({"action_type": "task_update",
+                            "task_updates": "readd_task",
+                            "task_id": task_id,
+                            "details": "Assigned robot failed to reach picker, adding the task back into the queue"
+                            })
+
+            self.write_log({"action_type": "car_update",
+                            "task_updates": "CALLED",
+                            "task_id": task_id,
+                            })
 
         rospy.sleep(0.01)
 
@@ -680,11 +987,19 @@ class Coordinator:
                             # go_to_picker stage is finished
                             self.finish_task_stage(robot_id, "go_to_picker")
                             self.publish_task_state(task_id, robot_id, "ARRIVED")
+                            self.write_log({"action_type": "car_update",
+                                            "task_updates": "ARRIVED",
+                                            "task_id": task_id,
+                                            })
 
                         elif self.task_stages[robot_id] == "go_to_storage":
                             # go_to_storage stage is finished
                             self.finish_task_stage(robot_id, "go_to_storage")
                             self.publish_task_state(task_id, robot_id, "STORAGE")
+                            self.write_log({"action_type": "car_update",
+                                            "task_updates": "STORAGE",
+                                            "task_id": task_id,
+                                            })
 
                         elif self.task_stages[robot_id] == "go_to_base":
                             # task is finished
@@ -742,6 +1057,11 @@ class Coordinator:
 
                     if finish_waiting:
                         self.publish_task_state(task_id, robot_id, "LOADED")
+                        self.write_log({"action_type": "car_update",
+                            "task_updates": "LOADED",
+                            "task_id": task_id,
+                            })
+
                         self.finish_task_stage(robot_id, "wait_loading")
                         self.tray_loaded[robot_id] = True
                         self.tray_unloaded[robot_id] = False
@@ -753,10 +1073,17 @@ class Coordinator:
                     if rospy.get_rostime() - self.start_time[robot_id] > self.max_unload_duration:
                         # delay
                         self.publish_task_state(task_id, robot_id, "DELIVERED")
+                        self.write_log({"action_type": "car_update",
+                            "task_updates": "DELIVERED",
+                            "task_id": task_id,
+                            })
+
                         self.finish_task(robot_id)
                         self.tray_loaded[robot_id] = False
                         self.tray_unloaded[robot_id] = True
                         trigger_replan = True
+
+
                     else:
                         rospy.sleep(0.5)
 
@@ -991,6 +1318,10 @@ class Coordinator:
                         self.finish_task_stage(robot_id, self.task_stages[robot_id])
                         task_id = self.robot_task_id[robot_id]
                         self.publish_task_state(task_id, robot_id, "ARRIVED")
+                        self.write_log({"action_type": "car_update",
+                            "task_updates": "ARRIVED",
+                            "task_id": task_id,
+                            })
                     elif self.task_stages[robot_id] == "go_to_base":
                         self.finish_task_stage(robot_id, self.task_stages[robot_id])
                         if robot_id in self.moving_robots:
@@ -1070,9 +1401,16 @@ class Coordinator:
             rospy.sleep(0.01)
             self.trigger_replan = False
 
+            if self.force_robot_status_check:
+                # check robot status
+                self.check_robot_status()
+                self.force_robot_status_check = False
+
 #            rospy.loginfo(self.idle_robots)
             if self.idle_robots and not self.tasks.empty():
                 rospy.loginfo("unassigned tasks present. no. idle robots: %d", len(self.idle_robots))
+                # check robot status of idle robots before assigning tasks
+                self.check_robot_status()
                 # try to assign all tasks
                 self.assign_tasks()
 
@@ -1086,10 +1424,68 @@ class Coordinator:
                 # assign first fragment of each robot
                 self.set_execute_policy_routes()
 
+    def check_robot_status(self):
+        """check battery level of all idle robots and set as unfit, if low on battery.
+        to reset an unfit robot, call service set_healthy
+        """
+        unfit_robots = []
+        for robot_id in self.idle_robots:
+            if self.battery_voltage[robot_id] < self.low_battery_voltage:
+                unfit_robots.append(robot_id)
+
+        # remove all unfit robots from idle
+        for robot_id in unfit_robots:
+            self.idle_robots.remove(robot_id)
+            self.unfit_robots.append(robot_id)
+            self.write_log({"action_type": "robot_update",
+                            "details": "robot is unfit - low battery",
+                            "robot_id": robot_id,
+                            })
+
+        # move healthy robots as idle and safely clear healthy_robots
+        to_remove = []
+        for robot_id in self.healthy_robots:
+            self.idle_robots.append(robot_id)
+            to_remove.append(robot_id)
+            self.write_log({"action_type": "robot_update",
+                            "details": "robot is fit again - from service call",
+                            "robot_id": robot_id,
+                            })
+        for robot_id in to_remove:
+            self.healthy_robots.remove(robot_id)
+
+        # move unhealthy robots as unfit and safely clear unhealthy_robots
+        to_remove = []
+        for robot_id in self.unhealthy_robots:
+            self.unfit_robots.append(robot_id)
+            self.idle_robots.remove(robot_id)
+            to_remove.append(robot_id)
+            self.write_log({"action_type": "robot_update",
+                            "details": "robot is unfit - from service call",
+                            "robot_id": robot_id,
+                            })
+        for robot_id in to_remove:
+            self.unhealthy_robots.remove(robot_id)
+
+    def write_log(self, field_vals):
+        """
+        """
+        dt = datetime.datetime.now()
+        row = {"id": self.log_count,
+               "time":time.time(),
+               "datetime": dt.strftime("%Y%m%d-%H%M%S"),
+               }
+        row.update(field_vals)
+        self.log_writer.writerow(row)
+        self.log_count += 1
+
     def on_shutdown(self, ):
         """on shutdown cancel all goals
         """
-        print "shutting down all actions"
+        self.write_log({"action_type":"shutdown coordinator"})
+        self.log_file.close()
+
+        print("shutting down all actions")
         for robot_id in self.robot_ids:
             if robot_id in self.active_robots:
                 self.robots[robot_id].cancel_execpolicy_goal()

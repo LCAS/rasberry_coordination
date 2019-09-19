@@ -33,3 +33,7 @@ virtual_picker_ids:
   - picker108
   - picker109
   - picker110
+# is this a simulated environment
+use_sim: true
+# if batter_voltage is below the given threshold, the robot is set as unfit. ignored for sim
+low_battery_voltage: 45.0
