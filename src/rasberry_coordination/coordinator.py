@@ -1226,14 +1226,54 @@ class Coordinator:
             if self.route_fragments[robot_id]:
                 goal.route.source = self.route_fragments[robot_id][0]
                 goal.route.edge_id = self.route_edges[robot_id][0]
+
             if goal != self.robots[robot_id].execpolicy_goal:
-                rospy.loginfo(robot_id)
-                rospy.loginfo(goal)
-                rospy.loginfo(self.robots[robot_id].execpolicy_goal)
-                self.robots[robot_id].set_execpolicy_goal(goal)
-                self.publish_route(robot_id, goal.route.source, goal.route.edge_id)
-                if goal.route.edge_id and robot_id not in self.moving_robots:
-                    self.moving_robots.append(robot_id)
+                same_route = True
+
+                if goal.route.source and self.robots[robot_id].execpolicy_goal.route.source:
+                    # if there is at least one source node
+                    if goal.route.edge_id[-1] != self.robots[robot_id].execpolicy_goal.route.edge_id[-1]:
+                        # goal edge_ids are different
+                        same_route = False
+                    else:
+                        # loop from new start source node to end source node
+                        new_start_node = goal.route.source[0]
+
+                        # look for new_start_node in previous goal
+                        idx = 0
+                        change_idx = False
+                        for i in range(len(self.robots[robot_id].execpolicy_goal.route.source)):
+                            if new_start_node == self.robots[robot_id].execpolicy_goal.route.source[i]:
+                                # found current start source node in previous source nodes
+                                if len(self.robots[robot_id].execpolicy_goal.route.source) - i != len(goal.route.source):
+                                    # remaining nodes in the routes are different => different route
+                                    same_route = False
+                                    break
+                                change_idx = True # enable comparing source nodes here onwards
+
+                            if change_idx:
+                                if goal.route.source[idx] != self.robots[robot_id].execpolicy_goal.route.source[i]:
+                                    # different node => different route
+                                    same_route = False
+                                    break
+                                else:
+                                    # check next node
+                                    idx += 1
+                else:
+                    # either new or old source nodes are empty
+                    same_route = False
+
+                if not same_route:
+                    # publish new route only if different
+                    rospy.loginfo(robot_id)
+                    rospy.loginfo("new_goal")
+                    rospy.loginfo(goal)
+                    rospy.loginfo("prev_goal")
+                    rospy.loginfo(self.robots[robot_id].execpolicy_goal)
+                    self.robots[robot_id].set_execpolicy_goal(goal)
+                    self.publish_route(robot_id, goal.route.source, goal.route.edge_id)
+                    if goal.route.edge_id and robot_id not in self.moving_robots:
+                        self.moving_robots.append(robot_id)
 
     def set_empty_execpolicy_goal(self, robot_id):
         """for intermediate cancellation, sending another empty goal to preempt
