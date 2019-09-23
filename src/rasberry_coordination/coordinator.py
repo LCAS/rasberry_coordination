@@ -1270,6 +1270,17 @@ class Coordinator:
                     rospy.loginfo(goal)
                     rospy.loginfo("prev_goal")
                     rospy.loginfo(self.robots[robot_id].execpolicy_goal)
+
+                    self.write_log({"action_type": "robot_update",
+                            "details": "current_node: %s, closest_node: %s" %(self.current_nodes[robot_id], self.closest_nodes[robot_id]),
+                            "robot_id": robot_id,
+                            })
+
+                    self.write_log({"action_type": "robot_update",
+                            "details": "new_route: source: %s, edge_ids: %s" %(str(goal.route.source), str(goal.route.edge_id)),
+                            "robot_id": robot_id,
+                            })
+
                     self.robots[robot_id].set_execpolicy_goal(goal)
                     self.publish_route(robot_id, goal.route.source, goal.route.edge_id)
                     if goal.route.edge_id and robot_id not in self.moving_robots:
