@@ -141,7 +141,7 @@ class PickerStateMonitor(object):
                             task = strands_executive_msgs.msg.Task()
                             task.action = "CollectTray"
                             # task_start_node is the picker_node
-                            if self.picker_closest_nodes[picker_id] != "none":
+                            if self.picker_current_nodes[picker_id] != "none":
                                 task.start_node_id = self.picker_current_nodes[picker_id]
                             else:
                                 task.start_node_id = self.picker_closest_nodes[picker_id]
