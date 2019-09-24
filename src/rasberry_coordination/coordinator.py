@@ -1154,12 +1154,11 @@ class Coordinator:
         """
         c_points, c_robots = self.critical_points()
 
-        # for robots in go_to_picker mode, if the only critical point is the picker node, reset it
+        # for robots in go_to_picker mode, if the picker node is in the critical points, remove it
         for robot_id in self.active_robots:
             if (self.task_stages[robot_id] == "go_to_picker" and
-                len(c_points[str(self.routes[robot_id])]) == 1 and
-                c_points[str(self.routes[robot_id])] == set([self.processing_tasks[self.robot_task_id[robot_id]].start_node_id])):
-                c_points[str(self.routes[robot_id])] = set([])
+                self.processing_tasks[self.robot_task_id[robot_id]].start_node_id in c_points[str(self.routes[robot_id])]):
+                c_points[str(self.routes[robot_id])].remove(self.processing_tasks[self.robot_task_id[robot_id]].start_node_id)
 
 #        rospy.loginfo(c_points)
 
