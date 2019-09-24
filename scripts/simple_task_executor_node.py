@@ -89,6 +89,8 @@ if __name__ == '__main__':
                                                           base_stations=base_stations,
                                                           wait_nodes=wait_nodes,
                                                           robot_ids=robot_ids,
+                                                          picker_ids=picker_ids,
+                                                          virtual_picker_ids=virtual_picker_ids,
                                                           max_task_priorities=max_task_priorities,
                                                           low_battery_voltage=low_battery_voltage)
 

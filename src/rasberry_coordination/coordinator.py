@@ -35,12 +35,15 @@ class Coordinator:
     """
     """
     def __init__(self, local_storage, charging_node, base_stations, wait_nodes,
-                 robot_ids, max_task_priorities, low_battery_voltage):
+                 robot_ids, picker_ids, virtual_picker_ids, max_task_priorities, low_battery_voltage):
         """
         """
         self.ns = "/rasberry_coordination/"
 
         self.robot_ids = robot_ids
+        self.human_picker_ids = picker_ids
+        self.virtual_picker_ids = virtual_picker_ids
+
         # TODO:
         # Assuming only one local storage
         # Assuming each robot has a base station node
@@ -109,7 +112,11 @@ class Coordinator:
 
         self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
 
-        self.presence_agents = rospy.get_param("rasberry_coordination/presence_agents", [])
+        # presence agents - robot_ids, picker_ids, virtual_picker_ids from config
+        self.presence_agents = copy.deepcopy(self.robot_ids)
+        self.presence_agents.extend(self.human_picker_ids)
+        self.presence_agents.extend(self.virtual_picker_ids)
+
         self.current_nodes = {agent_name:"none" for agent_name in self.presence_agents}
         self.prev_current_nodes = {agent_name:"none" for agent_name in self.presence_agents}
         self.closest_nodes = {agent_name:"none" for agent_name in self.presence_agents}
