@@ -74,7 +74,7 @@ class PickerStateMonitor(object):
         self.tray_loaded = {} # service clients to send loaded status to robots
         self.task_state = {}
 
-        self.task_updates_sub = rospy.Subscriber("/picker_state_monitor/task_updates", rasberry_coordination.msg.TaskUpdates, self.task_updates_cb)
+        self.task_updates_sub = rospy.Subscriber("/rasberry_coordination/task_updates", rasberry_coordination.msg.TaskUpdates, self.task_updates_cb)
         rospy.loginfo("PickerStateMonitor object is successfully initialised")
 
     def car_event_cb(self, msg):

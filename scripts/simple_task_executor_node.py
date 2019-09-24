@@ -21,7 +21,10 @@ if __name__ == '__main__':
         config_keys = rasberry_des.config_utils.get_config_keys(config_file)
 
         # check for required parameters
-        req_params = ["base_station_nodes", "local_storage_node", "charging_station_node", "robot_ids", "max_task_priorities", "picker_ids"]
+        req_params = ["base_station_nodes", "local_storage_node",
+                      "charging_station_node", "robot_ids",
+                      "max_task_priorities", "picker_ids",
+                      "use_sim", "low_battery_voltage"]
 
         for key in config_keys:
             if key in req_params:
@@ -43,6 +46,9 @@ if __name__ == '__main__':
         charging_node = config_data["charging_station_node"]
         robot_ids = config_data["robot_ids"]
         _max_task_priorities = config_data["max_task_priorities"]
+        use_sim = config_data["use_sim"]
+        # ignore low_battery_voltage for simulations
+        low_battery_voltage = config_data["low_battery_voltage"] if not use_sim else float("-inf")
 
         picker_ids = config_data["picker_ids"]
 
@@ -83,7 +89,8 @@ if __name__ == '__main__':
                                                           base_stations=base_stations,
                                                           wait_nodes=wait_nodes,
                                                           robot_ids=robot_ids,
-                                                          max_task_priorities=max_task_priorities)
+                                                          max_task_priorities=max_task_priorities,
+                                                          low_battery_voltage=low_battery_voltage)
 
         rospy.on_shutdown(coordinator.on_shutdown)
         rospy.sleep(1) # give a second to let everything settle

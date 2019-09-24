@@ -1,9 +1,9 @@
 base_station_nodes: &id_base_stations
-  - WayPoint140
-  - WayPoint141
+  - s9
+  - s11
 wait_nodes: *id_base_stations
-local_storage_node: WayPoint68
-charging_station_node: WayPoint72
+local_storage_node: s12
+charging_station_node: s12
 robot_ids: 
   - thorvald_014
   - thorvald_019
