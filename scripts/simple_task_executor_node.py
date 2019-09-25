@@ -100,6 +100,9 @@ if __name__ == '__main__':
         # picker_monitor after coordinator
         picker_monitor = rasberry_coordination.picker_state_monitor.PickerStateMonitor(picker_ids, virtual_picker_ids)
 
+        rospy.on_shutdown(picker_monitor.on_shutdown)
+        rospy.sleep(1) # give a second to let everything settle
+
         coordinator.run()
 
         rospy.spin()
