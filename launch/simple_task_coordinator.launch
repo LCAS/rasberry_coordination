@@ -3,8 +3,6 @@
 
   <arg name="config_file" />
 
-  <rosparam command="load" file="$(find rasberry_coordination)/config/topological_presence_agents.yaml" />
-
   <node pkg="rasberry_coordination" name="rasberry_coordination" type="simple_task_executor_node.py" args="$(arg config_file)" output="screen" /> 
 
 </launch>

@@ -30,7 +30,7 @@ remote_topics: []
 local_topics: [
                     ['/robot_pose', 'geometry_msgs/Pose', '/$(arg robot_name)/robot_pose'],
                     ['/hedge_pos_a', 'marvelmind_nav/hedge_pos_a'],
-#                    ['/battery_data', 'thorvald_base/BatteryArray', '/$(arg robot_name)/battery_data'],
+                    ['/battery_data', 'thorvald_base/BatteryArray', '/$(arg robot_name)/battery_data'],
               ]
 # Services running in the server to expose locally
 remote_services: []
