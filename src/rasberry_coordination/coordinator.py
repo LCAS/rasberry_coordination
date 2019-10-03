@@ -1208,11 +1208,9 @@ class Coordinator:
             for v in r:
                 if v in c_points[str(r)]: # vertice is critical point
                     # allow critical point once for a robot among all agents
-                    # once a critical point is passed
                     nearest_robot = self.shortest_route_to_node(c_robots[v], v)
                     if (agent_id == nearest_robot and
-                        v not in allowed_cpoints):# and
-                        #not allowed_to_pass):
+                        v not in allowed_cpoints):
                         partial_route.append(v)
                         allowed_cpoints.append(v)
                         allowed_to_pass = True
