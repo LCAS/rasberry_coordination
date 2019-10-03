@@ -1187,26 +1187,25 @@ class Coordinator:
                     # once a critical point is passed
                     nearest_robot = self.shortest_route_to_node(c_robots[v], v)
                     if (agent_id == nearest_robot and
-                        v not in allowed_cpoints and
-                        not allowed_to_pass):
+                        v not in allowed_cpoints):# and
+                        #not allowed_to_pass):
                         partial_route.append(v)
                         allowed_cpoints.append(v)
                         allowed_to_pass = True
-#                        # TODO: fragment after the critical point for the robot that was
-#                        # allowed to pass. will allow blocked robots to replan soon
-#                        # stopping at the ciritical node does not help though
-                        continue
 
-                    if partial_route:
-                        rr.append(partial_route)
-                    partial_route = [v]
+                    elif v not in allowed_cpoints and allowed_to_pass:
+                        # already allowed once, but keep going although not the nearest to cp
+                        partial_route.append(v)
+                        allowed_cpoints.append(v)
+
+                    else:
+                        # neither the nearest or allowed earlier. so wait before cp
+                        if partial_route:
+                            rr.append(partial_route)
+                        partial_route = [v]
+
                 else:
                     partial_route.append(v)
-                    # force route fragmentation after passing a critical point
-                    if allowed_to_pass:
-                        rr.append(partial_route)
-                        partial_route = []
-                        allowed_to_pass = False
 
             if partial_route:
                 rr.append(partial_route)
