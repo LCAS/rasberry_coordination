@@ -152,7 +152,7 @@ class PickerStateMonitor(object):
                                             "closest_node": self.picker_closest_nodes[picker_id],
                                             })
 
-                            if cancelled:
+                            if cancelled.cancelled:
                                 # setting previous state as INIT
                                 self.picker_prev_states[picker_id] = "INIT"
                                 self.set_picker_state(picker_id, "INIT")
@@ -168,6 +168,8 @@ class PickerStateMonitor(object):
                                             "closest_node": self.picker_closest_nodes[picker_id],
                                             })
                             else:
+                                # resetting state to prev picker state
+                                self.set_picker_state(picker_id, self.picker_prev_states[picker_id])
                                 self.write_log({"action_type": "car_update",
                                             "picker_status_updates": "%s -> CANCEL" %(self.picker_prev_states[picker_id]),
                                             "task_id": task_id,
@@ -197,7 +199,7 @@ class PickerStateMonitor(object):
                         pass
 
                 elif self.picker_states[picker_id] == "CALLED" and self.picker_prev_states[picker_id] == "INIT":
-                    # add a task, track the task with picker, task_id
+                    # add a task, track the task with picker, task_id, unless a task is already assigned
                     if not self.picker_task[picker_id]:
                         self.write_log({"action_type": "car_update",
                                         "picker_status_updates": "INIT -> CALLED",
@@ -332,7 +334,7 @@ class PickerStateMonitor(object):
         elif "state" in msg_data:
             picker_id = msg_data["user"]
             if picker_id in self.picker_ids:
-                # resetting state, ARRIVED -> LOADED
+                # resetting state to INIT, ARRIVED -> LOADED
                 if self.picker_states[picker_id] != msg_data["state"]:
                     self.write_log({"action_type": "car_update",
                                     "picker_status_updates": "%s -> %s" %(self.picker_states[picker_id], msg_data["state"]),
