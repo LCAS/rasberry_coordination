@@ -1548,6 +1548,9 @@ class Coordinator:
                     continue
 
                 avail_topo_map = copy.deepcopy(self.available_topo_map)
+                # make the robot's current node available
+                if self.current_nodes[robot_id] != "none":
+                    avail_topo_map = self.unblock_node(avail_topo_map, self.current_nodes[robot_id])
                 # make goal_node available only for a picker_node, in other cases it could be blocked
                 if self.task_stages[robot_id] == "go_to_picker":
                     avail_topo_map = self.unblock_node(avail_topo_map, goal_node)
