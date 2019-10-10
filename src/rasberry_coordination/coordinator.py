@@ -1674,15 +1674,16 @@ class Coordinator:
         # move unhealthy robots as unfit and safely clear unhealthy_robots
         to_remove = []
         for robot_id in self.unhealthy_robots:
-            self.unfit_robots.append(robot_id)
-            self.idle_robots.remove(robot_id)
-            to_remove.append(robot_id)
-            self.write_log({"action_type": "robot_update",
-                            "details": "robot is unfit - from service call",
-                            "robot_id": robot_id,
-                            "current_node": self.current_nodes[robot_id],
-                            "closest_node": self.closest_nodes[robot_id],
-                            })
+            if robot_id in self.idle_robots:
+                self.unfit_robots.append(robot_id)
+                self.idle_robots.remove(robot_id)
+                to_remove.append(robot_id)
+                self.write_log({"action_type": "robot_update",
+                                "details": "robot is unfit - from service call",
+                                "robot_id": robot_id,
+                                "current_node": self.current_nodes[robot_id],
+                                "closest_node": self.closest_nodes[robot_id],
+                                })
         for robot_id in to_remove:
             self.unhealthy_robots.remove(robot_id)
 
