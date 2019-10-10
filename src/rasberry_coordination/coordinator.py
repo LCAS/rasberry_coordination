@@ -1124,7 +1124,7 @@ class Coordinator:
                     # trigger replan whenever a segment comppletion is reported
                     trigger_replan = True
                     # if the robot's route is finished, progress to the next stage of the collect tray process
-                    # has it finished the stage?
+                    # has it finished the stage?float("inf")
                     goal_node = None
                     if self.task_stages[robot_id] == "go_to_picker":
                         # goal is picker node as in the task
@@ -1206,9 +1206,9 @@ class Coordinator:
                     elif False:
                         # TODO: active compliance
                         pass
-                    elif rospy.get_rostime() - self.start_time[robot_id] > self.max_load_duration:
-                        # delay
-                        finish_waiting = True
+#                    elif rospy.get_rostime() - self.start_time[robot_id] > self.max_load_duration:
+#                        # delay
+#                        finish_waiting = True
                     else:
                         rospy.sleep(0.5)
 
