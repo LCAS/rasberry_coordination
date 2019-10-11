@@ -63,24 +63,10 @@ class PickerStateMonitor(object):
         self.picker_task = {} # picker_id: True/False if task is added
         self.tasks = {} # {task_id:task}
 
-        for picker_id in self.picker_ids:
-            self.picker_prev_states[picker_id] = "INIT"
-            self.picker_states[picker_id] = "INIT"
-            self.picker_posestamped[picker_id] = None
-
-            self.picker_posestamped_subs[picker_id] = rospy.Subscriber("/%s/posestamped" %(picker_id), geometry_msgs.msg.PoseStamped, self.picker_posestamped_cb, callback_args="%s" %(picker_id))
-
-            self.picker_closest_nodes[picker_id] = "none"
-            self.picker_closest_node_subs[picker_id] = rospy.Subscriber("/%s/closest_node" %(picker_id), std_msgs.msg.String, self.picker_closest_node_cb, callback_args="%s" %(picker_id))
-
-            self.picker_current_nodes[picker_id] = "none"
-            self.picker_current_node_subs[picker_id] = rospy.Subscriber("/%s/current_node" %(picker_id), std_msgs.msg.String, self.picker_current_node_cb, callback_args="%s" %(picker_id))
-
-            self.picker_task[picker_id] = False
-
-        self.car_event_sub = rospy.Subscriber("/car_client/get_states", std_msgs.msg.String, self.car_event_cb)
-
-        self.car_state_pub = rospy.Publisher("/car_client/set_states", std_msgs.msg.String, latch=True, queue_size=5)
+        self.task_picker = {} # tasks by which picker {task_id: picker_id}
+        self.task_time = {} # time at which task is added {task_id: time}
+        self.task_robot = {} # assigned robots {task_id: robot_id}
+        self.task_state = {}
 
         # service client to send add task requests
         rospy.wait_for_service("/rasberry_coordination/add_task")
@@ -99,10 +85,24 @@ class PickerStateMonitor(object):
         self.tray_loaded_client = rospy.ServiceProxy("/rasberry_coordination/tray_loaded",
                                                      rasberry_coordination.srv.TrayLoaded)
 
-        self.task_picker = {} # tasks by which picker {task_id: picker_id}
-        self.task_time = {} # time at which task is added {task_id: time}
-        self.task_robot = {} # assigned robots {task_id: robot_id}
-        self.task_state = {}
+        for picker_id in self.picker_ids:
+            self.picker_prev_states[picker_id] = "INIT"
+            self.picker_states[picker_id] = "INIT"
+            self.picker_posestamped[picker_id] = None
+
+            self.picker_posestamped_subs[picker_id] = rospy.Subscriber("/%s/posestamped" %(picker_id), geometry_msgs.msg.PoseStamped, self.picker_posestamped_cb, callback_args="%s" %(picker_id))
+
+            self.picker_closest_nodes[picker_id] = "none"
+            self.picker_closest_node_subs[picker_id] = rospy.Subscriber("/%s/closest_node" %(picker_id), std_msgs.msg.String, self.picker_closest_node_cb, callback_args="%s" %(picker_id))
+
+            self.picker_current_nodes[picker_id] = "none"
+            self.picker_current_node_subs[picker_id] = rospy.Subscriber("/%s/current_node" %(picker_id), std_msgs.msg.String, self.picker_current_node_cb, callback_args="%s" %(picker_id))
+
+            self.picker_task[picker_id] = False
+
+        self.car_event_sub = rospy.Subscriber("/car_client/get_states", std_msgs.msg.String, self.car_event_cb)
+
+        self.car_state_pub = rospy.Publisher("/car_client/set_states", std_msgs.msg.String, latch=True, queue_size=5)
 
         self.task_updates_sub = rospy.Subscriber("/rasberry_coordination/task_updates", rasberry_coordination.msg.TaskUpdates, self.task_updates_cb)
         rospy.loginfo("PickerStateMonitor object is successfully initialised")

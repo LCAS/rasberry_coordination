@@ -638,7 +638,7 @@ class Coordinator:
                     break
 
                 else:
-                    count + 1
+                    count += 1
                     rospy.sleep(0.1)
 
                     if count > 10:
@@ -683,7 +683,7 @@ class Coordinator:
                     self.task_lock.release()
 
                 else:
-                    count + 1
+                    count += 1
                     rospy.sleep(0.1)
 
                 if count > 10:
@@ -1312,11 +1312,13 @@ class Coordinator:
 
         allowed_cpoints = []
         res_routes = {}
+
         for agent_id in self.presence_agents:
             allowed_to_pass = False
             r = self.routes[agent_id]
             rr = []
             partial_route = []
+
             for v in r:
                 if v in c_points[str(r)]: # vertice is critical point
                     # allow critical point once for a robot among all agents
