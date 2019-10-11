@@ -61,6 +61,7 @@ class PickerStateMonitor(object):
         self.picker_current_node_subs = {}
 
         self.picker_task = {} # picker_id: True/False if task is added
+        self.tasks = {} # {task_id:task}
 
         for picker_id in self.picker_ids:
             self.picker_prev_states[picker_id] = "INIT"
@@ -88,6 +89,10 @@ class PickerStateMonitor(object):
         # service client to send cancel task requests
         rospy.wait_for_service("/rasberry_coordination/cancel_task")
         self.cancel_task_client = rospy.ServiceProxy("/rasberry_coordination/cancel_task", strands_executive_msgs.srv.CancelTask)
+
+        # service client to send update task requests
+        rospy.wait_for_service("/rasberry_coordination/update_task")
+        self.update_task_client = rospy.ServiceProxy("/rasberry_coordination/update_task", rasberry_coordination.srv.UpdateTask)
 
         # service client to send loaded status to robots
         rospy.wait_for_service("/rasberry_coordination/tray_loaded")
@@ -242,6 +247,8 @@ class PickerStateMonitor(object):
                                 task.priority = 0
 
                             add_task_resp = self.add_task_client(task)
+                            task.task_id = add_task_resp.task_id
+                            self.tasks[add_task_resp.task_id] = task
                             self.task_picker[add_task_resp.task_id] = picker_id
                             self.task_time[add_task_resp.task_id] = rospy.get_rostime()
                             self.picker_task[picker_id] = True
@@ -355,6 +362,47 @@ class PickerStateMonitor(object):
     def picker_closest_node_cb(self, msg, picker_id):
         """call back to /picker_id/closest_node topics
         """
+        if (self.picker_closest_nodes[picker_id] != msg.data and
+            self.picker_closest_nodes[picker_id] != "none" and
+            msg.data != "none"):
+            # a valid change in picker position
+            if self.picker_task[picker_id]:
+                # has a task being processed
+                task_id = self.get_pickers_task(picker_id)
+                if task_id is not None:
+                    task = self.tasks[task_id]
+                    self.write_log({"action_type": "task_update request",
+                                    "task_updates": "%s -> %s" %(task.start_node_id, msg.data),
+                                    "picker_id": picker_id,
+                                    "task_id": task_id,
+                                    "details": "updating task start_node_id",
+                                    "current_node": self.picker_current_nodes[picker_id],
+                                    "closest_node": msg.data,
+                                    })
+                    task.start_node_id = msg.data
+                    req = rasberry_coordination.srv.UpdateTaskRequest()
+                    req.task = task
+                    resp = self.update_task_client(req)
+
+                    if resp.success:
+                        self.write_log({"action_type": "task_update request",
+                                        "task_updates": "%s -> %s" %(task.start_node_id, msg.data),
+                                        "picker_id": picker_id,
+                                        "task_id": task_id,
+                                        "details": "success: updating task start_node_id. %s" %(resp.message),
+                                        "current_node": self.picker_current_nodes[picker_id],
+                                        "closest_node": msg.data,
+                                        })
+                    else:
+                        self.write_log({"action_type": "task_update",
+                                        "task_updates": "%s -> %s" %(task.start_node_id, msg.data),
+                                        "picker_id": picker_id,
+                                        "task_id": task_id,
+                                        "details": "fail: updating task start_node_id. %s" %(resp.message),
+                                        "current_node": self.picker_current_nodes[picker_id],
+                                        "closest_node": msg.data,
+                                        })
+
         self.picker_closest_nodes[picker_id] = msg.data
 
     def picker_current_node_cb(self, msg, picker_id):

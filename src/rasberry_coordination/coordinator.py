@@ -587,6 +587,118 @@ class Coordinator:
 
     set_robot_reached_storage_ros_srv.type = rasberry_coordination.srv.TriggerRobot
 
+    def update_task_ros_srv(self, req):
+        """update a task information
+        """
+        self.write_log({"action_type": "task_updates",
+                        "task_id": req.task.task_id,
+                        "details": "request to update task - %d is received. new task_start_node - %s" %(req.task.task_id, req.task.start_node_id),
+                        })
+        resp = rasberry_coordination.srv.UpdateTaskResponse()
+
+        # check task_id is in here
+        if req.task.task_id in self.completed_tasks:
+            resp.success = False
+            resp.message = "task %d is already completed" %(req.task.task_id)
+            self.write_log({"action_type": "task_updates",
+                            "task_id": req.task.task_id,
+                            "details": "fail: task - %d is not updated. already completed" %(req.task.task_id),
+                            })
+        elif req.task.task_id in self.failed_tasks:
+            resp.success = False
+            resp.message = "task %d is already failed" %(req.task.task_id)
+            self.write_log({"action_type": "task_updates",
+                            "task_id": req.task.task_id,
+                            "details": "fail: task - %d is not updated. already failed" %(req.task.task_id),
+                            })
+        elif req.task.task_id in self.cancelled_tasks:
+            resp.success = False
+            resp.message = "task %d is already cancelled" %(req.task.task_id)
+            self.write_log({"action_type": "task_updates",
+                            "task_id": req.task.task_id,
+                            "details": "fail: task - %d is not updated. already cancelled" %(req.task.task_id),
+                            })
+        elif req.task.task_id in self.processing_tasks:
+            # task is being processed
+            # get the task_lock
+            count = 0
+            while not rospy.is_shutdown():
+                locked = self.task_lock.acquire(False)
+                if locked:
+                    self.processing_tasks[req.task.task_id] = req.task
+                    rospy.loginfo("updating task-%d", req.task.task_id)
+                    resp.success = True
+                    resp.message = "successfully updated task %d" %(req.task.task_id)
+                    self.trigger_replan = True
+                    self.write_log({"action_type": "task_update",
+                                    "task_id": req.task.task_id,
+                                    "details": "success: task - %d is updated. new task_start_node - %s" %(req.task.task_id, req.task.start_node_id),
+                                    })
+                    self.task_lock.release()
+                    break
+
+                else:
+                    count + 1
+                    rospy.sleep(0.1)
+
+                    if count > 10:
+                        resp.success = False
+                        resp.message = "Could not get the task lock"
+                        self.write_log({"action_type": "task_update",
+                                        "task_id": req.task.task_id,
+                                        "details": "fail: task - %d is not updated. unable to get task_lock" %(req.task.task_id),
+                                        })
+                        break
+
+        else:
+            # not yet takenup for processing
+            # get the task_lock
+            count = 0
+            while not rospy.is_shutdown():
+                locked = self.task_lock.acquire(False)
+                if locked:
+                    tasks = []
+                    while not rospy.is_shutdown():
+                        try:
+                            task_id, task = self.tasks.get(True, 1)
+                            if task_id == req.task.task_id:
+                                task = req.task
+                                rospy.loginfo("updating task-%d", req.task.task_id)
+                                resp.success = True
+                                resp.message = "successfully updated task %d" %(req.task.task_id)
+                                self.write_log({"action_type": "task_update",
+                                                "task_id": req.task.task_id,
+                                                "details": "success: task - %d is updated. new task_start_node - %s" %(req.task.task_id, req.task.start_node_id),
+                                                })
+                                break # got it
+                            else:
+                                # hold on to the other tasks to be readded later
+                                tasks.append((task_id, task))
+                        except Queue.Empty:
+                            break
+                    # readd popped tasks
+                    for (task_id, task) in tasks:
+                        # put all retrieved tasks back in the queue
+                        self.tasks.put((task_id, task))
+                    self.task_lock.release()
+
+                else:
+                    count + 1
+                    rospy.sleep(0.1)
+
+                if count > 10:
+                    resp.success = False
+                    resp.message = "Could not get the task lock"
+                    self.write_log({"action_type": "task_update",
+                                    "task_id": req.task.task_id,
+                                    "details": "fail: task - %d is not updated. unable to get task_lock" %(req.task.task_id),
+                                    })
+                    break
+
+        return resp
+
+    update_task_ros_srv.type = rasberry_coordination.srv.UpdateTask
+
     def advertise_services(self):
         """Adverstise ROS services.
         Only call at the end of constructor to avoid calls during construction.
@@ -1496,7 +1608,6 @@ class Coordinator:
         """
         while not rospy.is_shutdown():
             rospy.sleep(0.01)
-            self.trigger_replan = False
 
             if self.force_robot_status_check:
                 # check robot status
@@ -1516,8 +1627,11 @@ class Coordinator:
 
             # replan if needed
             if self.trigger_replan:
+                rospy.logwarn("replanning now")
                 # check for critical points replan
                 self.replan()
+                self.trigger_replan = False
+
                 # assign first fragment of each robot
                 self.set_execute_policy_routes()
 

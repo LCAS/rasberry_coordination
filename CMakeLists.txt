@@ -83,6 +83,7 @@ add_service_files(
   RobotStates.srv
   TrayLoaded.srv
   TriggerRobot.srv
+  UpdateTask.srv
 )
 
 ## Generate actions in the 'action' folder
