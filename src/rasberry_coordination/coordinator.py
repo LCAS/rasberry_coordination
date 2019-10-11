@@ -1124,7 +1124,7 @@ class Coordinator:
                     # trigger replan whenever a segment comppletion is reported
                     trigger_replan = True
                     # if the robot's route is finished, progress to the next stage of the collect tray process
-                    # has it finished the stage?float("inf")
+                    # has it finished the stage?
                     goal_node = None
                     if self.task_stages[robot_id] == "go_to_picker":
                         # goal is picker node as in the task
