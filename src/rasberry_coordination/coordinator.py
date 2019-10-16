@@ -316,8 +316,11 @@ class Coordinator:
                         "task_updates": "CANCEL",
                         "task_id": req.task_id,
                         })
-
-        locked = self.task_lock.acquire(False)
+        for i in range(10):
+            locked = self.task_lock.acquire(False)
+            if locked:
+                break
+            rospy.sleep(0.05)
 
         if locked:
             if req.task_id in self.all_task_ids:
@@ -621,8 +624,7 @@ class Coordinator:
         elif req.task.task_id in self.processing_tasks:
             # task is being processed
             # get the task_lock
-            count = 0
-            while not rospy.is_shutdown():
+            for i in range(10):
                 locked = self.task_lock.acquire(False)
                 if locked:
                     self.processing_tasks[req.task.task_id] = req.task
@@ -638,23 +640,20 @@ class Coordinator:
                     break
 
                 else:
-                    count += 1
-                    rospy.sleep(0.1)
+                    rospy.sleep(0.05)
 
-                    if count > 10:
+                    if i == 9:
                         resp.success = False
                         resp.message = "Could not get the task lock"
                         self.write_log({"action_type": "task_update",
                                         "task_id": req.task.task_id,
                                         "details": "fail: task - %d is not updated. unable to get task_lock" %(req.task.task_id),
                                         })
-                        break
 
         else:
             # not yet takenup for processing
             # get the task_lock
-            count = 0
-            while not rospy.is_shutdown():
+            for i in range(10):
                 locked = self.task_lock.acquire(False)
                 if locked:
                     tasks = []
@@ -681,19 +680,18 @@ class Coordinator:
                         # put all retrieved tasks back in the queue
                         self.tasks.put((task_id, task))
                     self.task_lock.release()
+                    break
 
                 else:
-                    count += 1
-                    rospy.sleep(0.1)
+                    rospy.sleep(0.05)
 
-                if count > 10:
-                    resp.success = False
-                    resp.message = "Could not get the task lock"
-                    self.write_log({"action_type": "task_update",
-                                    "task_id": req.task.task_id,
-                                    "details": "fail: task - %d is not updated. unable to get task_lock" %(req.task.task_id),
-                                    })
-                    break
+                    if i == 9:
+                        resp.success = False
+                        resp.message = "Could not get the task lock"
+                        self.write_log({"action_type": "task_update",
+                                        "task_id": req.task.task_id,
+                                        "details": "fail: task - %d is not updated. unable to get task_lock" %(req.task.task_id),
+                                        })
 
         return resp
 
@@ -1625,6 +1623,7 @@ class Coordinator:
                 # check robot status of idle robots before assigning tasks
                 self.check_robot_status()
                 # try to assign all tasks
+                rospy.sleep(0.2)
                 self.assign_tasks()
 
             # check progress of active robots
