@@ -593,6 +593,7 @@ class Coordinator:
     def update_task_ros_srv(self, req):
         """update a task information
         """
+        rospy.loginfo("request to update task - %d is received. new task_start_node - %s", req.task.task_id, req.task.start_node_id)
         self.write_log({"action_type": "task_updates",
                         "task_id": req.task.task_id,
                         "details": "request to update task - %d is received. new task_start_node - %s" %(req.task.task_id, req.task.start_node_id),
@@ -607,6 +608,7 @@ class Coordinator:
                             "task_id": req.task.task_id,
                             "details": "fail: task - %d is not updated. already completed" %(req.task.task_id),
                             })
+            rospy.loginfo("fail: task - %d is not updated. already completed", req.task.task_id)
         elif req.task.task_id in self.failed_tasks:
             resp.success = False
             resp.message = "task %d is already failed" %(req.task.task_id)
@@ -614,6 +616,7 @@ class Coordinator:
                             "task_id": req.task.task_id,
                             "details": "fail: task - %d is not updated. already failed" %(req.task.task_id),
                             })
+            rospy.loginfo("fail: task - %d is not updated. already failed", req.task.task_id)
         elif req.task.task_id in self.cancelled_tasks:
             resp.success = False
             resp.message = "task %d is already cancelled" %(req.task.task_id)
@@ -621,6 +624,7 @@ class Coordinator:
                             "task_id": req.task.task_id,
                             "details": "fail: task - %d is not updated. already cancelled" %(req.task.task_id),
                             })
+            rospy.loginfo("fail: task - %d is not updated. already cancelled", req.task.task_id)
         elif req.task.task_id in self.processing_tasks:
             # task is being processed
             # get the task_lock
@@ -636,6 +640,7 @@ class Coordinator:
                                     "task_id": req.task.task_id,
                                     "details": "success: task - %d is updated. new task_start_node - %s" %(req.task.task_id, req.task.start_node_id),
                                     })
+                    rospy.loginfo("success: task - %d is updated. new task_start_node - %s", req.task.task_id, req.task.start_node_id)
                     self.task_lock.release()
                     break
 
@@ -649,6 +654,7 @@ class Coordinator:
                                         "task_id": req.task.task_id,
                                         "details": "fail: task - %d is not updated. unable to get task_lock" %(req.task.task_id),
                                         })
+                        rospy.loginfo("fail: task - %d is not updated. unable to get task_lock", req.task.task_id)
 
         else:
             # not yet takenup for processing
@@ -669,6 +675,7 @@ class Coordinator:
                                                 "task_id": req.task.task_id,
                                                 "details": "success: task - %d is updated. new task_start_node - %s" %(req.task.task_id, req.task.start_node_id),
                                                 })
+                                rospy.loginfo("success: task - %d is updated. new task_start_node - %s", req.task.task_id, req.task.start_node_id)
                                 break # got it
                             else:
                                 # hold on to the other tasks to be readded later
@@ -692,6 +699,7 @@ class Coordinator:
                                         "task_id": req.task.task_id,
                                         "details": "fail: task - %d is not updated. unable to get task_lock" %(req.task.task_id),
                                         })
+                        rospy.loginfo("fail: task - %d is not updated. unable to get task_lock", req.task.task_id)
 
         return resp
 
