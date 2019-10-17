@@ -362,9 +362,13 @@ class PickerStateMonitor(object):
     def picker_closest_node_cb(self, msg, picker_id):
         """call back to /picker_id/closest_node topics
         """
-        if (self.picker_closest_nodes[picker_id] != msg.data and
-            self.picker_closest_nodes[picker_id] != "none" and
-            msg.data != "none"):
+        old_node = self.picker_closest_nodes[picker_id]
+        new_node = msg.data
+        self.picker_closest_nodes[picker_id] = msg.data
+
+        if (old_node != new_node and
+            old_node != "none" and
+            new_node != "none"):
             # a valid change in picker position
             if self.picker_task[picker_id]:
                 # has a task being processed
@@ -372,38 +376,38 @@ class PickerStateMonitor(object):
                 if task_id is not None:
                     task = self.tasks[task_id]
                     self.write_log({"action_type": "task_update request",
-                                    "task_updates": "%s -> %s" %(task.start_node_id, msg.data),
+                                    "task_updates": "%s -> %s" %(task.start_node_id, new_node),
                                     "picker_id": picker_id,
                                     "task_id": task_id,
                                     "details": "updating task start_node_id",
                                     "current_node": self.picker_current_nodes[picker_id],
-                                    "closest_node": msg.data,
+                                    "closest_node": new_node,
                                     })
-                    task.start_node_id = msg.data
+                    task.start_node_id = new_node
                     req = rasberry_coordination.srv.UpdateTaskRequest()
                     req.task = task
                     resp = self.update_task_client(req)
 
                     if resp.success:
                         self.write_log({"action_type": "task_update request",
-                                        "task_updates": "%s -> %s" %(task.start_node_id, msg.data),
+                                        "task_updates": "%s -> %s" %(task.start_node_id, new_node),
                                         "picker_id": picker_id,
                                         "task_id": task_id,
                                         "details": "success: updating task start_node_id. %s" %(resp.message),
                                         "current_node": self.picker_current_nodes[picker_id],
-                                        "closest_node": msg.data,
+                                        "closest_node": new_node,
                                         })
                     else:
                         self.write_log({"action_type": "task_update",
-                                        "task_updates": "%s -> %s" %(task.start_node_id, msg.data),
+                                        "task_updates": "%s -> %s" %(task.start_node_id, new_node),
                                         "picker_id": picker_id,
                                         "task_id": task_id,
                                         "details": "fail: updating task start_node_id. %s" %(resp.message),
                                         "current_node": self.picker_current_nodes[picker_id],
-                                        "closest_node": msg.data,
+                                        "closest_node": new_node,
                                         })
 
-        self.picker_closest_nodes[picker_id] = msg.data
+#        self.picker_closest_nodes[picker_id] = msg.data
 
     def picker_current_node_cb(self, msg, picker_id):
         """call back to /picker_id/current_node topics
