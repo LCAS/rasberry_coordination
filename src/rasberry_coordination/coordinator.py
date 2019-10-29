@@ -61,8 +61,8 @@ class Coordinator:
         logs_dir = os.path.join(os.environ["HOME"], "rasberry_coordination_logs")
         if not os.path.exists(logs_dir):
             os.makedirs(logs_dir)
-        self.dt = datetime.datetime.now()
-        self.log_file = open(os.path.join(logs_dir, self.dt.strftime("%Y%m%d-%H%M%S_coordinator.csv")), "w")
+        dt = datetime.datetime.now()
+        self.log_file = open(os.path.join(logs_dir, dt.strftime("%Y%m%d-%H%M%S_coordinator.csv")), "w")
         self.log_headers = ["id", "time", "datetime", "action_type",
                             "task_id", "robot_id", "robot_task_stage",
                             "task_updates", "details", "current_node",
@@ -1700,9 +1700,11 @@ class Coordinator:
     def write_log(self, field_vals):
         """
         """
+        time_now = time.time()
+        dt = datetime.datetime.fromtimestamp(time_now)
         row = {"id": self.log_count,
-               "time":time.time(),
-               "datetime": self.dt.strftime("%Y%m%d-%H%M%S"),
+               "time":time_now,
+               "datetime": dt.strftime("%Y%m%d-%H%M%S"),
                }
         row.update(field_vals)
         if not self.log_file.closed:
