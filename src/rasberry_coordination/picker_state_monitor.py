@@ -223,7 +223,7 @@ class PickerStateMonitor(object):
                             self.set_picker_state(picker_id, "INIT")
 
                             self.write_log({"action_type": "car_update",
-                                        "picker_status_updates": "CALLED -> INIT",
+                                        "picker_status_updates": "INIT -> CALLED -> INIT",
                                         "picker_id": picker_id,
                                         "details": "calling failed as picker is not localised",
                                         "current_node": self.picker_current_nodes[picker_id],
@@ -278,7 +278,7 @@ class PickerStateMonitor(object):
                     except:
                         rospy.logwarn("updating arrived status, but picker - %s doesn't have any tasks!!!", picker_id)
                         self.write_log({"action_type": "car_update",
-                                        "picker_status_updates": "CALLED -> ARRIVED",
+                                        "picker_status_updates": "%s -> %s" %(self.picker_prev_states[picker_id], self.picker_states[picker_id]),
                                         "picker_id": picker_id,
                                         "details": "picker's call is added to task queue",
                                         "current_node": self.picker_current_nodes[picker_id],
@@ -286,7 +286,7 @@ class PickerStateMonitor(object):
                                         })
                     else:
                         self.write_log({"action_type": "car_update",
-                                        "picker_status_updates": "CALLED -> ARRIVED",
+                                        "picker_status_updates": "%s -> %s" %(self.picker_prev_states[picker_id], self.picker_states[picker_id]),
                                         "picker_id": picker_id,
                                         "task_id": task_id,
                                         "details": "picker's call is added to task queue",
