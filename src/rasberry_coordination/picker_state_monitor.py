@@ -163,6 +163,7 @@ class PickerStateMonitor(object):
                                 self.set_picker_state(picker_id, "INIT")
                                 self.picker_task[picker_id] = False
                                 self.task_robot[task_id] = None
+                                self.task_picker.pop(task_id)
 
                                 self.write_log({"action_type": "car_update",
                                             "picker_status_updates": "%s -> CANCEL" %(self.picker_prev_states[picker_id]),
