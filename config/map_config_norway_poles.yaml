@@ -2,8 +2,12 @@ base_station_nodes: &id_base_stations
   - WayPoint22
   - WayPoint24
 wait_nodes: *id_base_stations
-local_storage_node: WayPoint23
-charging_station_node: WayPoint24
+local_storage_nodes:
+  - WayPoint23
+cold_storage_node: None
+use_cold_storage: false
+charging_station_nodes:
+  - WayPoint24
 robot_ids: 
   - thorvald_003
   - thorvald_005

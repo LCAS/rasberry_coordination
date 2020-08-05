@@ -4,7 +4,7 @@ import sys
 
 import rospy
 
-import rasberry_coordination.coordinator
+import rasberry_coordination.rasberry_coordinator
 import rasberry_coordination.picker_state_monitor
 
 import rasberry_des.config_utils
@@ -21,8 +21,9 @@ if __name__ == '__main__':
         config_keys = rasberry_des.config_utils.get_config_keys(config_file)
 
         # check for required parameters
-        req_params = ["base_station_nodes", "local_storage_node",
-                      "charging_station_node", "robot_ids",
+        req_params = ["base_station_nodes", "local_storage_nodes",
+                      "use_cold_storage",
+                      "charging_station_nodes", "robot_ids",
                       "max_task_priorities", "picker_ids",
                       "use_sim", "low_battery_voltage"]
 
@@ -42,8 +43,20 @@ if __name__ == '__main__':
             _wait_nodes = config_data["wait_nodes"]# list of waiting nodes
         else:
             _wait_nodes = None
-        local_storage = config_data["local_storage_node"] # list of local storage nodes
-        charging_node = config_data["charging_station_node"]
+        local_storages = config_data["local_storage_nodes"] # list of local storage nodes
+        # cold_storage_node
+        cold_storage = None
+        if "cold_storage_node" in config_data:
+            if config_data["cold_storage_node"].lower() != "none":
+                cold_storage = config_data["cold_storage_node"]
+        use_cold_storage = config_data["use_cold_storage"]
+        if use_cold_storage:
+            try:
+                assert cold_storage is not None
+            except AssertionError:
+                raise Exception("cold_storage cannot be None when use_cold_storage is True")
+
+        charging_nodes = config_data["charging_station_nodes"]
         robot_ids = config_data["robot_ids"]
         _max_task_priorities = config_data["max_task_priorities"]
         use_sim = config_data["use_sim"]
@@ -84,13 +97,15 @@ if __name__ == '__main__':
         rospy.init_node('simple_task_coordinator', anonymous=False)
 
         # initialise the coordinator and internally all robots
-        coordinator = rasberry_coordination.coordinator.Coordinator(local_storage=local_storage,
-                                                          charging_node=charging_node,
-                                                          base_stations=base_stations,
-                                                          wait_nodes=wait_nodes,
-                                                          robot_ids=robot_ids,
+        coordinator = rasberry_coordination.rasberry_coordinator.RasberryCoordinator(robot_ids=robot_ids,
                                                           picker_ids=picker_ids,
                                                           virtual_picker_ids=virtual_picker_ids,
+                                                          local_storages=local_storages,
+                                                          cold_storage=cold_storage,
+                                                          charging_nodes=charging_nodes,
+                                                          use_cold_storage=use_cold_storage,
+                                                          base_stations=base_stations,
+                                                          wait_nodes=wait_nodes,
                                                           max_task_priorities=max_task_priorities,
                                                           low_battery_voltage=low_battery_voltage)
 

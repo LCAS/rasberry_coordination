@@ -2,8 +2,13 @@ base_station_nodes: &id_base_stations
   - s9
   - s11
 wait_nodes: *id_base_stations
-local_storage_node: s12
-charging_station_node: s12
+local_storage_nodes: 
+  - s12
+cold_storage_node: None
+use_cold_storage: false
+charging_station_nodes: 
+  - s9
+  - s11
 robot_ids: 
   - thorvald_014
   - thorvald_019
