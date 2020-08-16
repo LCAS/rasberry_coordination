@@ -74,7 +74,7 @@ class Robot(object):
         """
         edges = []
         for i in range(len(msg.nodes)-1):
-            _, _edges, _ = self.get_path_details(msg.nodes[i], msg.nodes[i+1])
+            _, _edges = self.get_path(msg.nodes[i], msg.nodes[i+1])
             for edge in _edges:
                 edges.append(edge)
         self.publish_route(source=msg.nodes, edge_id=edges)
@@ -88,15 +88,14 @@ class Robot(object):
         node -- name of the node in topological map"""
         return topological_navigation.tmap_utils.get_node(self.topo_map, node)
 
-    def get_path_details(self, start_node, goal_node):
-        """get route_nodes, route_edges and route_distance from start_node to goal_node
+    def get_path(self, start_node, goal_node):
+        """get route_nodes and route_edges from start_node to goal_node
 
         Keyword arguments:
 
         start_node -- name of the starting node
         goal_node -- name of the goal node
         """
-        route_distance = []
         route = self.route_search.search_route(start_node, goal_node)
         if route is None:
             rospy.loginfo("no route between %s and %s", start_node, goal_node)
@@ -105,10 +104,7 @@ class Robot(object):
         route_nodes.append(goal_node)
         route_edges = route.edge_id
 
-        for i in range(len(route_nodes) - 1):
-            route_distance.append(self.get_distance_between_adjacent_nodes(route_nodes[i], route_nodes[i + 1]))
-
-        return (route_nodes, route_edges, route_distance)
+        return (route_nodes, route_edges)
 
     def set_toponav_goal(self, goal, done_cb=None, active_cb=None, feedback_cb=None):
         """send_goal to topo_nav action client
