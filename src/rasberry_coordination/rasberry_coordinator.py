@@ -40,7 +40,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                  local_storages, cold_storage, charging_nodes,
                  use_cold_storage,
                  base_stations, wait_nodes,
-                 max_task_priorities, low_battery_voltage):
+                 max_task_priorities, low_battery_voltage,
+                 ns="rasberry_coordination"):
         """initialise a RasberryCoordinator object
 
         Keyword arguments:
@@ -61,7 +62,11 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                                    and virtual pickers. (To make demos interesting)
             low_battery_voltage -- voltage at which a robot may set as unfit
         """
-        super(RasberryCoordinator, self).__init__(robot_ids, picker_ids, virtual_picker_ids, is_parent=True)
+        super(RasberryCoordinator, self).__init__(robot_ids,
+                                                  picker_ids,
+                                                  virtual_picker_ids,
+                                                  ns=ns,
+                                                  is_parent=True)
 
         self.local_storages = local_storages
         self.cold_storage = cold_storage
@@ -131,7 +136,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.max_load_duration = rospy.Duration(secs=60)
         self.max_unload_duration = rospy.Duration(secs=10)
 
-        self.picker_task_updates_pub = rospy.Publisher("/rasberry_coordination/task_updates", rasberry_coordination.msg.TaskUpdates, queue_size=5)
+        self.picker_task_updates_pub = rospy.Publisher(self.ns+"task_updates", rasberry_coordination.msg.TaskUpdates, queue_size=5)
 
         rospy.loginfo("coordinator initialised")
 

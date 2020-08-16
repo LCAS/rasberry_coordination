@@ -24,9 +24,11 @@ import rasberry_coordination.srv
 class PickerStateMonitor(object):
     """A class to monitor all pickers' state changes
     """
-    def __init__(self, picker_ids, virtual_picker_ids):
+    def __init__(self, picker_ids, virtual_picker_ids, ns="rasberry_coordination"):
         """
         """
+        # TODO: this will remove leading slashes as well
+        self.ns = ns.strip("/")+"/"
         # allows only configured pickers to make calls
         self.human_picker_ids = picker_ids
         self.virtual_picker_ids = virtual_picker_ids
@@ -69,20 +71,20 @@ class PickerStateMonitor(object):
         self.task_state = {}
 
         # service client to send add task requests
-        rospy.wait_for_service("/rasberry_coordination/add_task")
-        self.add_task_client = rospy.ServiceProxy("/rasberry_coordination/add_task", strands_executive_msgs.srv.AddTask)
+        rospy.wait_for_service(self.ns+"add_task")
+        self.add_task_client = rospy.ServiceProxy(self.ns+"add_task", strands_executive_msgs.srv.AddTask)
 
         # service client to send cancel task requests
-        rospy.wait_for_service("/rasberry_coordination/cancel_task")
-        self.cancel_task_client = rospy.ServiceProxy("/rasberry_coordination/cancel_task", strands_executive_msgs.srv.CancelTask)
+        rospy.wait_for_service(self.ns+"cancel_task")
+        self.cancel_task_client = rospy.ServiceProxy(self.ns+"cancel_task", strands_executive_msgs.srv.CancelTask)
 
         # service client to send update task requests
-        rospy.wait_for_service("/rasberry_coordination/update_task")
-        self.update_task_client = rospy.ServiceProxy("/rasberry_coordination/update_task", rasberry_coordination.srv.UpdateTask)
+        rospy.wait_for_service(self.ns+"update_task")
+        self.update_task_client = rospy.ServiceProxy(self.ns+"update_task", rasberry_coordination.srv.UpdateTask)
 
         # service client to send loaded status to robots
-        rospy.wait_for_service("/rasberry_coordination/tray_loaded")
-        self.tray_loaded_client = rospy.ServiceProxy("/rasberry_coordination/tray_loaded",
+        rospy.wait_for_service(self.ns+"tray_loaded")
+        self.tray_loaded_client = rospy.ServiceProxy(self.ns+"tray_loaded",
                                                      rasberry_coordination.srv.TrayLoaded)
 
         for picker_id in self.picker_ids:
@@ -104,7 +106,7 @@ class PickerStateMonitor(object):
 
         self.car_state_pub = rospy.Publisher("/car_client/set_states", std_msgs.msg.String, latch=True, queue_size=5)
 
-        self.task_updates_sub = rospy.Subscriber("/rasberry_coordination/task_updates", rasberry_coordination.msg.TaskUpdates, self.task_updates_cb)
+        self.task_updates_sub = rospy.Subscriber(self.ns+"task_updates", rasberry_coordination.msg.TaskUpdates, self.task_updates_cb)
         rospy.loginfo("PickerStateMonitor object is successfully initialised")
 
     def car_event_cb(self, msg):

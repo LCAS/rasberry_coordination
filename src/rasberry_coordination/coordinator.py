@@ -30,6 +30,7 @@ class Coordinator(object):
     """Coordinator base class definition
     """
     def __init__(self, robot_ids, picker_ids, virtual_picker_ids,
+                 ns="rasberry_coordination",
                  is_parent=False):
         """Initialise the base Coordinator class object.
 
@@ -39,7 +40,8 @@ class Coordinator(object):
             virtual_picker_ids -- list of all DES simulated pickers' ids
             is_parent -- if this is a parent class of another class
         """
-        self.ns = "/rasberry_coordination/"
+        # TODO: this will strip leading slashes as well
+        self.ns = ns.strip("/")+"/"
 
         self.robot_ids = robot_ids
         self.human_picker_ids = picker_ids
