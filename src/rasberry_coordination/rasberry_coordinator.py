@@ -16,7 +16,6 @@ import threading
 
 import rospy
 
-import std_msgs.msg
 import strands_executive_msgs.msg
 import strands_executive_msgs.srv
 import strands_navigation_msgs.msg
@@ -24,9 +23,6 @@ import strands_navigation_msgs.srv
 import topological_navigation.msg
 import topological_navigation.route_search
 import topological_navigation.tmap_utils
-import nav_msgs.msg
-import geometry_msgs.msg
-import thorvald_base.msg
 
 import rasberry_coordination.robot
 import rasberry_coordination.srv
@@ -770,7 +766,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def finish_route_fragment(self, robot_id):
         """finish fragment of a route in a task stage
         """
-        self.publish_route(robot_id)
+        # clear route vis of robot
         if robot_id in self.moving_robots:
             self.moving_robots.remove(robot_id)
         # this may be called multiple times when a robot is stuck
@@ -903,8 +899,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     # task/fragment not finished
                     continue
 
-                self.publish_route(robot_id)
-
                 # check for robots which are moving, not waiting before a critical point
                 if self.robots[robot_id].execpolicy_result.success:
                     # trigger replan whenever a segment comppletion is reported
@@ -980,7 +974,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
             else:
                 # wait_loading or wait_unloading
-                self.publish_route(robot_id)
                 if self.task_stages[robot_id] == "wait_loading":
                     # if conditions are satisfied, finish waiting
                     # 1. LOADED from CAR
@@ -1228,7 +1221,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                             })
 
                     self.robots[robot_id].set_execpolicy_goal(goal)
-                    self.publish_route(robot_id, goal.route.source, goal.route.edge_id)
                     if goal.route.edge_id and robot_id not in self.moving_robots:
                         self.moving_robots.append(robot_id)
 
@@ -1237,36 +1229,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         current goal
         """
         goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
-        self.publish_route(robot_id)
         self.robots[robot_id].set_execpolicy_goal(goal)
-
-    def publish_route(self, robot_id, source=[], edge_id=[]):
-        """publish route that can be visualised in rviz
-        """
-        route = nav_msgs.msg.Path()
-        route.header.frame_id = "map"
-        if source:
-            for node in source:
-                # if there is any elements in the route
-                node_obj = self.get_node(node)
-                pose_stamped = geometry_msgs.msg.PoseStamped()
-                pose_stamped.header.frame_id = "map"
-                pose_stamped.pose.position.x = node_obj.pose.position.x
-                pose_stamped.pose.position.y = node_obj.pose.position.y
-                route.poses.append(pose_stamped)
-
-            # add the goal node, by looking for the edge in the last source node
-            for edge in node_obj.edges:
-                if edge.edge_id == edge_id[-1]:
-                    node_obj = self.get_node(edge.node)
-                    pose_stamped = geometry_msgs.msg.PoseStamped()
-                    pose_stamped.header.frame_id = "map"
-                    pose_stamped.pose.position.x = node_obj.pose.position.x
-                    pose_stamped.pose.position.y = node_obj.pose.position.y
-                    route.poses.append(pose_stamped)
-                    break
-
-        self.route_publishers[robot_id].publish(route)
 
     def replan(self, ):
         """replan - find indiviual paths, find critical points in these paths, and fragment the

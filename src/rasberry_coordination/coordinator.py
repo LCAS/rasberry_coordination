@@ -18,8 +18,6 @@ import strands_navigation_msgs.srv
 import topological_navigation.msg
 import topological_navigation.route_search
 import topological_navigation.tmap_utils
-import nav_msgs.msg
-import geometry_msgs.msg
 import thorvald_base.msg
 
 import rasberry_coordination.robot
@@ -54,12 +52,6 @@ class Coordinator(object):
         self.robot_states_str = {0:"Idle"}
         self.robot_states = {robot_id:0 for robot_id in self.robot_ids}
 
-        # robot_route_publisher for rviz visualisation
-        self.route_publishers = {robot_id:rospy.Publisher("%s/current_route" %(robot_id), nav_msgs.msg.Path, latch=True, queue_size=5) for robot_id in self.robot_ids}
-        # publish empty current route - to clear any previous visible path in rviz
-        for robot_id in self.robot_ids:
-            self.publish_route(robot_id)
-
         # time at which the current state of the robots are started
         self.start_time = {robot_id: rospy.get_rostime() for robot_id in self.robot_ids}
 
@@ -69,10 +61,10 @@ class Coordinator(object):
         self.topo_map = None
         self.rec_topo_map = False
         rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
-        rospy.loginfo("Waiting for Topological map ...")
+        rospy.loginfo("coordinator waiting for Topological map ...")
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
-        rospy.loginfo("Received for Topological map ...")
+        rospy.loginfo("cooridnator received for Topological map ...")
         # default route search object
         self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
 
@@ -443,34 +435,6 @@ class Coordinator(object):
         """
         task = self.processing_tasks.pop(task_id)
         self.failed_tasks[task_id] = task
-
-    def publish_route(self, robot_id, source=[], edge_id=[]):
-        """publish route that can be visualised in rviz
-        """
-        route = nav_msgs.msg.Path()
-        route.header.frame_id = "map"
-        if source:
-            for node in source:
-                # if there is any elements in the route
-                node_obj = self.get_node(node)
-                pose_stamped = geometry_msgs.msg.PoseStamped()
-                pose_stamped.header.frame_id = "map"
-                pose_stamped.pose.position.x = node_obj.pose.position.x
-                pose_stamped.pose.position.y = node_obj.pose.position.y
-                route.poses.append(pose_stamped)
-
-            # add the goal node, by looking for the edge in the last source node
-            for edge in node_obj.edges:
-                if edge.edge_id == edge_id[-1]:
-                    node_obj = self.get_node(edge.node)
-                    pose_stamped = geometry_msgs.msg.PoseStamped()
-                    pose_stamped.header.frame_id = "map"
-                    pose_stamped.pose.position.x = node_obj.pose.position.x
-                    pose_stamped.pose.position.y = node_obj.pose.position.y
-                    route.poses.append(pose_stamped)
-                    break
-
-        self.route_publishers[robot_id].publish(route)
 
     def run(self):
         """Template main loop of the coordinator.
