@@ -105,6 +105,8 @@ class PickerStateMonitor(object):
         self.car_event_sub = rospy.Subscriber("/car_client/get_states", std_msgs.msg.String, self.car_event_cb)
 
         self.car_state_pub = rospy.Publisher("/car_client/set_states", std_msgs.msg.String, latch=True, queue_size=5)
+        
+        self.active_tasks_pub = rospy.Publisher(self.ns+"active_tasks_details", rasberry_coordination.msg.TasksDetails, latch=True, queue_size=5)
 
         self.task_updates_sub = rospy.Subscriber(self.ns+"task_updates", rasberry_coordination.msg.TaskUpdates, self.task_updates_cb)
         rospy.loginfo("PickerStateMonitor object is successfully initialised")
@@ -271,7 +273,6 @@ class PickerStateMonitor(object):
                         pass
 #                        msg = "Picker %s has a callarobot task being processed" %(picker_id)
 #                        raise Exception(msg)
-
                 elif self.picker_states[picker_id] == "ARRIVED" and self.picker_prev_states[picker_id] != "ARRIVED":
                     # this state is set from robot's feedback that it arrived at picker_node to coordinator
                     # no action needed to be taken here
@@ -336,7 +337,6 @@ class PickerStateMonitor(object):
                         self.picker_prev_states[picker_id] = self.picker_states[picker_id]
                         self.set_picker_state(picker_id, "INIT")
                         self.picker_task[picker_id] = False
-                        self.task_robot[task_id] = None # resetting the robot assigned info
 
                 else:
                     pass
@@ -493,6 +493,22 @@ class PickerStateMonitor(object):
             self.task_state[msg.task_id] = "DELIVERED"
             self.task_robot.pop(msg.task_id)
 
+        # publish all the active tasks state
+        tasks = rasberry_coordination.msg.TasksDetails()
+        for task_id in self.task_state:
+            task = rasberry_coordination.msg.TaskDetails()
+            task.task_id = int(task_id)
+            task.state = self.task_state[task_id]
+            if task_id in self.task_robot:
+                task.robot_id = str(self.task_robot[task_id])
+            if task_id in self.task_picker:
+                task.picker_id = str(self.task_picker[task_id])
+            tasks.tasks.append(task)
+        self.active_tasks_pub.publish(tasks)
+
+        # remove those task states that are delivered
+        if self.task_state[msg.task_id] == "DELIVERED":
+            self.task_state.pop(msg.task_id)
 
     def get_pickers_task(self, picker_id):
         """get the picker's task.
