@@ -674,12 +674,22 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             node_id -- node being checked
         """
         dist = 0.0
+        adding_ok = False
         if len(self.route_edges[robot_id]) > 1:
             for i in range(len(self.routes[robot_id])):
                 if self.routes[robot_id][i] == node_id:
                     break
                 # add edge_distance only if the source node is not the one we look for
-                dist += self.route_dists[robot_id][i]
+                # also make sure we start adding from current/closest node
+                if not adding_ok:
+                    if self.current_nodes[robot_id] != "none":
+                        if self.current_nodes[robot_id] == self.routes[robot_id][i]:
+                            adding_ok = True
+                    elif self.closest_nodes[robot_id] != "none":
+                        if self.closest_nodes[robot_id] == self.routes[robot_id][i]:
+                            adding_ok = True
+                if adding_ok:
+                    dist += self.route_dists[robot_id][i]
         return dist
 
     def assign_tasks(self, ):
@@ -1355,7 +1365,16 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 #                self.get_edge_distances(robot_id)
 
         # find critical points and fragment routes to avoid critical point collistions
-        self.split_critical_paths()
+        for i in range(10):
+            locked = self.task_lock.acquire(False)
+            if locked:
+                break
+            rospy.sleep(0.05)
+        if locked:
+            # restrict finding critical_path as task may get cancelled and moved
+            # from processing_tasks
+            self.split_critical_paths()
+            self.task_lock.release()
 
     def run(self):
         """the main loop of the coordinator
