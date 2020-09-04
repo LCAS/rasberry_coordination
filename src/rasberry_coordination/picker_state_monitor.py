@@ -167,7 +167,8 @@ class PickerStateMonitor(object):
                                 self.set_picker_state(picker_id, "INIT")
                                 self.picker_task[picker_id] = False
                                 self.task_robot[task_id] = None
-                                self.task_picker.pop(task_id)
+                                if task_id in self.task_picker:
+                                    self.task_picker.pop(task_id)
 
                                 self.write_log({"action_type": "car_update",
                                             "picker_status_updates": "%s -> CANCEL" %(self.picker_prev_states[picker_id]),
@@ -493,6 +494,17 @@ class PickerStateMonitor(object):
             self.task_state[msg.task_id] = "DELIVERED"
             self.task_robot.pop(msg.task_id)
 
+        elif msg.state == "CANCELLED" and self.task_state[msg.task_id] != "CANCELLED":
+            # task is cancelled (either by the picker or manually); remove task_id from task_robot, remove picker
+            self.task_state[msg.task_id] = "CANCELLED"
+            self.task_robot.pop(msg.task_id)
+            if msg.task_id in self.task_picker:
+                picker_id = self.task_picker[msg.task_id]
+                self.task_picker.pop(msg.task_id)
+                if self.picker_states[picker_id] != "INIT":
+                    self.picker_prev_states[picker_id] = self.picker_states[picker_id]
+                    self.set_picker_state(picker_id, "INIT")
+
         # publish all the active tasks state
         tasks = rasberry_coordination.msg.TasksDetails()
         for task_id in self.task_state:
@@ -506,8 +518,8 @@ class PickerStateMonitor(object):
             tasks.tasks.append(task)
         self.active_tasks_pub.publish(tasks)
 
-        # remove those task states that are delivered
-        if self.task_state[msg.task_id] == "DELIVERED":
+        # remove those task states that are delivered or cancelled
+        if self.task_state[msg.task_id] in ["DELIVERED", "CANCELLED"]:
             self.task_state.pop(msg.task_id)
 
     def get_pickers_task(self, picker_id):

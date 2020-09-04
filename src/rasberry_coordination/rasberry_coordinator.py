@@ -246,6 +246,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     task = self.processing_tasks.pop(req.task_id)
                     self.cancelled_tasks[req.task_id] = task
                     # cancel goal of assigned robot and return it to its base
+                    robot_id = ""
                     if req.task_id in self.task_robot_id:
                         robot_id = self.task_robot_id[req.task_id]
                         self.robots[robot_id].cancel_execpolicy_goal()
@@ -253,6 +254,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         self.current_storage[robot_id] = None
                     rospy.loginfo("cancelling task-%d", req.task_id)
                     cancelled = True
+
+                    # notify task is being cancelled
+                    self.publish_task_state(req.task_id, robot_id, "CANCELLED")
 
                     self.write_log({"action_type":"cancel_task_srv",
                                     "task_id": req.task_id,
@@ -278,6 +282,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         self.tasks.put((task_id, task))
 
                     cancelled = True
+
+                    # notify task is being cancelled, no robot_id because the task was not yet processing
+                    self.publish_task_state(req.task_id, "", "CANCELLED")
 
                     self.write_log({"action_type":"cancel_task_srv",
                                     "task_id": req.task_id,
