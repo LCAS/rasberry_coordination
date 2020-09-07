@@ -501,6 +501,7 @@ class PickerStateMonitor(object):
             if msg.task_id in self.task_picker:
                 picker_id = self.task_picker[msg.task_id]
                 self.task_picker.pop(msg.task_id)
+                self.picker_task[picker_id] = False
                 if self.picker_states[picker_id] != "INIT":
                     self.picker_prev_states[picker_id] = self.picker_states[picker_id]
                     self.set_picker_state(picker_id, "INIT")
