@@ -118,7 +118,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.healthy_robots = [] # a list between unfit and idle to avoid idle_robot being modified during task assignments
         self.unhealthy_robots = [] # a list between idle and unfit to avoid idle_robot being modified during task assignments
         self.force_robot_status_check = False
-        self.active_interruptable_robots = [] # all the robots that are executing a task but the task can be interrupted to take on a new one
 
         self.tray_loaded = {robot_id:False for robot_id in self.robot_ids}
         self.tray_unloaded = {robot_id:True for robot_id in self.robot_ids}
@@ -602,8 +601,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             # already at base station. set as idle
             if robot_id in self.active_robots:
                 self.active_robots.remove(robot_id)
-            if robot_id in self.active_interruptable_robots:
-                self.active_interruptable_robots.remove(robot_id)
             if robot_id in self.moving_robots:
                 self.moving_robots.remove(robot_id)
             if robot_id not in self.idle_robots:
@@ -614,8 +611,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             if robot_id in self.idle_robots:
                 self.idle_robots.remove(robot_id)
                 self.active_robots.append(robot_id)
-            if robot_id not in self.active_interruptable_robots:
-                self.active_interruptable_robots.append(robot_id)
             self.task_stages[robot_id] = "go_to_base"
 
             self.write_log({"action_type": "robot_update",
@@ -635,7 +630,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         goal_node = task.start_node_id
         robot_dists = {}
 
-        for robot_id in self.idle_robots + self.active_interruptable_robots:
+        for robot_id in self.idle_robots:
             # ignore if the robot's closest_node and current_node is not yet available
             if robot_id not in self.closest_nodes and robot_id not in self.current_nodes:
                 continue
@@ -744,15 +739,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         continue
                     rospy.loginfo("selected robot-%s to task %d", robot_id, task_id)
 
-                    # if the robot is still active interrupt previous actions
-                    if robot_id in self.active_interruptable_robots:
-                        self.robots[robot_id].cancel_execpolicy_goal()
-                        self.finish_task_stage(robot_id, self.task_stages[robot_id])
-                        self.active_robots.remove(robot_id)
-                        self.active_interruptable_robots.remove(robot_id)
-                        self.idle_robots.append(robot_id)
-
-
                     # trigger replan for any new assignment
                     trigger_replan = True
 
@@ -854,9 +840,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         # move robot from moving robots
         if robot_id in self.moving_robots:
             self.moving_robots.remove(robot_id)
-
-        # set the robot as interruptable (i.e. ready to accept a new task)
-        self.active_interruptable_robots.append(robot_id)
 
         self.write_log({"action_type": "task_update",
                         "task_updates": "task_finish",
@@ -980,7 +963,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                             self.task_stages[robot_id] = None
                             # move robot from active to idle
                             self.active_robots.remove(robot_id)
-                            self.active_interruptable_robots.remove(robot_id)
                             self.idle_robots.append(robot_id)
 
                     else:
@@ -1322,7 +1304,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         if robot_id in self.moving_robots:
                             self.moving_robots.remove(robot_id)
                         self.active_robots.remove(robot_id)
-                        self.active_interruptable_robots.remove(robot_id)
                         self.idle_robots.append(robot_id)
                     else:
                         self.finish_task_stage(robot_id, self.task_stages[robot_id])
@@ -1414,7 +1395,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 self.force_robot_status_check = False
 
 #            rospy.loginfo(self.idle_robots)
-            if (self.idle_robots or self.active_interruptable_robots) and not self.tasks.empty():
+            if self.idle_robots and not self.tasks.empty():
                 rospy.loginfo("unassigned tasks present. no. idle robots: %d", len(self.idle_robots))
                 # check robot status of idle robots before assigning tasks
                 self.check_robot_status()
