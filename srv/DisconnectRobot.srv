@@ -1,0 +1,7 @@
+# Name of the robot to remove from the system.
+string robot_id
+---
+# Return:
+# 0 : success
+# 1 : robot not connected
+uint8 success

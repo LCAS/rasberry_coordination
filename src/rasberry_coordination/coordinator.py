@@ -22,6 +22,7 @@ import thorvald_base.msg
 
 import rasberry_coordination.robot
 import rasberry_coordination.srv
+from rasberry_coordination.coordinator_tools import logmsg
 
 
 class Coordinator(object):
@@ -61,10 +62,11 @@ class Coordinator(object):
         self.topo_map = None
         self.rec_topo_map = False
         rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
-        rospy.loginfo("coordinator waiting for Topological map ...")
+        logmsg(msg='coordinator waiting for Topological map ...')
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
-        rospy.loginfo("cooridnator received for Topological map ...")
+        logmsg(msg='coordinator received Topological map ...')
+
         # default route search object
         self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
 
@@ -116,7 +118,7 @@ class Coordinator(object):
         self.task_robot_id = {} # {task_id:robot_id} to track which robot is assigned to a task
         self.robot_task_id = {robot_id: None for robot_id in self.robot_ids} # current task assigned to a robot
 
-        rospy.loginfo("coordinator initialised")
+        logmsg(msg='coordinator initialised')
 
     def _map_cb(self, msg):
         """This function receives the Topological Map
@@ -179,8 +181,7 @@ class Coordinator(object):
         if req.robot_id in self.robot_ids:
             resp.state, resp.goal_node, resp.start_time = self._get_robot_state(req.robot_id)
         else:
-            err_msg = "%s is not a among the robots configured" %(req.robot_id)
-            rospy.logerr(err_msg)
+            logmsg(level='error', category="robot", id=req.robot_id, msg='not configured')
         return resp
 
     get_robot_state_ros_srv.type = rasberry_coordination.srv.RobotState
@@ -199,8 +200,8 @@ class Coordinator(object):
                 resp.states.append("")
                 resp.goal_nodes.append("")
                 resp.start_times.append(rospy.Time())
-                err_msg = "%s is not a among the robots configured" %(robot_id)
-                rospy.logerr(err_msg)
+                logmsg(level='error', category="robot", id=req.robot_id, msg='not configured')
+
         return resp
 
     get_robot_states_ros_srv.type = rasberry_coordination.srv.RobotStates
@@ -213,7 +214,8 @@ class Coordinator(object):
         task_id = self.last_id
 
         req.task.task_id = task_id
-        rospy.loginfo('received task: %s', req.task.task_id)
+        logmsg(category="task", id=str(req.task.task_id), msg='received task')
+
         self.tasks.put(
             (task_id, req.task)
         )
@@ -235,8 +237,7 @@ class Coordinator(object):
         if req.task_id in self.all_task_ids:
             if ((req.task_id in self.completed_tasks) or
                   (req.task_id in self.cancelled_tasks)):
-                rospy.logerr("cancel_task_ros_srv cannot be in this condition. \
-                             Already cancelled/completed task is being cancelled")
+                logmsg(level='error', category="task", id=req.task_id, msg='cancelled task is being cancelled, cancel_task_ros_srv cannot be in this condition')
 
             elif req.task_id in self.processing_tasks:
                 # task is being processed. remove it
@@ -247,7 +248,7 @@ class Coordinator(object):
                     robot_id = self.task_robot_id[req.task_id]
                     # call the task_action/cancel for the robot executing this task
                     pass
-                rospy.loginfo("cancelling task-%d", req.task_id)
+                logmsg(category="task", id=req.task_id, msg='task is being cancelled')
                 cancelled = True
 
             else:
@@ -258,7 +259,8 @@ class Coordinator(object):
                         task_id, task = self.tasks.get(True, 1)
                         if task_id == req.task_id:
                             self.cancelled_tasks[task_id] = task
-                            rospy.loginfo("cancelling task-%d", req.task_id)
+                            logmsg(category="task", id=req.task_id, msg='cancelling task')
+
                             break # got it
                         else:
                             # hold on to the other tasks to be readded later
@@ -273,7 +275,7 @@ class Coordinator(object):
 
         else:
             # invalid task_id
-            rospy.logerr("cancel_task is invoked with invalid task_id")
+            logmsg(level='error', category="task", id=req.task_id, msg='cancel_task invoked with invalid task_id')
 
         return cancelled
 
@@ -324,7 +326,7 @@ class Coordinator(object):
                     service.type,
                     service
                 )
-                rospy.loginfo('advertised %s', attr[:-8])
+                logmsg(msg='service advertised: %s' % (attr[:-8]))
 
     def update_available_topo_map(self, ):
         """This function updates the available_topological_map, which is topological_map
@@ -380,7 +382,8 @@ class Coordinator(object):
         route_distance = []
         route = self.route_search.search_route(start_node, goal_node)
         if route is None:
-            rospy.loginfo("no route between %s and %s", start_node, goal_node)
+            logmsg(msg='no route between %s and %s' %(start_node, goal_node))
+
             return ([], [], [float("inf")])
         route_nodes = route.source
         route_nodes.append(goal_node)
@@ -444,7 +447,7 @@ class Coordinator(object):
             rospy.sleep(0.01)
 
             if self.idle_robots and not self.tasks.empty():
-                rospy.loginfo("unassigned tasks present. no. idle robots: %d", len(self.idle_robots))
+                logmsg(msg='unassigned tasks present, number of idle robots: %d' % (len(self.idle_robots)))
 
             # slow down the loop
             rospy.sleep(5.0)
@@ -453,7 +456,7 @@ class Coordinator(object):
         """Template method on_shutdown.
         Extend as needed in a child class
         """
-        print ("cancel actions of all active robots")
+        logmsg(msg='cancel actions of all active robots')
         for robot_id in self.robot_ids:
             if robot_id in self.active_robots:
                 pass

@@ -1,0 +1,7 @@
+# Name of the robot to register to the system.
+string robot_id
+---
+# Return:
+# 0 : success
+# 1 : robot already registered
+uint8 success
