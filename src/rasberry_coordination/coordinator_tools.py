@@ -1,20 +1,28 @@
 import rospy
 
-def logmsg(level="info", category="other", id="empty", msg=''):
+def logmsg(level="info", category="OTHER", id="empty", msg=''):
+
+	disable_ros_time_printout = True  # Can cause visual issues on console such as below:
+	# [INFO] [1605509085.140152]: OTHER  | var: 1	#output as false
+	# [INFO] OTHER  | var: 1 						#ideal output if true
+	# [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
+	# TODO: see if padding the end of the string will help? this will work, has been tested
+	ros_time = ''
+	if disable_ros_time_printout:
+		ros_time = '\b'*21
 
 	# define id and/or category to highlight
-	color_id = ["picker01", "picker02", "thorvald_001", "thorvald_002"]
-	color_category = ["PICKER"]  # TODO move these out of this definition and into some config file
+	color_id = ["picker02", "thorvald_001"]
+	color_category = ["ROB_PY", "EXEC", "DESPE"]  # TODO move these out of this definition and into some config file
+	# (load from paramater server in launch file?)
 
 	# format category portion of message
-	types = ["ROBOT", "PICKER", "TASK", "OTHER"]
-	padding = [2, 1, 3, 2]
-	categories = ["robot", "picker", "task", "other"]
-	if not category.lower() in categories:
-		print('error with logmsg(), unknown category %s, valid categories are: [%s]' % (category, ', '.join(categories)))
-		return
-	idx = categories.index(category.lower())
-	cat = types[idx]+(" "*(padding[idx]-(len(level)-4)))  # "error" has extra character in tag
+	valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "PSM", "ROB_PY", "EXEC", "FOLLOW"]
+	total_padd_space = max([len(_category)+1 for _category in valid_categories])
+	if category.upper() in valid_categories:
+		category_padding = total_padd_space-len(category)
+		level_padding = (len(level)-4)
+		cat = category.upper() + (" "*(category_padding+level_padding))
 
 	# format id with conditions for when category or id is empty
 	if category == "other":
@@ -54,8 +62,8 @@ def logmsg(level="info", category="other", id="empty", msg=''):
 	# log in different manners based on the severity level
 	color_set = (c1, cat, c2, c3, ids, c4, msg, reset)
 	if level == "warn":
-		rospy.logwarn("%s%s %s| %s%s %s%s%s" % color_set)
+		rospy.logwarn(ros_time + "%s%s%s|%s%s %s%s%s" % color_set)
 	elif level == "error":
-		rospy.logerr("%s%s %s| %s%s %s%s%s" % color_set)
+		rospy.logerr(ros_time + "%s%s%s|%s%s %s%s%s" % color_set)
 	else:
-		rospy.loginfo("%s%s %s| %s%s %s%s%s" % color_set)
+		rospy.loginfo(ros_time + "%s%s%s|%s%s %s%s%s" % color_set)

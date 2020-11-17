@@ -109,14 +109,15 @@ class PickerStateMonitor(object):
         self.active_tasks_pub = rospy.Publisher(self.ns+"active_tasks_details", rasberry_coordination.msg.TasksDetails, latch=True, queue_size=5)
 
         self.task_updates_sub = rospy.Subscriber(self.ns+"task_updates", rasberry_coordination.msg.TaskUpdates, self.task_updates_cb)
-        logmsg(msg="PickerStateMonitor object is successfully initialised")
-
+        logmsg(category='PSM', msg="PickerStateMonitor is successfully initialised")
 
     def car_event_cb(self, msg):
         """callback function for /car_client/get_states
         """
         msg_data = eval(msg.data)
+
         if "states" in msg_data:
+            logmsg(category='PSM', msg='car_event_cb States: %s' % str(msg_data["states"]))
             # state updates for all users
             for picker_id in msg_data["states"]:
                 if picker_id not in self.picker_ids:
@@ -347,6 +348,8 @@ class PickerStateMonitor(object):
                     pass
 
         elif "state" in msg_data:
+            logmsg(category='PSM', msg='car_event_cb State: {%s:%s}' % (msg_data["user"], msg_data["state"]))
+
             picker_id = msg_data["user"]
             if picker_id in self.picker_ids:
                 # resetting state to INIT, ARRIVED -> LOADED
@@ -362,7 +365,6 @@ class PickerStateMonitor(object):
 
                     self.picker_prev_states[picker_id] = self.picker_states[picker_id]
                     self.picker_states[picker_id] = msg_data["state"]
-
 
     def picker_posestamped_cb(self, msg, picker_id):
         """call back to /picker_id/posestamped topics
@@ -438,106 +440,122 @@ class PickerStateMonitor(object):
     def task_updates_cb(self, msg):
         """call back for task_updates
         """
+        # Identify the existing (old) state, and the new state of the task in question
+        new_state = msg.state
         old_state = "EMPTY"
         if msg.task_id in self.task_state:
             old_state = self.task_state[msg.task_id]
 
+        # If this is a new task_id, initialise the data locations
         if msg.task_id not in self.task_robot:
             self.task_robot[msg.task_id] = None
-
         if msg.task_id not in self.task_state:
             self.task_state[msg.task_id] = None
 
-        if msg.task_id in self.task_picker:
-            self.write_log({"action_type": "coordinator_task_updates",
-                            "task_updates": "%s -> %s" %(self.task_state[msg.task_id], msg.state),
-                            "picker_id": self.task_picker[msg.task_id],
-                            "task_id": msg.task_id,
-                            "details": "task state changed in coordinator.",
-                            "robot_id": msg.robot_id,
-                            })
-        else:
-            #task cancelled by robot in transit to picker, picked up by new robot
-            self.write_log({"action_type": "coordinator_task_updates",
-                            "task_updates": "%s -> %s" %(self.task_state[msg.task_id], msg.state),
-                            "task_id": msg.task_id,
-                            "details": "task state changed in coordinator.",
-                            "robot_id": msg.robot_id,
-                            })
+            # if msg.task_id in self.task_picker:
+            #     logmsg(category="TASK", id=msg.task_id, msg='state changed from %s to %s' % (old_state, new_state))
+            #     self.write_log({"action_type": "coordinator_task_updates",
+            #                     "task_updates": "%s -> %s" %(self.task_state[msg.task_id], msg.state),
+            #                     "picker_id": self.task_picker[msg.task_id],
+            #                     "task_id": msg.task_id,
+            #                     "details": "task state changed in coordinator.",
+            #                     "robot_id": msg.robot_id,
+            #                     })
+            # else:
+            #     #task cancelled by robot in transit to picker, picked up by new robot
+            #     self.write_log({"action_type": "coordinator_task_updates",
+            #                     "task_updates": "%s -> %s" %(self.task_state[msg.task_id], msg.state),
+            #                     "task_id": msg.task_id,
+            #                     "details": "task state changed in coordinator.",
+            #                     "robot_id": msg.robot_id,
+            #                     })
 
-        if msg.state == "CALLED" and self.task_state[msg.task_id] != "CALLED":
-            # robot failed to reach picker, task could be reassigned
-            self.task_state[msg.task_id] = None
-            self.task_robot[msg.task_id] = None
-            picker_id = self.task_picker[msg.task_id]
-            self.set_picker_state(picker_id, "CALLED")
-            msg.state = "NONE"
+        # If there is a change in the state of the task, respond based on the new state
+        if new_state != self.task_state[msg.task_id]:
+            logmsg(category="TASK", id=msg.task_id, msg='state changed from %s to %s' % (old_state, new_state))
 
-        elif msg.state == "ACCEPT" and self.task_state[msg.task_id] != "ACCEPT":
-            # a robot has been assigned to do the task
-            self.task_state[msg.task_id] = "ACCEPT"
-            picker_id = self.task_picker[msg.task_id]
-            self.task_robot[msg.task_id] = msg.robot_id
+            if new_state == "CALLED":
+                logmsg(category='PSM', msg='%s failed to reach %s' % (str(task_robot[msg.task_id], self.task_picker[msg.task_id], msg.task_id)))
 
-            self.picker_prev_states[picker_id] = self.picker_states[picker_id]
-            self.set_picker_state(picker_id, "ACCEPT")
-
-        elif msg.state == "ARRIVED" and self.task_state[msg.task_id] != "ARRIVED":
-            # robot has arrived at the picker
-            self.task_state[msg.task_id] = "ARRIVED"
-            picker_id = self.task_picker[msg.task_id]
-            self.picker_prev_states[picker_id] = self.picker_states[picker_id]
-            self.set_picker_state(picker_id, "ARRIVED")
-
-        elif msg.state == "LOADED" and self.task_state[msg.task_id] != "LOADED":
-            # tray is loaded
-            self.task_state[msg.task_id] = "LOADED"
-            picker_id = self.task_picker[msg.task_id]
-            if self.picker_states[picker_id] != "LOADED":
-                self.picker_prev_states[picker_id] = self.picker_states[picker_id]
-                self.set_picker_state(picker_id, "LOADED")
-
-        elif msg.state == "STORAGE" and self.task_state[msg.task_id] != "STORAGE":
-            # robot reached storage
-            self.task_state[msg.task_id] = "STORAGE"
-
-        elif msg.state == "DELIVERED" and self.task_state[msg.task_id] != "DELIVERED":
-            # tray unloading is finished; remove task_id from task_robot
-            self.task_state[msg.task_id] = "DELIVERED"
-            self.task_robot.pop(msg.task_id)
-
-        elif msg.state == "CANCELLED" and self.task_state[msg.task_id] != "CANCELLED":
-            # task is cancelled (either by the picker or manually); remove task_id from task_robot, remove picker
-            self.task_state[msg.task_id] = "CANCELLED"
-            self.task_robot.pop(msg.task_id)
-            if msg.task_id in self.task_picker:
+                # robot failed to reach picker, task could be reassigned
+                self.task_state[msg.task_id] = None
+                self.task_robot[msg.task_id] = None
                 picker_id = self.task_picker[msg.task_id]
-                self.task_picker.pop(msg.task_id)
-                self.picker_task[picker_id] = False
-                if self.picker_states[picker_id] != "INIT":
+                self.set_picker_state(picker_id, "CALLED")
+
+            elif new_state == "ACCEPT":
+                logmsg(category='PSM', msg='%s assigned to %s for task %s' % (msg.robot_id, self.task_picker[msg.task_id], msg.task_id))
+
+                # a robot has been assigned to do the task
+                self.task_state[msg.task_id] = "ACCEPT"
+                picker_id = self.task_picker[msg.task_id]
+                self.task_robot[msg.task_id] = msg.robot_id
+
+                self.picker_prev_states[picker_id] = self.picker_states[picker_id]
+                self.set_picker_state(picker_id, "ACCEPT")
+
+            elif new_state == "ARRIVED":
+                logmsg(category='PSM', msg='%s arrived at %s' % (msg.robot_id, self.task_picker[msg.task_id]))
+
+                # robot has arrived at the picker
+                self.task_state[msg.task_id] = "ARRIVED"
+                picker_id = self.task_picker[msg.task_id]
+                self.picker_prev_states[picker_id] = self.picker_states[picker_id]
+                self.set_picker_state(picker_id, "ARRIVED")
+
+            elif new_state == "LOADED":
+                logmsg(category='PSM', msg='%s has loaded tray on %s' % (msg.robot_id, self.task_picker[msg.task_id]))
+
+                # tray is loaded
+                self.task_state[msg.task_id] = "LOADED"
+                picker_id = self.task_picker[msg.task_id]
+                if self.picker_states[picker_id] != "LOADED":
                     self.picker_prev_states[picker_id] = self.picker_states[picker_id]
-                    self.set_picker_state(picker_id, "INIT")
+                    self.set_picker_state(picker_id, "LOADED")
 
-        elif msg.state == "ABANDONED" and self.task_state[msg.task_id] != "ABANDONED":
-            #robot abandoned task, opening for reassignment
+            elif new_state == "STORAGE":
+                logmsg(category='PSM', msg='%s has arrived at storage' % (msg.robot_id))
 
-            # we gaurantee picker exists and state is go_to_picker or wait_loading
-            picker_id = self.task_picker[msg.task_id]
+                # robot reached storage
+                self.task_state[msg.task_id] = "STORAGE"
 
-            # remove reference to existing robot
-            self.task_robot[msg.task_id] = None
+            elif new_state == "DELIVERED":
+                logmsg(category='PSM', msg='%s has unloaded at storage' % (msg.robot_id))
 
-            # remove progress on task
-            self.task_state[msg.task_id] = None
+                # tray unloading is finished; remove task_id from task_robot
+                self.task_state[msg.task_id] = "DELIVERED"
+                self.task_robot.pop(msg.task_id)
 
-            # tell picker to go back to state when calling the task
-            picker_id = self.task_picker[msg.task_id]
-            self.set_picker_state(picker_id, "CALLED")
+            elif new_state == "CANCELLED":
+                # task is cancelled (either by the picker or manually); remove task_id from task_robot, remove picker
+                self.task_state[msg.task_id] = "CANCELLED"
+                self.task_robot.pop(msg.task_id)
+                if msg.task_id in self.task_picker:
+                    picker_id = self.task_picker[msg.task_id]
+                    self.task_picker.pop(msg.task_id)
+                    self.picker_task[picker_id] = False
+                    if self.picker_states[picker_id] != "INIT":
+                        self.picker_prev_states[picker_id] = self.picker_states[picker_id]
+                        self.set_picker_state(picker_id, "INIT")
 
-            msg.state = "NONE"
+            elif new_state == "ABANDONED":
+                #robot abandoned task, opening for reassignment
 
-        logmsg(category="task", id=msg.task_id, msg='state changed from %s to %s' %(old_state, msg.state))
+                # we gaurantee picker exists and state is go_to_picker or wait_loading
+                logmsg(category='PSM', msg='task %s has been abandoned' % msg.task_id)
 
+                # remove reference to existing robot
+                self.task_robot[msg.task_id] = None
+
+                # remove progress on task
+                self.task_state[msg.task_id] = None
+
+                # tell picker to go back to state when calling the task
+                picker_id = self.task_picker[msg.task_id]
+                self.set_picker_state(picker_id, "CALLED")
+
+        else:
+            logmsg(category="TASK", id=msg.task_id, msg='state published with no change')
 
         # publish all the active tasks state
         tasks = rasberry_coordination.msg.TasksDetails()
