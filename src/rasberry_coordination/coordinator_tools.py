@@ -29,7 +29,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
 		id = "coordinator"
 	ids = " "*(13-len(str(id)))+str(id)+":"
 	if id == "empty":
-		ids = ""
+		ids = " "*14
 
 	# define color values for printing
 	reset = '\033[00m'

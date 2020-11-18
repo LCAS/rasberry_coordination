@@ -116,8 +116,9 @@ class PickerStateMonitor(object):
         """
         msg_data = eval(msg.data)
 
+        # Publishing to picker
         if "states" in msg_data:
-            logmsg(category='PSM', msg='car_event_cb States: %s' % str(msg_data["states"]))
+            logmsg(category='PSM', msg='Picker has published a change in state: %s' % str(msg_data["states"]))
             # state updates for all users
             for picker_id in msg_data["states"]:
                 if picker_id not in self.picker_ids:
@@ -342,13 +343,14 @@ class PickerStateMonitor(object):
                         self.picker_prev_states[picker_id] = self.picker_states[picker_id]
                         self.set_picker_state(picker_id, "INIT")
                         self.picker_task[picker_id] = False
-                        logmsg(level='info', category="robot", id=robot_id, msg='produce has been LOADED')
+                        logmsg(category="robot", id=robot_id, msg='produce has been LOADED')
 
                 else:
                     pass
 
+        # Callback from picker
         elif "state" in msg_data:
-            logmsg(category='PSM', msg='car_event_cb State: {%s:%s}' % (msg_data["user"], msg_data["state"]))
+            logmsg(category='PSM', msg='Notifying picker of state change: {%s:%s}' % (msg_data["user"], msg_data["state"]))
 
             picker_id = msg_data["user"]
             if picker_id in self.picker_ids:

@@ -44,11 +44,11 @@ class Robot(object):
         self.topo_map = None
         self.rec_topo_map = False
         rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
-        logmsg(category="robot", id=self.robot_id, msg='waiting for Topological map ...')
+        logmsg(category="rob_py", id=self.robot_id, msg='waiting for Topological map ...')
 
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
-        logmsg(category="robot", id=self.robot_id, msg='received Topological map')
+        logmsg(category="rob_py", id=self.robot_id, msg='received Topological map')
 
         self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
         self.route_publisher = rospy.Publisher("%s/current_route" %(self.robot_id), nav_msgs.msg.Path, latch=True, queue_size=5)
@@ -98,9 +98,10 @@ class Robot(object):
         start_node -- name of the starting node
         goal_node -- name of the goal node
         """
+        logmsg(category="rob_py", msg='get_path from start_node:[%s] to goal_node:[%s]'%(start_node,goal_node))
         route = self.route_search.search_route(start_node, goal_node)
         if route is None:
-            logmsg(category="robot", id=self.robot_id, msg='no route found between %s and %s' %(start_node, goal_node))
+            logmsg(category="rob_py", id=self.robot_id, msg='no route found between %s and %s' %(start_node, goal_node))
             #TODO: Set this up so it doesnt repeat along with with "logwarn(replanning now)"
 
             return ([], [], [float("inf")])
@@ -113,7 +114,7 @@ class Robot(object):
     def set_toponav_goal(self, goal, done_cb=None, active_cb=None, feedback_cb=None):
         """send_goal to topo_nav action client
         """
-        logmsg(category="robot", id=self.robot_id, msg='assigned goal %s'%(goal.target))
+        logmsg(category="rob_py", id=self.robot_id, msg='assigned toponav goal set as %s'%(goal.target))
         if done_cb is None:
             done_cb = self._done_toponav_cb
         if feedback_cb is None:
@@ -154,8 +155,7 @@ class Robot(object):
     def set_execpolicy_goal(self, goal, done_cb=None, active_cb=None, feedback_cb=None):
         """send_goal to execute_policy_mode action client
         """
-        logmsg(category="robot", id=self.robot_id, msg='has an edge policy goal')
-        #logmsg(msg=goal)
+        logmsg(category="rob_py", id=self.robot_id, msg='execpolicy goal set')
 
         if done_cb is None:
             done_cb = self._done_execpolicy_cb
@@ -174,12 +174,15 @@ class Robot(object):
     def _fb_execpolicy_cb(self, fb):
         """feedback callback
         """
+        # TODO: this is called twice when reaching the goal node, check if this is expected behaviour
+        logmsg(category="rob_py", msg='_fb_execpolicy_cb {current_wp:%s, status:%s}'%(str(fb.current_wp), str(fb.status)))
         self.execpolicy_current_wp = fb.current_wp
         self.execpolicy_status = fb.status
 
     def _done_execpolicy_cb(self, status, result):
         """done callback
         """
+        logmsg(category='rob_py', id=self.robot_id, msg='_done_execpolicy_cb, route has been completed with result: {%s}'%(result))
         self.execpolicy_status = status
         self.execpolicy_result = result
         self.execpolicy_goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
