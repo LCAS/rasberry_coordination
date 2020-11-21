@@ -885,6 +885,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 if self.task_stages[robot_id] in ['go_to_picker','wait_loading']:
                     #if picker has not completed its communication with the robot, send a different robot
                     logmsg(category='robot', id=robot_id, msg="unregistering with active task %s, picker not reached, readding task"%(task_id))
+                    logmsg(level='error', category='robot', id=robot_id, msg="if picker does not acknowledge robot on arrival, please cancel and recall task")
+                    logmsg(level='error', category='robot', id=robot_id, msg="this is a known issue under development")
                     self.readd_task(task_id) #TODO: issue with 2nd robot not recognised by picker on arrival
 
                 elif self.task_stages[robot_id] in ['go_to_storage','wait_unloading','go_to_base']:

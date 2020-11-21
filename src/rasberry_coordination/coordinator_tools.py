@@ -23,7 +23,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
 	if category.upper() in valid_categories:
 		category_padding = total_padd_space-len(category)
 		level_padding = (len(level)-4)
-		cat = category.upper() + (" "*(category_padding+level_padding))
+		cat = category.upper() + (" "*(category_padding-level_padding))
 
 	# format id with conditions for when category or id is empty
 	if category == "other":
