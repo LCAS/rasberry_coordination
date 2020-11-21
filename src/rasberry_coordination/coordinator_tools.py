@@ -6,7 +6,8 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
 	# [INFO] [1605509085.140152]: OTHER  | var: 1	#output as false
 	# [INFO] OTHER  | var: 1 						#ideal output if true
 	# [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
-	# TODO: see if padding the end of the string will help? this will work, has been tested
+	# TODO: include padding at end of msg
+
 	ros_time = ''
 	if disable_ros_time_printout:
 		ros_time = '\b'*21

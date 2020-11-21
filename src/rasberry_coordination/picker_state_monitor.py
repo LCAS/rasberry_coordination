@@ -152,7 +152,7 @@ class PickerStateMonitor(object):
                         except:
                             pass
                         else:
-                            logmsg(category="picker", id=picker_id, msg='cancelling task %s'%(task_id))
+                            logmsg(category="picker", id=picker_id, msg='cancelling task %s before robot has arrived'%(task_id))
 
                             cancelled = self.cancel_task_client(task_id)
 
@@ -166,6 +166,7 @@ class PickerStateMonitor(object):
                                             })
 
                             if cancelled.cancelled:
+                                logmsg(category="picker", id=picker_id, msg='task successfully cancelled')
                                 # setting previous state as INIT
                                 self.picker_prev_states[picker_id] = "INIT"
                                 self.set_picker_state(picker_id, "INIT")
@@ -183,6 +184,7 @@ class PickerStateMonitor(object):
                                             "closest_node": self.picker_closest_nodes[picker_id],
                                             })
                             else:
+                                logmsg(category="picker", id=picker_id, msg='failure in task cancellation')
                                 # resetting state to prev picker state
                                 self.set_picker_state(picker_id, self.picker_prev_states[picker_id])
                                 self.write_log({"action_type": "car_update",
@@ -350,6 +352,9 @@ class PickerStateMonitor(object):
 
         # Callback from picker
         elif "state" in msg_data:
+            logmsg() #TODO: find a better way to seperate state change messages
+            logmsg()
+            logmsg()
             logmsg(category='PSM', msg='Notifying picker of state change: {%s:%s}' % (msg_data["user"], msg_data["state"]))
 
             picker_id = msg_data["user"]

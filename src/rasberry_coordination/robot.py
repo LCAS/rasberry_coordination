@@ -174,8 +174,7 @@ class Robot(object):
     def _fb_execpolicy_cb(self, fb):
         """feedback callback
         """
-        # TODO: this is called twice when reaching the goal node, check if this is expected behaviour
-        logmsg(category="rob_py", msg='_fb_execpolicy_cb {current_wp:%s, status:%s}'%(str(fb.current_wp), str(fb.status)))
+        logmsg(category="rob_py", msg='_fb_execpolicy_cb {current_wp:%s}' % (str(fb.current_wp)))
         self.execpolicy_current_wp = fb.current_wp
         self.execpolicy_status = fb.status
 

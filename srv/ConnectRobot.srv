@@ -5,10 +5,7 @@ string[] tasks
 # (Optional) Define if the robot should be registered for task allocation.
 bool register
 ---
-# Return:
-# 0 : success
-# 1 : robot not admissible
-# 2 : tasks not in list
-# 3 : robot already connected
-# 4 : no base stations available
-uint8 success
+# State of result (0=fail,1=success)
+bool success
+# Success or failure details
+string msg

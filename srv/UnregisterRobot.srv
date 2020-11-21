@@ -3,8 +3,7 @@ string robot_id
 # Action of robot when disconnected ("stop", "finish_task", "return_to_base")
 string action
 ---
-# Return:
-# 0 : success
-# 1 : robot not registered
-# 2 : already set to unregister on task completion
-uint8 success
+# State of result (0=fail,1=success)
+bool success
+# Success or failure details
+string msg
