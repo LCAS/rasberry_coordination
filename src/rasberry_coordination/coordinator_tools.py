@@ -14,7 +14,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
 
 	# define id and/or category to highlight
 	color_id = ["picker02", "thorvald_001"]
-	color_category = ["ROB_PY", "EXEC", "DESPE"]  # TODO move these out of this definition and into some config file
+	color_category = []  # TODO move these out of this definition and into some config file
 	# (load from paramater server in launch file?)
 
 	# format category portion of message
