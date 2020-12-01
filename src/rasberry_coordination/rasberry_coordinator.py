@@ -156,6 +156,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.active_interruptable_robots = [] # all the robots that are executing a task but the task can be interrupted to take on a new one
 
         self.registered_robots = set(self.robot_ids)  # list of monitored robots which are able to accept tasks
+        self.disconnect_when_idle = {}
 
         self.tray_loaded = {robot_id:False for robot_id in self.robot_ids}
         self.tray_unloaded = {robot_id:True for robot_id in self.robot_ids}
@@ -671,7 +672,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         self.connect_robot(req.robot_id)
         if req.register:
-            self.register_robot(req.robot_id)
+            self.register_robot_ros_srv(req)
             self.modify_robot_marker(req.robot_id, color='no_color')
         else:
             self.modify_robot_marker(req.robot_id, color='red')
@@ -739,7 +740,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.tray_loaded[robot_id] = False
         self.tray_unloaded[robot_id] = True
 
-        #self.idle_robots.append(robot_id)
         logmsg(level='warn', category="robot", id=robot_id, msg='connection complete')
 
     def register_robot_ros_srv(self, req):
@@ -763,8 +763,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             resp.msg = 'registration failed, robot is not currently connected'
             return resp
 
-        self.register_robot(req.robot_id)
+        # set robot to accept tasks
+        if req.robot_id not in self.idle_robots:
+            self.idle_robots.append(req.robot_id)
+
+        # set it to appear without a color modifier
+        self.registered_robots.add(req.robot_id)
         self.modify_robot_marker(req.robot_id, color='no_color')
+        logmsg(level="warn", category="robot", id=req.robot_id, msg='registration complete')
 
         # send success response to service
         resp.success = 1
@@ -772,14 +778,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         return resp
 
     register_robot_ros_srv.type = rasberry_coordination.srv.RegisterRobot
-
-    def register_robot(self, robot_id):
-        if robot_id in self.idle_robots:
-            logmsg(level="error", category="robot", id=robot_id, msg='robot still present in self.idle_robots')
-        else:
-            self.idle_robots.append(robot_id)  # TODO: if registered while returning to base, add to interruptable
-        self.registered_robots.add(robot_id)
-        logmsg(level="warn", category="robot", id=robot_id, msg='registration complete')
 
     def unregister_robot_ros_srv(self, req):
         """Prevent robot from accepting tasks and set to unregister when its current task completed
@@ -789,38 +787,21 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         logmsg(level='warn', category="robot", id=req.robot_id, msg='unregistering from task allocation')
         resp = rasberry_coordination.srv.UnregisterRobotResponse()
 
-        if req.action is '':
-            req.action = 'complete_task'
-
-        #If unregistration fails
         if req.robot_id not in self.registered_robots:
             logmsg(level="warn", category="robot", id=req.robot_id, msg='unregistration failed, robot is not registered')
             logmsg(msg='registered robots: ' + ', '.join(self.registered_robots))
             resp.success = 0
             resp.msg = 'unregistration failed, robot is not registered'
             return resp
-        elif req.action not in ['complete_task']: #if task must be cancelled
-            if req.robot_id in self.robot_task_id and req.robot_id in self.task_stages:
-                task_id = self.robot_task_id[req.robot_id]
-                if task_id in self.task_stages:
-                    if self.task_stages[task_id] in ['go_to_picker', 'wait_loading']:
-                        # system doesnt work if unregistering task before finishing with picker
-                        logmsg(type='error', msg='cannot unregister robot before reaching picker using action: %s'%(req.action))
-                        resp.success = 0
-                        resp.msg = 'cannot unregister robot before reaching picker using action: %s' % (req.action)
-                        return resp
 
-        if req.action == 'complete_task':
-            if req.robot_id in self.active_interruptable_robots:
-                logmsg(category="robot", id=req.robot_id, msg='is active and able to take tasks, disabling task allocation ability')
-                self.active_interruptable_robots.remove(req.robot_id)
-
-
-        if req.action in ['complete_task', 'stop', 'return_to_base']:
-            self.unregister_robot(req.robot_id, req.action)
+        # remove robot if interruptable
+        self.remove(self.idle_robots, req.robot_id)
+        self.remove(self.active_interruptable_robots, req.robot_id)
 
         # if robot is attempting to unregister, set it to appear red
+        self.remove(self.registered_robots, req.robot_id)
         self.modify_robot_marker(req.robot_id, color='red')
+        logmsg(level="warn", category="robot", id=req.robot_id, msg='unregistration complete')
 
         # send success response to service
         resp.success = 1
@@ -828,99 +809,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         return resp
 
     unregister_robot_ros_srv.type = rasberry_coordination.srv.UnregisterRobot
-
-    def unregister_robot(self, robot_id, action):
-        if robot_id not in self.registered_robots: #unregister_robot is called 2nd time if robot returns to base
-            logmsg(category="robot", id=robot_id, msg='robot has already unregistered')
-            return
-
-        #update log of which robots are active and registered
-        self.registered_robots.remove(robot_id)
-        logmsg(level='error', category='robot', id=robot_id, msg="unregistering with ACTION: ~~ %s ~~"%action)
-
-        #cancel task if active
-        if action in ['stop','return_to_base']:
-            if robot_id in self.task_stages:
-                if robot_id in self.robot_task_id:
-                    task_id = self.robot_task_id[robot_id]
-
-                    if self.task_stages[robot_id] in ['go_to_picker','wait_loading']:
-                        #if picker has not completed its communication with the robot, send a different robot
-                        logmsg(category='robot', id=robot_id, msg="unregistering with active task %s, picker not reached, readding task"%(task_id))
-                        logmsg(level='error', category='robot', id=robot_id, msg="if picker does not acknowledge robot on arrival, please cancel and recall task")
-                        logmsg(level='error', category='robot', id=robot_id, msg="this is a known issue under development")
-                        self.readd_task(task_id) #TODO: issue with 2nd robot not recognised by picker on arrival
-
-                    elif self.task_stages[robot_id] in ['go_to_storage','wait_unloading','go_to_base']:
-                        #if picker is finished with the robot, mark task as complete and remove it
-                        logmsg(category='robot', id=robot_id, msg="unregistering with active task %s, marking task as complete"%(task_id))
-
-                        # # if robot was in transit to task, finish task route
-                        # self.routes[robot_id] = ['none']
-                        # self.route_fragments[robot_id] = [['none']]
-                        # self.robots[robot_id].execpolicy_result = None
-                        #
-                        # # remove task details from data stores
-                        # self.task_stages[robot_id] = None
-                        # self.start_time[robot_id] = None
-                        # self.completed_tasks[task_id] = self.processing_tasks.pop(task_id)
-                        # self.robot_task_id[robot_id] = None
-                        # self.current_storage[robot_id] = None
-
-                        # # self.cancl_task_ros_srv()
-                        # task = self.processing_tasks.pop(task_id)
-                        # self.cancelled_tasks[task_id] = task
-                        # if task_id in self.task_robot_id:
-                        #     robot_id = self.task_robot_id[task_id]
-                        # self.current_storage[robot_id] = None
-                        # self.publish_task_state(req.task_id, robot_id, "CANCELLED")
-
-
-                    elif self.task_stages[robot_id] is None:
-                        logmsg(category='robot', id=robot_id, msg="unregistering with no active task")
-
-                    else:
-                        logmsg(level='warn', category='robot', id=robot_id, msg="unregistering with active task, task stage not valid")
-
-        # notify controller that tray may be loaded
-        if self.tray_loaded[robot_id] and action not in ['complete_task']:
-            logmsg(level='warn', category="robot", id=robot_id, msg='load present - please empty before re-registering')
-            self.tray_loaded[robot_id] = False
-            self.tray_unloaded[robot_id] = True
-
-        # cancel navigtion targets if required
-        if action in ['stop', 'return_to_base']:
-            logmsg(category="robot", id=robot_id, msg='cancelling any navigation targets')
-            # self.set_empty_execpolicy_goal(robot_id) #works just as well as cancelling
-            self.robots[robot_id].cancel_execpolicy_goal()
-            # self.robots[robot_id].cancel_toponav_goal()
-
-            # by this point, the robot is idle, make sure is stays that way
-            if robot_id in self.active_robots:
-                self.active_robots.remove(robot_id)
-            if robot_id in self.active_interruptable_robots:
-                self.active_interruptable_robots.remove(robot_id)
-            if robot_id in self.moving_robots:
-                self.moving_robots.remove(robot_id)
-            if robot_id in self.idle_robots:
-                self.idle_robots.remove(robot_id)
-
-        # if robot must return to base, make that happen
-        if action in ['return_to_base']:
-            """something here makes return_to_base recognised by picker02"""
-            logmsg(category="robot", id=robot_id, msg='robot task set to return to base_station')
-            self.send_robot_to_base(robot_id)  # all this does is self.task_stages[robot_id] = "go_to_base"
-            self.active_robots.append(robot_id)
-            self.trigger_replan = True
-            logmsg(category="robot", id=robot_id, msg='replanning enabled')
-
-        #if action must stop, do nothing?
-        if action in ['stop'] and self.task_stages[robot_id] in ["go_to_picker", "wait_loading"]:
-            logmsg(level='error', msg='picker wont acknowledge new robot unless we send this one to base')
-            self.task_stages[robot_id] = "go_to_base"
-            self.active_robots.append(robot_id)
-            self.trigger_replan = True
-        logmsg(level="warn", category="robot", id=robot_id, msg='unregistration complete')
 
     def disconnect_robot_ros_srv(self, req):
         """Remove robot from system.
@@ -937,14 +825,21 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             return resp
 
         if req.robot_id in self.registered_robots:
-            self.unregister_robot(req.robot_id, "stop")
+            self.unregister_robot_ros_srv(req)
 
-        self.disconnect_robot(req.robot_id)
-        self.remove_robot_marker(req.robot_id)
+        if req.robot_id in self.idle_robots:
+            self.disconnect_robot(req.robot_id)
+
+            # send success response to service
+            resp.success = 1
+            resp.msg = 'robot successfully disconnected'
+            return resp
+
+        self.disconnect_when_idle[req.robot_id] = True
 
         # send success response to service
         resp.success = 1
-        resp.msg = 'robot successfully disconnected'
+        resp.msg = 'robot set to disconnect on task completion'
         return resp
 
     disconnect_robot_ros_srv.type = rasberry_coordination.srv.DisconnectRobot
@@ -952,6 +847,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def disconnect_robot(self, robot_id):
         """remove all record of the robot being a member of the system
         """
+        self.remove(self.disconnect_when_idle, robot_id)
         self.robots[robot_id].cancel_execpolicy_goal()
 
         self.remove(self.robot_ids, robot_id)
@@ -993,6 +889,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.remove(self.route_edges, robot_id)
         self.remove(self.route_fragments, robot_id)
 
+        # set robot marker
+        self.remove_robot_marker(robot_id)
 
         logmsg(level='warn', category="robot", id=robot_id, msg="disconnection complete")
 
@@ -1455,6 +1353,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                             # add robot to idle, if registered
                             if robot_id in self.registered_robots:
                                 self.idle_robots.append(robot_id)
+                            if robot_id in self.disconnect_when_idle:
+                                self.disconnect_robot(robot_id)
 
                     else:
                         # finished only a fragment. may have to wait for clearance
