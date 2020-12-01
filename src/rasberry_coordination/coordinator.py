@@ -200,7 +200,7 @@ class Coordinator(object):
                 resp.states.append("")
                 resp.goal_nodes.append("")
                 resp.start_times.append(rospy.Time())
-                logmsg(level='error', category="robot", id=req.robot_id, msg='not configured')
+                logmsg(level='error', category="robot", id=robot_id, msg='not configured')
 
         return resp
 
