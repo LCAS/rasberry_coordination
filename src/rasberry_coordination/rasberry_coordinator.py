@@ -137,7 +137,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         # robot objects with toponav action clients (on the coord server)
         self.robots = {robot_id: rasberry_coordination.robot.Robot(robot_id) for robot_id in self.robot_ids}
 
-        # collect_tray_stages = ["go_to_picker", "wait_loading", "go_to_storage", "wait_unloading", "got_to_base"]
+        # collect_tray_stages = ["go_to_picker", "wait_loading", "go_to_storage", "wait_unloading", "go_to_base"]
         self.task_stages = {robot_id: None for robot_id in self.robot_ids} # keeps track of current stage of the robot
 
         self.trigger_replan = False
@@ -775,7 +775,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
     def register_robot(self, robot_id):
         if robot_id in self.idle_robots:
-            logmsg(level="error", category="robot", id=robot_id, msg='robot never unregistered properly')
+            logmsg(level="error", category="robot", id=robot_id, msg='robot still present in self.idle_robots')
         else:
             self.idle_robots.append(robot_id)  # TODO: if registered while returning to base, add to interruptable
         self.registered_robots.add(robot_id)
@@ -855,7 +855,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         #if picker is finished with the robot, mark task as complete and remove it
                         logmsg(category='robot', id=robot_id, msg="unregistering with active task %s, marking task as complete"%(task_id))
 
-                        # if robot was in transit to task, finish task route
+                        # # if robot was in transit to task, finish task route
                         # self.routes[robot_id] = ['none']
                         # self.route_fragments[robot_id] = [['none']]
                         # self.robots[robot_id].execpolicy_result = None
@@ -866,6 +866,15 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         # self.completed_tasks[task_id] = self.processing_tasks.pop(task_id)
                         # self.robot_task_id[robot_id] = None
                         # self.current_storage[robot_id] = None
+
+                        # # self.cancl_task_ros_srv()
+                        # task = self.processing_tasks.pop(task_id)
+                        # self.cancelled_tasks[task_id] = task
+                        # if task_id in self.task_robot_id:
+                        #     robot_id = self.task_robot_id[task_id]
+                        # self.current_storage[robot_id] = None
+                        # self.publish_task_state(req.task_id, robot_id, "CANCELLED")
+
 
                     elif self.task_stages[robot_id] is None:
                         logmsg(category='robot', id=robot_id, msg="unregistering with no active task")
@@ -1432,16 +1441,20 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                             # task is finished
                             logmsg(category="robot", id=robot_id, msg='go_to_base stage is finished')
                             self.finish_task_stage(robot_id, "go_to_base")
+
                             if robot_id in self.robot_task_id:
                                 self.robot_task_id.pop(robot_id)
                             self.task_stages[robot_id] = None
 
-                            # move robot from active to idle
+                            # remove robot from any form of active robots
                             if robot_id in self.active_robots:
                                 self.active_robots.remove(robot_id)
                             if robot_id in self.active_interruptable_robots:
                                 self.active_interruptable_robots.remove(robot_id)
-                            self.idle_robots.append(robot_id)
+
+                            # add robot to idle, if registered
+                            if robot_id in self.registered_robots:
+                                self.idle_robots.append(robot_id)
 
                     else:
                         # finished only a fragment. may have to wait for clearance
