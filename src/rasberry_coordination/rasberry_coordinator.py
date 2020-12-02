@@ -643,6 +643,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         or if there is no base_station available.
         """
         logmsg(level='warn', category="robot", id=req.robot_id, msg='connecting to system')
+        remove(self.disconnect_when_idle, req.robot_id)
         resp = rasberry_coordination.srv.ConnectRobotResponse()
 
         if req.robot_id not in self.admissible_robot_ids:
@@ -1089,7 +1090,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         self.finish_task_stage(robot_id, self.task_stages[robot_id])
                         self.active_robots.remove(robot_id)
                         self.active_interruptable_robots.remove(robot_id)
-                        self.idle_robots.append(robot_id)
+                        if robot_id not in self.idle_robots:
+                            self.idle_robots.append(robot_id)
 
                     # trigger replan for any new assignment
                     trigger_replan = True
@@ -1353,7 +1355,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
                             # add robot to idle, if registered
                             if robot_id in self.registered_robots:
-                                self.idle_robots.append(robot_id)
+                                if robot_id not in self.idle_robots:
+                                    self.idle_robots.append(robot_id)
                             if robot_id in self.disconnect_when_idle:
                                 self.disconnect_robot(robot_id)
 
@@ -1703,7 +1706,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         self.active_robots.remove(robot_id)
                         if robot_id in self.active_interruptable_robots:
                             self.active_interruptable_robots.remove(robot_id)
-                        self.idle_robots.append(robot_id)
+                        if robot_id not in self.idle_robots:
+                            self.idle_robots.append(robot_id)
                     else:
                         self.finish_task_stage(robot_id, self.task_stages[robot_id])
                     #reset routes and route_edges
@@ -1841,7 +1845,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         # move healthy robots as idle and safely clear healthy_robots
         to_remove = []
         for robot_id in self.healthy_robots:
-            self.idle_robots.append(robot_id)
+            if robot_id not in self.idle_robots:
+                self.idle_robots.append(robot_id)
             to_remove.append(robot_id)
             self.write_log({"action_type": "robot_update",
                             "details": "robot is fit again - from service call",
