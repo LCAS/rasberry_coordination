@@ -660,9 +660,18 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         elif req.robot_id in self.robot_ids:
             logmsg(level="warn", category="robot", id=req.robot_id, msg='connection failed, robot already connected')
             logmsg(msg='connected robots: ' + ', '.join(self.robot_ids))
-            resp.success = 0
-            resp.msg = 'robot already connected'
-            return resp
+
+            if req.register and (req.robot_id not in self.registered_robots):
+                logmsg(level="warn", category="robot", id=req.robot_id, msg='robot no longer pending to unregister')
+                self.register_robot_ros_srv(req)
+                self.modify_robot_marker(req.robot_id, color='no_color')
+                resp.success = 1
+                resp.msg = 'robot already connected, no longer pending to unregister'
+                return resp
+            else:
+                resp.success = 0
+                resp.msg = 'robot already connected'
+                return resp
         elif len(self.available_base_stations) < 1:
             logmsg(level="warn", category="robot", id=req.robot_id, msg='connection failed, no base stations available')
             logmsg(msg='base stations in use: ' + ', '.join(self.base_stations.values()))
