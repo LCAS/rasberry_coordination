@@ -28,7 +28,7 @@ import rasberry_coordination.robot
 import rasberry_coordination.msg
 import rasberry_coordination.srv
 import rasberry_coordination.coordinator
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination.coordinator_tools import logmsg, remove
 
 class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     """RasberryCoordinator class definition
@@ -795,11 +795,11 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             return resp
 
         # remove robot if interruptable
-        self.remove(self.idle_robots, req.robot_id)
-        self.remove(self.active_interruptable_robots, req.robot_id)
+        remove(self.idle_robots, req.robot_id)
+        remove(self.active_interruptable_robots, req.robot_id)
 
         # if robot is attempting to unregister, set it to appear red
-        self.remove(self.registered_robots, req.robot_id)
+        remove(self.registered_robots, req.robot_id)
         self.modify_robot_marker(req.robot_id, color='red')
         logmsg(level="warn", category="robot", id=req.robot_id, msg='unregistration complete')
 
@@ -847,60 +847,52 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def disconnect_robot(self, robot_id):
         """remove all record of the robot being a member of the system
         """
-        self.remove(self.disconnect_when_idle, robot_id)
+        remove(self.disconnect_when_idle, robot_id)
         self.robots[robot_id].cancel_execpolicy_goal()
 
-        self.remove(self.robot_ids, robot_id)
-        self.remove(self.active_robots, robot_id)
-        self.remove(self.robot_states, robot_id)
-        self.remove(self.robots, robot_id)
-        self.remove(self.max_task_priorities, robot_id)
+        remove(self.robot_ids, robot_id)
+        remove(self.active_robots, robot_id)
+        remove(self.robot_states, robot_id)
+        remove(self.robots, robot_id)
+        remove(self.max_task_priorities, robot_id)
 
         # release base_station and wait_node
-        self.available_base_stations.append(self.remove(self.base_stations, robot_id))
+        self.available_base_stations.append(remove(self.base_stations, robot_id))
         logmsg(msg='base station %s added to pool' % (self.available_base_stations[-1]))
         logmsg(msg='base stations in use: ' + ', '.join(self.base_stations.values()))
         logmsg(msg='base stations available: ' + ', '.join(self.available_base_stations))
-        self.available_wait_nodes.append(self.remove(self.wait_nodes, robot_id))
+        self.available_wait_nodes.append(remove(self.wait_nodes, robot_id))
 
         #localisation
-        self.remove(self.presence_agents, robot_id)
-        self.remove(self.prev_current_nodes, robot_id)
-        self.remove(self.closest_nodes, robot_id)
-        self.remove(self.current_node_subs, robot_id)
-        self.remove(self.closest_node_subs, robot_id)
+        remove(self.presence_agents, robot_id)
+        remove(self.prev_current_nodes, robot_id)
+        remove(self.closest_nodes, robot_id)
+        remove(self.current_node_subs, robot_id)
+        remove(self.closest_node_subs, robot_id)
 
         #monitoring
-        self.remove(self.battery_voltage, robot_id)
-        self.remove(self.battery_data_subs, robot_id)
+        remove(self.battery_voltage, robot_id)
+        remove(self.battery_data_subs, robot_id)
 
         #task_activity
-        self.remove(self.robot_task_id, robot_id)
-        self.remove(self.task_stages, robot_id)
-        self.remove(self.start_time, robot_id)
-        self.remove(self.robot_task_id, robot_id)
-        self.remove(self.current_storage, robot_id)
-        self.remove(self.tray_loaded, robot_id)
-        self.remove(self.tray_unloaded, robot_id)
+        remove(self.robot_task_id, robot_id)
+        remove(self.task_stages, robot_id)
+        remove(self.start_time, robot_id)
+        remove(self.robot_task_id, robot_id)
+        remove(self.current_storage, robot_id)
+        remove(self.tray_loaded, robot_id)
+        remove(self.tray_unloaded, robot_id)
 
         #routing
-        self.remove(self.routes, robot_id)
-        self.remove(self.route_dists, robot_id)
-        self.remove(self.route_edges, robot_id)
-        self.remove(self.route_fragments, robot_id)
+        remove(self.routes, robot_id)
+        remove(self.route_dists, robot_id)
+        remove(self.route_edges, robot_id)
+        remove(self.route_fragments, robot_id)
 
         # set robot marker
         self.remove_robot_marker(robot_id)
 
         logmsg(level='warn', category="robot", id=robot_id, msg="disconnection complete")
-
-    def remove(self, collection, item):
-        if item in collection:
-            dt = str(collection.__class__)
-            if dt in ["<type 'list'>", "<type 'set'>"]:
-                collection.remove(item)
-            elif dt in ["<type 'dict'>"]:
-                return collection.pop(item)
 
     def modify_robot_marker(self, robot_id, color=''):
         # Add/modify marker to display in rviz

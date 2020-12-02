@@ -68,3 +68,12 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
 		rospy.logerr(ros_time + "%s%s%s|%s%s %s%s%s" % color_set)
 	else:
 		rospy.loginfo(ros_time + "%s%s%s|%s%s %s%s%s" % color_set)
+
+
+def remove(collection, item):
+	if item in collection:
+		dt = str(collection.__class__)
+		if dt in ["<type 'list'>", "<type 'set'>"]:
+			collection.remove(item)
+		elif dt in ["<type 'dict'>"]:
+			return collection.pop(item)
