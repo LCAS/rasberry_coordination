@@ -22,7 +22,7 @@ import thorvald_base.msg
 
 import rasberry_coordination.robot
 import rasberry_coordination.srv
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination.coordinator_tools import logmsg, remove, add, move
 
 
 class Coordinator(object):
@@ -56,8 +56,8 @@ class Coordinator(object):
         # time at which the current state of the robots are started
         self.start_time = {robot_id: rospy.get_rostime() for robot_id in self.robot_ids}
 
-        self.idle_robots = self.robot_ids + [] # a copy of robot_ids
-        self.active_robots = [] # all robots executing a task
+        self.idle_robots = self.robot_ids + []  # a copy of robot_ids
+        self.active_robots = []  # all robots executing a task
 
         self.topo_map = None
         self.rec_topo_map = False
@@ -241,8 +241,7 @@ class Coordinator(object):
 
             elif req.task_id in self.processing_tasks:
                 # task is being processed. remove it
-                task = self.processing_tasks.pop(req.task_id)
-                self.cancelled_tasks[req.task_id] = task
+                move(item=req.task_id, old=self.processing_tasks, new=self.cancelled_tasks)
                 # cancel goal of assigned robot and return it to its base
                 if req.task_id in self.task_robot_id:
                     robot_id = self.task_robot_id[req.task_id]
@@ -426,18 +425,15 @@ class Coordinator(object):
         # move task from processing to completed
         task_id = self.robot_task_id[robot_id]
         self.robot_task_id[robot_id] = None
-        self.completed_tasks[task_id] = self.processing_tasks.pop(task_id)
-        # move robot from active robots
-        if robot_id in self.active_robots:
-            self.active_robots.remove(robot_id)
-            self.idle_robots.append(robot_id)
+        move(item=task_id, old=self.processing_tasks, new=self.completed_tasks)
+        # move robot from active to idle robots
+        move(item=robot_id, old=self.active_robots, new=self.idle_robots)
 
     def set_task_failed(self, task_id):
         """Template method to set task state as failed.
         Extend as needed in a child class
         """
-        task = self.processing_tasks.pop(task_id)
-        self.failed_tasks[task_id] = task
+        move(item=task_id, old=self.processing_tasks, new=self.failed_tasks)
 
     def run(self):
         """Template main loop of the coordinator.
