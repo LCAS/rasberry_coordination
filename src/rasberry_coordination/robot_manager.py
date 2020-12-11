@@ -29,11 +29,20 @@ class RobotManager(object):
     def add_robot(self, robot_id):
         self.robot_details[robot_id] = RobotDetails(robot_id, self.cb)
 
-    """Item retrieval objects (potentially slow so don't use unnecessarily"""
+    """Add Robot Details Objects"""
+    def remove_robot(self, robot_id):
+        # self.robots_details[robot_id].current_node_sub.unregister()
+        # self.robots_details[robot_id].closest_node_sub.unregister()
+        # self.robots_details[robot_id].battery_data_sub.unregister()
+        self.robot_details.pop(robot_id)
+
+    """Item retrieval objects (potentially slow so don't use unnecessarily)""" #https://stackoverflow.com/questions/12798653/does-setattr-and-getattr-slow-down-the-speed-dramatically
     def get_list(self, list_id):
         return [getattr(deets, list_id) for deets in self.robot_details]
-    def get_item(self, robot_id, item):
+    def get(self, robot_id, item):
         return getattr(self.robot_details[robot_id], item)
+    def set(self, robot_id, item, value):
+        setattr(self.robot_details[robot_id], item, value)
 
     """Dump Robot Details Callback"""
     def dump_details(self, msg):

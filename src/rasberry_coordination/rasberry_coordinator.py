@@ -167,10 +167,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.active_interruptable_robots = [] # all the robots that are executing a task but the task can be interrupted to take on a new one
 
         self.registered_robots = set(self.robot_ids)  # list of monitored robots which are able to accept tasks
-        self.disconnect_when_idle = {}
-
-        self.tray_loaded = {robot_id:False for robot_id in self.robot_ids}
-
         logmsg(msg='robots initialised: ' + ', '.join(self.robot_ids))
 
         # calling from the child class
@@ -220,8 +216,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def tray_loaded_ros_srv(self, req):
         """tray_loaded service
         """
-        self.tray_loaded[req.robot_id] = True
-
+        self.robot_manager.set(req.robot_id, 'tray_loaded', True)
+        
         self.write_log({"action_type": "tray_loaded_srv",
                         "robot_id": req.robot_id,
                         })
@@ -586,7 +582,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         or if there is no base_station available.
         """
         logmsg(level='warn', category="robot", id=req.robot_id, msg='connecting to system')
-        remove(self.disconnect_when_idle, req.robot_id)
+        self.robot_manager.set(req.robot_id, 'disconnect_when_idle', False)
         resp = rasberry_coordination.srv.ConnectRobotResponse()
 
         if req.robot_id not in self.admissible_robot_ids:
@@ -641,6 +637,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     connect_robot_ros_srv.type = rasberry_coordination.srv.ConnectRobot
 
     def connect_robot(self, robot_id, max_task_priority=255):
+        self.robot_manager.add_robot(robot_id)
+
 
         add(self.robot_ids, robot_id)
         self.robot_states[robot_id] = 0
@@ -693,7 +691,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.route_edges[robot_id] = []
         self.route_fragments[robot_id] = []
 
-        self.tray_loaded[robot_id] = False
+        self.robot_manager.set(robot_id, 'tray_loaded', False)
 
         logmsg(level='warn', category="robot", id=robot_id, msg='connection complete')
 
@@ -792,7 +790,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             resp.msg = 'robot successfully disconnected'
             return resp
 
-        self.disconnect_when_idle[req.robot_id] = True
+        self.robot_manager.set(req.robot_id, 'disconnect_when_idle', True)
 
         # send success response to service
         resp.success = 1
@@ -804,7 +802,10 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def disconnect_robot(self, robot_id):
         """remove all record of the robot being a member of the system
         """
-        remove(self.disconnect_when_idle, robot_id)
+        self.robot_manager.remove_robot(robot_id)
+        self.robot_manager.set(req.robot_id, 'disconnect_when_idle', False) #TODO: not needed?
+
+
         self.robots[robot_id].cancel_execpolicy_goal()
 
         remove(self.robot_ids, robot_id)
@@ -836,7 +837,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         remove(self.task_stages, robot_id)
         remove(self.start_time, robot_id)
         remove(self.current_storage, robot_id)
-        remove(self.tray_loaded, robot_id)
+        # remove(self.tray_loaded, robot_id)
 
         # routing
         remove(self.routes, robot_id)
@@ -1290,7 +1291,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                             if robot_id in self.registered_robots:
                                 add(self.idle_robots, robot_id)
                                 logmsg(category="list", msg='idle robots: %s' % (str(self.idle_robots)))
-                            if robot_id in self.disconnect_when_idle:
+                            if self.robot_manager.get(robot_id, 'disconnect_when_idle'):
                                 self.disconnect_robot(robot_id)
 
                     else:
@@ -1327,7 +1328,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     # 2. service call from active_compliance
                     # 3. delay (?)
                     finish_waiting = False
-                    if self.tray_loaded[robot_id]:
+                    if self.robot_manager.get(robot_id, 'tray_loaded'):
                         finish_waiting = True
                     elif False:
                         # TODO: active compliance
@@ -1346,7 +1347,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                             })
 
                         self.finish_task_stage(robot_id, "wait_loading")
-                        self.tray_loaded[robot_id] = True
+                        self.robot_manager.set(robot_id, 'tray_loaded', True)
                         trigger_replan = True
 
                 elif self.task_stages[robot_id] == "wait_unloading":
@@ -1361,7 +1362,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                             })
 
                         self.finish_task(robot_id)
-                        self.tray_loaded[robot_id] = False
+                        self.robot_manager.set(robot_id, 'tray_loaded', False)
                         trigger_replan = True
 
 
