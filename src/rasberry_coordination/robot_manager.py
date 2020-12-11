@@ -37,7 +37,7 @@ class RobotManager(object):
         self.robot_details.pop(robot_id)
 
     """Item retrieval objects (potentially slow so don't use unnecessarily)""" #https://stackoverflow.com/questions/12798653/does-setattr-and-getattr-slow-down-the-speed-dramatically
-    def get_list(self, list_id):
+    def get_list(self, list_id): #TODO: swap out to polymorphism
         return [getattr(deets, list_id) for deets in self.robot_details]
     def get(self, robot_id, item):
         return getattr(self.robot_details[robot_id], item)

@@ -166,7 +166,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.force_robot_status_check = False
         self.active_interruptable_robots = [] # all the robots that are executing a task but the task can be interrupted to take on a new one
 
-        self.registered_robots = set(self.robot_ids)  # list of monitored robots which are able to accept tasks
         logmsg(msg='robots initialised: ' + ', '.join(self.robot_ids))
 
         # calling from the child class
@@ -217,7 +216,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """tray_loaded service
         """
         self.robot_manager.set(req.robot_id, 'tray_loaded', True)
-        
+
         self.write_log({"action_type": "tray_loaded_srv",
                         "robot_id": req.robot_id,
                         })
@@ -603,7 +602,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             logmsg(level="warn", category="robot", id=req.robot_id, msg='connection failed, robot already connected')
             logmsg(msg='connected robots: ' + ', '.join(self.robot_ids))
 
-            if req.register and (req.robot_id not in self.registered_robots):
+            if req.register and not self.robot_manager.get(req.robot_id, 'registered'):
                 logmsg(level="warn", category="robot", id=req.robot_id, msg='robot no longer pending to unregister')
                 self.register_robot_ros_srv(req)
                 self.modify_robot_marker(req.robot_id, color='no_color')
@@ -703,9 +702,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         logmsg(level='warn', category="robot", id=req.robot_id, msg='registering for task allocation')
         resp = rasberry_coordination.srv.RegisterRobotResponse()
 
-        if req.robot_id in self.registered_robots:
+        if self.robot_manager.get(req.robot_id, 'registered'):
             logmsg(level="warn", category="robot", id=req.robot_id, msg='registration failed, robot already registered')
-            logmsg(msg='registered robots: ' + ', '.join(self.registered_robots))
+            logmsg(msg='registered robots: ' + ', '.join(self.robot_manager.get_list('registered')))
             resp.success = 0
             resp.msg = 'registration failed, robot already registered'
             return resp
@@ -723,7 +722,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             logmsg(category="list", msg='idle robots: %s' % (str(self.idle_robots)))
 
         # set it to appear without a color modifier
-        add(self.registered_robots, req.robot_id)
+        self.robot_manager.set(req.robot_id, 'registered', True)
         self.modify_robot_marker(req.robot_id, color='no_color')
         logmsg(level="warn", category="robot", id=req.robot_id, msg='registration complete')
 
@@ -742,9 +741,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         logmsg(level='warn', category="robot", id=req.robot_id, msg='unregistering from task allocation')
         resp = rasberry_coordination.srv.UnregisterRobotResponse()
 
-        if req.robot_id not in self.registered_robots:
+        if not self.robot_manager.get(req.robot_id, 'registered'):
             logmsg(level="warn", category="robot", id=req.robot_id, msg='unregistration failed, robot is not registered')
-            logmsg(msg='registered robots: ' + ', '.join(self.registered_robots))
+            logmsg(msg='registered robots: ' + ', '.join(self.robot_manager.get_list('registered')))
             resp.success = 0
             resp.msg = 'unregistration failed, robot is not registered'
             return resp
@@ -754,7 +753,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         remove(self.active_interruptable_robots, req.robot_id)
 
         # if robot is attempting to unregister, set it to appear red
-        remove(self.registered_robots, req.robot_id)
+        self.robot_manager.set(req.robot_id, 'registered', False)
         self.modify_robot_marker(req.robot_id, color='red')
         logmsg(level="warn", category="robot", id=req.robot_id, msg='unregistration complete')
 
@@ -779,7 +778,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             resp.msg = 'disconnection failed, robot is not currently connected'
             return resp
 
-        if req.robot_id in self.registered_robots:
+        if self.robot_manager.get(req.robot_id, 'registered'):
             self.unregister_robot_ros_srv(req)
 
         if req.robot_id in self.idle_robots:
@@ -911,7 +910,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         for robot_id in self.idle_robots + self.active_interruptable_robots:
 
             # ignore if the robot is not actively accepting tasks
-            if robot_id not in self.registered_robots:
+            if not self.robot_manager.get(req.robot_id, 'registered'):
                 continue
 
             # ignore if the robot's closest_node and current_node is not yet available
@@ -1288,7 +1287,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                             remove(self.active_interruptable_robots, robot_id)
 
                             # add robot to idle, if registered
-                            if robot_id in self.registered_robots:
+                            if self.robot_manager.get(robot_id, 'registered'):
                                 add(self.idle_robots, robot_id)
                                 logmsg(category="list", msg='idle robots: %s' % (str(self.idle_robots)))
                             if self.robot_manager.get(robot_id, 'disconnect_when_idle'):
@@ -1731,7 +1730,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             available_robots = set(self.idle_robots + self.active_interruptable_robots)
 
             # if there are tasks present and there are registered robots able to take them on
-            if available_robots.intersection(self.registered_robots) and not self.tasks.empty():
+            if available_robots.intersection(self.robot_manager.get_list('registered')) and not self.tasks.empty():
                 logmsg(category="task", msg='unassigned task present, %s idle robots available' % (len(self.idle_robots)))
                 logmsg(category="list", msg='idle robots: %s' % (str(self.idle_robots)))
                 # check robot status of idle robots before assigning tasks
