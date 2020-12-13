@@ -158,11 +158,11 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.edge_policy_routes = {} # {robot_id: }
 
         self.moving_robots = [] # all robots which are having an active topo_nav goal (not waiting before critical points for clearance)
-        self.unfit_robots = [] # robots which should be taked away for maintenance. if doing a task now, move to this as soon as it is finished
+        # self.unfit_robots = [] # robots which should be taked away for maintenance. if doing a task now, move to this as soon as it is finished
 
         # intermediatory lists
-        self.healthy_robots = [] # a list between unfit and idle to avoid idle_robot being modified during task assignments
-        self.unhealthy_robots = [] # a list between idle and unfit to avoid idle_robot being modified during task assignments
+        # self.healthy_robots = [] # a list between unfit and idle to avoid idle_robot being modified during task assignments
+        # self.unhealthy_robots = [] # a list between idle and unfit to avoid idle_robot being modified during task assignments
         self.force_robot_status_check = False
         self.active_interruptable_robots = [] # all the robots that are executing a task but the task can be interrupted to take on a new one
 
@@ -190,6 +190,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             robot_id -- robot_id
         """
         state, goal_node, start_time = "", "", rospy.Time()
+        robot = self.robot_manager.robot_details[robot_id]
+
         if self.task_stages[robot_id] is not None:
             state = self.task_stages[robot_id]
             if state == "go_to_picker":
@@ -203,7 +205,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         elif robot_id in self.idle_robots:
             state = "idle"
             goal_node = ""
-        elif robot_id in self.unfit_robots:
+        elif robot.healthy == False:
             state = "unfit"
             goal_node = ""
         else:
@@ -364,9 +366,10 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             resp.success = False
             resp.message = "Robot - %s is not configured" %(req.robot_id)
 
-        elif req.robot_id in self.unfit_robots:
+        elif not self.robot_manager.get(robot_id, 'healthy'):
             # move to healthy_robots. will be added to idle during next low_battery_check
-            move(item=req.robot_id, old=self.unfit_robots, new=self.healthy_robots)
+            self.robot_manager.set(req.robot_id, 'healthy', True)
+            # move(item=req.robot_id, old=self.unfit_robots, new=self.healthy_robots)
             self.force_robot_status_check = True
             resp.success = True
             resp.message = "Robot - %s is queued to be marked as healthy" %(req.robot_id)
@@ -388,19 +391,23 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         robot must be a configured one and is not set as unhealthy or unfit already
         """
         resp = rasberry_coordination.srv.TriggerRobotResponse()
+
         if req.robot_id not in self.robot_ids:
+            """if robot is not setup"""
             resp.success = False
             resp.message = "Robot - %s is not configured" %(req.robot_id)
-
-        elif req.robot_id not in self.unhealthy_robots and req.robot_id not in self.unfit_robots:
-            add(self.unhealthy_robots, req.robot_id)
-            self.force_robot_status_check = True
+        elif self.robot_manager.get(req.robot_id, 'healthy'):
+            """if robot is set as healthy"""
+            self.robot_manager.set(req.robot_id, 'healthy', False)
+            req = rasberry_coordination.srv.UnregisterRobot
+            req.robot_id = robot.robot_id #TODO: change unregister_robot_ros_srv to take string instead
+            self.unregister_robot_ros_srv(req)
             resp.success = True
-            resp.message = "Robot - %s is queued to be marked as unhealthy" %(req.robot_id)
-
+            resp.message = "Robot - %s is marked as unhealthy" %(req.robot_id)
         else:
+            """if robot is unhealthy"""
             resp.success = False
-            resp.message = "Robot - %s is not healthy to be marked as unhealthy now" %(req.robot_id)
+            resp.message = "Robot - %s is already unhealthy" %(req.robot_id)
 
         self.write_log({"action_type": "set_unhealthy_robot_srv",
                         "robot_id": req.robot_id,
@@ -1753,54 +1760,69 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 self.set_execute_policy_routes()
 
     def check_robot_status(self):
-        """check battery level of all idle robots and set as unfit, if low on battery.
-        to reset an unfit robot, call service set_healthy
-        """
-
-        #Check battery level of idle robots and remove from system if unfit
-        unfit_robots = []
-        for robot_id in self.idle_robots:
-            if self.battery_voltage[robot_id] < self.low_battery_voltage:
-                unfit_robots.append(robot_id)
-        for robot_id in unfit_robots:
-            move(item=robot_id, old=self.idle_robots, new=self.unfit_robots)
-            self.write_log({"action_type": "robot_update",
-                            "details": "robot is unfit - low battery",
-                            "robot_id": robot_id,
-                            "current_node": self.current_nodes[robot_id],
-                            "closest_node": self.closest_nodes[robot_id],
-                            })
-
-        # move healthy robots as idle and safely clear healthy_robots
-        to_remove = []
-        for robot_id in self.healthy_robots:
-            add(self.idle_robots, robot_id)
-            logmsg(category="list", msg='idle robots: %s' % (str(self.idle_robots)))
-
-            to_remove.append(robot_id)
-            self.write_log({"action_type": "robot_update",
-                            "details": "robot is fit again - from service call",
-                            "robot_id": robot_id,
-                            "current_node": self.current_nodes[robot_id],
-                            "closest_node": self.closest_nodes[robot_id],
-                            })
-        for robot_id in to_remove:
-            remove(self.healthy_robots, robot_id)
-
-        # move unhealthy robots as unfit and safely clear unhealthy_robots
-        to_remove = []
-        for robot_id in self.unhealthy_robots:
-            if robot_id in self.idle_robots:
-                move(item=robot_id, old=self.idle_robots, new=self.unfit_robots)
-                to_remove.append(robot_id)
+        """Mark robots are unhealthy and pend for unregistration is battery level is low"""
+        for robot in self.robot_manager.robot_details:
+            if robot.battery_voltage < self.low_battery_voltage:
+                robot.healthy = False
+                req = rasberry_coordination.srv.UnregisterRobot
+                req.robot_id = robot.robot_id
+                self.unregister_robot_ros_srv(req)
                 self.write_log({"action_type": "robot_update",
-                                "details": "robot is unfit - from service call",
-                                "robot_id": robot_id,
-                                "current_node": self.current_nodes[robot_id],
-                                "closest_node": self.closest_nodes[robot_id],
+                                "details": "robot is unfit - low battery",
+                                "robot_id": robot.robot_id,
+                                "current_node": robot.current_nodes,
+                                "closest_node": robot.closest_nodes,
                                 })
-        for robot_id in to_remove:
-            remove(self.unhealthy_robots, robot_id)
+    # def check_robot_status_old(self):
+    #     """check battery level of all idle robots and set as unfit, if low on battery.
+    #     to reset an unfit robot, call service set_healthy
+    #     """
+    #
+    #     #Check battery level of idle robots and remove from system if unfit
+    #     unfit_robots = []
+    #     for robot_id in self.idle_robots:
+    #         if self.battery_voltage[robot_id] < self.low_battery_voltage:
+    #             unfit_robots.append(robot_id)
+    #     for robot_id in unfit_robots:
+    #         move(item=robot_id, old=self.idle_robots, new=self.unfit_robots)
+    #         self.write_log({"action_type": "robot_update",
+    #                         "details": "robot is unfit - low battery",
+    #                         "robot_id": robot_id,
+    #                         "current_node": self.current_nodes[robot_id],
+    #                         "closest_node": self.closest_nodes[robot_id],
+    #                         })
+    #
+    #     # move healthy robots as idle and safely clear healthy_robots
+    #     to_remove = []
+    #     for robot_id in self.healthy_robots:
+    #         add(self.idle_robots, robot_id)
+    #         logmsg(category="list", msg='idle robots: %s' % (str(self.idle_robots)))
+    #
+    #         to_remove.append(robot_id)
+    #         self.write_log({"action_type": "robot_update",
+    #                         "details": "robot is fit again - from service call",
+    #                         "robot_id": robot_id,
+    #                         "current_node": self.current_nodes[robot_id],
+    #                         "closest_node": self.closest_nodes[robot_id],
+    #                         })
+    #     for robot_id in to_remove:
+    #         remove(self.healthy_robots, robot_id)
+    #         self.robot_manager.set(req.robot_id, 'healthy', False)
+    #
+    #     # move unhealthy robots as unfit and safely clear unhealthy_robots
+    #     to_remove = []
+    #     for robot_id in self.unhealthy_robots:
+    #         if robot_id in self.idle_robots:
+    #             move(item=robot_id, old=self.idle_robots, new=self.unfit_robots)
+    #             to_remove.append(robot_id)
+    #             self.write_log({"action_type": "robot_update",
+    #                             "details": "robot is unfit - from service call",
+    #                             "robot_id": robot_id,
+    #                             "current_node": self.current_nodes[robot_id],
+    #                             "closest_node": self.closest_nodes[robot_id],
+    #                             })
+    #     for robot_id in to_remove:
+    #         remove(self.unhealthy_robots, robot_id)
 
     def write_log(self, field_vals):
         """write given fileds to the log file
