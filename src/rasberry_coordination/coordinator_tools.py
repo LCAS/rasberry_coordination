@@ -18,7 +18,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
     # (load from parameter server in launch file?)
 
     # format category portion of message
-    valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "PSM", "ROB_PY", "EXEC", "FOLLOW"]
+    valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "PSM", "ROB_PY", "EXEC", "FOLLOW", "LIST"]
     total_pad_space = max([len(_category) + 1 for _category in valid_categories])
     if category.upper() in valid_categories:
         category_padding = total_pad_space - len(category)
@@ -98,4 +98,19 @@ def add(collection, item):
 
 def move(item, old, new):
     """move an item from one collection to another"""
-    add(new, remove(old, item))
+    if str(new.__class__) == "<type 'dict'>":
+        val = remove(collection=old, item=item)
+        add(collection=new, item=[item, val])
+    else:
+        add(collection=new, item=remove(collection=old, item=item))
+
+
+
+if __name__ == '__main__':
+    d1 = {'a': 1, 'b': 2, 'c': 3}
+    d2 = {'d': 4, 'e': 5}
+
+    move(item='d', old=d2, new=d1)
+
+    print(str(d1))
+    print(str(d2))

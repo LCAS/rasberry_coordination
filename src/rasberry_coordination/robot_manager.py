@@ -11,79 +11,54 @@ import rospy
 from rospy import Subscriber as Sub, get_rostime as Now
 from std_msgs.msg import String as Str
 from thorvald_base.msg import BatteryArray as Battery
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination.agent_manager import AgentManager, AgentDetails
 
 
-class RobotManager(object):
+class RobotManager(AgentManager):
 
     """Initialise class with callback details to apply to robots"""
     def __init__(self, callback_dict):
-        self.cb = callback_dict
-        self.dump_cb = Sub("robot_manager/dump", Str, self.dump_details)#, ID)
-        self.robot_details = {}
-    
-    """Add Robot Details Objects"""
-    def add_robots(self, robot_id_list):
-        for robot_id in robot_id_list:
-            self.add_robot(robot_id)
-    def add_robot(self, robot_id):
-        self.robot_details[robot_id] = RobotDetails(robot_id, self.cb)
+        super(RobotManager, self).__init__(callback_dict)
+        self.dump_cb = Sub("rasberry_coordination/robot_manager/dump", Str, self.dump_details)
 
     """Add Robot Details Objects"""
-    def remove_robot(self, robot_id):
-        # self.robots_details[robot_id].current_node_sub.unregister()
-        # self.robots_details[robot_id].closest_node_sub.unregister()
-        # self.robots_details[robot_id].battery_data_sub.unregister()
-        self.robot_details.pop(robot_id)
+    def add_agent(self, agent_id):
+        self.agent_details[agent_id] = RobotDetails(agent_id, self.cb)
 
-    """Item retrieval objects (potentially slow so don't use unnecessarily)""" #https://stackoverflow.com/questions/12798653/does-setattr-and-getattr-slow-down-the-speed-dramatically
-    def get_list(self, list_id): #TODO: swap out to polymorphism
-        return [getattr(deets, list_id) for deets in self.robot_details]
-    def get(self, robot_id, item):
-        return getattr(self.robot_details[robot_id], item)
-    def set(self, robot_id, item, value):
-        setattr(self.robot_details[robot_id], item, value)
+    """"""
+    def get_registered_list(self): #TODO: swap out to polymorphism
+        return {deets.agent_id:deets.registered for deets in self.agent_details.values() if deets.registered is True}
 
-    """Dump Robot Details Callback"""
-    def dump_details(self, msg):
-        robot_id = msg.data
-        if robot_id in self.robot_details:
-            self.robot_details[robot_id].dump()
-        else:
-            for robot_id in self.robot_details:
-                self.robot_details[robot_id].dump()
-        
-class RobotDetails(object):
+"""Centralised container for all details pertaining to the robot"""
+class RobotDetails(AgentDetails):
     def __init__(self, ID, cb):
+
+        """Initialise Fields in Parent Class"""
+        super(RobotDetails, self).__init__(ID, cb)
         
         """Detail whether the robot is moving"""
-        self.idle = False
-        self.interruptable = False
+        # self.idle = False
+        # self.interruptable = False
         
         """Meta Management"""
         self.robot_id = ID
         self.disconnect_when_idle = False
         self.registered = True
         
-        """Localisation Details"""
-        self.previous_node = None
-        self.current_node = None
-        self.closest_node = None
-        # self.current_node_sub = Sub(ID+"/current_node", Str, cb['current'], ID)
-        # self.closest_node_sub = Sub(ID+"/closest_node", Str, cb['closest'], ID)
-        
         """Health Monitoring"""
         self.healthy = True
         self.battery_voltage = 55.0
-        # self.battery_data_sub = Sub(ID+"/battery_data", Battery, cb['battery'], ID)
+        self.battery_data_sub = Sub(ID+"/battery_data", Battery, self._battery_data_cb)
 
         """Task Details"""
-        self.robot_state = None
+        # self.robot_state = None
         self.tray_loaded = False
-        self.start_time = Now()
-        self.task_id = None
+        # self.start_time = Now()
+        # self.task_id = None
         self.max_task_priority = 255
-        self.admissible_tasks = []
+        self.admissible_tasks = [] #TODO: add admissible_tasks to robot details in map_config file
+        # this would be a good way to manage what robots should take on tasks
+        # making use of a simple condtion to check if robot can do task X
         
         """Goal definitions"""
         self.current_storage = None
@@ -95,12 +70,20 @@ class RobotDetails(object):
         self.route_dists = []
         self.route_edges = []
         self.route_fragments = []
-        
-        
-    """Dump all values for robot into file"""
-    def dump(self):
-        with open(self.robot_id+'---'+str(Now())+'.txt', 'w') as writer:
-            writer.write("%s" % (self.robot_id))
-            for attr in dir(self):
-                writer.write("%s = %r" % (attr, getattr(self, attr)))
 
+
+    """Callback for battery data from robot"""
+    def _battery_data_cb(self, msg):
+        tot_voltage = 0.0
+        count = 0
+        for battery_data in msg.battery_data:
+            if battery_data.battery_state == -98: # STATUS_ONLINE
+                tot_voltage += battery_data.battery_voltage
+                count += 1
+        if count > 0:
+            self.battery_voltage = tot_voltage/count
+
+    """On shutdown"""
+    def _remove(self):
+        super(RobotDetails, self)._remove()
+        self.battery_data_sub.unregister()

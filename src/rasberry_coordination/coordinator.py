@@ -23,6 +23,8 @@ import thorvald_base.msg
 import rasberry_coordination.robot
 import rasberry_coordination.srv
 from rasberry_coordination.coordinator_tools import logmsg, remove, add, move
+from rasberry_coordination.robot_manager import RobotManager
+from rasberry_coordination.picker_manager import PickerManager
 
 
 class Coordinator(object):
@@ -82,24 +84,24 @@ class Coordinator(object):
         self.presence_agents.extend(self.human_picker_ids)
         self.presence_agents.extend(self.virtual_picker_ids)
 
-        self.current_nodes = {agent_name:"none" for agent_name in self.presence_agents}
-        self.prev_current_nodes = {agent_name:"none" for agent_name in self.presence_agents}
-        self.closest_nodes = {agent_name:"none" for agent_name in self.presence_agents}
-        self.current_node_subs = {agent_name:rospy.Subscriber(agent_name.strip()+"/current_node",
-                                                              std_msgs.msg.String,
-                                                              self._current_node_cb,
-                                                              callback_args=agent_name) for agent_name in self.presence_agents}
-        self.closest_node_subs = {agent_name:rospy.Subscriber(agent_name.strip()+"/closest_node",
-                                                              std_msgs.msg.String,
-                                                              self._closest_node_cb,
-                                                              callback_args=agent_name) for agent_name in self.presence_agents}
+        # self.current_nodes = {agent_name:"none" for agent_name in self.presence_agents}
+        # self.prev_current_nodes = {agent_name:"none" for agent_name in self.presence_agents}
+        # self.closest_nodes = {agent_name:"none" for agent_name in self.presence_agents}
+        # self.current_node_subs = {agent_name:rospy.Subscriber(agent_name.strip()+"/current_node",
+        #                                                       std_msgs.msg.String,
+        #                                                       self._current_node_cb,
+        #                                                       callback_args=agent_name) for agent_name in self.presence_agents}
+        # self.closest_node_subs = {agent_name:rospy.Subscriber(agent_name.strip()+"/closest_node",
+        #                                                       std_msgs.msg.String,
+        #                                                       self._closest_node_cb,
+        #                                                       callback_args=agent_name) for agent_name in self.presence_agents}
 
         # setting a minimum voltage to avoid issues in gazebo simulations
-        self.battery_voltage = {robot_id:55.0 for robot_id in self.robot_ids}
-        self.battery_data_subs = {robot_id:rospy.Subscriber(robot_id+"/battery_data",
-                                                             thorvald_base.msg.BatteryArray,
-                                                             self._battery_data_cb,
-                                                             callback_args=robot_id) for robot_id in self.robot_ids}
+        # self.battery_voltage = {robot_id:55.0 for robot_id in self.robot_ids}
+        # self.battery_data_subs = {robot_id:rospy.Subscriber(robot_id+"/battery_data",
+        #                                                      thorvald_base.msg.BatteryArray,
+        #                                                      self._battery_data_cb,
+        #                                                      callback_args=robot_id) for robot_id in self.robot_ids}
 
         if not self.is_parent:
             # this should only be called from the child class
@@ -118,6 +120,15 @@ class Coordinator(object):
         self.task_robot_id = {} # {task_id:robot_id} to track which robot is assigned to a task
         self.robot_task_id = {robot_id: None for robot_id in self.robot_ids} # current task assigned to a robot
 
+
+        """Robot Detail Manage Initialisation"""
+        cb_dict = {'update_topo_map': self.update_available_topo_map}
+        self.robot_manager = RobotManager(cb_dict)
+        self.robot_manager.add_agents(robot_ids)
+        self.picker_manager = PickerManager(cb_dict)
+        self.picker_manager.add_agents(picker_ids + virtual_picker_ids)
+        """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
         logmsg(msg='coordinator initialised')
 
     def _map_cb(self, msg):
@@ -126,31 +137,31 @@ class Coordinator(object):
         self.topo_map = msg
         self.rec_topo_map = True
 
-    def _current_node_cb(self, msg, agent_name):
-        """callback for current node msgs from presence agents
-        """
-        if self.current_nodes[agent_name] != "none":
-            self.prev_current_nodes[agent_name] = self.current_nodes[agent_name]
-        self.current_nodes[agent_name] = msg.data
-        self.update_available_topo_map()
+    # def _current_node_cb(self, msg, agent_name):
+    #     """callback for current node msgs from presence agents
+    #     """
+    #     if self.current_nodes[agent_name] != "none":
+    #         self.prev_current_nodes[agent_name] = self.current_nodes[agent_name]
+    #     self.current_nodes[agent_name] = msg.data
+    #     self.update_available_topo_map()
 
-    def _closest_node_cb(self, msg, agent_name):
-        """callback for closest node msgs from presence agents
-        """
-        self.closest_nodes[agent_name] = msg.data
+    # def _closest_node_cb(self, msg, agent_name):
+    #     """callback for closest node msgs from presence agents
+    #     """
+    #     self.closest_nodes[agent_name] = msg.data
 
-    def _battery_data_cb(self, msg, robot_id):
-        """callback for battery data msgs from robots
-        """
-        tot_voltage = 0.0
-        count = 0
-        for battery_data in msg.battery_data:
-            if battery_data.battery_state == -98: # STATUS_ONLINE
-                tot_voltage += battery_data.battery_voltage
-                count += 1
-
-        if count > 0:
-            self.battery_voltage[robot_id] = tot_voltage/count
+    # def _battery_data_cb(self, msg, robot_id):
+    #     """callback for battery data msgs from robots
+    #     """
+    #     tot_voltage = 0.0
+    #     count = 0
+    #     for battery_data in msg.battery_data:
+    #         if battery_data.battery_state == -98: # STATUS_ONLINE
+    #             tot_voltage += battery_data.battery_voltage
+    #             count += 1
+    #
+    #     if count > 0:
+    #         self.battery_voltage[robot_id] = tot_voltage/count
 
     def _get_robot_state(self, robot_id):
         """Template method for getting the state of a robot.
@@ -334,11 +345,17 @@ class Coordinator(object):
         """
         topo_map = copy.deepcopy(self.topo_map)
         agent_nodes = []
-        for agent_id in self.presence_agents:
-            if self.current_nodes[agent_id] != "none":
-                agent_nodes.append(self.current_nodes[agent_id])
-            elif self.closest_nodes[agent_id] != "none":
-                agent_nodes.append(self.closest_nodes[agent_id])
+
+        # Extract lists of current and closest nodes to the robots and pickers
+        curr_nodes = self.robot_manager.get_list('current_node') + self.picker_manager.get_list('current_node')
+        clos_nodes = self.robot_manager.get_list('closest_node') + self.picker_manager.get_list('closest_node')
+
+        # For each agent, if they do not have a current_node, extract the closest_node
+        for i in range(len(curr_nodes)):
+            if curr_nodes[i] == "none":
+                curr_nodes[i] = clos_nodes[i]
+            if curr_nodes[i] != "none":
+                agent_nodes.append(curr_nodes[i])
 
         for node in topo_map.nodes:
             to_pop=[]
