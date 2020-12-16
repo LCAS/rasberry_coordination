@@ -871,7 +871,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             robot = self.robot_manager.agent_details[robot_id]
 
             # ignore if the robot is not actively accepting tasks
-            if not self.robot_manager.get(robot_id, 'registered'):
+            if not robot.registered:
                 continue
 
             # ignore if the robot's closest_node and current_node is not yet available
@@ -1055,6 +1055,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def finish_task_stage(self, robot_id, curr_stage=None):
         """finish a stage of the collect tray
         """
+        robot = self.robot_manager.agent_details[robot_id]
+
         next_stage = {"go_to_picker":"wait_loading",
                       "wait_loading":"go_to_storage",
                       "go_to_storage":"wait_unloading",
@@ -1074,8 +1076,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         "robot_task_stage": curr_stage+"_finish",
                         "task_id": task_id,
                         "robot_id": robot_id,
-                        "current_node": self.robot_manager.get(robot_id, 'current_node'),
-                        "closest_node": self.robot_manager.get(robot_id, 'closest_node')
+                        "current_node": robot.current_node,
+                        "closest_node": robot.closest_node
                         })
 
         # set task to next stage in logistics process
@@ -1086,8 +1088,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                             "robot_task_stage": next_stage[curr_stage]+"_start",
                             "task_id": task_id,
                             "robot_id": robot_id,
-                            "current_node": self.robot_manager.get(robot_id, 'current_node'),
-                            "closest_node": self.robot_manager.get(robot_id, 'closest_node')
+                            "current_node": robot.current_node,
+                            "closest_node": robot.closest_node
                             })
         logmsg(category="robot", id=robot_id, msg='@ stage: %s' % (str(self.task_stages[robot_id]).upper()))
 
