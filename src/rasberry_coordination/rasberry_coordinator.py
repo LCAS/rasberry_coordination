@@ -82,7 +82,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.use_cold_storage = use_cold_storage
 
         # Initialise robots
-        self.low_battery_voltage = low_battery_voltage
+        # self.low_battery_voltage = low_battery_voltage
 
         # Base station initialisation
         self.base_station_nodes_pool = set(base_station_nodes_pool)
@@ -1754,20 +1754,20 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 # assign first fragment of each robot
                 self.set_execute_policy_routes()
 
-    def check_robot_status(self):
-        """Mark robots are unhealthy and pend for unregistration is battery level is low"""
-        for robot in self.robot_manager.agent_details.values():
-            if robot.battery_voltage < self.low_battery_voltage:
-                robot.healthy = False
-                req = rasberry_coordination.srv.UnregisterRobot
-                req.robot_id = robot.robot_id
-                self.unregister_robot_ros_srv(req)
-                self.write_log({"action_type": "robot_update",
-                                "details": "robot is unfit - low battery",
-                                "robot_id": robot.robot_id,
-                                "current_node": robot.current_node,
-                                "closest_node": robot.closest_node,
-                                })
+    # def check_robot_status(self):
+    #     """Mark robots are unhealthy and pend for unregistration is battery level is low"""
+    #     for robot in self.robot_manager.agent_details.values():
+    #         if robot.battery_voltage < self.low_battery_voltage:
+    #             robot.healthy = False
+    #             req = rasberry_coordination.srv.UnregisterRobot
+    #             req.robot_id = robot.robot_id
+    #             self.unregister_robot_ros_srv(req)
+    #             self.write_log({"action_type": "robot_update",
+    #                             "details": "robot is unfit - low battery",
+    #                             "robot_id": robot.robot_id,
+    #                             "current_node": robot.current_node,
+    #                             "closest_node": robot.closest_node,
+    #                             })
 
     def write_log(self, field_vals):
         """write given fileds to the log file

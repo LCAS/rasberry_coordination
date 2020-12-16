@@ -46,9 +46,9 @@ class RobotDetails(AgentDetails):
         self.registered = True
         
         """Health Monitoring"""
-        self.healthy = True
-        self.battery_voltage = 55.0
-        self.battery_data_sub = Sub(ID+"/battery_data", Battery, self._battery_data_cb)
+        # self.healthy = True
+        # self.battery_voltage = 55.0
+        # self.battery_data_sub = Sub(ID+"/battery_data", Battery, self._battery_data_cb)
 
         """Task Details"""
         # self.robot_state = None
@@ -71,19 +71,19 @@ class RobotDetails(AgentDetails):
         self.route_edges = []
         self.route_fragments = []
 
-
-    """Callback for battery data from robot"""
-    def _battery_data_cb(self, msg):
-        tot_voltage = 0.0
-        count = 0
-        for battery_data in msg.battery_data:
-            if battery_data.battery_state == -98: # STATUS_ONLINE
-                tot_voltage += battery_data.battery_voltage
-                count += 1
-        if count > 0:
-            self.battery_voltage = tot_voltage/count
+    #
+    # """Callback for battery data from robot"""
+    # def _battery_data_cb(self, msg):
+    #     tot_voltage = 0.0
+    #     count = 0
+    #     for battery_data in msg.battery_data:
+    #         if battery_data.battery_state == -98: # STATUS_ONLINE
+    #             tot_voltage += battery_data.battery_voltage
+    #             count += 1
+    #     if count > 0:
+    #         self.battery_voltage = tot_voltage/count
 
     """On shutdown"""
     def _remove(self):
         super(RobotDetails, self)._remove()
-        self.battery_data_sub.unregister()
+        # self.battery_data_sub.unregister()
