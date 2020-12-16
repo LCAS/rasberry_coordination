@@ -18,7 +18,6 @@ import strands_navigation_msgs.srv
 import topological_navigation.msg
 import topological_navigation.route_search
 import topological_navigation.tmap_utils
-import thorvald_base.msg
 
 import rasberry_coordination.robot
 import rasberry_coordination.srv
@@ -94,13 +93,6 @@ class Coordinator(object):
                                                               self._closest_node_cb,
                                                               callback_args=agent_name) for agent_name in self.presence_agents}
 
-        # setting a minimum voltage to avoid issues in gazebo simulations
-        self.battery_voltage = {robot_id:55.0 for robot_id in self.robot_ids}
-        self.battery_data_subs = {robot_id:rospy.Subscriber(robot_id+"/battery_data",
-                                                             thorvald_base.msg.BatteryArray,
-                                                             self._battery_data_cb,
-                                                             callback_args=robot_id) for robot_id in self.robot_ids}
-
         if not self.is_parent:
             # this should only be called from the child class
             self.advertise_services()
@@ -138,19 +130,6 @@ class Coordinator(object):
         """callback for closest node msgs from presence agents
         """
         self.closest_nodes[agent_name] = msg.data
-
-    def _battery_data_cb(self, msg, robot_id):
-        """callback for battery data msgs from robots
-        """
-        tot_voltage = 0.0
-        count = 0
-        for battery_data in msg.battery_data:
-            if battery_data.battery_state == -98: # STATUS_ONLINE
-                tot_voltage += battery_data.battery_voltage
-                count += 1
-
-        if count > 0:
-            self.battery_voltage[robot_id] = tot_voltage/count
 
     def _get_robot_state(self, robot_id):
         """Template method for getting the state of a robot.

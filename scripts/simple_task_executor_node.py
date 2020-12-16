@@ -33,7 +33,6 @@ def validate_types(file, config):
 
     # Meta Fields
     validate_field(file, config, mandatory=True, key='version', datatype=[str])
-    validate_field(file, config, mandatory=True, key='use_sim', datatype=[bool])
 
     # Tasks Fields
     validate_field(file, config, mandatory=True, key='active_tasks', datatype=[list, str])
@@ -41,7 +40,6 @@ def validate_types(file, config):
     # Topology Fields
     validate_field(file, config, mandatory=True, key='base_station_nodes_pool', datatype=[list, str])
     validate_field(file, config, mandatory=True, key='wait_nodes_pool', datatype=[list, str])
-    validate_field(file, config, mandatory=True, key='charging_station_nodes', datatype=[list, str])
     validate_field(file, config, mandatory=True, key='local_storage_nodes', datatype=[list, str])
     validate_field(file, config, mandatory=True, key='use_cold_storage', datatype=[bool])
     validate_field(file, config, mandatory=False, key='cold_storage_node', datatype=[list, str])
@@ -49,7 +47,6 @@ def validate_types(file, config):
 
     # Robot Fields
     validate_field(file, config, mandatory=True, key='admissible_robot_ids', datatype=[list, str])
-    validate_field(file, config, mandatory=False, key='low_battery_voltage', datatype=[float])
 
     # Picker Fields
     validate_field(file, config, mandatory=True, key='picker_ids', datatype=[list, str])
@@ -88,16 +85,12 @@ if __name__ == '__main__':
     # Ensure all required fields are filled with the correct data types
     validate_types(config_file, config_data)
 
-    # Meta
-    use_sim = config_data["use_sim"]
-
     # Tasks
     active_tasks = config_data["active_tasks"]
 
     # Topology
     base_station_nodes_pool = config_data["base_station_nodes_pool"]
     wait_nodes_pool = config_data["wait_nodes_pool"]
-    charging_station_nodes = config_data["charging_station_nodes"]
     local_storage_nodes = config_data["local_storage_nodes"]
     use_cold_storage = config_data['use_cold_storage']
     cold_storage_node = None
@@ -108,9 +101,6 @@ if __name__ == '__main__':
 
     # Robots
     admissible_robot_ids = config_data["admissible_robot_ids"]
-    low_battery_voltage = float("-inf")
-    if use_sim or ("low_battery_voltage" not in config_data):
-        low_battery_voltage = config_data["low_battery_voltage"]
 
     # Pickers
     picker_ids = config_data["picker_ids"]
@@ -151,12 +141,10 @@ if __name__ == '__main__':
                                                     virtual_picker_ids=virtual_picker_ids,
                                                     local_storages=local_storage_nodes,
                                                     cold_storage=cold_storage_node,
-                                                    charging_nodes=charging_station_nodes,
                                                     use_cold_storage=use_cold_storage,
                                                     base_stations=base_stations,
                                                     wait_nodes=wait_nodes,
                                                     max_task_priorities=max_task_priorities,
-                                                    low_battery_voltage=low_battery_voltage,
                                                     admissible_robot_ids=admissible_robot_ids,
                                                     active_tasks=active_tasks,
                                                     base_station_nodes_pool=base_station_nodes_pool,

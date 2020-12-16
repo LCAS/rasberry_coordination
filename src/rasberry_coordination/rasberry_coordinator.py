@@ -16,6 +16,7 @@ import threading
 
 import rospy
 
+import std_msgs.msg
 import strands_executive_msgs.msg
 import strands_executive_msgs.srv
 import strands_navigation_msgs.msg
@@ -34,10 +35,10 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     """RasberryCoordinator class definition
     """
     def __init__(self, robot_ids, picker_ids, virtual_picker_ids,
-                 local_storages, cold_storage, charging_nodes,
+                 local_storages, cold_storage,
                  use_cold_storage,
                  base_stations, wait_nodes,
-                 max_task_priorities, low_battery_voltage,
+                 max_task_priorities,
                  admissible_robot_ids, active_tasks,
                  base_station_nodes_pool, wait_nodes_pool,
                  ns="rasberry_coordination"):
@@ -49,7 +50,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             virtual_picker_ids -- list of virtual (DES) picker_ids
             local_storages -- list of local storage nodes
             cold_storage -- cold storage node
-            charging_nodes -- list of charging station nodes
             use_cold_storage -- flag to use cold/local storage
             base_stations -- base station nodes for the robots {robot_id:base_node}
             wait_nodes -- waiting nodes (if robot cannot go to storage, it could
@@ -59,7 +59,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                                    tasks from human pickers (at higher priority),
                                    while some robots can be assigned to both human
                                    and virtual pickers. (To make demos interesting)
-            low_battery_voltage -- voltage at which a robot may set as unfit
             admissible_robot_ids -- list of robots ids for the robots which are allowed to connect to the system
             active_tasks -- list of tasks which the system is currently performing
             base_station_nodes_pool -- pool defining list of all base stations within the system
@@ -76,12 +75,10 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         self.local_storages = local_storages
         self.cold_storage = cold_storage
-        self.charging_nodes = charging_nodes
         self.use_cold_storage = use_cold_storage
 
         # Initialise robots
         self.max_task_priorities = max_task_priorities
-        self.low_battery_voltage = low_battery_voltage
 
         # Base station initialisation
         self.base_station_nodes_pool = set(base_station_nodes_pool)
@@ -128,11 +125,11 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.write_log({"action_type": "starting coordinator"})
 
         # 0 - idle, 1 - transporting_to_picker, 2 - waiting for loading,
-        # 3 - waiting for unloading, 4 - transporting to storage, 5- charging
+        # 3 - waiting for unloading, 4 - transporting to storage,
         # 6 - return to base from storage
         self.robot_states_str = {0:"Idle", 1:"Going to picker", 2:"Waiting for loading",
                              3:"Waiting for unloading", 4:"Going to storage",
-                             5:"Charging", 6:"Going to base", 9:"Stuck"}
+                             6:"Going to base", 9:"Stuck"}
 
         # robot objects with toponav action clients (on the coord server)
         self.robots = {robot_id: rasberry_coordination.robot.Robot(robot_id) for robot_id in self.robot_ids}
@@ -150,9 +147,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.moving_robots = [] # all robots which are having an active topo_nav goal (not waiting before critical points for clearance)
         self.unfit_robots = [] # robots which should be taked away for maintenance. if doing a task now, move to this as soon as it is finished
         # intermediatory lists
-        self.healthy_robots = [] # a list between unfit and idle to avoid idle_robot being modified during task assignments
-        self.unhealthy_robots = [] # a list between idle and unfit to avoid idle_robot being modified during task assignments
-        self.force_robot_status_check = False
         self.active_interruptable_robots = [] # all the robots that are executing a task but the task can be interrupted to take on a new one
 
         self.registered_robots = set(self.robot_ids)  # list of monitored robots which are able to accept tasks
@@ -350,84 +344,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         return cancelled
 
     cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
-
-    def set_healthy_robot_ros_srv(self, req):
-        """Set a robot as healthy if marked as unfit. will then be moved to idle.
-        robot must be already set as unfit
-        """
-        resp = rasberry_coordination.srv.TriggerRobotResponse()
-        if req.robot_id not in self.robot_ids:
-            resp.success = False
-            resp.message = "Robot - %s is not configured" %(req.robot_id)
-
-            self.write_log({"action_type": "set_healthy_robot_srv",
-                            "robot_id": req.robot_id,
-                            "details": "fail: Robot is not configured",
-                            })
-            return resp
-
-        if req.robot_id in self.unfit_robots:
-            remove(self.unfit_robots, req.robot_id)
-            # move to healthy_robots. will be added to idle during next low_battery_check
-            self.healthy_robots.append(req.robot_id)
-            self.force_robot_status_check = True
-            resp.success = True
-            resp.message = "Robot - %s is queued to be marked as healthy" %(req.robot_id)
-
-            self.write_log({"action_type": "set_healthy_robot_srv",
-                            "robot_id": req.robot_id,
-                            "details": "success",
-                            })
-        else:
-            resp.success = False
-            resp.message = "Robot - %s is not unfit to be marked as healthy now" %(req.robot_id)
-
-            self.write_log({"action_type": "set_healthy_robot_srv",
-                            "robot_id": req.robot_id,
-                            "details": "fail: Robot is not unfit",
-                            })
-        return resp
-
-    set_healthy_robot_ros_srv.type = rasberry_coordination.srv.TriggerRobot
-
-    def set_unhealthy_robot_ros_srv(self, req):
-        """Set a robot as unhealthy if marked as unhealthy which will then be moved to unfit.
-        robot must be a configured one and is not set as unhealthy or unfit already
-        """
-        resp = rasberry_coordination.srv.TriggerRobotResponse()
-        if req.robot_id not in self.robot_ids:
-            resp.success = False
-            resp.message = "Robot - %s is not configured" %(req.robot_id)
-
-            self.write_log({"action_type": "set_unhealthy_robot_srv",
-                            "robot_id": req.robot_id,
-                            "details": "fail: Robot is not configured",
-                            })
-            return resp
-
-        if req.robot_id not in self.unhealthy_robots and req.robot_id not in self.unfit_robots:
-            self.unhealthy_robots.append(req.robot_id)
-            self.force_robot_status_check = True
-            resp.success = True
-            resp.message = "Robot - %s is queued to be marked as unhealthy" %(req.robot_id)
-
-            self.write_log({"action_type": "set_unhealthy_robot_srv",
-                            "robot_id": req.robot_id,
-                            "details": "success",
-                            })
-
-        else:
-            resp.success = False
-            resp.message = "Robot - %s is not healthy to be marked as unhealthy now" %(req.robot_id)
-
-            self.write_log({"action_type": "set_unhealthy_robot_srv",
-                            "robot_id": req.robot_id,
-                            "details": "fail: Robot is not healthy",
-                            })
-
-        return resp
-
-    set_unhealthy_robot_ros_srv.type = rasberry_coordination.srv.TriggerRobot
 
     def set_robot_reached_picker_ros_srv(self, req):
         """Set a robot reached the picker. finish the go_to_picker stage. robot will go to wait_loading
@@ -718,7 +634,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.prev_current_nodes[robot_id] = "none"
         self.closest_nodes[robot_id] = "none"
 
-        import std_msgs.msg
         self.current_node_subs[robot_id] = rospy.Subscriber(robot_id.strip() + "/current_node",
                                                             std_msgs.msg.String,
                                                             self._current_node_cb,
@@ -726,13 +641,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.closest_node_subs[robot_id] = rospy.Subscriber(robot_id.strip() + "/closest_node",
                                                             std_msgs.msg.String,
                                                             self._closest_node_cb,
-                                                            callback_args=robot_id)
-
-        import thorvald_base.msg
-        self.battery_voltage[robot_id] = 55.0
-        self.battery_data_subs[robot_id] = rospy.Subscriber(robot_id + "/battery_data",
-                                                            thorvald_base.msg.BatteryArray,
-                                                            self._battery_data_cb,
                                                             callback_args=robot_id)
 
         self.robot_task_id[robot_id] = None  # current task assigned to a robot
@@ -880,10 +788,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         remove(self.closest_nodes, robot_id)
         remove(self.current_node_subs, robot_id)
         remove(self.closest_node_subs, robot_id)
-
-        #monitoring
-        remove(self.battery_voltage, robot_id)
-        remove(self.battery_data_subs, robot_id)
 
         #task_activity
         remove(self.robot_task_id, robot_id)
@@ -1784,19 +1688,12 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         while not rospy.is_shutdown():
             rospy.sleep(0.01)
 
-            if self.force_robot_status_check:
-                # check robot status
-                self.check_robot_status()
-                self.force_robot_status_check = False
-
             available_robots = set(self.idle_robots + self.active_interruptable_robots)
 
             # if there are tasks present and there are registered robots able to take them on
             if available_robots.intersection(self.registered_robots) and not self.tasks.empty():
                 logmsg(category="task", msg='unassigned task present, %s idle robots available' % (len(self.idle_robots)))
                 logmsg(category="task", msg='idle robots: %s' % (str(self.idle_robots)))
-                # check robot status of idle robots before assigning tasks
-                self.check_robot_status()
                 # try to assign all tasks
                 rospy.sleep(0.2)
                 self.assign_tasks()
@@ -1813,57 +1710,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
                 # assign first fragment of each robot
                 self.set_execute_policy_routes()
-
-    def check_robot_status(self):
-        """check battery level of all idle robots and set as unfit, if low on battery.
-        to reset an unfit robot, call service set_healthy
-        """
-
-        #Check battery level of idle robots and remove from system if unfit
-        unfit_robots = []
-        for robot_id in self.idle_robots:
-            if self.battery_voltage[robot_id] < self.low_battery_voltage:
-                unfit_robots.append(robot_id)
-        for robot_id in unfit_robots:
-            remove(self.idle_robots, robot_id)
-            self.unfit_robots.append(robot_id)
-            self.write_log({"action_type": "robot_update",
-                            "details": "robot is unfit - low battery",
-                            "robot_id": robot_id,
-                            "current_node": self.current_nodes[robot_id],
-                            "closest_node": self.closest_nodes[robot_id],
-                            })
-
-        # move healthy robots as idle and safely clear healthy_robots
-        to_remove = []
-        for robot_id in self.healthy_robots:
-            if robot_id not in self.idle_robots:
-                self.idle_robots.append(robot_id)
-            to_remove.append(robot_id)
-            self.write_log({"action_type": "robot_update",
-                            "details": "robot is fit again - from service call",
-                            "robot_id": robot_id,
-                            "current_node": self.current_nodes[robot_id],
-                            "closest_node": self.closest_nodes[robot_id],
-                            })
-        for robot_id in to_remove:
-            remove(self.healthy_robots, robot_id)
-
-        # move unhealthy robots as unfit and safely clear unhealthy_robots
-        to_remove = []
-        for robot_id in self.unhealthy_robots:
-            if robot_id in self.idle_robots:
-                remove(self.idle_robots, robot_id)
-                self.unfit_robots.append(robot_id)
-                to_remove.append(robot_id)
-                self.write_log({"action_type": "robot_update",
-                                "details": "robot is unfit - from service call",
-                                "robot_id": robot_id,
-                                "current_node": self.current_nodes[robot_id],
-                                "closest_node": self.closest_nodes[robot_id],
-                                })
-        for robot_id in to_remove:
-            remove(self.unhealthy_robots, robot_id)
 
     def write_log(self, field_vals):
         """write given fileds to the log file
