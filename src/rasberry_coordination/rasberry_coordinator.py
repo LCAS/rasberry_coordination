@@ -145,7 +145,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.edge_policy_routes = {} # {robot_id: }
 
         self.moving_robots = [] # all robots which are having an active topo_nav goal (not waiting before critical points for clearance)
-        self.unfit_robots = [] # robots which should be taked away for maintenance. if doing a task now, move to this as soon as it is finished
         # intermediatory lists
         self.active_interruptable_robots = [] # all the robots that are executing a task but the task can be interrupted to take on a new one
 
@@ -191,9 +190,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 goal_node = ""
         elif robot_id in self.idle_robots:
             state = "idle"
-            goal_node = ""
-        elif robot_id in self.unfit_robots:
-            state = "unfit"
             goal_node = ""
         else:
             state = ""
