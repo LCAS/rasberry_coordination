@@ -39,10 +39,12 @@ class AgentManager(object):
         setattr(self.agent_details[agent_id], item, value)
 
     """Dump Agent Details Callback"""
-    def dump_details(self, msg):
-        agent_id = msg.data
+    def dump_details(self, agent_id, filename=""):
+        if hasattr(agent_id, 'data'):
+            agent_id = agent_id.data
+
         if agent_id in self.agent_details:
-            self.agent_details[agent_id]._dump()
+            self.agent_details[agent_id]._dump(filename)
         else:
             for agent_id in self.agent_details:
                 self.agent_details[agent_id]._dump()
@@ -67,8 +69,13 @@ class AgentDetails(object):
         self.closest_node_sub = Sub(ID+"/closest_node", Str, self._closest_node_cb)
 
     """Dump all values for agent into file"""
-    def _dump(self):
-        filename='~/'+self.agent_id+'---'+str(Now())+'.txt'
+    def _dump(self, filename=""):
+
+        if filename == "":
+            filename='~/'+self.agent_id+'---'+str(Now())+'.txt'
+        else:
+            filename = '~/'+self.agent_id+'---'+filename+'.txt'
+
         with open(os.path.expanduser(filename), 'w') as writer:
             writer.write("%s\n\n" % (self.agent_id))
 

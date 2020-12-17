@@ -36,10 +36,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     """RasberryCoordinator class definition
     """
     def __init__(self, robot_ids, picker_ids, virtual_picker_ids,
-                 local_storages, cold_storage, charging_nodes,
-                 use_cold_storage,
+                 local_storages, cold_storage, use_cold_storage,
                  base_stations, wait_nodes,
-                 max_task_priorities, low_battery_voltage,
+                 max_task_priorities,
                  admissible_robot_ids, active_tasks,
                  base_station_nodes_pool, wait_nodes_pool,
                  ns="rasberry_coordination"):
@@ -51,7 +50,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             virtual_picker_ids -- list of virtual (DES) picker_ids
             local_storages -- list of local storage nodes
             cold_storage -- cold storage node
-            charging_nodes -- list of charging station nodes
             use_cold_storage -- flag to use cold/local storage
             base_stations -- base station nodes for the robots {robot_id:base_node}
             wait_nodes -- waiting nodes (if robot cannot go to storage, it could
@@ -61,7 +59,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                                    tasks from human pickers (at higher priority),
                                    while some robots can be assigned to both human
                                    and virtual pickers. (To make demos interesting)
-            low_battery_voltage -- voltage at which a robot may set as unfit
             admissible_robot_ids -- list of robots ids for the robots which are allowed to connect to the system
             active_tasks -- list of tasks which the system is currently performing
             base_station_nodes_pool -- pool defining list of all base stations within the system
@@ -78,7 +75,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         self.local_storages = local_storages
         self.cold_storage = cold_storage
-        self.charging_nodes = charging_nodes
         self.use_cold_storage = use_cold_storage
 
         # Initialise robots
@@ -153,7 +149,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         # intermediatory lists
         # self.healthy_robots = [] # a list between unfit and idle to avoid idle_robot being modified during task assignments
         # self.unhealthy_robots = [] # a list between idle and unfit to avoid idle_robot being modified during task assignments
-        self.force_robot_status_check = False
+
         self.active_interruptable_robots = [] # all the robots that are executing a task but the task can be interrupted to take on a new one
 
         logmsg(msg='robots initialised: ' + ', '.join(self.robot_ids))
@@ -194,9 +190,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 goal_node = ""
         elif robot_id in self.idle_robots:
             state = "idle"
-            goal_node = ""
-        elif robot.healthy == False:
-            state = "unfit"
             goal_node = ""
         else:
             state = ""
@@ -346,66 +339,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         return cancelled
 
     cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
-
-    def set_healthy_robot_ros_srv(self, req):
-        """Set a robot as healthy if marked as unfit. will then be moved to idle.
-        robot must be already set as unfit
-        """
-        resp = rasberry_coordination.srv.TriggerRobotResponse()
-        if req.robot_id not in self.robot_ids:
-            resp.success = False
-            resp.message = "Robot - %s is not configured" %(req.robot_id)
-
-        elif not self.robot_manager.get(robot_id, 'healthy'):
-            # move to healthy_robots. will be added to idle during next low_battery_check
-            self.robot_manager.set(req.robot_id, 'healthy', True)
-            # move(item=req.robot_id, old=self.unfit_robots, new=self.healthy_robots)
-            self.force_robot_status_check = True
-            resp.success = True
-            resp.message = "Robot - %s is queued to be marked as healthy" %(req.robot_id)
-
-        else:
-            resp.success = False
-            resp.message = "Robot - %s is not unfit to be marked as healthy now" %(req.robot_id)
-
-        self.write_log({"action_type": "set_healthy_robot_srv",
-                        "robot_id": req.robot_id,
-                        "details": resp.message,
-                        })
-        return resp
-
-    set_healthy_robot_ros_srv.type = rasberry_coordination.srv.TriggerRobot
-
-    def set_unhealthy_robot_ros_srv(self, req):
-        """Set a robot as unhealthy if marked as unhealthy which will then be moved to unfit.
-        robot must be a configured one and is not set as unhealthy or unfit already
-        """
-        resp = rasberry_coordination.srv.TriggerRobotResponse()
-
-        if req.robot_id not in self.robot_ids:
-            """if robot is not setup"""
-            resp.success = False
-            resp.message = "Robot - %s is not configured" %(req.robot_id)
-        elif self.robot_manager.get(req.robot_id, 'healthy'):
-            """if robot is set as healthy"""
-            self.robot_manager.set(req.robot_id, 'healthy', False)
-            req = rasberry_coordination.srv.UnregisterRobot
-            req.robot_id = robot.robot_id #TODO: change unregister_robot_ros_srv to take string instead
-            self.unregister_robot_ros_srv(req)
-            resp.success = True
-            resp.message = "Robot - %s is marked as unhealthy" %(req.robot_id)
-        else:
-            """if robot is unhealthy"""
-            resp.success = False
-            resp.message = "Robot - %s is already unhealthy" %(req.robot_id)
-
-        self.write_log({"action_type": "set_unhealthy_robot_srv",
-                        "robot_id": req.robot_id,
-                        "details": resp.message,
-                        })
-        return resp
-
-    set_unhealthy_robot_ros_srv.type = rasberry_coordination.srv.TriggerRobot
 
     def set_robot_reached_picker_ros_srv(self, req):
         """Set a robot reached the picker. finish the go_to_picker stage. robot will go to wait_loading
@@ -880,7 +813,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
             # ignore if the task priority is less than the min task priority for the robot
             # lower the value, higher the priority
-            if task.priority > robot.max_task_priorities:
+            if task.priority > robot.max_task_priority:
                 continue
 
             # use current_node as start_node if available
@@ -893,6 +826,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 route_dists = [float("inf")]
             elif start_node != goal_node:
                 route_nodes, route_edges, route_dists = self.get_path_details(start_node, goal_node)
+                print("route_edges:9")
             else:
                 route_dists = [0]
 
@@ -928,17 +862,17 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         adding_ok = False
         robot = self.robot_manager.agent_details[robot_id]
         if len(robot.route_edges) > 1:
-            for i in range(len(robot.routes)):
-                if robot.routes[i] == node_id:
+            for i in range(len(robot.route)):
+                if robot.route[i] == node_id:
                     break
                 # add edge_distance only if the source node is not the one we look for
                 # also make sure we start adding from current/closest node
                 if not adding_ok:
                     if robot.current_node != "none":
-                        if robot.current_node == robot.routes[i]:
+                        if robot.current_node == robot.route[i]:
                             adding_ok = True
                     elif robot.closest_node != "none":
-                        if robot.closest_node == robot.routes[i]:
+                        if robot.closest_node == robot.route[i]:
                             adding_ok = True
                 if adding_ok:
                     dist += robot.route_dists[i]
@@ -1354,7 +1288,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         #for agent_id in self.presence_agents:
         for agent in self.robot_manager.agent_details.values() + self.picker_manager.agent_details.values():
             agent_id = agent.agent_id
-            r_outer = agent.routes
+            r_outer = agent.route
             critical_points[str(r_outer)] = set([])
 
             # check route of each robot and picker against routes of all robots
@@ -1394,15 +1328,17 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def split_critical_paths(self, ):
         """split robot paths at critical points
         """
+        self.robot_manager.dump_details('thorvald_002', filename='721')
         c_points, c_robots = self.critical_points()
 
         # for robots in go_to_picker mode, if the picker node is in the critical points, remove it
         for robot_id in self.active_robots:
             robot = self.robot_manager.agent_details[robot_id]
             if (self.task_stages[robot_id] == "go_to_picker" and
-                self.processing_tasks[self.robot_task_id[robot_id]].start_node_id in c_points[str(robot.routes)]):
-                c_points[str(robot.routes)].remove(self.processing_tasks[self.robot_task_id[robot_id]].start_node_id)
+                self.processing_tasks[self.robot_task_id[robot_id]].start_node_id in c_points[str(robot.route)]):
+                c_points[str(robot.route)].remove(self.processing_tasks[self.robot_task_id[robot_id]].start_node_id)
 
+        self.robot_manager.dump_details('thorvald_002', filename='722')
 #        rospy.loginfo(c_points)
 
         allowed_cpoints = []
@@ -1448,6 +1384,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             if agent.agent_id in res_routes:
                 agent.route_fragments = res_routes[agent.agent_id]
 
+        self.robot_manager.dump_details('thorvald_002', filename='723')
         res_edges = {}
         # split the edges as per the route_fragments
         for robot_id in self.active_robots:
@@ -1466,16 +1403,19 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 res_edges[robot_id] = []
                 for i in range(len(robot.route_fragments)):
                     res_edges[robot_id].append(robot.route_edges[:len(robot.route_fragments[i])])
+                    print("route_edges:1")
                     robot.route_edges = robot.route_edges[len(robot.route_fragments[i]):]
             else:
                 robot.route_fragments = []
                 res_edges[robot_id] = []
 
+        self.robot_manager.dump_details('thorvald_002', filename='724')
         # self.route_edges = res_edges
         for agent in self.robot_manager.agent_details.values() + self.picker_manager.agent_details.values():
             if agent.agent_id in res_edges:
                 agent.route_fragments = res_edges[agent.agent_id]
 
+        self.robot_manager.dump_details('thorvald_002', filename='725')
     def set_execute_policy_routes(self, ):
         """find connecting edges for each fragment in route_fragments and set
         the corresponding route object (with source and edge_id)
@@ -1485,6 +1425,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
             if robot.route_fragments:
                 goal.route.source = robot.route_fragments[0]
+                self.robot_manager.dump_details(robot_id, filename='9')
                 goal.route.edge_id = robot.route_edges[0]
 
             if goal != self.robots[robot_id].execpolicy_goal:
@@ -1562,7 +1503,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         for robot in self.robot_manager.agent_details.values():
             robot_id = robot.robot_id
 
-
             """for each active robot"""
             if robot_id in self.active_robots:
 
@@ -1578,6 +1518,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     else:
                         robot.route = [robot.closest_node]
                     robot.route_edges = []
+                    print("route_edges:3")
                     self.get_edge_distances(robot_id)
                     continue
 
@@ -1611,7 +1552,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     goal_node = robot.base_station
                     logmsg(category="robot", id=robot_id, msg='going to base, target is %s'%(goal_node))
 
-
+                print("start_node: %s" % (start_node))
+                print("goal_node: %s" % (goal_node))
 
                 """if current node is goal node, generate empty route and set task as finished"""
                 if start_node == goal_node:
@@ -1638,6 +1580,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     # reset routes and route_edges
                     robot.route = [start_node]
                     robot.route_edges = []
+                    print("route_edges:4")
                     self.get_edge_distances(robot_id)
                     continue
 
@@ -1657,7 +1600,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 route = avail_route_search.search_route(start_node, goal_node)
                 route_nodes = []
                 route_edges = []
-
+                self.robot_manager.dump_details(robot_id, filename='5')
 
                 """if route is not available, replan route to wait node"""
                 if (route is None and
@@ -1682,6 +1625,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 """save route details"""
                 robot.route = route_nodes
                 robot.route_edges = route_edges
+                self.robot_manager.dump_details(robot_id, filename='6')
+
                 self.get_edge_distances(robot_id)
 
             else:
@@ -1694,7 +1639,11 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 else:
                     robot.route = [robot.closest_node]
                 robot.route_edges = []
+                print("route_edges:7")
                 self.get_edge_distances(robot_id)
+
+        self.robot_manager.dump_details('thorvald_002', filename='7')
+
 
         """for each picker/virtual picker, mark current position as node to make routing not interfere"""
         for agent in self.picker_manager.agent_details.values():
@@ -1706,17 +1655,23 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 agent.route = [agent.closest_node]
             agent.route_edges = []
 
+        self.robot_manager.dump_details('thorvald_002', filename='71')
         # find critical points and fragment routes to avoid critical point collistions
         for i in range(10):
             locked = self.task_lock.acquire(False)
             if locked:
                 break
             rospy.sleep(0.05)
+        self.robot_manager.dump_details('thorvald_002', filename='72')
         if locked:
             # restrict finding critical_path as task may get cancelled and moved
             # from processing_tasks
             self.split_critical_paths()
+            self.robot_manager.dump_details('thorvald_002', filename='73')
             self.task_lock.release()
+            self.robot_manager.dump_details('thorvald_002', filename='74')
+
+        self.robot_manager.dump_details('thorvald_002', filename='8')
 
     def run(self):
         """the main loop of the coordinator
@@ -1724,19 +1679,12 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         while not rospy.is_shutdown():
             rospy.sleep(0.01)
 
-            if self.force_robot_status_check:
-                # check robot status
-                self.check_robot_status()
-                self.force_robot_status_check = False
-
             available_robots = set(self.idle_robots + self.active_interruptable_robots)
 
             # if there are tasks present and there are registered robots able to take them on
             if available_robots.intersection(self.robot_manager.get_registered_list()) and not self.tasks.empty():
                 logmsg(category="task", msg='unassigned task present, %s idle robots available' % (len(self.idle_robots)))
                 logmsg(category="list", msg='idle robots: %s' % (str(self.idle_robots)))
-                # check robot status of idle robots before assigning tasks
-                self.check_robot_status()
                 # try to assign all tasks
                 rospy.sleep(0.2)
                 self.assign_tasks()
@@ -1753,21 +1701,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
                 # assign first fragment of each robot
                 self.set_execute_policy_routes()
-
-    # def check_robot_status(self):
-    #     """Mark robots are unhealthy and pend for unregistration is battery level is low"""
-    #     for robot in self.robot_manager.agent_details.values():
-    #         if robot.battery_voltage < self.low_battery_voltage:
-    #             robot.healthy = False
-    #             req = rasberry_coordination.srv.UnregisterRobot
-    #             req.robot_id = robot.robot_id
-    #             self.unregister_robot_ros_srv(req)
-    #             self.write_log({"action_type": "robot_update",
-    #                             "details": "robot is unfit - low battery",
-    #                             "robot_id": robot.robot_id,
-    #                             "current_node": robot.current_node,
-    #                             "closest_node": robot.closest_node,
-    #                             })
 
     def write_log(self, field_vals):
         """write given fileds to the log file

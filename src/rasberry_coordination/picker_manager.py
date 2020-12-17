@@ -45,4 +45,3 @@ class PickerDetails(AgentDetails):
     """On shutdown"""
     def _remove(self):
         super(PickerDetails, self)._remove()
-        self.battery_data_sub.unregister()
