@@ -55,9 +55,6 @@ class Coordinator(object):
         self.robot_states_str = {0:"Idle"}
         self.robot_states = {robot_id:0 for robot_id in self.robot_ids}
 
-        # time at which the current state of the robots are started
-        self.start_time = {robot_id: rospy.get_rostime() for robot_id in self.robot_ids}
-
         self.idle_robots = self.robot_ids + []  # a copy of robot_ids
         self.active_robots = []  # all robots executing a task
 
@@ -78,11 +75,6 @@ class Coordinator(object):
         # create a topological_navigation.route_search.TopologicalRouteSearch object
         # with the current self.available_topo_map to plan routes avoiding
         # other agents, when necessary
-
-        # presence agents - robot_ids, picker_ids, virtual_picker_ids from config
-        self.presence_agents = copy.deepcopy(self.robot_ids)
-        self.presence_agents.extend(self.human_picker_ids)
-        self.presence_agents.extend(self.virtual_picker_ids)
 
         # self.current_nodes = {agent_name:"none" for agent_name in self.presence_agents}
         # self.prev_current_nodes = {agent_name:"none" for agent_name in self.presence_agents}
@@ -127,6 +119,9 @@ class Coordinator(object):
         self.robot_manager.add_agents(robot_ids)
         self.picker_manager = PickerManager(cb_dict)
         self.picker_manager.add_agents(picker_ids + virtual_picker_ids)
+        for picker in self.picker_manager.agent_details.values():
+            if picker.picker_id in virtual_picker_ids:
+                picker.virtual = True
         """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
         logmsg(msg='coordinator initialised')
@@ -182,7 +177,7 @@ class Coordinator(object):
         else:
             state = ""
             goal_node = ""
-        start_time = self.start_time[robot_id]
+        start_time = robot.start_time
         return (state, goal_node, start_time)
 
     def get_robot_state_ros_srv(self, req):

@@ -48,8 +48,8 @@ class RobotDetails(AgentDetails):
         """Task Details"""
         # self.robot_state = None
         self.tray_loaded = False
-        # self.start_time = Now()
-        # self.task_id = None
+        self.start_time = Now()
+        self.task_id = None
         self.max_task_priority = 255
         self.admissible_tasks = [] #TODO: add admissible_tasks to robot details in map_config file
         # this would be a good way to manage what robots should take on tasks

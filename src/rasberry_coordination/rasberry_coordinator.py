@@ -137,19 +137,10 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             robot.wait_node = wait_nodes[robot.robot_id]
             robot.max_task_priority = max_task_priorities[robot.robot_id]
 
-        # collect_tray_stages = ["go_to_picker", "wait_loading", "go_to_storage", "wait_unloading", "go_to_base"]
         self.task_stages = {robot_id: None for robot_id in self.robot_ids} # keeps track of current stage of the robot
-
         self.trigger_replan = False
-        self.edge_policy_routes = {} # {robot_id: }
 
         self.moving_robots = [] # all robots which are having an active topo_nav goal (not waiting before critical points for clearance)
-        # self.unfit_robots = [] # robots which should be taked away for maintenance. if doing a task now, move to this as soon as it is finished
-
-        # intermediatory lists
-        # self.healthy_robots = [] # a list between unfit and idle to avoid idle_robot being modified during task assignments
-        # self.unhealthy_robots = [] # a list between idle and unfit to avoid idle_robot being modified during task assignments
-
         self.active_interruptable_robots = [] # all the robots that are executing a task but the task can be interrupted to take on a new one
 
         logmsg(msg='robots initialised: ' + ', '.join(self.robot_ids))
@@ -194,7 +185,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         else:
             state = ""
             goal_node = ""
-        start_time = self.start_time[robot_id]
+        start_time = robot.start_time
         return (state, goal_node, start_time)
 
     def tray_loaded_ros_srv(self, req):
@@ -571,7 +562,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         add(self.robot_ids, robot_id)
         self.robot_states[robot_id] = 0
-        self.start_time[robot_id] = rospy.get_rostime()
+        robot.start_time = rospy.get_rostime()
 
         # Set first available base station as taken
         robot.base_station = remove(self.available_base_stations, 0)
@@ -583,9 +574,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         # Set first available wait node as taken
         robot.wait_node = remove(self.available_wait_nodes, 0)
-
-        # Set priority
-        add(self.presence_agents, robot_id)
 
         self.robot_task_id[robot_id] = None  # current task assigned to a robot
 
@@ -728,13 +716,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         remove(self.robot_states, robot_id)
         remove(self.robots, robot_id)
 
-        # localisation
-        remove(self.presence_agents, robot_id)
-
         # task_activity
         remove(self.robot_task_id, robot_id)
         remove(self.task_stages, robot_id)
-        remove(self.start_time, robot_id)
 
         # set robot marker
         self.clear_robot_marker(robot_id)
@@ -1015,7 +999,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         # set task to next stage in logistics process
         self.task_stages[robot_id] = next_stage[curr_stage]
-        self.start_time[robot_id] = rospy.get_rostime()
+        robot.start_time = rospy.get_rostime()
         if curr_stage != "go_to_base":
             self.write_log({"action_type": "robot_update",
                             "robot_task_stage": next_stage[curr_stage]+"_start",
@@ -1252,7 +1236,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 elif self.task_stages[robot_id] == "wait_unloading":
                     # if conditions satisfy, finish waiting
                     # 1. delay
-                    if rospy.get_rostime() - self.start_time[robot_id] > self.max_unload_duration:
+                    if rospy.get_rostime() - robot.start_time > self.max_unload_duration:
                         # delay
                         self.publish_task_state(task_id, robot_id, "DELIVERED")
                         self.write_log({"action_type": "car_update",
