@@ -12,6 +12,7 @@ from rospy import Subscriber as Sub, get_rostime as Now
 from std_msgs.msg import String as Str
 from thorvald_base.msg import BatteryArray as Battery
 from rasberry_coordination.agent_manager import AgentManager, AgentDetails
+from rasberry_coordination.robot import Robot as RobotInterface
 
 
 class RobotManager(AgentManager):
@@ -25,7 +26,7 @@ class RobotManager(AgentManager):
     def add_agent(self, agent_id):
         self.agent_details[agent_id] = RobotDetails(agent_id, self.cb)
 
-    """"""
+    """Commonly used actions which require exeptionally high speed"""
     def get_registered_list(self): #TODO: swap out to polymorphism
         return {deets.agent_id:deets.registered for deets in self.agent_details.values() if deets.registered is True}
 
@@ -37,35 +38,48 @@ class RobotDetails(AgentDetails):
         super(RobotDetails, self).__init__(ID, cb)
         
         """Detail whether the robot is moving"""
-        # self.idle = False
-        # self.interruptable = False
+        self.idle = False
+        self.interruptable = False
+        self.has_toponav_goal = False
+
+        """
+        idle = no_task, no_moving
+        active = completing_task
+        active_interruptable = ending_task
         
+        moving = has_toponav_goal
+        """
+
+
         """Meta Management"""
         self.robot_id = ID
         self.disconnect_when_idle = False
         self.registered = True
+        self.robot_interface = RobotInterface(ID)
 
         """Task Details"""
-        # self.robot_state = None
         self.tray_loaded = False
         self.start_time = Now()
         self.task_id = None
+        self.task_stage = None
+
+        """Task Meta Details"""
         self.max_task_priority = 255
         self.admissible_tasks = [] #TODO: add admissible_tasks to robot details in map_config file
         # this would be a good way to manage what robots should take on tasks
         # making use of a simple condtion to check if robot can do task X
         
-        """Goal definitions"""
+        """Goal Definitions"""
         self.current_storage = None
         self.base_station = None
         self.wait_node = None
         
-        """Route details"""
+        """Route Details"""
         self.route = []
         self.route_dists = []
         self.route_edges = []
         self.route_fragments = []
 
-    """On shutdown"""
+    """On Shutdown"""
     def _remove(self):
         super(RobotDetails, self)._remove()

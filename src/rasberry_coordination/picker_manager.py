@@ -32,6 +32,10 @@ class PickerDetails(AgentDetails):
         """Initialise Fields in Parent Class"""
         super(PickerDetails, self).__init__(ID, cb)
 
+        """Meta Management"""
+        self.picker_id = ID
+        self.registered = True
+
         """Task Details"""
         # self.picker_state = None
         # self.start_time = Now()

@@ -44,18 +44,12 @@ class Coordinator(object):
         # TODO: this will strip leading slashes as well
         self.ns = ns.strip("/")+"/"
 
-        self.robot_ids = robot_ids
         self.human_picker_ids = picker_ids
         self.virtual_picker_ids = virtual_picker_ids
 
         self.is_parent = is_parent
 
-        # some basic states - extend as needed
-        # 0 - idle
-        self.robot_states_str = {0:"Idle"}
-        self.robot_states = {robot_id:0 for robot_id in self.robot_ids}
-
-        self.idle_robots = self.robot_ids + []  # a copy of robot_ids
+        self.idle_robots = robot_ids + []  # a copy of robot_ids
         self.active_robots = []  # all robots executing a task
 
         self.topo_map = None
@@ -110,8 +104,6 @@ class Coordinator(object):
         self.failed_tasks = {} # {task_id:Task_definition}
 
         self.task_robot_id = {} # {task_id:robot_id} to track which robot is assigned to a task
-        self.robot_task_id = {robot_id: None for robot_id in self.robot_ids} # current task assigned to a robot
-
 
         """Robot Detail Manage Initialisation"""
         cb_dict = {'update_topo_map': self.update_available_topo_map}
@@ -131,32 +123,6 @@ class Coordinator(object):
         """
         self.topo_map = msg
         self.rec_topo_map = True
-
-    # def _current_node_cb(self, msg, agent_name):
-    #     """callback for current node msgs from presence agents
-    #     """
-    #     if self.current_nodes[agent_name] != "none":
-    #         self.prev_current_nodes[agent_name] = self.current_nodes[agent_name]
-    #     self.current_nodes[agent_name] = msg.data
-    #     self.update_available_topo_map()
-
-    # def _closest_node_cb(self, msg, agent_name):
-    #     """callback for closest node msgs from presence agents
-    #     """
-    #     self.closest_nodes[agent_name] = msg.data
-
-    # def _battery_data_cb(self, msg, robot_id):
-    #     """callback for battery data msgs from robots
-    #     """
-    #     tot_voltage = 0.0
-    #     count = 0
-    #     for battery_data in msg.battery_data:
-    #         if battery_data.battery_state == -98: # STATUS_ONLINE
-    #             tot_voltage += battery_data.battery_voltage
-    #             count += 1
-    #
-    #     if count > 0:
-    #         self.battery_voltage[robot_id] = tot_voltage/count
 
     def _get_robot_state(self, robot_id):
         """Template method for getting the state of a robot.
@@ -184,7 +150,7 @@ class Coordinator(object):
         """get the state of a robot
         """
         resp = rasberry_coordination.srv.RobotStateResponse()
-        if req.robot_id in self.robot_ids:
+        if req.robot_id in self.robot_manager.agent_details:
             resp.state, resp.goal_node, resp.start_time = self._get_robot_state(req.robot_id)
         else:
             logmsg(level='error', category="robot", id=req.robot_id, msg='not configured')
@@ -197,7 +163,7 @@ class Coordinator(object):
         """
         resp = rasberry_coordination.srv.RobotStatesResponse()
         for robot_id in req.robot_ids:
-            if robot_id in self.robot_ids:
+            if robot_id in self.robot_manager.agent_details:
                 state, goal_node, start_time = self._get_robot_state(robot_id)
                 resp.states.append(state)
                 resp.goal_nodes.append(goal_node)
@@ -435,8 +401,9 @@ class Coordinator(object):
             robot_id -- robot_id
         """
         # move task from processing to completed
-        task_id = self.robot_task_id[robot_id]
-        self.robot_task_id[robot_id] = None
+        task_id = self.robot_manager.agent_details[robot_id].task_id
+        self.robot_manager.agent_details[robot_id].task_id = None
+
         move(item=task_id, old=self.processing_tasks, new=self.completed_tasks)
         # move robot from active to idle robots
         move(item=robot_id, old=self.active_robots, new=self.idle_robots)
@@ -465,6 +432,6 @@ class Coordinator(object):
         Extend as needed in a child class
         """
         logmsg(msg='cancel actions of all active robots')
-        for robot_id in self.robot_ids:
+        for robot_id in self.robot_manager.agent_details:
             if robot_id in self.active_robots:
                 pass
