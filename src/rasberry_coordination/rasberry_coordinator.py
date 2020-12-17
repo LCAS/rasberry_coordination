@@ -826,7 +826,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 route_dists = [float("inf")]
             elif start_node != goal_node:
                 route_nodes, route_edges, route_dists = self.get_path_details(start_node, goal_node)
-                print("route_edges:9")
             else:
                 route_dists = [0]
 
@@ -1151,7 +1150,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         goal_node = robot.base_station
 
                     if (len(robot.route_fragments) == 1 and
-                        robot_id.current_node is not None and
+                        robot.current_node is not None and
                         robot.current_node == goal_node):
                         # finished the stage
                         if self.task_stages[robot_id] == "go_to_picker":
@@ -1328,7 +1327,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def split_critical_paths(self, ):
         """split robot paths at critical points
         """
-        self.robot_manager.dump_details('thorvald_002', filename='721')
         c_points, c_robots = self.critical_points()
 
         # for robots in go_to_picker mode, if the picker node is in the critical points, remove it
@@ -1337,9 +1335,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             if (self.task_stages[robot_id] == "go_to_picker" and
                 self.processing_tasks[self.robot_task_id[robot_id]].start_node_id in c_points[str(robot.route)]):
                 c_points[str(robot.route)].remove(self.processing_tasks[self.robot_task_id[robot_id]].start_node_id)
-
-        self.robot_manager.dump_details('thorvald_002', filename='722')
-#        rospy.loginfo(c_points)
 
         allowed_cpoints = []
         res_routes = {}
@@ -1384,7 +1379,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             if agent.agent_id in res_routes:
                 agent.route_fragments = res_routes[agent.agent_id]
 
-        self.robot_manager.dump_details('thorvald_002', filename='723')
         res_edges = {}
         # split the edges as per the route_fragments
         for robot_id in self.active_robots:
@@ -1403,19 +1397,16 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 res_edges[robot_id] = []
                 for i in range(len(robot.route_fragments)):
                     res_edges[robot_id].append(robot.route_edges[:len(robot.route_fragments[i])])
-                    print("route_edges:1")
                     robot.route_edges = robot.route_edges[len(robot.route_fragments[i]):]
             else:
                 robot.route_fragments = []
                 res_edges[robot_id] = []
 
-        self.robot_manager.dump_details('thorvald_002', filename='724')
         # self.route_edges = res_edges
         for agent in self.robot_manager.agent_details.values() + self.picker_manager.agent_details.values():
             if agent.agent_id in res_edges:
-                agent.route_fragments = res_edges[agent.agent_id]
+                agent.route_edges = res_edges[agent.agent_id]
 
-        self.robot_manager.dump_details('thorvald_002', filename='725')
     def set_execute_policy_routes(self, ):
         """find connecting edges for each fragment in route_fragments and set
         the corresponding route object (with source and edge_id)
@@ -1425,7 +1416,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
             if robot.route_fragments:
                 goal.route.source = robot.route_fragments[0]
-                self.robot_manager.dump_details(robot_id, filename='9')
                 goal.route.edge_id = robot.route_edges[0]
 
             if goal != self.robots[robot_id].execpolicy_goal:
@@ -1518,7 +1508,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     else:
                         robot.route = [robot.closest_node]
                     robot.route_edges = []
-                    print("route_edges:3")
                     self.get_edge_distances(robot_id)
                     continue
 
@@ -1552,9 +1541,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     goal_node = robot.base_station
                     logmsg(category="robot", id=robot_id, msg='going to base, target is %s'%(goal_node))
 
-                print("start_node: %s" % (start_node))
-                print("goal_node: %s" % (goal_node))
-
                 """if current node is goal node, generate empty route and set task as finished"""
                 if start_node == goal_node:
                     # this is a moving robot, so must be in a go_to_task stage (picker, storage or base)
@@ -1580,7 +1566,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     # reset routes and route_edges
                     robot.route = [start_node]
                     robot.route_edges = []
-                    print("route_edges:4")
                     self.get_edge_distances(robot_id)
                     continue
 
@@ -1600,7 +1585,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 route = avail_route_search.search_route(start_node, goal_node)
                 route_nodes = []
                 route_edges = []
-                self.robot_manager.dump_details(robot_id, filename='5')
 
                 """if route is not available, replan route to wait node"""
                 if (route is None and
@@ -1625,7 +1609,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 """save route details"""
                 robot.route = route_nodes
                 robot.route_edges = route_edges
-                self.robot_manager.dump_details(robot_id, filename='6')
 
                 self.get_edge_distances(robot_id)
 
@@ -1639,11 +1622,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 else:
                     robot.route = [robot.closest_node]
                 robot.route_edges = []
-                print("route_edges:7")
                 self.get_edge_distances(robot_id)
-
-        self.robot_manager.dump_details('thorvald_002', filename='7')
-
 
         """for each picker/virtual picker, mark current position as node to make routing not interfere"""
         for agent in self.picker_manager.agent_details.values():
@@ -1655,23 +1634,17 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 agent.route = [agent.closest_node]
             agent.route_edges = []
 
-        self.robot_manager.dump_details('thorvald_002', filename='71')
         # find critical points and fragment routes to avoid critical point collistions
         for i in range(10):
             locked = self.task_lock.acquire(False)
             if locked:
                 break
             rospy.sleep(0.05)
-        self.robot_manager.dump_details('thorvald_002', filename='72')
         if locked:
             # restrict finding critical_path as task may get cancelled and moved
             # from processing_tasks
             self.split_critical_paths()
-            self.robot_manager.dump_details('thorvald_002', filename='73')
             self.task_lock.release()
-            self.robot_manager.dump_details('thorvald_002', filename='74')
-
-        self.robot_manager.dump_details('thorvald_002', filename='8')
 
     def run(self):
         """the main loop of the coordinator
