@@ -314,9 +314,9 @@ class Coordinator(object):
 
         """For each agent, if they do not have a current_node, extract the closest_node"""
         for i in range(len(curr_nodes)):
-            if curr_nodes[i] == "none":
+            if curr_nodes[i] == None:
                 curr_nodes[i] = clos_nodes[i]
-            if curr_nodes[i] != "none":
+            if curr_nodes[i] != None:
                 agent_nodes.append(curr_nodes[i])
 
         for node in topo_map.nodes:

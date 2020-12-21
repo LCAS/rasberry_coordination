@@ -11,8 +11,9 @@ import rospy
 from rospy import Subscriber as Sub, Service as Srv, get_rostime as Now
 from std_msgs.msg import String as Str
 from thorvald_base.msg import BatteryArray as Battery
-from rasberry_coordination.agent_manager import AgentManager, AgentDetails
+from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.robot import Robot as RobotInterface
+from rasberry_coordination.agent_manager import AgentManager, AgentDetails
 from rasberry_coordination.srv import RobotState, RobotStates, RobotStateResponse, RobotStatesResponse
 
 class RobotManager(AgentManager):
@@ -75,6 +76,8 @@ class RobotManager(AgentManager):
     """Commonly used actions which require exeptionally high speed"""
     def registered_robots(self): #TODO: swap out to polymorphism
         return {deets.agent_id:deets.registered for deets in self.agent_details.values() if deets.registered}
+    def registered_list(self): #TODO: swap out to polymorphism
+        return [deets.agent_id for deets in self.agent_details.values() if deets.registered]
     def idle_list(self):
         return [deets.agent_id for deets in self.agent_details.values() if deets.idle is True]
     def moving_list(self):
@@ -176,3 +179,73 @@ class RobotDetails(AgentDetails):
     """On Shutdown"""
     def _remove(self):
         super(RobotDetails, self)._remove()
+
+    """State Changes"""
+    def _set_as_idle(self):
+        self.idle = True
+        self.moving = self.active = self.interruptable = False
+
+    def _begin_task(self, task_id):
+        self.idle = False
+        self.active = True
+        self.task_stage = "go_to_picker"
+        self.task_id = task_id
+
+    def _end_task(self):
+        # remove task details
+        self.task_id = None
+        self.task_stage = None
+
+        # remove robot from any form of active robots
+        self.active = False
+        self.interruptable = False
+
+        # add robot to idle, if registered
+        if self.registered:
+            self.idle = True
+
+    def _delievered_tray(self):
+        #remove task information
+        self.task_stage = "go_to_base"
+        self.task_id = None
+
+        #remove navigation information
+        self.current_storage = None
+
+        self.moving = False
+        self.interruptable = True
+
+        self.tray_loaded = False
+
+    def _set_target_base(self):
+        # not at base. also not idle. set stage as send to base
+        self.idle = False
+        self.active = True
+        self.interruptable = True
+        self.task_stage = "go_to_base"
+
+    def _finish_route_fragment(self):
+        # clear route vis of robot
+        self.moving = False
+
+        # this may be called multiple times when a robot is stuck
+        self.route = []
+        self.route_fragments = []
+        self.robot_interface.execpolicy_result = None
+
+    def _finish_task_stage(self, state):
+        #TODO: change this out so the robot is given a stage_list when assigned a task,
+        # then just reference the first and pop when complete
+        next_stage = {"go_to_picker": "wait_loading",
+                      "wait_loading": "go_to_storage",
+                      "go_to_storage": "wait_unloading",
+                      "wait_unloading": "go_to_base",
+                      "go_to_base": None}
+
+        if self.task_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
+            self._finish_route_fragment()
+
+        # set task to next stage in logistics process
+        self.task_stage = next_stage[self.task_stage]
+        self.start_time = Now()
+        logmsg(category="robot", id=self.robot_id, msg='@ stage: %s' % (str(self.task_stage).upper()))

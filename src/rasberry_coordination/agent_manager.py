@@ -11,7 +11,7 @@ import os
 
 from rospy import Subscriber as Sub, get_rostime as Now
 from std_msgs.msg import String as Str
-
+from rasberry_coordination.coordinator_tools import logmsg
 
 class AgentManager(object):
 
@@ -39,7 +39,7 @@ class AgentManager(object):
         setattr(self.agent_details[agent_id], item, value)
 
     """Dump Agent Details Callback"""
-    def dump_details(self, agent_id, filename=""):
+    def dump_details(self, agent_id="", filename=""):
         if hasattr(agent_id, 'data'):
             agent_id = agent_id.data
 
@@ -62,9 +62,9 @@ class AgentDetails(object):
         self.agent_id = ID
 
         """Localisation Details"""
-        self.previous_node = "none"
-        self.current_node = "none"
-        self.closest_node = "none"
+        self.previous_node = None
+        self.current_node = None
+        self.closest_node = None
         self.current_node_sub = Sub(ID+"/current_node", Str, self._current_node_cb)
         self.closest_node_sub = Sub(ID+"/closest_node", Str, self._closest_node_cb)
 
@@ -85,19 +85,28 @@ class AgentDetails(object):
                 if attr in ['cb'] or attr.startswith('__') or attr.endswith('_cb') or attr.endswith('_sub'):
                     continue
                 padding = (attr_len-len(attr)) * ' '
-                writer.write("%s%s\t=\t%r\n" % (attr, padding, getattr(self, attr)))
+                writer.write("%s%s\t=\t%r\n" % (attr, padding, str(getattr(self, attr))))
         print('write complete -> '+filename)
 
     """Callback for current node of agent"""
     def _current_node_cb(self, msg):
-        if self.current_node != "none":
+
+        if self.current_node != None:
             self.previous_node = self.current_node
+
         self.current_node = msg.data
+        if self.current_node == "none":
+            self.current_node = None
+        if self.previous_node == "none":
+            self.previous_node = None
+
         self.cb['update_topo_map']()
 
     """Callback for closest node from agent"""
     def _closest_node_cb(self, msg):
         self.closest_node = msg.data
+        if self.closest_node == "none":
+            self.closest_node = None
 
     """On shutdown"""
     def _remove(self):

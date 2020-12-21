@@ -13,12 +13,12 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
         ros_time = '\b' * 21
 
     # define id and/or category to highlight
-    color_id = ["picker02", "thorvald_001"]
-    color_category = []  # TODO move these out of this definition and into some config file
+    color_id = ["thorvald_001"]
+    color_category = ["DRM"]  # TODO move these out of this definition and into some config file
     # (load from parameter server in launch file?)
 
     # format category portion of message
-    valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "PSM", "ROB_PY", "EXEC", "FOLLOW", "LIST"]
+    valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "PSM", "ROB_PY", "EXEC", "FOLLOW", "LIST", "DRM"]
     total_pad_space = max([len(_category) + 1 for _category in valid_categories])
     if category.upper() in valid_categories:
         category_padding = total_pad_space - len(category)
