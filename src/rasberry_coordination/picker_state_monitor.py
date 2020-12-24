@@ -19,7 +19,7 @@ import strands_executive_msgs.msg
 
 import rasberry_coordination.msg
 import rasberry_coordination.srv
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
 
 
 class PickerStateMonitor(object):
@@ -118,7 +118,6 @@ class PickerStateMonitor(object):
 
         # Publishing to picker
         if "states" in msg_data:
-            logmsg(category='PSM', msg='Picker has published a change in state: %s' % str(msg_data["states"]))
             # state updates for all users
             for picker_id in msg_data["states"]:
                 if picker_id not in self.picker_ids:
@@ -129,11 +128,18 @@ class PickerStateMonitor(object):
                     continue
 
                 else:
+                    new_state = str(msg_data["states"][picker_id])
+
+
+                    if new_state != "INIT":
+                        logmsgbreak()
+                        logmsg(category="picker", id=picker_id, msg='state changed to %s' % new_state)
+
                     # update state only if the state for this user has been changed
-                    if self.picker_states[picker_id] != msg_data["states"][picker_id]:
+                    if self.picker_states[picker_id] != new_state:
                         logmsg(category="picker", id=picker_id, msg='updating picker states')
                         self.picker_prev_states[picker_id] = self.picker_states[picker_id]
-                        self.picker_states[picker_id] = msg_data["states"][picker_id]
+                        self.picker_states[picker_id] = new_state
 
                 if self.picker_states[picker_id] == "INIT" and self.picker_prev_states[picker_id] != "INIT":
                     self.write_log({"action_type": "car_update",
@@ -352,15 +358,12 @@ class PickerStateMonitor(object):
 
         # Callback from picker
         elif "state" in msg_data:
-            logmsg() #TODO: find a better way to seperate state change messages
-            logmsg()
-            logmsg()
-            logmsg(category='PSM', msg='Notifying picker of state change: {%s:%s}' % (msg_data["user"], msg_data["state"]))
+            # logmsg(category='PSM', msg='Notifying picker of state change: {%s:%s}' % (msg_data["user"], msg_data["state"]))
 
             picker_id = msg_data["user"]
             if picker_id in self.picker_ids:
                 # resetting state to INIT, ARRIVED -> LOADED
-                logmsg(category="picker", id=picker_id, msg='state changed from %s to %s' % (self.picker_states[picker_id], msg_data["state"]))
+                # logmsg(category="picker", id=picker_id, msg='state changed from %s to %s' % (self.picker_states[picker_id], msg_data["state"]))
                 if self.picker_states[picker_id] != msg_data["state"]:
                     self.write_log({"action_type": "car_update",
                                     "picker_status_updates": "%s -> %s" %(self.picker_states[picker_id], msg_data["state"]),
@@ -426,8 +429,6 @@ class PickerStateMonitor(object):
                                         "closest_node": new_node,
                                         })
 
-#        self.picker_closest_nodes[picker_id] = msg.data
-
     def picker_current_node_cb(self, msg, picker_id):
         """call back to /picker_id/current_node topics
         """
@@ -459,27 +460,9 @@ class PickerStateMonitor(object):
         if msg.task_id not in self.task_state:
             self.task_state[msg.task_id] = None
 
-            # if msg.task_id in self.task_picker:
-            #     logmsg(category="TASK", id=msg.task_id, msg='state changed from %s to %s' % (old_state, new_state))
-            #     self.write_log({"action_type": "coordinator_task_updates",
-            #                     "task_updates": "%s -> %s" %(self.task_state[msg.task_id], msg.state),
-            #                     "picker_id": self.task_picker[msg.task_id],
-            #                     "task_id": msg.task_id,
-            #                     "details": "task state changed in coordinator.",
-            #                     "robot_id": msg.robot_id,
-            #                     })
-            # else:
-            #     #task cancelled by robot in transit to picker, picked up by new robot
-            #     self.write_log({"action_type": "coordinator_task_updates",
-            #                     "task_updates": "%s -> %s" %(self.task_state[msg.task_id], msg.state),
-            #                     "task_id": msg.task_id,
-            #                     "details": "task state changed in coordinator.",
-            #                     "robot_id": msg.robot_id,
-            #                     })
-
         # If there is a change in the state of the task, respond based on the new state
         if new_state != self.task_state[msg.task_id]:
-            logmsg(category="TASK", id=msg.task_id, msg='state changed from %s to %s' % (old_state, new_state))
+            # logmsg(category="TASK", id=msg.task_id, msg='state changed from %s to %s' % (old_state, new_state))
 
             if new_state == "CALLED":
                 logmsg(category='PSM', msg='%s failed to reach %s' % (str(task_robot[msg.task_id], self.task_picker[msg.task_id], msg.task_id)))
@@ -527,6 +510,8 @@ class PickerStateMonitor(object):
                 self.task_state[msg.task_id] = "STORAGE"
 
             elif new_state == "DELIVERED":
+                logmsgbreak()
+                logmsg(category="robot", id=msg.robot_id, msg='~ stage: UNLOADED')
                 logmsg(category='PSM', msg='%s has unloaded at storage' % (msg.robot_id))
 
                 # tray unloading is finished; remove task_id from task_robot
@@ -561,8 +546,9 @@ class PickerStateMonitor(object):
                 picker_id = self.task_picker[msg.task_id]
                 self.set_picker_state(picker_id, "CALLED")
 
-        else:
-            logmsg(category="TASK", id=msg.task_id, msg='state published with no change')
+            logmsg(category="TASK", id=msg.task_id, msg='state changed from %s to %s' % (old_state, new_state))
+        # else:
+        #     logmsg(category="TASK", id=msg.task_id, msg='state published with no change')
 
         # publish all the active tasks state
         tasks = rasberry_coordination.msg.TasksDetails()

@@ -11,7 +11,7 @@ import rospy
 from rospy import Subscriber as Sub, Service as Srv, get_rostime as Now
 from std_msgs.msg import String as Str
 from thorvald_base.msg import BatteryArray as Battery
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
 from rasberry_coordination.robot import Robot as RobotInterface
 from rasberry_coordination.agent_manager import AgentManager, AgentDetails
 from rasberry_coordination.srv import RobotState, RobotStates, RobotStateResponse, RobotStatesResponse
@@ -54,21 +54,10 @@ class RobotManager(AgentManager):
 
         if robot.task_stage is not None:
             resp.state = robot.task_stage
-            # resp.goal_node = robot.goal_node
-            # if state == "go_to_picker":
-            #     resp.goal_node = self.processing_tasks[robot.task_id].start_node_id
-            # elif state == "go_to_storage":
-            #     resp.goal_node = robot.current_storage
-            # elif state  == "go_to_base":
-            #     resp.goal_node = robot.base_station
-            # else:
-            #     resp.goal_node = ""
         elif robot.idle:
             resp.state = "idle"
-            # resp.goal_node = ""
         else:
             resp.state = ""
-            # resp.goal_node = ""
         resp.start_time = robot.start_time
 
         return resp
@@ -105,7 +94,7 @@ class RobotDetails(AgentDetails):
 
         """Initialise Fields in Parent Class"""
         super(RobotDetails, self).__init__(ID, cb)
-        
+
         """Detail whether the robot is moving"""
         self.idle = True
         self.interruptable = False
@@ -127,25 +116,6 @@ class RobotDetails(AgentDetails):
         active          1           x           0
         """
 
-        """
-        if has_goal:
-            return "moving"
-        
-        if has_task:
-            return "idle"
-        
-        if go_base:
-            return "interruptable"
-        
-        else:
-            return "active"
-        """
-
-        """
-        TODO:
-        move all the get_robot_state srv stuff over to robot_manager from coordinator
-        """
-
         """Meta Management"""
         self.robot_id = ID
         self.disconnect_when_idle = False
@@ -157,24 +127,28 @@ class RobotDetails(AgentDetails):
         self.start_time = Now()
         self.task_id = None
         self.task_stage = None
+        self.task_stage_list = []
 
         """Task Meta Details"""
         self.max_task_priority = 255
         self.admissible_tasks = [] #TODO: add admissible_tasks to robot details in map_config file
         # this would be a good way to manage what robots should take on tasks
         # making use of a simple condtion to check if robot can do task X
-        
+
         """Goal Definitions"""
         self.current_storage = None
         self.base_station = None
         self.wait_node = None
         self.goal_node = None
-        
+
         """Route Details"""
         self.route = []
         self.route_dists = []
         self.route_edges = []
         self.route_fragments = []
+
+        """Notifications"""
+        self.no_route_found_notification = True
 
     """On Shutdown"""
     def _remove(self):
@@ -183,69 +157,74 @@ class RobotDetails(AgentDetails):
     """State Changes"""
     def _set_as_idle(self):
         self.idle = True
-        self.moving = self.active = self.interruptable = False
+        self.moving = self.active = False
+        self.interruptable = False #not needed
 
     def _begin_task(self, task_id):
+
+        if self.interruptable:
+            self.robot_interface.cancel_execpolicy_goal()
+            self._finish_task_stage("")
+
+        self.task_id = task_id
+        self.task_stage_list = ["start_task", "go_to_picker", "wait_loading", "go_to_storage",
+                                "wait_unloading", "go_to_base", None]
         self.idle = False
         self.active = True
-        self.task_stage = "go_to_picker"
-        self.task_id = task_id
+        self.interruptable = False
+        #self.moving = False
+
+        self._finish_task_stage(self.task_stage_list.pop(0))
+        # self._change_task_stage(self.task_stage_list.pop(0)) #TODO: make this finish_task_stage + add [0] to list
 
     def _end_task(self):
-        # remove task details
         self.task_id = None
-        self.task_stage = None
 
-        # remove robot from any form of active robots
-        self.active = False
-        self.interruptable = False
-
-        # add robot to idle, if registered
         if self.registered:
             self.idle = True
 
-    def _delievered_tray(self):
-        #remove task information
-        self.task_stage = "go_to_base"
+        self.active = False
+        self.interruptable = False
+        #self.moving = True
+
+        self._change_task_stage(None)
+
+    def _delivered_tray(self):
         self.task_id = None
-
-        #remove navigation information
-        self.current_storage = None
-
-        self.moving = False
-        self.interruptable = True
-
         self.tray_loaded = False
 
+        self.interruptable = True
+        self.moving = False
+        #self.moving = False
+        #self.active = True
+        #self.idle = False?
+
+        self.current_storage = None
+
+        self._finish_task_stage("wait_unloading")
+
     def _set_target_base(self):
-        # not at base. also not idle. set stage as send to base
         self.idle = False
         self.active = True
         self.interruptable = True
-        self.task_stage = "go_to_base"
+        self._change_task_stage("go_to_base")
 
     def _finish_route_fragment(self):
-        # clear route vis of robot
         self.moving = False
 
-        # this may be called multiple times when a robot is stuck
         self.route = []
         self.route_fragments = []
         self.robot_interface.execpolicy_result = None
 
     def _finish_task_stage(self, state):
-        #TODO: change this out so the robot is given a stage_list when assigned a task,
-        # then just reference the first and pop when complete
-        next_stage = {"go_to_picker": "wait_loading",
-                      "wait_loading": "go_to_storage",
-                      "go_to_storage": "wait_unloading",
-                      "wait_unloading": "go_to_base",
-                      "go_to_base": None}
-
         if self.task_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
             self._finish_route_fragment()
-
-        # set task to next stage in logistics process
-        self.task_stage = next_stage[self.task_stage]
         self.start_time = Now()
+        self._change_task_stage(self.task_stage_list.pop(0))
+
+    def _change_task_stage(self, stage):
+        if self.task_stage == stage:
+            return
+        self.task_stage = stage
+        logmsgbreak()
         logmsg(category="robot", id=self.robot_id, msg='@ stage: %s' % (str(self.task_stage).upper()))

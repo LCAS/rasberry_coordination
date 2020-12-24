@@ -174,7 +174,7 @@ class Robot(object):
     def _fb_execpolicy_cb(self, fb):
         """feedback callback
         """
-        logmsg(category="rob_py", msg='_fb_execpolicy_cb {current_wp:%s}' % (str(fb.current_wp)))
+        logmsg(category="robnav", msg='_fb_execpolicy_cb {current_wp:%s}' % (str(fb.current_wp)))
         self.execpolicy_current_wp = fb.current_wp
         self.execpolicy_status = fb.status
 

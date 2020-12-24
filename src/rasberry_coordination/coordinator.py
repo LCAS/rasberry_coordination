@@ -121,60 +121,6 @@ class Coordinator(object):
         self.topo_map = msg
         self.rec_topo_map = True
 
-    # def _get_robot_state(self, robot_id):
-    #     """Template method for getting the state of a robot.
-    #     Extend this as needed.
-    #
-    #     Keyword arguments:
-    #         robot_id -- robot_id
-    #
-    #     Returns:
-    #         (state, goal_node, start_time)
-    #         state -- current state of the robot
-    #         goal_node -- the target node, if the robot has a topological/exec_policy goal
-    #         start_time -- time at which the current state of the robot is started
-    #     """
-    #     if robot_id in self.idle_robots:
-    #         state = "idle"
-    #         goal_node = ""
-    #     else:
-    #         state = ""
-    #         goal_node = ""
-    #     start_time = robot.start_time
-    #     return (state, goal_node, start_time)
-    #
-    # def get_robot_state_ros_srv(self, req):
-    #     """get the state of a robot
-    #     """
-    #     resp = rasberry_coordination.srv.RobotStateResponse()
-    #     if req.robot_id in self.robot_manager.agent_details:
-    #         resp.state, resp.goal_node, resp.start_time = self._get_robot_state(req.robot_id)
-    #     else:
-    #         logmsg(level='error', category="robot", id=req.robot_id, msg='not configured')
-    #     return resp
-    #
-    # get_robot_state_ros_srv.type = rasberry_coordination.srv.RobotState
-    #
-    # def get_robot_states_ros_srv(self, req):
-    #     """get the state of a set of robots
-    #     """
-    #     resp = rasberry_coordination.srv.RobotStatesResponse()
-    #     for robot_id in req.robot_ids:
-    #         if robot_id in self.robot_manager.agent_details:
-    #             state, goal_node, start_time = self._get_robot_state(robot_id)
-    #             resp.states.append(state)
-    #             resp.goal_nodes.append(goal_node)
-    #             resp.start_times.append(start_time)
-    #         else:
-    #             resp.states.append("")
-    #             resp.goal_nodes.append("")
-    #             resp.start_times.append(rospy.Time())
-    #             logmsg(level='error', category="robot", id=robot_id, msg='not configured')
-    #
-    #     return resp
-    #
-    # get_robot_states_ros_srv.type = rasberry_coordination.srv.RobotStates
-
     def add_task_ros_srv(self, req):
         """Template service definition to add a task into the task execution framework.
         Extend as needed in a child class
@@ -410,7 +356,6 @@ class Coordinator(object):
         # move robot from active to idle robots
         robot.idle = True
         robot.active = False
-
 
     def set_task_failed(self, task_id):
         """Template method to set task state as failed.
