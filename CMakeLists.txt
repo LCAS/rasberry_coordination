@@ -70,6 +70,7 @@ add_message_files(
   TaskDetails.msg
   TasksDetails.msg
   MarkerDetails.msg
+  KeyValuePair.msg
 )
 
 ## Generate services in the 'srv' folder

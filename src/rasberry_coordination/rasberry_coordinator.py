@@ -847,16 +847,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
                     self.update_current_storage(robot_id)
 
-                    self.task_state_msg.task_id = task_id
-                    self.task_state_msg.robot_id = self.task_robot_id[task_id]
-                    self.task_state_msg.state = "ACCEPT"
-                    self.picker_task_updates_pub.publish(self.task_state_msg)
-
-                    self.write_log({"action_type": "car_update",
-                                    "task_updates": "ACCEPT",
-                                    "task_id": task_id,
-                                    "robot_id": robot_id,
-                                    })
+                    self.publish_task_state(task_id, robot_id, "ACCEPT")
 
                     self.write_log({"action_type": "robot_update",
                                     "robot_task_stage": "go_to_picker_start",
@@ -911,11 +902,13 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.task_state_msg.robot_id = robot_id
         self.task_state_msg.state = state
         self.picker_task_updates_pub.publish(self.task_state_msg)
+        self.picker_manager.task_updates(picker_id='',task_id=task_id,robot_id=robot_id,state=state)
         rospy.sleep(0.01)
 
         self.write_log({"action_type": "car_update",
                         "task_updates": state,
                         "task_id": task_id,
+                        "robot_id": robot_id,
                         })
 
     def readd_task(self, task_id):

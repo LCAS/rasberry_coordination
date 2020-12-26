@@ -9,9 +9,11 @@ import actionlib
 import rospy
 import os
 
-from rospy import Subscriber as Sub, get_rostime as Now
+from rospy import Subscriber as Sub, Publisher as Pub, get_rostime as Now
 from std_msgs.msg import String as Str
+from rasberry_coordination.msg import KeyValuePair
 from rasberry_coordination.coordinator_tools import logmsg
+
 
 class AgentManager(object):
 
@@ -54,6 +56,7 @@ class AgentDetails(object):
 
     """Initialise all fields"""
     def __init__(self, ID, cb):
+        self.live_diagnostics_pub = Pub('/rasberry_coordination/agent_monitor/'+ID, KeyValuePair, latch=True, queue_size=5)
 
         """Callbacks"""
         self.cb = cb
@@ -112,3 +115,26 @@ class AgentDetails(object):
     def _remove(self):
         self.current_node_sub.unregister()
         self.closest_node_sub.unregister()
+
+
+    """Monitoring"""
+    def __setattr__(self, key, value):
+        if hasattr(self, key):
+            val = getattr(self, key)
+        else:
+            val = "tomato"
+        super(AgentDetails, self).__setattr__(key, value)
+        if val != "tomato" and val != value:
+            self.update_live_diagnostics(key, value)
+
+    def update_live_diagnostics(self, key, value):
+        LD = KeyValuePair() #TODO, remove this and just format the object in the publisher
+        if key not in ["task_id","task_stage","current_node","previous_node","closest_node"]:
+            return
+        print(str({'key':key,'value':str(value)}))
+
+        LD.key = key
+        LD.value = str(value)
+        if hasattr(self, 'live_diagnostics_pub'):
+            self.live_diagnostics_pub.publish(LD)
+            # self.live_diagnostics_pub.publish({'key':key,'value':str(value)})
