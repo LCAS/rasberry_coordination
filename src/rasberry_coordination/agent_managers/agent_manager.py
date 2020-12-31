@@ -111,11 +111,19 @@ class AgentDetails(object):
         if self.closest_node == "none":
             self.closest_node = None
 
+    """return start node as current node, previous node or closest node"""
+    def _get_start_node(self):
+        if self.current_node:
+            return self.current_node
+        elif self.previous_node:
+            return self.previous_node
+        else:
+            return self.closest_node
+
     """On shutdown"""
     def _remove(self):
         self.current_node_sub.unregister()
         self.closest_node_sub.unregister()
-
 
     """Monitoring"""
     def __setattr__(self, key, value):
@@ -131,7 +139,6 @@ class AgentDetails(object):
         LD = KeyValuePair() #TODO, remove this and just format the object in the publisher
         if key not in ["task_id","task_stage","current_node","previous_node","closest_node"]:
             return
-        print(str({'key':key,'value':str(value)}))
 
         LD.key = key
         LD.value = str(value)

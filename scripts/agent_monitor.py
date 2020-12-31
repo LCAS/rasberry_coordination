@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-#!/usr/bin/env python
+#! /usr/bin/env python
+# ----------------------------------
+# @author: jheselden
+# @email: jheselden@lincoln.ac.uk
+# @date:
+# ----------------------------------
 
 import sys
 
@@ -148,7 +153,7 @@ class diagnostic_printout:
 if __name__ == '__main__':
     agent_id = sys.argv[1]
     type = sys.argv[2]
-    rospy.init_node('agent_monitor_'+agent_id, anonymous=True)
+    rospy.init_node('agent_monitor_'+agent_id, anonymous=False)
 
     DP = diagnostic_printout(agent_id, type)
 

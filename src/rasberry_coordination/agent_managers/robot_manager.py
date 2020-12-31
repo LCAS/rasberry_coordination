@@ -13,7 +13,7 @@ from std_msgs.msg import String as Str
 from thorvald_base.msg import BatteryArray as Battery
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
 from rasberry_coordination.robot import Robot as RobotInterface
-from rasberry_coordination.agent_manager import AgentManager, AgentDetails
+from rasberry_coordination.agent_managers.agent_manager import AgentManager, AgentDetails
 from rasberry_coordination.srv import RobotState, RobotStates, RobotStateResponse, RobotStatesResponse
 
 class RobotManager(AgentManager):
@@ -30,7 +30,7 @@ class RobotManager(AgentManager):
         self.agent_details[agent_id] = RobotDetails(agent_id, self.cb)
 
     """Service responses"""
-    def get_robot_states_ros_srv(self, req): #TODO: combine these 2 srv into 1
+    def get_robot_states_ros_srv(self, req): #TODO: combine these 2 srv into 1?
         resp = RobotStatesResponse()
         for robot_id in req.robot_ids:
             resp1 = RobotStateResponse()
@@ -51,7 +51,6 @@ class RobotManager(AgentManager):
         resp.goal_node = ""
         if robot.goal_node:
             resp.goal_node = robot.goal_node
-
         if robot.task_stage is not None:
             resp.state = robot.task_stage
         elif robot.idle:
@@ -123,11 +122,12 @@ class RobotDetails(AgentDetails):
         self.robot_interface = RobotInterface(ID)
 
         """Task Details"""
-        self.tray_loaded = False
-        self.start_time = Now()
         self.task_id = None
+        self.goal_node = None
         self.task_stage = None
         self.task_stage_list = []
+        self.tray_loaded = False
+        self.start_time = Now()
 
         """Task Meta Details"""
         self.max_task_priority = 255
@@ -136,10 +136,10 @@ class RobotDetails(AgentDetails):
         # making use of a simple condtion to check if robot can do task X
 
         """Goal Definitions"""
+        self.start_node = None
         self.current_storage = None
         self.base_station = None
         self.wait_node = None
-        self.goal_node = None
 
         """Route Details"""
         self.route = []
@@ -153,6 +153,15 @@ class RobotDetails(AgentDetails):
     """On Shutdown"""
     def _remove(self):
         super(RobotDetails, self)._remove()
+
+    """return goal node as picker location, storage or base station"""
+    def _get_goal_node(self):
+        if self.task_stage == "go_to_picker":
+            return self.goal_node
+        elif self.task_stage == "go_to_storage":
+            return self.current_storage
+        elif self.task_stage == "go_to_base":
+            return self.base_station
 
     """State Changes"""
     def _set_as_idle(self):
@@ -175,7 +184,6 @@ class RobotDetails(AgentDetails):
         #self.moving = False
 
         self._finish_task_stage(self.task_stage_list.pop(0))
-        # self._change_task_stage(self.task_stage_list.pop(0)) #TODO: make this finish_task_stage + add [0] to list
 
     def _end_task(self):
         self.task_id = None

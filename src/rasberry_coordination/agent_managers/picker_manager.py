@@ -10,7 +10,7 @@ import rospy
 
 from rospy import Subscriber as Sub, get_rostime as Now
 from std_msgs.msg import String as Str
-from rasberry_coordination.agent_manager import *
+from rasberry_coordination.agent_managers.agent_manager import AgentManager, AgentDetails
 from geometry_msgs.msg import PoseStamped
 from rasberry_coordination.msg import TasksDetails, TaskUpdates
 
@@ -36,21 +36,24 @@ class PickerManager(AgentManager):
     def add_agent(self, agent_id):
         self.agent_details[agent_id] = PickerDetails(agent_id, self.cb)
 
+    """ Picker Manager query functions """
+    def get_task(self):
+        return [picker.task for picker in self.agent_details]
+
     """Communication from coordinator"""
     def task_updates(self, picker_id='', task_id='', robot_id='', state=''):
 
         if picker_id == '' and task_id != '':
-            picker_task_dict = {picker.task_id:picker.picker_id for picker in self.agent_details.values()}
-            picker_id = picker_task_dict[task_id]
+            picker_task_dict = {picker.task_id: picker.picker_id for picker in self.agent_details.values()}
+            #if picker.task_id is not None} #TODO: add this in eventually
+            if task_id not in picker_task_dict:#TODO: remove this eventually
+                return
+            else:
+                picker_id = picker_task_dict[task_id]
 
-        if state in ["CALLED", "ASSIGNED", "ARRIVED", "LOADED", "ABANDONED", "DELIVERED", "CREATED", "ACCEPT"]:
+        #Only allow communications which should come from the coordinator
+        if state in ["ACCEPT", "ARRIVED", "ABANDONED"]:#ASSIGNED
             self.update_state(state, picker_id, robot_id)
-
-    def get_task(self):
-        return [picker.task for picker in self.agent_details]
-
-
-
 
     """Communication from CAR"""
     def car_event_cb(self, msg):
@@ -62,7 +65,7 @@ class PickerManager(AgentManager):
             return
 
         # If the given state is valid, update the picker object
-        if msg["state"] in ["CALLED", "LOADED", "INIT"]:
+        if msg["state"] in ["CALLED", "LOADED", "INIT"]:#CREATED
             self.update_state(new_state=msg["state"], picker_id=msg["user"])
 
     """
@@ -85,14 +88,13 @@ class PickerManager(AgentManager):
             picker.task_id = self.new_task_id()
 
         # Take appropriate action
-        actions = {"CALLED":    picker.task_created,   # +new task  #"CREATED
-                   "ACCEPT":  picker.task_assigned,    #            #"ASSIGNED"
-                   "ARRIVED":   picker.robot_arrived,  #
-                   "LOADED":    picker.robot_loaded,   # +task complete
-                   "ABANDONED": picker.task_canceled,  # +task complete
-                   "DELIVERED": picker.task_canceled}  # +task complete
+        actions = {"CALLED":    picker.task_created,     # +new task  #"CREATED
+                   "ACCEPT":    picker.task_assigned,    #            #"ASSIGNED"
+                   "ARRIVED":   picker.robot_arrived,    #
+                   "LOADED":    picker.robot_loaded,     # +task complete
+                   "ABANDONED": picker.task_abandonded,  # +task complete
+                   "INIT":      picker.task_canceled}    #
         actions[new_state]()
-
 
     def new_task_id(self):
         self.latest_task_id = self.latest_task_id+1
@@ -138,22 +140,22 @@ class PickerDetails(AgentDetails):
         """ State Publisher """
         # self.car_state_pub = rospy.Publisher("/car_client/set_states", Str, latch=True, queue_size=5)
 
-    # def _remove(self):
-    #     super(PickerDetails, self)._remove()
+    def _remove(self):
+        super(PickerDetails, self)._remove()
     #     self.picker_posestamped_sub.unregister()
 
-    """State Monitoring"""
+    """State Monitoring""" #TODO: simplify this and remove repeated lines
     def task_created(self):
         self.task_stage = "CREATED"
         self.start_time = Now()
-        self.set_picker_state("CREATED") #this requires task id (task id managed by picker_manager)
+        # self.set_picker_state("CREATED") #this requires task id (task id managed by picker_manager)
     def task_assigned(self):
         self.task_stage = "ASSIGNED"
         self.start_time = Now()
     def robot_arrived(self):
         self.task_stage = "ARRIVED"
         self.start_time = Now()
-    def robot_loaded(self): #at what point is the task completed for the picker??
+    def robot_loaded(self):
         self.task_stage = "LOADED"
         self.start_time = Now()
         self.set_picker_state("LOADED") #needs to let coordinator know robot is ready to leave

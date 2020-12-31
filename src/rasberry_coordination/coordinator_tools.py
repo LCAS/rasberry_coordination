@@ -1,3 +1,10 @@
+#! /usr/bin/env python
+# ----------------------------------
+# @author: jheselden
+# @email: jheselden@lincoln.ac.uk
+# @date:
+# ----------------------------------
+
 import rospy
 
 def logmsgbreak():
@@ -29,7 +36,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
         # (load from parameter server in launch file?)
 
         """ Format category portion of message """
-        valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "PSM", "ROB_PY", "EXEC", "FOLLOW", "LIST", "DRM"]
+        valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "PSM", "ROB_PY", "EXEC", "FOLLOW", "LIST", "DRM", "NOTE"]
         total_pad_space = max([len(_category) + 1 for _category in valid_categories])
         if category.upper() in valid_categories:
             category_padding = total_pad_space - len(category)
@@ -37,6 +44,10 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
             cat = category.upper() + (" " * (category_padding - level_padding))
         elif category.upper() == "NULL":
             cat = " " * total_pad_space
+        else:
+            rospy.logerr("category "+category.upper()+" not registered")
+            return
+
 
         """ Format ID with conditions for when category or id is empty """
         ids = " " * (13 - len(str(id))) + str(id) + ":"

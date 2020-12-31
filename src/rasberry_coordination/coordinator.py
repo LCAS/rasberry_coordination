@@ -23,8 +23,8 @@ import thorvald_base.msg
 import rasberry_coordination.robot
 import rasberry_coordination.srv
 from rasberry_coordination.coordinator_tools import logmsg, remove, add, move
-from rasberry_coordination.robot_manager import RobotManager
-from rasberry_coordination.picker_manager import PickerManager
+from rasberry_coordination.agent_managers.robot_manager import RobotManager
+from rasberry_coordination.agent_managers.picker_manager import PickerManager
 
 
 class Coordinator(object):
@@ -66,25 +66,6 @@ class Coordinator(object):
         # create a topological_navigation.route_search.TopologicalRouteSearch object
         # with the current self.available_topo_map to plan routes avoiding
         # other agents, when necessary
-
-        # self.current_nodes = {agent_name:"none" for agent_name in self.presence_agents}
-        # self.prev_current_nodes = {agent_name:"none" for agent_name in self.presence_agents}
-        # self.closest_nodes = {agent_name:"none" for agent_name in self.presence_agents}
-        # self.current_node_subs = {agent_name:rospy.Subscriber(agent_name.strip()+"/current_node",
-        #                                                       std_msgs.msg.String,
-        #                                                       self._current_node_cb,
-        #                                                       callback_args=agent_name) for agent_name in self.presence_agents}
-        # self.closest_node_subs = {agent_name:rospy.Subscriber(agent_name.strip()+"/closest_node",
-        #                                                       std_msgs.msg.String,
-        #                                                       self._closest_node_cb,
-        #                                                       callback_args=agent_name) for agent_name in self.presence_agents}
-
-        # setting a minimum voltage to avoid issues in gazebo simulations
-        # self.battery_voltage = {robot_id:55.0 for robot_id in self.robot_ids}
-        # self.battery_data_subs = {robot_id:rospy.Subscriber(robot_id+"/battery_data",
-        #                                                      thorvald_base.msg.BatteryArray,
-        #                                                      self._battery_data_cb,
-        #                                                      callback_args=robot_id) for robot_id in self.robot_ids}
 
         if not self.is_parent:
             # this should only be called from the child class
@@ -274,7 +255,10 @@ class Coordinator(object):
                 to_pop.reverse()
                 for j in to_pop:
                     node.edges.pop(j)
+
+
         self.available_topo_map = topo_map
+
 
     def unblock_node(self, available_topo_map, node_to_unblock):
         """ unblock a node by adding edges to an occupied node in available_topo_map
