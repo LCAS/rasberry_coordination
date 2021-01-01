@@ -84,7 +84,7 @@ class Coordinator(object):
         self.task_robot_id = {} # {task_id:robot_id} to track which robot is assigned to a task
 
         """Robot Detail Manage Initialisation"""
-        cb_dict = {'update_topo_map': self.update_available_topo_map}
+        cb_dict = {'update_topo_map': None}
         self.robot_manager = RobotManager(cb_dict)
         self.robot_manager.add_agents(robot_ids)
         self.picker_manager = PickerManager(cb_dict)
@@ -223,61 +223,60 @@ class Coordinator(object):
                 )
                 logmsg(msg='service advertised: %s' % (attr[:-8]))
 
-    def update_available_topo_map(self, ):
-        """This function updates the available_topological_map, which is topological_map
-        without the edges going into the nodes occupied by the agents. When current node
-        of an agent is none, the closest node of the agent is taken.
-        """
-        topo_map = copy.deepcopy(self.topo_map)
-        agent_nodes = []
+    # def update_available_topo_map(self, ):
+    #     """This function updates the available_topological_map, which is topological_map
+    #     without the edges going into the nodes occupied by the agents. When current node
+    #     of an agent is none, the closest node of the agent is taken.
+    #     """
+    #     topo_map = copy.deepcopy(self.topo_map)
+    #     agent_nodes = []
+    #
+    #     """Extract lists of current and closest nodes to the robots and pickers"""
+    #     if not (hasattr(self, 'robot_manager') and hasattr(self, 'picker_manager')):
+    #         return
+    #
+    #     curr_nodes = self.robot_manager.get_list('current_node') + self.picker_manager.get_list('current_node')
+    #     clos_nodes = self.robot_manager.get_list('closest_node') + self.picker_manager.get_list('closest_node')
+    #
+    #
+    #     """For each agent, if they do not have a current_node, extract the closest_node"""
+    #     for i in range(len(curr_nodes)):
+    #         if curr_nodes[i] == None:
+    #             curr_nodes[i] = clos_nodes[i]
+    #         if curr_nodes[i] != None:
+    #             agent_nodes.append(curr_nodes[i])
+    #
+    #     for node in topo_map.nodes:
+    #         to_pop=[]
+    #         for i in range(len(node.edges)):
+    #             if node.edges[i].node in agent_nodes:
+    #                 to_pop.append(i)
+    #         if to_pop:
+    #             to_pop.reverse()
+    #             for j in to_pop:
+    #                 node.edges.pop(j)
+    #
+    #
+    #     self.available_topo_map = topo_map
 
-        """Extract lists of current and closest nodes to the robots and pickers"""
-        if not (hasattr(self, 'robot_manager') and hasattr(self, 'picker_manager')):
-            return
-
-        curr_nodes = self.robot_manager.get_list('current_node') + self.picker_manager.get_list('current_node')
-        clos_nodes = self.robot_manager.get_list('closest_node') + self.picker_manager.get_list('closest_node')
-
-
-        """For each agent, if they do not have a current_node, extract the closest_node"""
-        for i in range(len(curr_nodes)):
-            if curr_nodes[i] == None:
-                curr_nodes[i] = clos_nodes[i]
-            if curr_nodes[i] != None:
-                agent_nodes.append(curr_nodes[i])
-
-        for node in topo_map.nodes:
-            to_pop=[]
-            for i in range(len(node.edges)):
-                if node.edges[i].node in agent_nodes:
-                    to_pop.append(i)
-            if to_pop:
-                to_pop.reverse()
-                for j in to_pop:
-                    node.edges.pop(j)
-
-
-        self.available_topo_map = topo_map
-
-
-    def unblock_node(self, available_topo_map, node_to_unblock):
-        """ unblock a node by adding edges to an occupied node in available_topo_map
-        """
-        nodes_to_append=[]
-        edges_to_append=[]
-
-        for node in self.topo_map.nodes:
-            for edge in node.edges:
-                if edge.node == node_to_unblock:
-                    nodes_to_append.append(node.name)
-                    edges_to_append.append(edge)
-
-        for node in available_topo_map.nodes:
-            if node.name in nodes_to_append:
-                ind_to_append = nodes_to_append.index(node.name)
-                node.edges.append(edges_to_append[ind_to_append])
-
-        return available_topo_map
+    # def unblock_node(self, available_topo_map, node_to_unblock):
+    #     """ unblock a node by adding edges to an occupied node in available_topo_map
+    #     """
+    #     nodes_to_append=[]
+    #     edges_to_append=[]
+    #
+    #     for node in self.topo_map.nodes:
+    #         for edge in node.edges:
+    #             if edge.node == node_to_unblock:
+    #                 nodes_to_append.append(node.name)
+    #                 edges_to_append.append(edge)
+    #
+    #     for node in available_topo_map.nodes:
+    #         if node.name in nodes_to_append:
+    #             ind_to_append = nodes_to_append.index(node.name)
+    #             node.edges.append(edges_to_append[ind_to_append])
+    #
+    #     return available_topo_map
 
     def get_path_details(self, start_node, goal_node):
         """get route_nodes, route_edges and route_distance from start_node to goal_node

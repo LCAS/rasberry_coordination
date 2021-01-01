@@ -103,7 +103,8 @@ class AgentDetails(object):
         if self.previous_node == "none":
             self.previous_node = None
 
-        self.cb['update_topo_map']()
+        if self.cb['update_topo_map']:
+            self.cb['update_topo_map']()
 
     """Callback for closest node from agent"""
     def _closest_node_cb(self, msg):
