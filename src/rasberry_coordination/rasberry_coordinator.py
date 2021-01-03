@@ -157,138 +157,142 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
     tray_loaded_ros_srv.type = rasberry_coordination.srv.TrayLoaded
 
-    def add_task_ros_srv(self, req):
-        """Extended method for adding a task into the task execution framework.
-        Check rasberry_coordination.coordinator for more details.
-        """
-        self.last_id += 1
-        task_id = self.last_id
-
-        self.write_log({"action_type": "car_update",
-                        "task_updates": "CALLED",
-                        "task_id": task_id,
-                        "details": "to %s" %(req.task.start_node_id),
-                        })
-
-        req.task.task_id = task_id
-        logmsg(category="task", id=req.task.task_id, msg='received with target node %s'%(req.task.start_node_id))
-        self.tasks.put(
-            (task_id, req.task)
-        )
-        add(self.all_task_ids, task_id)
-        self.write_log({"action_type":"add_task_srv",
-                        "task_id": task_id,
-                        })
-        return task_id
-
-    add_task_ros_srv.type = strands_executive_msgs.srv.AddTask
-
-    def cancel_task_ros_srv(self, req):
-        """Extended method for cancelling a task from execution.
-        Check rasberry_coordination.coordinator for more details.
-        """
-        cancelled = False
-        # Two scenarios:
-        # 1. task is already being processed
-        #    this also implies the robot has not reached the picker, as
-        #    the CAR interface to cancel task won't be available after that.
-        #    the topo_nav goal to the robot has to be cancelled
-        #    the robot will have to be sent to the base after the cancellation
-        # 2. task is still queued or is in processed (if allocated)
-        #    pop the task from the queue and add to cancelled
-        self.write_log({"action_type": "car_update",
-                        "task_updates": "CANCEL",
-                        "task_id": req.task_id,
-                        })
-        for i in range(10):
-            locked = self.task_lock.acquire(False)
-            if locked:
-                break
-            rospy.sleep(0.05)
-
-        if locked:
-            if req.task_id in self.all_task_ids:
-                if ((req.task_id in self.completed_tasks) or
-                   (req.task_id in self.cancelled_tasks)):
-                    # cannot be here
-                    self.write_log({"action_type": "cancel_task_srv",
-                                    "task_id": req.task_id,
-                                    "details": "fail: cannot be in this condition",
-                                    })
-    #                raise Exception("cancel_task_ros_srv cannot be in this condition")
-                    logmsg(level='error', category="task", id=req.task_id, msg='cancelled task is being cancelled, cancel_task_ros_srv cannot be in this condition')
-
-                elif req.task_id in self.processing_tasks:
-                    # task is being processed. remove it
-                    move(item=req.task_id, old=self.processing_tasks, new=self.cancelled_tasks)
-
-                    # cancel goal of assigned robot and return it to its base
-                    robot_id = ""
-                    if req.task_id in self.task_robot_id:
-                        robot_id = self.task_robot_id[req.task_id]
-                        robot = self.robot_manager.agent_details[robot_id]
-                        robot.goal_node = None
-                        robot.robot_interface.cancel_execpolicy_goal()
-                        self.send_robot_to_base(robot_id)
-                        robot.current_storage = None
-                    logmsg(category="task", id=req.task_id, msg='cancelled')
-                    logmsg(category="robot", id=robot_id, msg='task canceled and removed')
-                    cancelled = True
-
-                    # notify task is being cancelled
-                    self.publish_task_state(req.task_id, robot_id, "CANCELLED")
-
-                    self.write_log({"action_type":"cancel_task_srv",
-                                    "task_id": req.task_id,
-                                    "details": "success",
-                                    })
-                else:
-                    # not yet processed. get it out of tasks
-                    tasks = []
-                    while not rospy.is_shutdown():
-                        try:
-                            task_id, task = self.tasks.get(True, 1)
-                            if task_id == req.task_id:
-                                self.cancelled_tasks[task_id] = task
-                                logmsg(category="task", id=task_id, msg='cancelled before assigned to robot')
-                                break # got it
-                            else:
-                                # hold on to the other tasks to be readded later
-                                tasks.append((task_id, task))
-                        except Queue.Empty:
-                            break
-                    # readd popped tasks
-                    for (task_id, task) in tasks:
-                        self.tasks.put((task_id, task))
-
-                    cancelled = True
-
-                    # notify task is being cancelled, no robot_id because the task was not yet processing
-                    self.publish_task_state(req.task_id, "", "CANCELLED")
-
-                    self.write_log({"action_type":"cancel_task_srv",
-                                    "task_id": req.task_id,
-                                    "details": "success",
-                                    })
-            else:
-                # invalid task_id
-                logmsg(level='error', category="task", id=req.task_id, msg='cancel_task invoked with invalid task_id')
-                self.write_log({"action_type": "cancel_task_srv",
-                                    "task_id": req.task_id,
-                                    "details": "fail: invalid task_id",
-                                    })
-
-            self.task_lock.release()
-        else:
-            logmsg(level='error', category="task", id=req.task_id, msg='cancel service call failed, tasks are being assigned')
-            self.write_log({"action_type": "cancel_task_srv",
-                                "task_id": req.task_id,
-                                "details": "fail: tasks could not be locked. task assignment going on",
-                                })
-
-        return cancelled
-
-    cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
+    # def add_task_ros_srv(self, req):
+    #     """Extended method for adding a task into the task execution framework.
+    #     Check rasberry_coordination.coordinator for more details.
+    #     """
+    #     self.last_id += 1
+    #     task_id = self.last_id
+    #
+    #     self.write_log({"action_type": "car_update",
+    #                     "task_updates": "CALLED",
+    #                     "task_id": task_id,
+    #                     "details": "to %s" %(req.task.start_node_id),
+    #                     })
+    #
+    #     req.task.task_id = task_id
+    #     logmsg(category="task", id=req.task.task_id, msg='received with target node %s'%(req.task.start_node_id))
+    #     # TASKTODO: add req.task to self.tasks
+    #     print(str(req.task))
+    #
+    #     self.tasks.put( #TODO: from here, add task obj to picker and reference that
+    #         (task_id, req.task)
+    #     )
+    #     add(self.all_task_ids, task_id)
+    #     self.write_log({"action_type":"add_task_srv",
+    #                     "task_id": task_id,
+    #                     })
+    #     return task_id
+    #
+    # add_task_ros_srv.type = strands_executive_msgs.srv.AddTask
+    #
+    # def cancel_task_ros_srv(self, req):
+    #     """Extended method for cancelling a task from execution.
+    #     Check rasberry_coordination.coordinator for more details.
+    #     """
+    #     cancelled = False
+    #     # Two scenarios:
+    #     # 1. task is already being processed
+    #     #    this also implies the robot has not reached the picker, as
+    #     #    the CAR interface to cancel task won't be available after that.
+    #     #    the topo_nav goal to the robot has to be cancelled
+    #     #    the robot will have to be sent to the base after the cancellation
+    #     # 2. task is still queued or is in processed (if allocated)
+    #     #    pop the task from the queue and add to cancelled
+    #     self.write_log({"action_type": "car_update",
+    #                     "task_updates": "CANCEL",
+    #                     "task_id": req.task_id,
+    #                     })
+    #     for i in range(10):
+    #         locked = self.task_lock.acquire(False)
+    #         if locked:
+    #             break
+    #         rospy.sleep(0.05)
+    #
+    #     if locked:
+    #         if req.task_id in self.all_task_ids:
+    #             if ((req.task_id in self.completed_tasks) or
+    #                (req.task_id in self.cancelled_tasks)):
+    #                 # cannot be here
+    #                 self.write_log({"action_type": "cancel_task_srv",
+    #                                 "task_id": req.task_id,
+    #                                 "details": "fail: cannot be in this condition",
+    #                                 })
+    # #                raise Exception("cancel_task_ros_srv cannot be in this condition")
+    #                 logmsg(level='error', category="task", id=req.task_id, msg='cancelled task is being cancelled, cancel_task_ros_srv cannot be in this condition')
+    #
+    #             elif req.task_id in self.processing_tasks:
+    #                 # task is being processed. remove it
+    #                 move(item=req.task_id, old=self.processing_tasks, new=self.cancelled_tasks)
+    #
+    #                 # cancel goal of assigned robot and return it to its base
+    #                 robot_id = ""
+    #                 if req.task_id in self.task_robot_id:
+    #                     robot_id = self.task_robot_id[req.task_id]
+    #                     robot = self.robot_manager.agent_details[robot_id]
+    #                     robot.goal_node = None
+    #                     robot.robot_interface.cancel_execpolicy_goal()
+    #                     self.send_robot_to_base(robot_id)
+    #                     robot.current_storage = None
+    #                 logmsg(category="task", id=req.task_id, msg='cancelled')
+    #                 logmsg(category="robot", id=robot_id, msg='task canceled and removed')
+    #                 cancelled = True
+    #
+    #                 # notify task is being cancelled
+    #                 self.publish_task_state(req.task_id, robot_id, "CANCELLED")
+    #
+    #                 self.write_log({"action_type":"cancel_task_srv",
+    #                                 "task_id": req.task_id,
+    #                                 "details": "success",
+    #                                 })
+    #             else:
+    #                 #TASKTODO: remove req.task_id from self.tasks
+    #                 # not yet processed. get it out of tasks
+    #                 tasks = []
+    #                 while not rospy.is_shutdown():
+    #                     try:
+    #                         task_id, task = self.tasks.get(True, 1)
+    #                         if task_id == req.task_id:
+    #                             self.cancelled_tasks[task_id] = task
+    #                             logmsg(category="task", id=task_id, msg='cancelled before assigned to robot')
+    #                             break # got it
+    #                         else:
+    #                             # hold on to the other tasks to be readded later
+    #                             tasks.append((task_id, task))
+    #                     except Queue.Empty:
+    #                         break
+    #                 # readd popped tasks
+    #                 for (task_id, task) in tasks:
+    #                     self.tasks.put((task_id, task))
+    #
+    #                 cancelled = True
+    #
+    #                 # notify task is being cancelled, no robot_id because the task was not yet processing
+    #                 self.publish_task_state(req.task_id, "", "CANCELLED")
+    #
+    #                 self.write_log({"action_type":"cancel_task_srv",
+    #                                 "task_id": req.task_id,
+    #                                 "details": "success",
+    #                                 })
+    #         else:
+    #             # invalid task_id
+    #             logmsg(level='error', category="task", id=req.task_id, msg='cancel_task invoked with invalid task_id')
+    #             self.write_log({"action_type": "cancel_task_srv",
+    #                                 "task_id": req.task_id,
+    #                                 "details": "fail: invalid task_id",
+    #                                 })
+    #
+    #         self.task_lock.release()
+    #     else:
+    #         logmsg(level='error', category="task", id=req.task_id, msg='cancel service call failed, tasks are being assigned')
+    #         self.write_log({"action_type": "cancel_task_srv",
+    #                             "task_id": req.task_id,
+    #                             "details": "fail: tasks could not be locked. task assignment going on",
+    #                             })
+    #
+    #     return cancelled
+    #
+    # cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
 
     def set_robot_reached_picker_ros_srv(self, req):
         """Set a robot reached the picker. finish the go_to_picker stage. robot will go to wait_loading
@@ -355,101 +359,102 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
     set_robot_reached_storage_ros_srv.type = rasberry_coordination.srv.TriggerRobot
 
-    def update_task_ros_srv(self, req):
-        """update a task information in coordinator. updates come from CAR
-        through the serviceproxy in PickerStateMonitor.
-        """
-        logmsg(category="task", id=req.task.task_id, msg='new task_start_node %s' % req.task.start_node_id)
-
-        self.write_log({"action_type": "task_updates",
-                        "task_id": req.task.task_id,
-                        "details": "request to update task - %d is received. new task_start_node - %s" %(req.task.task_id, req.task.start_node_id),
-                        })
-        resp = rasberry_coordination.srv.UpdateTaskResponse()
-
-        # check task_id is in here
-        if req.task.task_id in self.completed_tasks:
-            resp.success = False
-            resp.message = "task %d is already completed" %(req.task.task_id)
-            logmsg(category="task", id=req.task.task_id, msg='failed to update task_start_node, task complete')
-
-        elif req.task.task_id in self.failed_tasks:
-            resp.success = False
-            resp.message = "task %d is already failed" %(req.task.task_id)
-            logmsg(category="task", id=req.task.task_id, msg='failed to update task_start_node, already failed')
-
-        elif req.task.task_id in self.cancelled_tasks:
-            resp.success = False
-            resp.message = "task %d is already cancelled" %(req.task.task_id)
-            logmsg(category="task", id=req.task.task_id, msg='failed to update task_start_node, already cancelled')
-
-        elif req.task.task_id in self.processing_tasks:
-            # task is being processed
-            # get the task_lock
-            for i in range(10):
-                locked = self.task_lock.acquire(False)
-                if locked:
-                    self.processing_tasks[req.task.task_id] = req.task
-                    robot.goal_node = req.task.start_node_id
-                    resp.success = True
-                    resp.message = "successfully updated task %d" %(req.task.task_id)
-                    self.trigger_replan = True
-                    logmsg(category="task", id=req.task.task_id, msg='task_start_node updated to node %s' % req.task.start_node_id)
-                    self.task_lock.release()
-                    break
-
-                else:
-                    rospy.sleep(0.05)
-
-                    if i == 9:
-                        resp.success = False
-                        resp.message = "Could not get the task lock"
-                        logmsg(category="task", id=req.task.task_id, msg='failed to update task_start_node, unable to get task_lock')
-
-        else:
-            # not yet taken up for processing
-            # get the task_lock
-            for i in range(10):
-                locked = self.task_lock.acquire(False)
-                if locked:
-                    tasks = []
-                    while not rospy.is_shutdown():
-                        try:
-                            task_id, task = self.tasks.get(True, 1)
-                            if task_id == req.task.task_id:
-                                task = req.task
-                                logmsg(category="task", id=req.task.task_id, msg='updating task...')
-                                resp.success = True
-                                resp.message = "successfully updated task %d" %(req.task.task_id)
-                                logmsg(category="task", id=req.task.task_id, msg='task_start_node updated to node %s' % req.task.start_node_id)
-                                break # got it
-                            else:
-                                # hold on to the other tasks to be readded later
-                                tasks.append((task_id, task))
-                        except Queue.Empty:
-                            break
-                    # readd popped tasks
-                    for (task_id, task) in tasks:
-                        # put all retrieved tasks back in the queue
-                        self.tasks.put((task_id, task))
-                    self.task_lock.release()
-                    break
-
-                else:
-                    rospy.sleep(0.05)
-
-                    if i == 9:
-                        resp.success = False
-                        resp.message = "Could not get the task lock"
-                        logmsg(category="task", id=req.task.task_id, msg='failed to update task_start_node, unable to get task_lock')
-
-        self.write_log({"action_type": "update_task_ros_srv",
-                        "task_id": req.task.task_id,
-                        "details": resp.message
-                        })
-        return resp
-
-    update_task_ros_srv.type = rasberry_coordination.srv.UpdateTask
+    # def update_task_ros_srv(self, req):
+    #     """update a task information in coordinator. updates come from CAR
+    #     through the serviceproxy in PickerStateMonitor.
+    #     """
+    #     logmsg(category="task", id=req.task.task_id, msg='new task_start_node %s' % req.task.start_node_id)
+    #
+    #     self.write_log({"action_type": "task_updates",
+    #                     "task_id": req.task.task_id,
+    #                     "details": "request to update task - %d is received. new task_start_node - %s" %(req.task.task_id, req.task.start_node_id),
+    #                     })
+    #     resp = rasberry_coordination.srv.UpdateTaskResponse()
+    #
+    #     # check task_id is in here
+    #     if req.task.task_id in self.completed_tasks:
+    #         resp.success = False
+    #         resp.message = "task %d is already completed" %(req.task.task_id)
+    #         logmsg(category="task", id=req.task.task_id, msg='failed to update task_start_node, task complete')
+    #
+    #     elif req.task.task_id in self.failed_tasks:
+    #         resp.success = False
+    #         resp.message = "task %d is already failed" %(req.task.task_id)
+    #         logmsg(category="task", id=req.task.task_id, msg='failed to update task_start_node, already failed')
+    #
+    #     elif req.task.task_id in self.cancelled_tasks:
+    #         resp.success = False
+    #         resp.message = "task %d is already cancelled" %(req.task.task_id)
+    #         logmsg(category="task", id=req.task.task_id, msg='failed to update task_start_node, already cancelled')
+    #
+    #     elif req.task.task_id in self.processing_tasks:
+    #         # task is being processed
+    #         # get the task_lock
+    #         for i in range(10):
+    #             locked = self.task_lock.acquire(False)
+    #             if locked:
+    #                 self.processing_tasks[req.task.task_id] = req.task
+    #                 robot.goal_node = req.task.start_node_id
+    #                 resp.success = True
+    #                 resp.message = "successfully updated task %d" %(req.task.task_id)
+    #                 self.trigger_replan = True
+    #                 logmsg(category="task", id=req.task.task_id, msg='task_start_node updated to node %s' % req.task.start_node_id)
+    #                 self.task_lock.release()
+    #                 break
+    #
+    #             else:
+    #                 rospy.sleep(0.05)
+    #
+    #                 if i == 9:
+    #                     resp.success = False
+    #                     resp.message = "Could not get the task lock"
+    #                     logmsg(category="task", id=req.task.task_id, msg='failed to update task_start_node, unable to get task_lock')
+    #
+    #     else:
+    #         # not yet taken up for processing
+    #         # get the task_lock
+    #         for i in range(10):
+    #             locked = self.task_lock.acquire(False)
+    #             if locked:
+    #                 #TASKTODO: idk? looks like it removes a given task?
+    #                 tasks = []
+    #                 while not rospy.is_shutdown():
+    #                     try:
+    #                         task_id, task = self.tasks.get(True, 1)
+    #                         if task_id == req.task.task_id:
+    #                             task = req.task
+    #                             logmsg(category="task", id=req.task.task_id, msg='updating task...')
+    #                             resp.success = True
+    #                             resp.message = "successfully updated task %d" %(req.task.task_id)
+    #                             logmsg(category="task", id=req.task.task_id, msg='task_start_node updated to node %s' % req.task.start_node_id)
+    #                             break # got it
+    #                         else:
+    #                             # hold on to the other tasks to be readded later
+    #                             tasks.append((task_id, task))
+    #                     except Queue.Empty:
+    #                         break
+    #                 # readd popped tasks
+    #                 for (task_id, task) in tasks:
+    #                     # put all retrieved tasks back in the queue
+    #                     self.tasks.put((task_id, task))
+    #                 self.task_lock.release()
+    #                 break
+    #
+    #             else:
+    #                 rospy.sleep(0.05)
+    #
+    #                 if i == 9:
+    #                     resp.success = False
+    #                     resp.message = "Could not get the task lock"
+    #                     logmsg(category="task", id=req.task.task_id, msg='failed to update task_start_node, unable to get task_lock')
+    #
+    #     self.write_log({"action_type": "update_task_ros_srv",
+    #                     "task_id": req.task.task_id,
+    #                     "details": resp.message
+    #                     })
+    #     return resp
+    #
+    # update_task_ros_srv.type = rasberry_coordination.srv.UpdateTask
 
     def connect_robot_ros_srv(self, req):
         """Add robot to system so the coordinator can see it.
@@ -603,6 +608,50 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
     unregister_robot_ros_srv.type = rasberry_coordination.srv.UnregisterRobot
 
+    # def unregister_cancel_robot_ros_srv(self, req):
+    #     logmsg(category="drm", id=req.robot_id, msg='unregistering from task allocation canceling any active tasks')
+    #
+    #     """ Return fail, if robot is not connected """
+    #     if req.robot_id not in self.robot_manager.agent_details:
+    #         return {'success':0, 'msg':'unregistration failed, robot is not connected'}
+    #
+    #     """ Identify robot in question """
+    #     robot = self.robot_manager.agent_details[req.robot_id]
+    #
+    #     """ Return success, if robot is already unregistered """
+    #     if not robot.registered:
+    #         return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
+    #
+    #     """ Cancel task and path """
+    #     robot.registered = False
+    #
+    #     """ Notify relevant picker """
+    #     if robot.task_stage in ["go_to_picker", "wait_loading"]:
+    #         remove(self.task_robot_id, robot.task_id)  # remove from the assigned robot
+    #         task = remove(self.processing_tasks, robot.task_id)  # remove from processing tasks
+    #         robot.goal_node = None
+    #         self.tasks.put((robot.task_id, task))
+    #
+    #         picker = self.picker_manager.get_picker(robot.task_id)
+    #         if picker:
+    #             picker.task_abandonded()
+    #
+    #     robot._end_task()
+    #     robot.robot_interface.cancel_execpolicy_goal()
+    #
+    #
+    #     """If robot is attempting to disconnect, allow it"""
+    #     if not robot.disconnect_when_idle:
+    #         robot.idle = False
+    #
+    #     """If robot is attempting to unregister, set to appear red"""
+    #     self.modify_robot_marker(req.robot_id, color='red')
+    #
+    #     """ Return success """
+    #     return {'success': 1, 'msg': 'robot has unregistered'}
+    #
+    # unregister_cancel_robot_ros_srv.type = rasberry_coordination.srv.UnregisterRobot
+
     def disconnect_robot_ros_srv(self, req):
         """Remove robot from system.
         Reject if robot_id is not listed as a visible robot.
@@ -707,14 +756,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                             "closest_node": robot.closest_node,
                             })
 
-    def find_closest_robot(self, task):
+    def find_closest_robot(self, location, priority):
         """find the robot closest to the task location (picker_node)
         # assign based on priority (0 - virtual pickers only, >=1 real pickers)
 
         Keyword arguments:
             task - strands_executive_msgs.Task
         """
-        goal_node = task.start_node_id
+        goal_node = location
         robot_dists = {}
 
         for robot_id in self.robot_manager.available_robots():
@@ -730,7 +779,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
             # ignore if the task priority is less than the min task priority for the robot
             # lower the value, higher the priority
-            if task.priority > robot.max_task_priority:
+            if priority > robot.max_task_priority:
                 continue
 
             # use current_node as start_node if available
@@ -764,68 +813,47 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         locked = self.task_lock.acquire(False)
 
         if locked:
-            # get all tasks from queue
-            tasks = []
-            while not rospy.is_shutdown():
-                try:
-                    task_id, task = self.tasks.get(True, 1)
-                    tasks.append((task_id, task))
-                except Queue.Empty:
-                    break
 
-            # high priority tasks first served
-            # among equal priority, first came first served
-            task_priorities = {}
-            for (task_id, task) in tasks:
-                if task.priority not in task_priorities:
-                    task_priorities[task.priority] = {task_id: task}
-                else:
-                    task_priorities[task.priority][task_id] = task
+            """ get list of unassigned tasks """
+            tasks = self.picker_manager.get_unassigned_tasks_ordered()
 
-            priorities = sorted(task_priorities.keys(), reverse=True) # higher priority first
-            for priority in priorities:
-                # try to get a robot for each task
-                task_ids = sorted(task_priorities[priority].keys()) # lower task_id first
-                for task_id in task_ids:
-                    task = task_priorities[priority][task_id]
-                    # among equal priority, first came first served
-                    robot_id = self.find_closest_robot(task)
-                    if robot_id is None:
-                        continue
-                    robot = self.robot_manager.agent_details[robot_id]
+            """ for each task, assign the most effective robot """
+            for task_id in tasks:
+                picker = self.picker_manager.get_task_handler(task_id)
 
-                    logmsg(category="robot", id=robot_id, msg='assigned task %s'%(task_id))
-                    logmsg(category="list", msg='interruptable robots: %s'%(str(self.robot_manager.interruptable_list())))
-                    logmsg(category="list", msg='idle robots: %s'%(str(self.robot_manager.idle_list())))
+                """ identify most promising robot """
+                robot_id = self.find_closest_robot(picker.task_location, picker.task_priority) #swap out to use picker.location
+                if robot_id is None:
+                    continue
+                robot = self.robot_manager.agent_details[robot_id]
 
-                    # trigger replan for any new assignment
-                    trigger_replan = True
-                    tasks.remove((task_id, task))
+                logmsg(category="robot", id=robot_id, msg='assigned task %s'%(task_id))
+                logmsg(category="list", msg='interruptable robots: %s'%(str(self.robot_manager.interruptable_list())))
+                logmsg(category="list", msg='idle robots: %s'%(str(self.robot_manager.idle_list())))
 
-                    #format robot details to begin new task (remove trace of any existing task)
-                    robot._begin_task(task_id)
+                """ enable planing for task """
+                trigger_replan = True
 
-                    self.processing_tasks[task_id] = task
-                    robot.goal_node = task.start_node_id
+                """ prepare robot to take task """
+                robot._begin_task(task_id)
 
-                    self.task_robot_id[task_id] = robot_id
+                # self.processing_tasks[task_id] = picker.task_backup
+                robot.goal_node = picker.task_location
 
-                    self.update_current_storage(robot_id)
+                # self.task_robot_id[task_id] = robot_id
 
-                    self.publish_task_state(task_id, robot_id, "ACCEPT")
+                self.update_current_storage(robot_id)
 
-                    self.write_log({"action_type": "robot_update",
-                                    "robot_task_stage": "go_to_picker_start",
-                                    "task_id": task_id,
-                                    "robot_id": robot_id,
-                                    "details": "to %s" %(task.start_node_id),
-                                    "current_node": robot.current_node,
-                                    "closest_node": robot.closest_node,
-                                    })
+                self.publish_task_state(task_id, robot_id, "ACCEPT")
 
-            # putting unassigned tasks back in the queue
-            for (task_id, task) in tasks:
-                self.tasks.put((task_id, task))
+                self.write_log({"action_type": "robot_update",
+                                "robot_task_stage": "go_to_picker_start",
+                                "task_id": task_id,
+                                "robot_id": robot_id,
+                                "details": "to %s" %(picker.task_location),
+                                "current_node": robot.current_node,
+                                "closest_node": robot.closest_node,
+                                })
 
             self.task_lock.release()
 
@@ -846,8 +874,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             robot.current_storage = self.cold_storage
         else:
             # get the closest local storage near the picker location
-            task = self.processing_tasks[robot.task_id]
-            picker_node = task.start_node_id
+            # task = self.processing_tasks[robot.task_id]
+            picker = self.picker_manager.get_task_handler(robot.task_id)
+            picker_node = picker.task_location
             min_dist = float("inf")
             for storage in self.local_storages:
                 _, _, dists = self.get_path_details(picker_node, storage)
@@ -861,7 +890,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         # move task from processing to completed
         task_id = robot.task_id
-        move(item=task_id, old=self.processing_tasks, new=self.completed_tasks)
+        # move(item=task_id, old=self.processing_tasks, new=self.completed_tasks)
+        self.completed_tasks.append(task_id)
         robot.goal_node = None
 
         # mark task as complete
@@ -876,7 +906,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def set_task_failed(self, task_id):
         """set task state as failed
         """
-        move(item=task_id, old=self.processing_tasks, new=self.failed_tasks)
+        # move(item=task_id, old=self.processing_tasks, new=self.failed_tasks)
+        self.failed_tasks.append(task_id)
         robot.goal_node = None
 
         self.write_log({"action_type": "task_update",
@@ -888,10 +919,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def publish_task_state(self, task_id, robot_id, state):
         """publish the state of task (or picker) in CAR
         """
-        self.task_state_msg.task_id = task_id
-        self.task_state_msg.robot_id = robot_id
-        self.task_state_msg.state = state
-        self.picker_task_updates_pub.publish(self.task_state_msg)
         self.picker_manager.task_updates(picker_id='',task_id=task_id,robot_id=robot_id,state=state)
         rospy.sleep(0.01)
 
@@ -906,27 +933,22 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         reassigned. so readd into the task queue.
         """
 
-        #if task_id not in self.task_robot_id:
-        #    logmsg(category="task", id=task_id, msg='task not added back to queue')
-        #    return
-        #else:
-        #    robot_id = self.task_robot_id[task_id]
-        robot_id = self.task_robot_id[task_id]
+        """ Identify handlers for task """
+        robot = self.robot_manager.get_task_handler(task_id)
+        picker = self.picker_manager.get_task_handler(task_id)
 
-        # this task should be readded to the queue if not cancelled by the picker !!!
-        if task_id in self.processing_tasks:
+        """ Readd task back to queue if not cancelled """
+        # if cancelled, no picker will be found by get task handler as cancelling task removes the task details
+        # if task_id in self.processing_tasks:
+        if picker: #TODO: this needs through testing
             logmsg(category="task", id=task_id, msg='picker still requires task completion, task added back to queue')
-            logmsg(category="robot", id=self.task_robot_id[task_id], msg='failed to reach picker')
+            logmsg(category="robot", id=robot.agent_id, msg='failed to reach picker')
 
-            remove(self.task_robot_id, task_id)  # remove from the assigned robot
-            task = remove(self.processing_tasks, task_id)  # remove from processing tasks
+            # remove(self.task_robot_id, task_id)  # remove from the assigned robot
+            # task = remove(self.processing_tasks, task_id)  # remove from processing tasks
             robot.goal_node = None
 
             self.publish_task_state(task_id, "", "ABANDONED")
-
-            self.tasks.put(
-                (task_id, task)
-            )
 
             self.write_log({"action_type": "task_update",
                             "task_updates": "readd_task",
@@ -980,7 +1002,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         if robot.task_stage == "go_to_picker":
                             # go_to_picker stage is finished
                             logmsg(category="robot", id=robot_id, msg='go_to_picker stage is finished')
-                            robot._finish_task_stage("go_to_picker")
+                            robot._finish_task_stage("go_to_picker") #TODO: replace all robot.finish_task_stage with more meaningful functions
 
                             self.publish_task_state(task_id, robot_id, "ARRIVED")
 
@@ -1036,38 +1058,43 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     # 1. LOADED from CAR
                     # 2. service call from active_compliance
                     # 3. delay (?)
-                    finish_waiting = False
-                    if robot.tray_loaded:
-                        finish_waiting = True
-                    elif False:
-                        #TODO: active compliance
-                        pass
-#                    elif rospy.get_rostime() - self.start_time[robot_id] > self.max_load_duration:
-#                        # delay
-#                        finish_waiting = True
-                    else:
-                        rospy.sleep(0.5)
 
-                    if finish_waiting:
-                        self.publish_task_state(task_id, robot_id, "LOADED")
-                        robot._finish_task_stage("wait_loading")
+                    # """ If wait timeout has expired abandon task? """
+                    # if rospy.get_rostime() - self.start_time[robot_id] > self.max_load_duration:
+                    #     finish_waiting = True
+                    #     self.publish_task_state(task_id, robot_id, "ABANDONED")
+                    #     robot._task_abandoned()
 
+                    """ Update task completeness of robot """
+                    picker = self.picker_manager.get_task_handler(robot.task_id)
+                    if picker and picker.task_stage in ["LOADED"]:
                         robot.tray_loaded = True
+
+                    """ If the robot has been loaded """
+                    if robot.tray_loaded:
+                        self.publish_task_state(task_id, robot_id, "LOADED")    #notify picker
+                        robot._finish_task_stage("wait_loading")                #notify robot
                         trigger_replan = True
+
+                        """ Release picker from task """
+                        if picker:
+                            picker.task_finished()
 
                 elif robot.task_stage == "wait_unloading":
-                    # if conditions satisfy, finish waiting
-                    # 1. delay
+                    # if conditions are satisfied, finish waiting
+
+                    """ If wait timeout has expired, complete task """
                     if rospy.get_rostime() - robot.start_time > self.max_unload_duration:
-                        # delay
+                        robot.tray_loaded = False
+                    # else:
+                    #     rospy.sleep(0.5)
+
+                    """ If the robot has been unloaded """
+                    if not robot.tray_loaded:
                         self.publish_task_state(task_id, robot_id, "DELIVERED")
+                        robot._finish_task_stage("wait_unloading")
 
-
-                        self.finish_task(robot_id)
                         trigger_replan = True
-
-                    else:
-                        rospy.sleep(0.5)
 
                 else:
                     # robot is waiting before a critical point
@@ -1169,9 +1196,10 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         while not rospy.is_shutdown():
             rospy.sleep(0.01)
 
-            # if there are tasks present and there are robots able to take them on
+            """ if there are unassigned tasks and there robots able to take them on """
             available_robots = self.robot_manager.available_robots()
-            if available_robots and not self.tasks.empty():
+            unassigned_tasks = self.picker_manager.unassigned_tasks()
+            if available_robots and unassigned_tasks:
                 logmsg(category="task", msg='unassigned task present, %s robots available' % (len(available_robots)))
                 logmsg(category="list", msg='available robots: %s' % (str(available_robots)))
                 # try to assign all tasks

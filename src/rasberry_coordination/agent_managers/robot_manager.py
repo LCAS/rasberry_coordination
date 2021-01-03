@@ -230,7 +230,7 @@ class RobotDetails(AgentDetails):
         self.start_time = Now()
         self._change_task_stage(self.task_stage_list.pop(0))
 
-    def _change_task_stage(self, stage):
+    def _change_task_stage(self, stage): #TODO: this if overengineered, unacceptable
         if self.task_stage == stage:
             return
         self.task_stage = stage

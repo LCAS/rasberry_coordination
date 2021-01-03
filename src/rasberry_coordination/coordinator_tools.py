@@ -13,6 +13,13 @@ def logmsgbreak():
     logmsg(category="null")
 
 def logmsg(level="info", category="OTHER", id="empty", msg=''):
+    quick_print = False
+    if quick_print:
+        if category == "null":
+            print("\n")
+            return
+        print(category + " | " + str(id) + " | " + msg)
+        return
     use_custom_formatting = True
     disable_ros_time_printout = True  # Can cause visual issues on console such as below:
     # [INFO] [1605509085.140152]: OTHER  | var: 1	#output as false

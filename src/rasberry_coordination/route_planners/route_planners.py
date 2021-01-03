@@ -22,6 +22,7 @@ class RouteFinder(object):
 
             planning_types[self.planning_type]()
 
+
         def find_routes(self):
             self.planner.find_routes()
 

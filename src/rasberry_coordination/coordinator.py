@@ -30,9 +30,7 @@ from rasberry_coordination.agent_managers.picker_manager import PickerManager
 class Coordinator(object):
     """Coordinator base class definition
     """
-    def __init__(self, robot_ids, picker_ids, virtual_picker_ids,
-                 ns="rasberry_coordination",
-                 is_parent=False):
+    def __init__(self, robot_ids, picker_ids, virtual_picker_ids, ns="rasberry_coordination", is_parent=False):
         """Initialise the base Coordinator class object.
 
         Keyword arguments:
@@ -71,12 +69,13 @@ class Coordinator(object):
             # this should only be called from the child class
             self.advertise_services()
 
+        #TASKTODO: not necessar here
         # don't queue more than 1000 tasks
-        self.tasks = Queue.PriorityQueue(maxsize=1000)
+        # self.tasks = Queue.PriorityQueue(maxsize=1000)
         self.last_id = 0
 
         self.all_task_ids = [] # list of all task_ids
-        self.processing_tasks = {} # {task_id:Task_definition}
+        # self.processing_tasks = {} # {task_id:Task_definition}
         self.completed_tasks = {} # {task_id:Task_definition}
         self.cancelled_tasks = {} # {task_id:Task_definition}
         self.failed_tasks = {} # {task_id:Task_definition}
@@ -92,6 +91,7 @@ class Coordinator(object):
         for picker in self.picker_manager.agent_details.values():
             if picker.picker_id in virtual_picker_ids:
                 picker.virtual = True
+                picker.task_priority = 0
         """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
         logmsg(msg='coordinator initialised')
@@ -102,107 +102,96 @@ class Coordinator(object):
         self.topo_map = msg
         self.rec_topo_map = True
 
-    def add_task_ros_srv(self, req):
-        """Template service definition to add a task into the task execution framework.
-        Extend as needed in a child class
-        """
-        self.last_id += 1
-        task_id = self.last_id
+    # def add_task_ros_srv(self, req):
+    #     """Template service definition to add a task into the task execution framework.
+    #     Extend as needed in a child class
+    #     """
+    #     self.last_id += 1
+    #     task_id = self.last_id
+    #
+    #     req.task.task_id = task_id
+    #     logmsg(category="task", id=str(req.task.task_id), msg='received task')
+    #
+    #     #TASKTODO: add task to relevant picker
+    #     self.tasks.put(
+    #         (task_id, req.task)
+    #     )
+    #     self.all_task_ids.append(task_id)
+    #     return task_id
+    #
+    # add_task_ros_srv.type = strands_executive_msgs.srv.AddTask
 
-        req.task.task_id = task_id
-        logmsg(category="task", id=str(req.task.task_id), msg='received task')
-
-        self.tasks.put(
-            (task_id, req.task)
-        )
-        self.all_task_ids.append(task_id)
-        return task_id
-
-    add_task_ros_srv.type = strands_executive_msgs.srv.AddTask
-
-    def cancel_task_ros_srv(self, req):
-        """Template service definition to cancel a task.
-        Extend as needed in a child class
-        """
-        cancelled = False
-        # Two scenarios:
-        # 1. task is already being processed
-        #    call the task action's cancel topic
-        # 2. task is still queued or is in processed (if allocated)
-        #    pop the task from the queue and add to cancelled
-        if req.task_id in self.all_task_ids:
-            if ((req.task_id in self.completed_tasks) or
-                  (req.task_id in self.cancelled_tasks)):
-                logmsg(level='error', category="task", id=req.task_id, msg='cancelled task is being cancelled, cancel_task_ros_srv cannot be in this condition')
-
-            elif req.task_id in self.processing_tasks:
-                # task is being processed. remove it
-                move(item=req.task_id, old=self.processing_tasks, new=self.cancelled_tasks)
-                # cancel goal of assigned robot and return it to its base
-                if req.task_id in self.task_robot_id:
-                    robot_id = self.task_robot_id[req.task_id]
-                    # call the task_action/cancel for the robot executing this task
-                    pass
-                logmsg(category="task", id=req.task_id, msg='task is being cancelled')
-                cancelled = True
-
-            else:
-                # not yet processed. get it out of tasks
-                tasks = []
-                while not rospy.is_shutdown():
-                    try:
-                        task_id, task = self.tasks.get(True, 1)
-                        if task_id == req.task_id:
-                            self.cancelled_tasks[task_id] = task
-                            logmsg(category="task", id=req.task_id, msg='cancelling task')
-
-                            break # got it
-                        else:
-                            # hold on to the other tasks to be readded later
-                            tasks.append((task_id, task))
-                    except Queue.Empty:
-                        break
-                # readd popped tasks
-                for (task_id, task) in tasks:
-                    self.tasks.put((task_id, task))
-
-                cancelled = True
-
-        else:
-            # invalid task_id
-            logmsg(level='error', category="task", id=req.task_id, msg='cancel_task invoked with invalid task_id')
-
-        return cancelled
-
-    cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
+    # def cancel_task_ros_srv(self, req):
+    #     """Template service definition to cancel a task.
+    #     Extend as needed in a child class
+    #     """
+    #     cancelled = False
+    #     # Two scenarios:
+    #     # 1. task is already being processed
+    #     #    call the task action's cancel topic
+    #     # 2. task is still queued or is in processed (if allocated)
+    #     #    pop the task from the queue and add to cancelled
+    #     if req.task_id in self.all_task_ids:
+    #         if ((req.task_id in self.completed_tasks) or
+    #               (req.task_id in self.cancelled_tasks)):
+    #             logmsg(level='error', category="task", id=req.task_id, msg='cancelled task is being cancelled, cancel_task_ros_srv cannot be in this condition')
+    #
+    #         elif req.task_id in self.processing_tasks:
+    #             # task is being processed. remove it
+    #             move(item=req.task_id, old=self.processing_tasks, new=self.cancelled_tasks)
+    #             # cancel goal of assigned robot and return it to its base
+    #             if req.task_id in self.task_robot_id:
+    #                 robot_id = self.task_robot_id[req.task_id]
+    #                 # call the task_action/cancel for the robot executing this task
+    #                 pass
+    #             logmsg(category="task", id=req.task_id, msg='task is being cancelled')
+    #             cancelled = True
+    #
+    #         else:
+    #             #TASKTODO: remove req.task_id from self.tasks
+    #             # not yet processed. get it out of tasks
+    #             tasks = []
+    #             while not rospy.is_shutdown():
+    #                 try:
+    #                     task_id, task = self.tasks.get(True, 1)
+    #                     if task_id == req.task_id:
+    #                         self.cancelled_tasks[task_id] = task
+    #                         logmsg(category="task", id=req.task_id, msg='cancelling task')
+    #
+    #                         break # got it
+    #                     else:
+    #                         # hold on to the other tasks to be readded later
+    #                         tasks.append((task_id, task))
+    #                 except Queue.Empty:
+    #                     break
+    #             # readd popped tasks
+    #             for (task_id, task) in tasks:
+    #                 self.tasks.put((task_id, task))
+    #
+    #             cancelled = True
+    #
+    #     else:
+    #         # invalid task_id
+    #         logmsg(level='error', category="task", id=req.task_id, msg='cancel_task invoked with invalid task_id')
+    #
+    #     return cancelled
+    #
+    # cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
 
     def all_tasks_info_ros_srv(self, req):
         """Get all tasks grouped into processing, failed, cancelled, unassigned and completed tasks.
         """
         resp = rasberry_coordination.srv.AllTasksInfoResponse()
         for task_id in self.processing_tasks:
-            resp.processing_tasks.append(self.processing_tasks[task_id])
+            resp.processing_tasks.append(self.picker_manager.format_task_obj(task_id=T))
         for task_id in self.failed_tasks:
             resp.failed_tasks.append(self.failed_tasks[task_id])
         for task_id in self.cancelled_tasks:
             resp.cancelled_tasks.append(self.cancelled_tasks[task_id])
         for task_id in self.completed_tasks:
             resp.completed_tasks.append(self.completed_tasks[task_id])
-
-        # unassigned tasks
-        # retrieve tasks from queue and put them back
-        tasks = []
-        while not rospy.is_shutdown():
-            try:
-                task_id, task = self.tasks.get(True, 1)
-                tasks.append((task_id, task))
-            except Queue.Empty:
-                break
-
-        for (task_id, task) in tasks:
-            resp.unassigned_tasks.append(task)
-            self.tasks.put((task_id, task))
-
+        for P in self.picker_manager.unassigned_tasks():
+            resp.unassigned_tasks.append(self.picker_manager.format_task_obj(picker_id=P))
         return resp
 
     all_tasks_info_ros_srv.type = rasberry_coordination.srv.AllTasksInfo
@@ -334,7 +323,8 @@ class Coordinator(object):
         robot = self.robot_manager.agent_details[robot_id]
         task_id = robot.task_id
         robot.task_id = None
-        move(item=task_id, old=self.processing_tasks, new=self.completed_tasks)
+        # move(item=task_id, old=self.processing_tasks, new=self.completed_tasks)
+        self.completed_tasks.add(task_id)
 
         # move robot from active to idle robots
         robot.idle = True
@@ -344,7 +334,8 @@ class Coordinator(object):
         """Template method to set task state as failed.
         Extend as needed in a child class
         """
-        move(item=task_id, old=self.processing_tasks, new=self.failed_tasks)
+        # move(item=task_id, old=self.processing_tasks, new=self.failed_tasks)
+        self.failed_tasks.add(task_id)
 
     def run(self):
         """Template main loop of the coordinator.
@@ -353,7 +344,10 @@ class Coordinator(object):
         while not rospy.is_shutdown():
             rospy.sleep(0.01)
 
-            if self.robot_manager.idle_robots_exist() and not self.tasks.empty():
+            """ if there are unassigned tasks and there robots able to take them on """
+            available_robots = self.robot_manager.available_robots()
+            unassigned_tasks = self.picker_manager.unassigned_tasks()
+            if available_robots and unassigned_tasks:
                 logmsg(msg='unassigned tasks present, number of idle robots: %d' % (len(self.robot_manager.idle_list())))
 
             # slow down the loop

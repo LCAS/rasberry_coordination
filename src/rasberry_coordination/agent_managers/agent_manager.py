@@ -32,8 +32,19 @@ class AgentManager(object):
         self.agent_details[agent_id]._remove()
         self.agent_details.pop(agent_id)
 
-    """Item retrieval objects (potentially slow so don't use unnecessarily)""" #https://stackoverflow.com/questions/12798653/does-setattr-and-getattr-slow-down-the-speed-dramatically
-    def get_list(self, list_id): #TODO: swap out to polymorphism
+    """ Get Task Handler """
+    def get_task_handler(self, task_id):
+        # print("TaskId: %s"%task_id)
+        # for A in self.agent_details.values():
+        #     print("%s,%s" % (A.task_id, A.agent_id))
+        handlers = [A for A in self.agent_details.values() if A.task_id == task_id]
+        # print(" ")
+        # print(str(handlers))
+        # print(" ")
+        return handlers[0] if handlers else None
+
+    """Item retrieval objects (slow so don't use unnecessarily)"""
+    def get_list(self, list_id):
         return [getattr(deets, list_id) for deets in self.agent_details.values()]
     def get(self, agent_id, item):
         return getattr(self.agent_details[agent_id], item)
@@ -53,6 +64,11 @@ class AgentManager(object):
 
 """Container for all functions related abstractly to the agent"""
 class AgentDetails(object):
+
+    def __repr__(self):
+        if self.agent_id.startswith("picker"):
+            return "Picker(\"%s\"|\"%s\"|\"%s\")" % (self.agent_id, self.current_node, self.task_stage)
+        return "Robot(\"%s\"|\"%s\"|\"%s\")" % (self.agent_id, self.current_node, self.task_stage)
 
     """Initialise all fields"""
     def __init__(self, ID, cb):
@@ -113,7 +129,7 @@ class AgentDetails(object):
             self.closest_node = None
 
     """return start node as current node, previous node or closest node"""
-    def _get_start_node(self):
+    def _get_start_node(self):  # When between nodes, the current node is None
         if self.current_node:
             return self.current_node
         elif self.previous_node:
@@ -127,7 +143,7 @@ class AgentDetails(object):
         self.closest_node_sub.unregister()
 
     """Monitoring"""
-    def __setattr__(self, key, value):
+    def __setattr__(self, key, value): #TODO: remove tomato placeholder
         if hasattr(self, key):
             val = getattr(self, key)
         else:
