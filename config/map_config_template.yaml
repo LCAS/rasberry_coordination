@@ -1,0 +1,47 @@
+#If updated, ensure simple_task_executor_node.py/validate_types() is updated accordingly
+version: 1.1.0   # This is the latest version ID
+use_sim: BOOLEAN # is this a simulated environment
+
+#TASKS
+active_tasks: # list of tasks active in the simulation
+  #- transportation
+  #- picking
+  #- uv_treatment
+  - none
+
+#TOPOLOGY
+base_station_nodes_pool: &base_stations_nodes_pool # potential base station locations
+  - NODE_ID
+wait_nodes_pool: *base_stations_nodes_pool # potential idle locations
+
+charging_station_nodes: # node the robots can use to charge their batteries
+  - NODE_ID
+
+local_storage_nodes: # node to collate the picked fruit
+  - NODE_ID
+
+use_cold_storage: BOOLEAN # is cold storage active
+cold_storage_node: NODE_ID/None # node to deposit the collated fruit
+
+#ROBOTS
+admissible_robot_ids: # robots allowed to register with simulation
+  - ROBOT_ID
+low_battery_voltage: FLOAT # battery_voltage threshold to set robot as unhealthy
+
+#PICKERS
+picker_ids: # valid picker ids within the simulation
+  - PICKER_ID
+virtual_picker_ids: # valid virtual picker ids within the simulation
+  - V_PICKER_ID
+
+#INITIALISATION
+spawn_list:
+  - default: null  #REQUIRED used to prevent errors when no robots are initialised
+  - robot_id: ROBOT_ID  # robots to initialise when simulation started
+    max_task_priority: INT  # max priority of task executable by the above robots
+    base_station_node: NODE  # location to launch the robots
+    wait_node: none/NODE  # node the robots can be idle at
+  - robot_id: ROBOT_ID
+    max_task_priority: INT
+    base_station_node: NODE
+    wait_node: none/NODE

@@ -14,9 +14,10 @@ import geometry_msgs.msg
 class PoseBaseFramePublisher(object):
     """
     """
-    def __init__(self, agent_name, pose_topic):
+    def __init__(self, agent_name, pose_topic, log=False):
         """
         """
+        self.log = log
         self.agent_name = agent_name
         self.pose_sub = rospy.Subscriber(pose_topic, geometry_msgs.msg.Pose, self.pose_cb)
         if agent_name == "":
@@ -26,6 +27,8 @@ class PoseBaseFramePublisher(object):
         self.tf_broadcaster = tf.TransformBroadcaster()
 
     def pose_cb(self, msg):
+        if self.log:
+            rospy.loginfo(msg.pose)
         self.tf_broadcaster.sendTransform((msg.position.x, msg.position.y, msg.position.z),
                                           (msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w),
                                           rospy.Time.now(),
@@ -36,9 +39,10 @@ class PoseBaseFramePublisher(object):
 class PoseStampedBaseFramePublisher(object):
     """
     """
-    def __init__(self, agent_name, posestamped_topic):
+    def __init__(self, agent_name, posestamped_topic, log=False):
         """
         """
+        self.log = log
         self.agent_name = agent_name
         self.pose_sub = rospy.Subscriber(posestamped_topic, geometry_msgs.msg.PoseStamped, self.pose_cb)
         if agent_name == "":
@@ -48,7 +52,8 @@ class PoseStampedBaseFramePublisher(object):
         self.tf_broadcaster = tf.TransformBroadcaster()
 
     def pose_cb(self, msg):
-        rospy.loginfo(msg.pose)
+        if self.log:
+            rospy.loginfo(msg.pose)
         self.tf_broadcaster.sendTransform((msg.pose.position.x, msg.pose.position.y, msg.pose.position.z),
                                           (msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w),
                                           rospy.Time.now(),

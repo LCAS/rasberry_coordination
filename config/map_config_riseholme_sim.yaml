@@ -1,21 +1,53 @@
-base_station_nodes: &id_base_stations
+version: 1.1.0
+use_sim: true  # is this a simulated environment
+
+#TASKS
+active_tasks: # list of tasks active in the simulation
+  - transportation
+  #- picking
+  #- uv_treatment
+
+#TOPOLOGY
+base_station_nodes_pool: &base_stations_nodes_pool # potential base station locations
   - WayPoint140
   - WayPoint141
-wait_nodes: *id_base_stations
-local_storage_nodes:
-  - WayPoint69
-cold_storage_node: None
-use_cold_storage: false
-charging_station_nodes:
+  - WayPoint142
+wait_nodes_pool: *base_stations_nodes_pool # potential idle locations
+
+charging_station_nodes: # node the robots can use to charge their batteries
   - WayPoint72
-robot_ids: 
+
+local_storage_nodes: # node to collate the picked fruit
+  - WayPoint69
+
+use_cold_storage: false # is cold storage active
+cold_storage_node: None # node to deposit the collated fruit
+
+#ROBOTS
+admissible_robot_ids: # robots allowed to register with simulation
   - thorvald_001
   - thorvald_002
-# max priority of task executable by the above robots
-max_task_priorities: 
-  - 255
-  - 255
-picker_ids:
+  - thorvald_003
+  - thorvald_004
+  - thorvald_005
+  - thorvald_006
+  - thorvald_007
+  - thorvald_008
+  - thorvald_009
+  - thorvald_010
+  - thorvald_011
+  - thorvald_012
+  - thorvald_013
+  - thorvald_014
+  - thorvald_015
+  - thorvald_016
+  - thorvald_017
+  - thorvald_018
+  - thorvald_019
+low_battery_voltage: 45.0 # battery_voltage threshold to set robot as unhealthy
+
+#PICKERS
+picker_ids: # valid picker ids within the simulation
   - picker01
   - picker02
   - picker03
@@ -26,7 +58,7 @@ picker_ids:
   - picker08
   - picker09
   - picker10
-virtual_picker_ids:
+virtual_picker_ids: # valid virtual picker ids within the simulation
   - picker101
   - picker102
   - picker103
@@ -37,7 +69,11 @@ virtual_picker_ids:
   - picker108
   - picker109
   - picker110
-# is this a simulated environment
-use_sim: true
-# if batter_voltage is below the given threshold, the robot is set as unfit. ignored for sim
-low_battery_voltage: 45.0
+
+#INITIALISATION
+spawn_list:  # robots to initialise when simulation started
+  - default: null  #REQUIRED
+  - robot_id: thorvald_001
+    base_station_node: WayPoint140
+  - robot_id: thorvald_002
+    base_station_node: WayPoint141

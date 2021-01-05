@@ -9,118 +9,159 @@ import rasberry_coordination.picker_state_monitor
 
 import rasberry_des.config_utils
 
+
+def validate_field(file, config, key, datatype, mandatory=False):
+    """
+    Validate the data type for a given field in the config against a given data type
+    """
+    if key not in config:
+        if mandatory:
+            raise Exception("Field '%s' is mandatory but missing in %s" % (key, file))
+        else:
+            return
+
+    typ = config[key].__class__
+    acc = str(datatype).replace("<type '", '').replace("'>", "")
+    if typ not in datatype:
+        raise Exception("Type error for field '%s' in %s, expected any of %s, received %s" % (key, file, acc, typ))
+
+
+def validate_types(file, config):
+    """
+    Validate the data type for each known field within the map config following the version 1.1.0 template
+    """
+
+    # Meta Fields
+    validate_field(file, config, mandatory=True, key='version', datatype=[str])
+
+    # Tasks Fields
+    validate_field(file, config, mandatory=True, key='active_tasks', datatype=[list, str])
+
+    # Topology Fields
+    validate_field(file, config, mandatory=True, key='base_station_nodes_pool', datatype=[list, str])
+    validate_field(file, config, mandatory=True, key='wait_nodes_pool', datatype=[list, str])
+    validate_field(file, config, mandatory=True, key='local_storage_nodes', datatype=[list, str])
+    validate_field(file, config, mandatory=True, key='use_cold_storage', datatype=[bool])
+    validate_field(file, config, mandatory=False, key='cold_storage_node', datatype=[list, str])
+    # ^ can swap cold_storage_node mandatory boolean to reference config['use_cold_storage']
+
+    # Robot Fields
+    validate_field(file, config, mandatory=True, key='admissible_robot_ids', datatype=[list, str])
+
+    # Picker Fields
+    validate_field(file, config, mandatory=True, key='picker_ids', datatype=[list, str])
+    validate_field(file, config, mandatory=False, key='virtual_picker_ids', datatype=[list, str])
+
+    # Initialisation Fields
+    validate_field(file, config, mandatory=True, key='spawn_list', datatype=[list])
+    for robot in config['spawn_list']:
+        if 'default' in robot:
+            continue
+        validate_field(file, robot, mandatory=True, key='robot_id', datatype=[str])
+        validate_field(file, robot, mandatory=False, key='max_task_priority', datatype=[int])
+        validate_field(file, robot, mandatory=True, key='base_station_node', datatype=[str])
+        validate_field(file, robot, mandatory=False, key='wait_node', datatype=[str])
+
+
 if __name__ == '__main__':
 
     if len(sys.argv) < 2:
-        print """not enough arguments are passed. correct usage is
-        rosrun rasberry_coordination simple_task_executor_node.py config_file.yaml
-        """
-    else:
-        config_file = sys.argv[1]
-        config_data = rasberry_des.config_utils.get_config_data(config_file)
-        config_keys = rasberry_des.config_utils.get_config_keys(config_file)
+        usage = "rosrun rasberry_coordination simple_task_executor_node.py config_file.yaml"
+        print("Not enough arguments passed. Correct usage is:\n\t"+usage)
+        exit()
 
-        # check for required parameters
-        req_params = ["base_station_nodes", "local_storage_nodes",
-                      "use_cold_storage",
-                      "charging_station_nodes", "robot_ids",
-                      "max_task_priorities", "picker_ids",
-                      "use_sim", "low_battery_voltage"]
+    config_file = sys.argv[1]
+    config_data = rasberry_des.config_utils.get_config_data(config_file)
+    config_keys = rasberry_des.config_utils.get_config_keys(config_file)
 
-        for key in config_keys:
-            if key in req_params:
-                req_params.remove(key)
+    # configuration file validation
+    template_location = "raspberry_coordination/config/map_config_template.yaml"
+    if "version" not in config_data:
+        raise Exception('\033[92m'+"Config outdated, update following: "+template+'\033[0m')
+    if config_data["version"] != "1.1.0":
+        print("Config version: "+config_data["version"])
+        raise Exception('\033[92m'+"Config outdated, update following: "+template+'\033[0m')
 
-        if len(req_params) != 0:
-            raise Exception("not all required keys are set in the config file")
-        elif config_data["robot_ids"].__class__ != list:
-            raise Exception("robot_ids should be a list in the config file")
-        elif len(config_data["robot_ids"]) == 0:
-            raise Exception("robot_ids should not be an empty list in the config file")
+    # Ensure all required fields are filled with the correct data types
+    validate_types(config_file, config_data)
 
-        _base_stations = config_data["base_station_nodes"] # list of base station nodes
-        if "wait_nodes" in config_keys:
-            _wait_nodes = config_data["wait_nodes"]# list of waiting nodes
-        else:
-            _wait_nodes = None
-        local_storages = config_data["local_storage_nodes"] # list of local storage nodes
-        # cold_storage_node
-        cold_storage = None
-        if "cold_storage_node" in config_data:
-            if config_data["cold_storage_node"].lower() != "none":
-                cold_storage = config_data["cold_storage_node"]
-        use_cold_storage = config_data["use_cold_storage"]
-        if use_cold_storage:
-            try:
-                assert cold_storage is not None
-            except AssertionError:
-                raise Exception("cold_storage cannot be None when use_cold_storage is True")
+    # Tasks
+    active_tasks = config_data["active_tasks"]
 
-        charging_nodes = config_data["charging_station_nodes"]
-        robot_ids = config_data["robot_ids"]
-        _max_task_priorities = config_data["max_task_priorities"]
-        use_sim = config_data["use_sim"]
-        # ignore low_battery_voltage for simulations
-        low_battery_voltage = config_data["low_battery_voltage"] if not use_sim else float("-inf")
+    # Topology
+    base_station_nodes_pool = config_data["base_station_nodes_pool"]
+    wait_nodes_pool = config_data["wait_nodes_pool"]
+    local_storage_nodes = config_data["local_storage_nodes"]
+    use_cold_storage = config_data['use_cold_storage']
+    cold_storage_node = None
+    if use_cold_storage:
+        if "cold_storage_node" not in config_data:
+            raise Exception("Cold storage node must be given if use_cold_storage is True.")
+        cold_storage_node = config_data["cold_storage_node"]
 
-        picker_ids = config_data["picker_ids"]
+    # Robots
+    admissible_robot_ids = config_data["admissible_robot_ids"]
 
-        virtual_picker_ids = []
-        if "virtual_picker_ids" in config_data:
-            virtual_picker_ids = config_data["virtual_picker_ids"]
+    # Pickers
+    picker_ids = config_data["picker_ids"]
+    virtual_picker_ids = []
+    if "virtual_picker_ids" in config_data:
+        virtual_picker_ids = config_data["virtual_picker_ids"]
 
-        if _base_stations.__class__ == str:
-            if len(robot_ids) > 1:
-                raise Exception("Not enough base stations (1) for %d robots!!!" %(len(robot_ids)))
-            base_stations = {robot_id:_base_stations for robot_id in robot_ids}
-        elif _base_stations.__class__ == list:
-            if len(_base_stations) != len(robot_ids):
-                raise Exception("Not enough base stations (%d) for %d robots!!!" %(len(_base_stations), len(robot_ids)))
-            base_stations = {robot_ids[i]:_base_stations[i] for i in range(len(robot_ids))}
+    # Robot Initialisation
+    robot_ids = []
+    base_stations = {}
+    wait_nodes = {}
+    max_task_priorities = {}
+    for robot in config_data['spawn_list']:
+        if 'default' in robot:
+            continue
+        # if wait node omitted copy base station, if "none" leave empty
+        if "wait_node" not in robot:
+            robot['wait_node'] = robot['base_station_node']
+        elif robot['wait_node'].lower() == "none":
+            robot['wait_node'] = None
 
-        if _wait_nodes is None:
-            wait_nodes = {robot_id:"none" for robot_id in robot_ids}
-        elif _wait_nodes.__class__ == str:
-            if len(robot_ids) > 1:
-                raise Exception("Not enough wait nodes (1) for %d robots!!!" %(len(robot_ids)))
-            wait_nodes = {robot_id:_wait_nodes for robot_id in robot_ids}
-        elif _wait_nodes.__class__ == list:
-            if len(_wait_nodes) != len(robot_ids):
-                raise Exception("Not enough base stations (%d) for %d robots!!!" %(len(_wait_nodes), len(robot_ids)))
-            wait_nodes = {robot_ids[i]:_wait_nodes[i] for i in range(len(robot_ids))}
+        # if max task priority omitted default at 255
+        if "max_task_priority" not in robot:
+            robot['max_task_priority'] = 255
 
-        if _max_task_priorities.__class__ == list:
-            if len(_max_task_priorities) != len(robot_ids):
-                raise Exception("Not enough min task priorities defined (%d) for %d robots!!!" %(len(_max_task_priorities), len(robot_ids)))
-            max_task_priorities = {robot_ids[i]:_max_task_priorities[i] for i in range(len(robot_ids))}
+        robot_ids.append(robot['robot_id'])
+        max_task_priorities[robot['robot_id']] = robot['max_task_priority']
+        base_stations[robot['robot_id']] = robot['base_station_node']
+        wait_nodes[robot['robot_id']] = robot['wait_node']
 
-        rospy.init_node('simple_task_coordinator', anonymous=False)
+    # initialise ROSNode
+    rospy.init_node('simple_task_coordinator', anonymous=False)
 
-        # initialise the coordinator and internally all robots
-        coordinator = rasberry_coordination.rasberry_coordinator.RasberryCoordinator(robot_ids=robot_ids,
-                                                          picker_ids=picker_ids,
-                                                          virtual_picker_ids=virtual_picker_ids,
-                                                          local_storages=local_storages,
-                                                          cold_storage=cold_storage,
-                                                          charging_nodes=charging_nodes,
-                                                          use_cold_storage=use_cold_storage,
-                                                          base_stations=base_stations,
-                                                          wait_nodes=wait_nodes,
-                                                          max_task_priorities=max_task_priorities,
-                                                          low_battery_voltage=low_battery_voltage,
-                                                          ns="rasberry_coordination")
+    # initialise the coordinator and internally all robots
+    coordinator = rasberry_coordination.rasberry_coordinator.RasberryCoordinator(
+                                                    robot_ids=robot_ids,
+                                                    picker_ids=picker_ids,
+                                                    virtual_picker_ids=virtual_picker_ids,
+                                                    local_storages=local_storage_nodes,
+                                                    cold_storage=cold_storage_node,
+                                                    use_cold_storage=use_cold_storage,
+                                                    base_stations=base_stations,
+                                                    wait_nodes=wait_nodes,
+                                                    max_task_priorities=max_task_priorities,
+                                                    admissible_robot_ids=admissible_robot_ids,
+                                                    active_tasks=active_tasks,
+                                                    base_station_nodes_pool=base_station_nodes_pool,
+                                                    wait_nodes_pool=wait_nodes_pool,
+                                                    ns="rasberry_coordination")
 
-        rospy.on_shutdown(coordinator.on_shutdown)
-        rospy.sleep(1) # give a second to let everything settle
+    rospy.on_shutdown(coordinator.on_shutdown)
+    rospy.sleep(1)  # give a second to let everything settle
 
-        # picker_monitor after coordinator
-        picker_monitor = rasberry_coordination.picker_state_monitor.PickerStateMonitor(picker_ids,
-                                                                                       virtual_picker_ids,
-                                                                                       ns="rasberry_coordination")
+    # picker_monitor after coordinator
+    picker_monitor = rasberry_coordination.picker_state_monitor.PickerStateMonitor(picker_ids,
+                                                                                   virtual_picker_ids,
+                                                                                   ns="rasberry_coordination")
 
-        rospy.on_shutdown(picker_monitor.on_shutdown)
-        rospy.sleep(1) # give a second to let everything settle
+    rospy.on_shutdown(picker_monitor.on_shutdown)
+    rospy.sleep(1) # give a second to let everything settle
 
-        coordinator.run()
+    coordinator.run()
 
-        rospy.spin()
+    rospy.spin()
