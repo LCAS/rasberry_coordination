@@ -13,6 +13,7 @@ from std_msgs.msg import String as Str
 from rasberry_coordination.agent_managers.agent_manager import AgentManager, AgentDetails
 from geometry_msgs.msg import PoseStamped
 from rasberry_coordination.msg import TasksDetails, TaskUpdates
+from rasberry_coordination.coordinator_tools import logmsg
 
 class PickerManager(AgentManager):
 
@@ -111,6 +112,7 @@ class PickerManager(AgentManager):
         # Load new task id onto picker
         if new_state == "CALLED":
             picker.task_id = self.new_task_id()
+            logmsg(category="task", id=picker.task_id, msg='task called by %s' % (picker.agent_id))
 
         # Every valid action must have a task_id by this point
         if not picker.task_id:
@@ -125,7 +127,7 @@ class PickerManager(AgentManager):
                    "INIT":      picker.task_canceled}    #
         actions[new_state]()
 
-    def new_task_id(self):
+    def new_task_id(self): #TODO: could add a tack lock here for safety?
         self.latest_task_id = self.latest_task_id+1
         return self.latest_task_id
 
@@ -154,28 +156,20 @@ class PickerDetails(AgentDetails):
         self.task_stage = None
         self.start_time = Now()
 
-        # """Picker State Monitor Details"""
-        # self.picker_posestamped = None
-        # self.picker_posestamped_sub = Sub("/%s/posestamped" % ID, PoseStamped, self.picker_posestamped_cb)
+        """Picker State Monitor Details""" #TODO: Find out if this is a necessary inclusion
+        self.posestamped = None
+        self.posestamped_sub = Sub("/%s/posestamped" % ID, PoseStamped, self.picker_posestamped_cb)
 
         """Picker information"""
         self.time_connected = Now()
         self.virtual = False
-
-        """Consistency verificaition"""
-        # Srv("rasberry_coordination/picker_manager/get_new_task_id", NewTask, self.get_new_task_id)
-        # def get_new_task_id(self, req):
-        #     resp = 1
-        #     self.max_task_id = self.max_task_id + 1
-        #     return resp
-        # self.get_new_task_id_srv = rospy.ServiceProxy('rasberry_coordination/picker_manager/get_new_task_id', NewTask)
 
         """ State Publisher """
         self.car_state_pub = rospy.Publisher("/car_client/set_states", Str, latch=True, queue_size=5)
 
     def _remove(self):
         super(PickerDetails, self)._remove()
-        self.picker_posestamped_sub.unregister()
+        self.posestamped_sub.unregister()
 
     """State Monitoring""" #TODO: simplify this and remove repeated lines
     def task_created(self): #called by picker
@@ -188,30 +182,34 @@ class PickerDetails(AgentDetails):
     def robot_arrived(self): #called by coordinator
         self.task_stage = "ARRIVED"
         self.start_time = Now()
-        self.set_picker_state("ARRIVED")#?
+        self.set_picker_state("ARRIVED")
     def robot_loaded(self): #called by picker
         self.task_stage = "LOADED"
         self.start_time = Now()
-        #need to let coordinator know robot can leave
+        #coordinator queries this task_stage to know when to let robot leave
     def task_finished(self): #called by coordinator
-        print("task finished")
         self.task_id = None
         self.task_stage = None
         self.start_time = Now()
         self.set_picker_state("INIT")
     def task_canceled(self): #called by picker
+        task_id = self.task_id
         self.task_id = None
         self.task_stage = None
         self.start_time = Now()
-        self.set_picker_state("INIT") #needs to tell coordinator that the robot doesnt need to come anymore
+        self.set_picker_state("INIT")
+        self.cb['task_cancelled'](task_id) #needs to tell coordinator that the robot doesnt need to come anymore
         #this one can maybe be avoided by making coordinator generate new list of tasks locally
     def task_abandonded(self): #courtesy call by coordinator
         self.task_created() #task cancelled by robot, reset to how it was before robot assigned
 
-
-
-    def set_picker_state(self, state):
+    """ Inform picker of given stage """
+    def set_picker_state(self, state):  #TODO: replace with KeyValuePair?
         msg = Str()
         msg.data = '{\"user\":\"%s\", \"state\": \"%s\"}' % (self.picker_id, state)
         self.car_state_pub.publish(msg)
 
+
+    """ Picker Location Pose """
+    def picker_posestamped_cb(self, msg):
+        self.posestamped = msg

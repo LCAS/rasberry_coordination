@@ -14,10 +14,11 @@ from rasberry_coordination.msg import KeyValuePair
 
 class diagnostic_printout:
     def __init__(self, agent_id, type):
+        self.circles = {}
         self.init_circles()
         self.type = type
-        self.agent_dict = {"agent_id":agent_id, "task_id":None, "task_stage":None,
-                           "current_node":None, "previous_node":None, "closest_node":None}
+        self.agent_dict = {"agent_id": agent_id, "task_id": None, "task_stage": None,
+                           "current_node": None, "previous_node": None, "closest_node": None}
         self.agent_cb = Sub('/rasberry_coordination/agent_monitor/'+agent_id, KeyValuePair, self.callback)
 
     def init_circles(self):
@@ -120,16 +121,17 @@ class diagnostic_printout:
         f8 = u"     ▀▀██████▀▀     "
         FULL = [f0, f1, f2, f3, f4, f5, f6, f7, f8]
 
-        self.circles = {"0/1": EMPTY, "1/5":FIFTH,  "1/4": QUATER,
-                                      "2/5":FIFTH2, "1/2": HALF,
-                                      "3/5":FIFTH3, "3/4": QUATER3,
-                                      "4/5":FIFTH4, "1/1":FULL}
+        self.circles = {"0/1": EMPTY, "1/5": FIFTH,  "1/4": QUATER,
+                                      "2/5": FIFTH2, "1/2": HALF,
+                                      "3/5": FIFTH3, "3/4": QUATER3,
+                                      "4/5": FIFTH4, "1/1": FULL}
 
     def callback(self, msg):
         print(msg)
         self.agent_dict[msg.key] = msg.value
-        printable_fields = ["agent_id","","task_id","task_stage","","current_node","previous_node","closest_node",""]
-        print("\n" * 80)  # dividor
+        printable_fields = ["agent_id", "", "task_id", "task_stage", "",
+                            "current_node", "previous_node", "closest_node", "registered"]
+        print("\n" * 80)  # divider
         circle = self.get_task_completion_percentage()
         for i, row in enumerate(circle):
             tag = printable_fields[i]
@@ -156,5 +158,5 @@ if __name__ == '__main__':
     rospy.init_node('agent_monitor_'+agent_id, anonymous=False)
 
     DP = diagnostic_printout(agent_id, type)
-
+    DP.callback(KeyValuePair('agent_id', agent_id))
     rospy.spin()

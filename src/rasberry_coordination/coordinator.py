@@ -83,7 +83,7 @@ class Coordinator(object):
         self.task_robot_id = {} # {task_id:robot_id} to track which robot is assigned to a task
 
         """Robot Detail Manage Initialisation"""
-        cb_dict = {'update_topo_map': None}
+        cb_dict = {'update_topo_map': None, 'task_cancelled': self.task_cancelled}
         self.robot_manager = RobotManager(cb_dict)
         self.robot_manager.add_agents(robot_ids)
         self.picker_manager = PickerManager(cb_dict)
@@ -320,7 +320,7 @@ class Coordinator(object):
             robot_id -- robot_id
         """
         # move task from processing to completed
-        robot = self.robot_manager.agent_details[robot_id]
+        robot = self.robot_manager[robot_id]
         task_id = robot.task_id
         robot.task_id = None
         # move(item=task_id, old=self.processing_tasks, new=self.completed_tasks)
@@ -336,6 +336,13 @@ class Coordinator(object):
         """
         # move(item=task_id, old=self.processing_tasks, new=self.failed_tasks)
         self.failed_tasks.add(task_id)
+
+    def task_cancelled(self, task_id):
+        """ On CAR call to cancel task, inform the assigned robot if there is one """
+        robot = self.robot_manager.get_task_handler(task_id)
+        if robot:
+            robot._cancel_task2()
+            robot._set_target_base()
 
     def run(self):
         """Template main loop of the coordinator.

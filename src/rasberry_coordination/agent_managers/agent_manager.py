@@ -21,7 +21,8 @@ class AgentManager(object):
     def __init__(self, callback_dict):
         self.cb = callback_dict
         self.agent_details = {}
-    
+
+
     """Add AgentDetails objects"""
     def add_agents(self, agent_id_list):
         for agent_id in agent_id_list:
@@ -34,14 +35,13 @@ class AgentManager(object):
 
     """ Get Task Handler """
     def get_task_handler(self, task_id):
-        # print("TaskId: %s"%task_id)
-        # for A in self.agent_details.values():
-        #     print("%s,%s" % (A.task_id, A.agent_id))
         handlers = [A for A in self.agent_details.values() if A.task_id == task_id]
-        # print(" ")
-        # print(str(handlers))
-        # print(" ")
         return handlers[0] if handlers else None
+    def __getitem__(self, item):
+        if item in self.agent_details:
+            return self.agent_details[item]
+        else:
+            return None
 
     """Item retrieval objects (slow so don't use unnecessarily)"""
     def get_list(self, list_id):
@@ -143,22 +143,17 @@ class AgentDetails(object):
         self.closest_node_sub.unregister()
 
     """Monitoring"""
-    def __setattr__(self, key, value): #TODO: remove tomato placeholder
+    def __setattr__(self, key, value):
+        val = None
         if hasattr(self, key):
             val = getattr(self, key)
-        else:
-            val = "tomato"
         super(AgentDetails, self).__setattr__(key, value)
-        if val != "tomato" and val != value:
+        if val != value:
             self.update_live_diagnostics(key, value)
 
     def update_live_diagnostics(self, key, value):
-        LD = KeyValuePair() #TODO, remove this and just format the object in the publisher
-        if key not in ["task_id","task_stage","current_node","previous_node","closest_node"]:
+        if key not in ["task_id","task_stage","current_node",
+                       "previous_node","closest_node","registered"]:
             return
-
-        LD.key = key
-        LD.value = str(value)
-        if hasattr(self, 'live_diagnostics_pub'):
-            self.live_diagnostics_pub.publish(LD)
-            # self.live_diagnostics_pub.publish({'key':key,'value':str(value)})
+        if hasattr(self, 'live_diagnostics_pub'): #TODO: probably a way to get rid of this
+            self.live_diagnostics_pub.publish(KeyValuePair(key, str(value)))

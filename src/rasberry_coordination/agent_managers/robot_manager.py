@@ -63,17 +63,17 @@ class RobotManager(AgentManager):
 
     """Commonly used actions which require exeptionally high speed"""
     def registered_robots(self): #TODO: swap out to polymorphism
-        return {deets.agent_id:deets.registered for deets in self.agent_details.values() if deets.registered}
+        return {robot.agent_id:robot.registered for robot in self.agent_details.values() if robot.registered}
     def registered_list(self): #TODO: swap out to polymorphism
-        return [deets.agent_id for deets in self.agent_details.values() if deets.registered]
+        return [robot.agent_id for robot in self.agent_details.values() if robot.registered]
     def idle_list(self):
-        return [deets.agent_id for deets in self.agent_details.values() if deets.idle is True]
+        return [robot.agent_id for robot in self.agent_details.values() if robot.idle is True]
     def moving_list(self):
-        return [deets.agent_id for deets in self.agent_details.values() if deets.moving is True]
+        return [robot.agent_id for robot in self.agent_details.values() if robot.moving is True]
     def active_list(self):
-        return [deets.agent_id for deets in self.agent_details.values() if deets.active is True]
+        return [robot.agent_id for robot in self.agent_details.values() if robot.active and not robot.paused]
     def interruptable_list(self):
-        return [deets.agent_id for deets in self.agent_details.values() if deets.interruptable is True]
+        return [robot.agent_id for robot in self.agent_details.values() if robot.interruptable is True]
     def idle_robots_exist(self):
         for robot in self.agent_details.values():
             if robot.idle:
@@ -89,17 +89,17 @@ class RobotManager(AgentManager):
 
 """Centralised container for all details pertaining to the robot"""
 class RobotDetails(AgentDetails):
-    def __init__(self, ID, cb):
+    def __init__(robot, ID, cb):
 
         """Initialise Fields in Parent Class"""
-        super(RobotDetails, self).__init__(ID, cb)
+        super(RobotDetails, robot).__init__(ID, cb)
 
         """Detail whether the robot is moving"""
-        self.idle = True
-        self.interruptable = False
-        self.has_toponav_goal = False
-        self.active = False
-        self.moving = False
+        robot.idle = True
+        robot.interruptable = False
+        robot.has_toponav_goal = False
+        robot.active = False
+        robot.moving = False
 
         """
         interruptable if (has_task and is_going_to_base) or (!has_task)
@@ -116,123 +116,145 @@ class RobotDetails(AgentDetails):
         """
 
         """Meta Management"""
-        self.robot_id = ID
-        self.disconnect_when_idle = False
-        self.registered = True
-        self.robot_interface = RobotInterface(ID)
+        robot.robot_id = ID
+        robot.robot_interface = RobotInterface(ID)
 
         """Task Details"""
-        self.task_id = None
-        self.goal_node = None
-        self.task_stage = None
-        self.task_stage_list = []
-        self.tray_loaded = False
-        self.start_time = Now()
+        robot.task_id = None
+        robot.goal_node = None
+        robot.task_stage = None
+        robot.task_stage_list = []
+        robot.tray_loaded = False
+        robot.start_time = Now()
 
         """Task Meta Details"""
-        self.max_task_priority = 255
-        self.admissible_tasks = [] #TODO: add admissible_tasks to robot details in map_config file
+        robot.max_task_priority = 255
+        robot.admissible_tasks = [] #TODO: add admissible_tasks to robot details in map_config file
         # this would be a good way to manage what robots should take on tasks
         # making use of a simple condtion to check if robot can do task X
 
         """Goal Definitions"""
-        self.start_node = None
-        self.current_storage = None
-        self.base_station = None
-        self.wait_node = None
+        robot.start_node = None
+        robot.current_storage = None
+        robot.base_station = None
+        robot.wait_node = None
 
         """Route Details"""
-        self.route = []
-        self.route_dists = []
-        self.route_edges = []
-        self.route_fragments = []
+        robot.route = []
+        robot.route_dists = []
+        robot.route_edges = []
+        robot.route_fragments = []
 
         """Notifications"""
-        self.no_route_found_notification = True
+        robot.no_route_found_notification = True
+
+        """Registration Details"""
+        robot.registered = True
+        robot.unregistration_type = None
+        robot.disconnect_when_idle = False
+        robot.paused = False
 
     """On Shutdown"""
-    def _remove(self):
-        super(RobotDetails, self)._remove()
+    def _remove(robot):
+        super(RobotDetails, robot)._remove()
 
     """return goal node as picker location, storage or base station"""
-    def _get_goal_node(self):
-        if self.task_stage == "go_to_picker":
-            return self.goal_node
-        elif self.task_stage == "go_to_storage":
-            return self.current_storage
-        elif self.task_stage == "go_to_base":
-            return self.base_station
+    def _get_goal_node(robot):
+        if robot.task_stage == "go_to_picker":
+            return robot.goal_node
+        elif robot.task_stage == "go_to_storage":
+            return robot.current_storage
+        elif robot.task_stage == "go_to_base":
+            return robot.base_station
 
     """State Changes"""
-    def _set_as_idle(self):
-        self.idle = True
-        self.moving = self.active = False
-        self.interruptable = False #not needed
+    def _set_as_idle(robot):
+        robot.idle = True
+        robot.moving = robot.active = False
+        robot.interruptable = False #not needed
+    def _begin_task(robot, task_id):
 
-    def _begin_task(self, task_id):
+        if robot.interruptable:
+            robot.robot_interface.cancel_execpolicy_goal()
+            robot._finish_task_stage("")
 
-        if self.interruptable:
-            self.robot_interface.cancel_execpolicy_goal()
-            self._finish_task_stage("")
+        robot.task_id = task_id
+        robot.task_stage_list = ["start_task", "go_to_picker", "wait_loading", "go_to_storage",
+                                 "wait_unloading", "go_to_base", None]
+        robot.idle = False
+        robot.active = True
+        robot.interruptable = False
+        #robot.moving = False
 
-        self.task_id = task_id
-        self.task_stage_list = ["start_task", "go_to_picker", "wait_loading", "go_to_storage",
-                                "wait_unloading", "go_to_base", None]
-        self.idle = False
-        self.active = True
-        self.interruptable = False
-        #self.moving = False
+        robot._finish_task_stage(robot.task_stage_list.pop(0))
+    def _end_task(robot):
+        robot.task_id = None
 
-        self._finish_task_stage(self.task_stage_list.pop(0))
+        if robot.registered:
+            robot.idle = True
 
-    def _end_task(self):
-        self.task_id = None
+        robot.active = False
+        robot.interruptable = False
+        #robot.moving = True
 
-        if self.registered:
-            self.idle = True
+        robot._change_task_stage(None)
+    def _tray_unloaded(robot):
+        robot.task_id = None
+        robot.tray_loaded = False
 
-        self.active = False
-        self.interruptable = False
-        #self.moving = True
+        robot.interruptable = True
+        robot.moving = False
+        #robot.moving = False
+        #robot.active = True
+        #robot.idle = False?
 
-        self._change_task_stage(None)
+        robot.current_storage = None
 
-    def _delivered_tray(self):
-        self.task_id = None
-        self.tray_loaded = False
+        robot._finish_task_stage("wait_unloading")
+    def _tray_loaded(robot):
+        robot.tray_loaded = True
+        robot._finish_task_stage("wait_loading")
+    def _set_target_base(robot):
+        robot.idle = False
+        robot.active = True
+        robot.interruptable = True
+        # robot.task_stage_list = [None, "go_to_base", None]
+        robot._change_task_stage("go_to_base")
 
-        self.interruptable = True
-        self.moving = False
-        #self.moving = False
-        #self.active = True
-        #self.idle = False?
+    def _finish_route_fragment(robot):
+        robot.moving = False
 
-        self.current_storage = None
-
-        self._finish_task_stage("wait_unloading")
-
-    def _set_target_base(self):
-        self.idle = False
-        self.active = True
-        self.interruptable = True
-        self._change_task_stage("go_to_base")
-
-    def _finish_route_fragment(self):
-        self.moving = False
-
-        self.route = []
-        self.route_fragments = []
-        self.robot_interface.execpolicy_result = None
-
-    def _finish_task_stage(self, state):
-        if self.task_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
-            self._finish_route_fragment()
-        self.start_time = Now()
-        self._change_task_stage(self.task_stage_list.pop(0))
-
-    def _change_task_stage(self, stage): #TODO: this if overengineered, unacceptable
-        if self.task_stage == stage:
+        robot.route = []
+        robot.route_fragments = []
+        robot.robot_interface.execpolicy_result = None
+    def _finish_task_stage(robot, state):
+        if robot.task_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
+            robot._finish_route_fragment()
+        robot.start_time = Now()
+        if len(robot.task_stage_list):
+            robot._change_task_stage(robot.task_stage_list.pop(0))
+    def _change_task_stage(robot, stage): #TODO: this if overengineered, unacceptable
+        if robot.task_stage == stage:
             return
-        self.task_stage = stage
+        robot.task_stage = stage
         logmsgbreak()
-        logmsg(category="robot", id=self.robot_id, msg='@ stage: %s' % (str(self.task_stage).upper()))
+        logmsg(category="robot", id=robot.robot_id, msg='@ stage: %s' % (str(robot.task_stage).upper()))
+
+    """ Registration Controls """
+    def _pause_task(robot):
+        robot.unregistration_type = "pause_task"
+        robot.robot_interface.cancel_execpolicy_goal()
+        robot.paused = True
+    def _unpause_task(robot):
+        robot.unregistration_type = None
+        robot.paused = False
+    def _cancel_task(robot):
+        robot.unregistration_type = "cancel_task"
+        robot._cancel_task2()
+    def _cancel_task2(robot):
+        robot.goal_node = None
+        robot._end_task()
+        robot.robot_interface.cancel_execpolicy_goal()
+
+        if not robot.disconnect_when_idle:
+            robot.idle = False
