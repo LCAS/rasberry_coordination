@@ -530,7 +530,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         """ Return fail, if robot is not connected or success, if robot is already registered """
         if not robot:
-            return {'success':0, 'msg':'registration failed, robot is not connected'}
+            return {'success': 0, 'msg': 'registration failed, robot is not connected'}
         elif robot.registered:
             return {'success': 1, 'msg': 'unregistration success, robot is already registered'}
 
@@ -1007,7 +1007,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     trigger_replan = True  # trigger replan as robot is being sent back to base
                     # robot failed execution sending to base
                     logmsg(category="task", id=task_id, msg='failed to complete task %s at stage %s'%(task_id, robot.task_stage))
-                    if robot.task_stage == "go_to_picker":
+                    if robot.task_stage == "go_to_picker" and robot.unregistration_type != "pause_task":  # TODO: join unregistration type query with "for robot_id in ..." loop
                         # task is good enough to be assigned to another robot
                         self.readd_task(task_id)
                         self.send_robot_to_base(robot_id)

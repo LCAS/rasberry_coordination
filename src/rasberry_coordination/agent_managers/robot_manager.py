@@ -251,7 +251,7 @@ class RobotDetails(AgentDetails):
     def _cancel_task(robot):
         robot.unregistration_type = "cancel_task"
         robot._cancel_task2()
-    def _cancel_task2(robot):
+    def _cancel_task2(robot):  # TODO: rename this
         robot.goal_node = None
         robot._end_task()
         robot.robot_interface.cancel_execpolicy_goal()
