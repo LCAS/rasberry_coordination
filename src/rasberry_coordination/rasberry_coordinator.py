@@ -612,8 +612,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         """ Return fail, if robot is not connected or success, if robot is already unregistered """
         if not robot:
-            return {'success':0, 'msg':'unregistration failed, robot is not connected'}
-        elif not robot.registered:
+            return {'success': 0, 'msg': 'unregistration failed, robot is not connected'}
+        elif not robot.registered:  # TODO: Add additional condition to cancel task if unregistered with 'pause_task'
             return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
         elif not robot.task_id:
             return self.unregister_robot_complete_task_ros_srv(req)
