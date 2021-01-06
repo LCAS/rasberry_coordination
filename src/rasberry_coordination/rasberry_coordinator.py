@@ -41,6 +41,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                  max_task_priorities,
                  admissible_robot_ids, active_tasks,
                  base_station_nodes_pool, wait_nodes_pool,
+                 max_load_duration, max_unload_duration,
                  ns="rasberry_coordination"):
         """initialise a RasberryCoordinator object
 
@@ -135,13 +136,13 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.advertise_services()
 
         # TaskUpdates msg object for reusing
-        self.task_state_msg = rasberry_coordination.msg.TaskUpdates()
+        # self.task_state_msg = rasberry_coordination.msg.TaskUpdates()
 
-        #TODO: these durations should come from a config
-        self.max_load_duration = rospy.Duration(secs=60)
-        self.max_unload_duration = rospy.Duration(secs=10)
 
-        self.picker_task_updates_pub = rospy.Publisher(self.ns+"task_updates", rasberry_coordination.msg.TaskUpdates, queue_size=5)
+        self.max_load_duration = max_load_duration
+        self.max_unload_duration = max_unload_duration
+
+        # self.picker_task_updates_pub = rospy.Publisher(self.ns+"task_updates", rasberry_coordination.msg.TaskUpdates, queue_size=5)
 
         logmsg(msg='coordinator initialised')
 
@@ -586,7 +587,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         """ Return fail, if robot is not connected or success, if robot is already unregistered """
         if not robot:
-            return {'success':0, 'msg':'unregistration failed, robot is not connected'}
+            return {'success': 0, 'msg': 'unregistration failed, robot is not connected'}
         elif not robot.registered:
             return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
 
@@ -1274,15 +1275,15 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     #     logmsg(category="exec", id=robot_id, msg='defining empty execpolicy_goal as %s'%(goal))
     #     self.robot_manager[robot_id].robot_interface.set_execpolicy_goal(goal)self.cb['update_topo_map']self.cb['update_topo_map']
 
-    def run(self):
+    def run(self, details):
         """the main loop of the coordinator
         """
         routing_cb = {'publish_task_state': self.publish_task_state,
                       'send_robot_to_base': self.send_robot_to_base}
-        self.route_finder = RouteFinder(planning_type='fragment_planner',
+        self.route_finder = RouteFinder(planning_type=details['planning_type'],
                                        robots=self.robot_manager,
                                        pickers=self.picker_manager,
-                                       callbacks=routing_cb)  # TODO: planning_type from map_config?
+                                       callbacks=routing_cb)
 
         while not rospy.is_shutdown():
             rospy.sleep(0.01)

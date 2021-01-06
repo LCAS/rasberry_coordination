@@ -26,7 +26,7 @@ class RouteFinder(object):
         def find_routes(self):
             self.planner.find_routes()
 
-        def fragment_planner(self):
+        def fragment_planner(self): #TODO: add direct object creation in __init__
             self.planner = FragmentPlanner(self.robot_manager, self.picker_manager, self.callbacks)
 
         def crh_star(self):

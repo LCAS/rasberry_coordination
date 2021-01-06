@@ -41,7 +41,6 @@ class FragmentPlanner(object):
 
         self.task_lock = threading.Lock()
 
-
     def _map_cb(self, msg):
         """This function receives the Topological Map
         """

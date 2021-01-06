@@ -23,7 +23,7 @@ class RobotManager(AgentManager):
         super(RobotManager, self).__init__(callback_dict)
         self.dump_cb = Sub("rasberry_coordination/robot_manager/dump", Str, self.dump_details)
         Srv("rasberry_coordination/get_robot_state", RobotState, self.get_robot_state_ros_srv)
-        Srv("rasberry_coordination/get_robot_states", RobotStates, self.get_robot_states_ros_srv)
+        Srv("rasberry_coordination/get_robot_states", RobotStates, self.get_robot_states_ros_srv)  # TODO: one not needed
 
     """Add Robot Details Objects"""
     def add_agent(self, agent_id):

@@ -149,11 +149,15 @@ if __name__ == '__main__':
                                                     active_tasks=active_tasks,
                                                     base_station_nodes_pool=base_station_nodes_pool,
                                                     wait_nodes_pool=wait_nodes_pool,
+                                                    max_load_duration=rospy.Duration(secs=60), #TODO: move these to the map_config
+                                                    max_unload_duration=rospy.Duration(secs=10),
                                                     ns="rasberry_coordination")
 
     rospy.on_shutdown(coordinator.on_shutdown)
     rospy.sleep(1)  # give a second to let everything settle
 
-    coordinator.run()
+    # Run the coordinator
+    details = {'planning_type': 'fragment'} #TODO: move this to the map config
+    coordinator.run(details)
 
     rospy.spin() #TODO: is this necessary?
