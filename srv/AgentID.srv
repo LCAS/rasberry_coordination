@@ -1,5 +1,5 @@
-# Name of the robot to remove from the system.
-string robot_id
+# Name of the agent to identify to the system
+string agent_id
 ---
 # State of result (0=fail,1=success)
 bool success

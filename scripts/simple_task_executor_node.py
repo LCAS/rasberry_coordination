@@ -36,6 +36,8 @@ def validate_types(file, config):
 
     # Tasks Fields
     validate_field(file, config, mandatory=True, key='active_tasks', datatype=[list, str])
+    validate_field(file, config, mandatory=True, key='max_load_duration', datatype=[int])
+    validate_field(file, config, mandatory=True, key='max_unload_duration', datatype=[int])
 
     # Topology Fields
     validate_field(file, config, mandatory=True, key='base_station_nodes_pool', datatype=[list, str])
@@ -47,6 +49,9 @@ def validate_types(file, config):
 
     # Robot Fields
     validate_field(file, config, mandatory=True, key='admissible_robot_ids', datatype=[list, str])
+
+    # Routing Fields
+    validate_field(file, config, mandatory=True, key='planning_type', datatype=[str])
 
     # Picker Fields
     validate_field(file, config, mandatory=True, key='picker_ids', datatype=[list, str])
@@ -87,6 +92,8 @@ if __name__ == '__main__':
 
     # Tasks
     active_tasks = config_data["active_tasks"]
+    max_load_duration = config_data["max_load_duration"]
+    max_unload_duration = config_data["max_unload_duration"]
 
     # Topology
     base_station_nodes_pool = config_data["base_station_nodes_pool"]
@@ -98,6 +105,9 @@ if __name__ == '__main__':
         if "cold_storage_node" not in config_data:
             raise Exception("Cold storage node must be given if use_cold_storage is True.")
         cold_storage_node = config_data["cold_storage_node"]
+
+    # Routing
+    planning_type = config_data["planning_type"]
 
     # Robots
     admissible_robot_ids = config_data["admissible_robot_ids"]
@@ -137,27 +147,26 @@ if __name__ == '__main__':
     # initialise the coordinator and internally all robots
     coordinator = rasberry_coordination.rasberry_coordinator.RasberryCoordinator(
                                                     robot_ids=robot_ids,
-                                                    picker_ids=picker_ids,
+                                                    picker_ids=picker_ids, #TODO: rename to admissible_picker_ids
                                                     virtual_picker_ids=virtual_picker_ids,
                                                     local_storages=local_storage_nodes,
                                                     cold_storage=cold_storage_node,
-                                                    use_cold_storage=use_cold_storage,
-                                                    base_stations=base_stations,
+                                                    use_cold_storage=use_cold_storage, #TODO: remove this and query is cold_storage is None
+                                                    base_stations=base_stations, #TODO: remove this and initialise with robot details dicts
                                                     wait_nodes=wait_nodes,
                                                     max_task_priorities=max_task_priorities,
                                                     admissible_robot_ids=admissible_robot_ids,
                                                     active_tasks=active_tasks,
                                                     base_station_nodes_pool=base_station_nodes_pool,
                                                     wait_nodes_pool=wait_nodes_pool,
-                                                    max_load_duration=rospy.Duration(secs=60), #TODO: move these to the map_config
-                                                    max_unload_duration=rospy.Duration(secs=10),
+                                                    max_load_duration=rospy.Duration(secs=max_load_duration),
+                                                    max_unload_duration=rospy.Duration(secs=max_unload_duration),
                                                     ns="rasberry_coordination")
 
     rospy.on_shutdown(coordinator.on_shutdown)
     rospy.sleep(1)  # give a second to let everything settle
 
     # Run the coordinator
-    details = {'planning_type': 'fragment'} #TODO: move this to the map config
-    coordinator.run(details)
+    coordinator.run(planning_type=planning_type)
 
     rospy.spin() #TODO: is this necessary?

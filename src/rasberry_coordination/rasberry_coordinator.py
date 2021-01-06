@@ -464,62 +464,49 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         or if the robot is already visible...
         or if there is no base_station available.
         """
-        logmsg(category="drm", id=req.robot_id, msg='connecting to system')
-        resp = rasberry_coordination.srv.ConnectRobotResponse()
+        logmsg(category="drm", id=req.agent_id, msg='connecting to system')
 
-        if req.robot_id not in self.admissible_robot_ids:
-            logmsg(level="warn", category="drm", id=req.robot_id, msg='connection failed, robot not in admissible_robot_ids')
+        if req.agent_id not in self.admissible_robot_ids:
+            logmsg(level="warn", category="drm", id=req.agent_id, msg='connection failed, robot not in admissible_robot_ids')
             logmsg(category="drm", msg='admissible robots: ' + ', '.join(self.admissible_robot_ids))
-            resp.success = 0
-            resp.msg = 'robot not in admissible_robot_ids'
-            return resp
+            return {'success': 0, 'msg': 'robot not in admissible_robot_ids'}
 
         elif not any([task in self.active_tasks for task in req.tasks]):
-            logmsg(level="warn", category="drm", id=req.robot_id, msg='connection failed, given tasks are not active in system')
+            logmsg(level="warn", category="drm", id=req.agent_id, msg='connection failed, given tasks are not active in system')
             logmsg(category="drm", msg='active tasks: ' + ', '.join(self.active_tasks))
-            resp.success = 0
-            resp.msg = 'given tasks are not active in system'
-            return resp
+            return {'success': 0, 'msg': 'given tasks are not active in system'}
 
-        elif req.robot_id in self.robot_manager.agent_details:
-            logmsg(level="warn", category="drm", id=req.robot_id, msg='connection failed, robot already connected')
+        elif req.agent_id in self.robot_manager.agent_details:
+            logmsg(level="warn", category="drm", id=req.agent_id, msg='connection failed, robot already connected')
             logmsg(category="drm", msg='connected robots: ' + ', '.join(self.robot_manager.agent_details.keys()))
 
-            robot = self.robot_manager[req.robot_id]
+            robot = self.robot_manager[req.agent_id]
             if req.register and not robot.registered:
-                logmsg(level="warn", category="drm", id=req.robot_id, msg='robot no longer pending to unregister')
+                logmsg(level="warn", category="drm", id=req.agent_id, msg='robot no longer pending to unregister')
                 self.register_robot_ros_srv(req)
-                self.modify_robot_marker(req.robot_id, color='no_color')
-                resp.success = 1
-                resp.msg = 'robot already connected, no longer pending to unregister'
-                return resp
+                self.modify_robot_marker(req.agent_id, color='no_color')
+                return {'success': 1, 'msg': 'robot already connected, no longer pending to unregister'}
             else:
-                resp.success = 0
-                resp.msg = 'robot already connected'
-                return resp
+                return {'success': 1, 'msg': 'robot already connected'}
 
         elif len(self.available_base_stations) < 1:
-            logmsg(level="warn", category="drm", id=req.robot_id, msg='connection failed, no base stations available')
+            logmsg(level="warn", category="drm", id=req.agent_id, msg='connection failed, no base stations available')
             logmsg(category="drm", msg='base stations in use: ' + ', '.join(self.robot_manager.get_list('base_station')))
-            resp.success = 0
-            resp.msg = 'no base stations available'
-            return resp
+            return {'success': 0, 'msg': 'no base stations available'}
 
-        self.connect_robot(req.robot_id)
+        self.connect_robot(req.agent_id)
         if req.register:
             self.register_robot_ros_srv(req)
-            self.modify_robot_marker(req.robot_id, color='no_color')
+            self.modify_robot_marker(req.agent_id, color='no_color')
         else:
-            self.modify_robot_marker(req.robot_id, color='red')
+            self.modify_robot_marker(req.agent_id, color='red')
 
         # send success response to service
-        resp.success = 1
-        resp.msg = 'robot successfully connected'
-        return resp
+        return {'success': 1, 'msg': 'robot successfully connected'}
 
-    connect_robot_ros_srv.type = rasberry_coordination.srv.ConnectRobot
+    connect_robot_ros_srv.type = rasberry_coordination.srv.ConnectAgent
 
-    def connect_robot(self, robot_id, max_task_priority=255):
+    def connect_robot(self, robot_id):
         self.robot_manager.add_agent(robot_id)
         robot = self.robot_manager[robot_id]
         robot.registered = False
@@ -538,8 +525,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         Reject if the robot_id is listed as a registered robot...
         but only if it is not planned for unregistration.
         """
-        logmsg(category="drm", id=req.robot_id, msg='registering for task allocation')
-        robot = self.robot_manager[req.robot_id]
+        logmsg(category="drm", id=req.agent_id, msg='registering for task allocation')
+        robot = self.robot_manager[req.agent_id]
 
         """ Return fail, if robot is not connected or success, if robot is already registered """
         if not robot:
@@ -572,18 +559,29 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         """Resister robot, change visual to appear without color modifier, return success"""
         robot.registered = True
-        self.modify_robot_marker(req.robot_id, color='no_color')
-        return  {'success': 1, 'msg': 'robot has registered'}
+        self.modify_robot_marker(req.agent_id, color='no_color')
+        return {'success': 1, 'msg': 'robot has registered'}
 
-    register_robot_ros_srv.type = rasberry_coordination.srv.RegisterRobot
+    register_robot_ros_srv.type = rasberry_coordination.srv.AgentID
 
     def unregister_robot_ros_srv(self, req):
+        actions = {'complete_task': self.unregister_robot_complete_task_ros_srv,
+                   'pause_task': self.unregister_robot_pause_task_ros_srv,
+                   'cancel_task': self.unregister_robot_cancel_task_ros_srv}
+        if req.action in actions:
+            return actions[req.action](req)
+            # return actions[req.action]({'agent_id': req.agent_id})
+        return {'success': 0, 'msg': 'action "%s" not acceptable' % str(req.action)}
+
+    unregister_robot_ros_srv.type = rasberry_coordination.srv.UnregisterAgent
+
+    def unregister_robot_complete_task_ros_srv(self, req):
         """Prevent robot from accepting tasks and set to unregister when its current task completed
         Reject if robot_id is not listed as an registered robot...
         or if the robot is already planned for unregistration.
         """
-        logmsg(category="drm", id=req.robot_id, msg='unregistering from task allocation')
-        robot = self.robot_manager[req.robot_id]
+        logmsg(category="drm", id=req.agent_id, msg='unregistering from task allocation')
+        robot = self.robot_manager[req.agent_id]
 
         """ Return fail, if robot is not connected or success, if robot is already unregistered """
         if not robot:
@@ -603,14 +601,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         """If robot is attempting to unregister, set to appear red"""
         robot.registered = False
-        self.modify_robot_marker(req.robot_id, color='red')
+        self.modify_robot_marker(req.agent_id, color='red')
         return {'success': 1, 'msg': 'robot has unregistered'}
 
-    unregister_robot_ros_srv.type = rasberry_coordination.srv.UnregisterRobot
+    unregister_robot_complete_task_ros_srv.type = rasberry_coordination.srv.AgentID
 
-    def unregister_cancel_robot_ros_srv(self, req):
-        logmsg(category="drm", id=req.robot_id, msg='unregistering from task allocation canceling any active tasks')
-        robot = self.robot_manager[req.robot_id]
+    def unregister_robot_cancel_task_ros_srv(self, req):
+        logmsg(category="drm", id=req.agent_id, msg='unregistering from task allocation canceling any active tasks')
+        robot = self.robot_manager[req.agent_id]
 
         """ Return fail, if robot is not connected or success, if robot is already unregistered """
         if not robot:
@@ -618,7 +616,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         elif not robot.registered:
             return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
         elif not robot.task_id:
-            return self.unregister_robot_ros_srv(req)
+            return self.unregister_robot_complete_task_ros_srv(req)
 
         """ Notify relevant picker """
         if robot.task_stage in ["go_to_picker", "wait_loading"]:
@@ -629,14 +627,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         robot.registered = False
 
         """ Set to appear red and return success"""
-        self.modify_robot_marker(req.robot_id, color='red')
+        self.modify_robot_marker(req.agent_id, color='red')
         return {'success': 1, 'msg': 'robot has unregistered'}
 
-    unregister_cancel_robot_ros_srv.type = rasberry_coordination.srv.UnregisterRobot
+    unregister_robot_cancel_task_ros_srv.type = rasberry_coordination.srv.AgentID
 
-    def unregister_pause_robot_ros_srv(self, req):
-        logmsg(category="drm", id=req.robot_id, msg='unregistering from task allocation pausing active tasks')
-        robot = self.robot_manager[req.robot_id]
+    def unregister_robot_pause_task_ros_srv(self, req):
+        logmsg(category="drm", id=req.agent_id, msg='unregistering from task allocation pausing active tasks')
+        robot = self.robot_manager[req.agent_id]
 
         """ Return fail, if robot is not connected or success, if robot is already unregistered """
         if not robot:
@@ -644,55 +642,44 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         elif not robot.registered:
             return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
         elif not robot.task_id:
-            return self.unregister_robot_ros_srv(req)
+            return self.unregister_robot_complete_task_ros_srv(req)
 
         """ Set to appear red and return success"""
         robot._pause_task()
         robot.registered = False
-        self.modify_robot_marker(req.robot_id, color='red')
+        self.modify_robot_marker(req.agent_id, color='red')
         return {'success': 1, 'msg': 'robot has unregistered'}
 
-    unregister_pause_robot_ros_srv.type = rasberry_coordination.srv.UnregisterRobot
+    unregister_robot_pause_task_ros_srv.type = rasberry_coordination.srv.AgentID
 
     def disconnect_robot_ros_srv(self, req):
         """Remove robot from system.
         Reject if robot_id is not listed as a visible robot.
         Unregister if required.
         """
-        logmsg(category="drm", id=req.robot_id, msg='disconnecting from system')
-        resp = rasberry_coordination.srv.DisconnectRobotResponse()
+        logmsg(category="drm", id=req.agent_id, msg='disconnecting from system')
 
         """Check if robot exists"""
-        if req.robot_id not in self.robot_manager.agent_details:
-            logmsg(level="warn", category="drm", id=req.robot_id, msg='disconnection failed, robot is not currently connected')
+        if req.agent_id not in self.robot_manager.agent_details:
+            logmsg(level="warn", category="drm", id=req.agent_id, msg='disconnection failed, robot is not connected')
             logmsg(category="drm", msg='connected robots: ' + ', '.join(self.robot_manager.agent_details.keys()))
-            resp.success = 0
-            resp.msg = 'disconnection failed, robot is not currently connected'
-            return resp
+            return {'success': 1, 'msg': 'disconnection success, robot is already not connected'}
 
-        """Identify robot"""
-        robot = self.robot_manager[req.robot_id]
-
-        """Mark robot as attepting to disconnect"""
+        """Identify robot and mark as attempting to disconnect"""
+        robot = self.robot_manager[req.agent_id]
         robot.disconnect_when_idle = True
 
         """Unregister robot if registered"""
         if robot.registered:
-            self.unregister_robot_ros_srv(req)
+            self.unregister_robot_complete_task_ros_srv(req)
 
         """If the robot is idle, disconnect it"""
-        if robot.idle:
+        if robot.idle:  # TODO: swap out to query if has task_stage
             self.disconnect_robot(robot.robot_id)
-            resp.success = 1
-            resp.msg = 'robot successfully disconnected'
-            return resp
+            return {'success': 1, 'msg': 'robot successfully disconnected'}
+        return {'success': 1, 'msg': 'robot set to disconnect on task completion'}
 
-        #Set robot to disconnect once it has completed its task
-        resp.success = 1
-        resp.msg = 'robot set to disconnect on task completion'
-        return resp
-
-    disconnect_robot_ros_srv.type = rasberry_coordination.srv.DisconnectRobot
+    disconnect_robot_ros_srv.type = rasberry_coordination.srv.AgentID
 
     def disconnect_robot(self, robot_id):
         """remove all record of the robot being a member of the system
@@ -1196,7 +1183,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
     """
 
-
     def set_execute_policy_routes(self, ):
         """find connecting edges for each fragment in route_fragments and set
         the corresponding route object (with source and edge_id)
@@ -1275,15 +1261,15 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     #     logmsg(category="exec", id=robot_id, msg='defining empty execpolicy_goal as %s'%(goal))
     #     self.robot_manager[robot_id].robot_interface.set_execpolicy_goal(goal)self.cb['update_topo_map']self.cb['update_topo_map']
 
-    def run(self, details):
+    def run(self, planning_type='fragment_planner'):
         """the main loop of the coordinator
         """
         routing_cb = {'publish_task_state': self.publish_task_state,
                       'send_robot_to_base': self.send_robot_to_base}
-        self.route_finder = RouteFinder(planning_type=details['planning_type'],
-                                       robots=self.robot_manager,
-                                       pickers=self.picker_manager,
-                                       callbacks=routing_cb)
+        self.route_finder = RouteFinder(planning_type=planning_type,
+                                        robots=self.robot_manager,
+                                        pickers=self.picker_manager,
+                                        callbacks=routing_cb)
 
         while not rospy.is_shutdown():
             rospy.sleep(0.01)

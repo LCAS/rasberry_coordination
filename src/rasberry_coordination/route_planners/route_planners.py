@@ -10,26 +10,25 @@ from rasberry_coordination.agent_managers.picker_manager import PickerManager
 
 from rasberry_coordination.route_planners.fragment_planner import FragmentPlanner
 
-class RouteFinder(object):
+
+class RouteFinder(object):  # TODO: investigate use of static class (return planner obj from __init__ instead of self)
         def __init__(self, planning_type, robots, pickers, callbacks):
-            self.planning_type = planning_type               #could do static class or pre_init?
+            self.planning_type = planning_type
             self.robot_manager = robots
             self.picker_manager = pickers
             self.callbacks = callbacks
 
-            planning_types = {'fragment_planner':self.fragment_planner,
-                              'crh_star':self.crh_star}
-
-            planning_types[self.planning_type]()
-
+            planning_types = {'fragment_planner': self.fragment_planner,
+                              'alternative_planner': self.alternative_planner}
+            self.planner = planning_types[self.planning_type]()
 
         def find_routes(self):
             self.planner.find_routes()
 
-        def fragment_planner(self): #TODO: add direct object creation in __init__
-            self.planner = FragmentPlanner(self.robot_manager, self.picker_manager, self.callbacks)
+        def fragment_planner(self):  # TODO: add direct object creation in __init__
+            return FragmentPlanner(self.robot_manager, self.picker_manager, self.callbacks)
 
-        def crh_star(self):
-            print('TODO:')
-            # self.planner = crh_star_planner(self.robot_manager, self.picker_manager)
+        def alternative_planner(self):
+            print('placeholder')
+            # return alternative_planner(self.robot_manager, self.picker_manager)
 
