@@ -181,7 +181,7 @@ class Robot(object):
     def _done_execpolicy_cb(self, status, result):
         """done callback
         """
-        logmsg(category='rob_py', id=self.robot_id, msg='_done_execpolicy_cb, route has been completed with result: {%s}'%(result))
+        logmsg(category='rob_py', id=self.robot_id, msg='_done_execpolicy_cb, route completed: {%s}'%(result))
         self.execpolicy_status = status
         self.execpolicy_result = result
         self.execpolicy_goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
