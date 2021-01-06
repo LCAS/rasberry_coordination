@@ -69,13 +69,9 @@ class Coordinator(object):
             # this should only be called from the child class
             self.advertise_services()
 
-        #TASKTODO: not necessar here
-        # don't queue more than 1000 tasks
-        # self.tasks = Queue.PriorityQueue(maxsize=1000)
         self.last_id = 0
 
         self.all_task_ids = [] # list of all task_ids
-        # self.processing_tasks = {} # {task_id:Task_definition}
         self.completed_tasks = {} # {task_id:Task_definition}
         self.cancelled_tasks = {} # {task_id:Task_definition}
         self.failed_tasks = {} # {task_id:Task_definition}
@@ -101,82 +97,6 @@ class Coordinator(object):
         """
         self.topo_map = msg
         self.rec_topo_map = True
-
-    # def add_task_ros_srv(self, req):
-    #     """Template service definition to add a task into the task execution framework.
-    #     Extend as needed in a child class
-    #     """
-    #     self.last_id += 1
-    #     task_id = self.last_id
-    #
-    #     req.task.task_id = task_id
-    #     logmsg(category="task", id=str(req.task.task_id), msg='received task')
-    #
-    #     #TASKTODO: add task to relevant picker
-    #     self.tasks.put(
-    #         (task_id, req.task)
-    #     )
-    #     self.all_task_ids.append(task_id)
-    #     return task_id
-    #
-    # add_task_ros_srv.type = strands_executive_msgs.srv.AddTask
-
-    # def cancel_task_ros_srv(self, req):
-    #     """Template service definition to cancel a task.
-    #     Extend as needed in a child class
-    #     """
-    #     cancelled = False
-    #     # Two scenarios:
-    #     # 1. task is already being processed
-    #     #    call the task action's cancel topic
-    #     # 2. task is still queued or is in processed (if allocated)
-    #     #    pop the task from the queue and add to cancelled
-    #     if req.task_id in self.all_task_ids:
-    #         if ((req.task_id in self.completed_tasks) or
-    #               (req.task_id in self.cancelled_tasks)):
-    #             logmsg(level='error', category="task", id=req.task_id, msg='cancelled task is being cancelled, cancel_task_ros_srv cannot be in this condition')
-    #
-    #         elif req.task_id in self.processing_tasks:
-    #             # task is being processed. remove it
-    #             move(item=req.task_id, old=self.processing_tasks, new=self.cancelled_tasks)
-    #             # cancel goal of assigned robot and return it to its base
-    #             if req.task_id in self.task_robot_id:
-    #                 robot_id = self.task_robot_id[req.task_id]
-    #                 # call the task_action/cancel for the robot executing this task
-    #                 pass
-    #             logmsg(category="task", id=req.task_id, msg='task is being cancelled')
-    #             cancelled = True
-    #
-    #         else:
-    #             #TASKTODO: remove req.task_id from self.tasks
-    #             # not yet processed. get it out of tasks
-    #             tasks = []
-    #             while not rospy.is_shutdown():
-    #                 try:
-    #                     task_id, task = self.tasks.get(True, 1)
-    #                     if task_id == req.task_id:
-    #                         self.cancelled_tasks[task_id] = task
-    #                         logmsg(category="task", id=req.task_id, msg='cancelling task')
-    #
-    #                         break # got it
-    #                     else:
-    #                         # hold on to the other tasks to be readded later
-    #                         tasks.append((task_id, task))
-    #                 except Queue.Empty:
-    #                     break
-    #             # readd popped tasks
-    #             for (task_id, task) in tasks:
-    #                 self.tasks.put((task_id, task))
-    #
-    #             cancelled = True
-    #
-    #     else:
-    #         # invalid task_id
-    #         logmsg(level='error', category="task", id=req.task_id, msg='cancel_task invoked with invalid task_id')
-    #
-    #     return cancelled
-    #
-    # cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
 
     def all_tasks_info_ros_srv(self, req):
         """Get all tasks grouped into processing, failed, cancelled, unassigned and completed tasks.
@@ -211,61 +131,6 @@ class Coordinator(object):
                     service
                 )
                 logmsg(msg='service advertised: %s' % (attr[:-8]))
-
-    # def update_available_topo_map(self, ):
-    #     """This function updates the available_topological_map, which is topological_map
-    #     without the edges going into the nodes occupied by the agents. When current node
-    #     of an agent is none, the closest node of the agent is taken.
-    #     """
-    #     topo_map = copy.deepcopy(self.topo_map)
-    #     agent_nodes = []
-    #
-    #     """Extract lists of current and closest nodes to the robots and pickers"""
-    #     if not (hasattr(self, 'robot_manager') and hasattr(self, 'picker_manager')):
-    #         return
-    #
-    #     curr_nodes = self.robot_manager.get_list('current_node') + self.picker_manager.get_list('current_node')
-    #     clos_nodes = self.robot_manager.get_list('closest_node') + self.picker_manager.get_list('closest_node')
-    #
-    #
-    #     """For each agent, if they do not have a current_node, extract the closest_node"""
-    #     for i in range(len(curr_nodes)):
-    #         if curr_nodes[i] == None:
-    #             curr_nodes[i] = clos_nodes[i]
-    #         if curr_nodes[i] != None:
-    #             agent_nodes.append(curr_nodes[i])
-    #
-    #     for node in topo_map.nodes:
-    #         to_pop=[]
-    #         for i in range(len(node.edges)):
-    #             if node.edges[i].node in agent_nodes:
-    #                 to_pop.append(i)
-    #         if to_pop:
-    #             to_pop.reverse()
-    #             for j in to_pop:
-    #                 node.edges.pop(j)
-    #
-    #
-    #     self.available_topo_map = topo_map
-
-    # def unblock_node(self, available_topo_map, node_to_unblock):
-    #     """ unblock a node by adding edges to an occupied node in available_topo_map
-    #     """
-    #     nodes_to_append=[]
-    #     edges_to_append=[]
-    #
-    #     for node in self.topo_map.nodes:
-    #         for edge in node.edges:
-    #             if edge.node == node_to_unblock:
-    #                 nodes_to_append.append(node.name)
-    #                 edges_to_append.append(edge)
-    #
-    #     for node in available_topo_map.nodes:
-    #         if node.name in nodes_to_append:
-    #             ind_to_append = nodes_to_append.index(node.name)
-    #             node.edges.append(edges_to_append[ind_to_append])
-    #
-    #     return available_topo_map
 
     def get_path_details(self, start_node, goal_node):
         """get route_nodes, route_edges and route_distance from start_node to goal_node
@@ -323,7 +188,6 @@ class Coordinator(object):
         robot = self.robot_manager[robot_id]
         task_id = robot.task_id
         robot.task_id = None
-        # move(item=task_id, old=self.processing_tasks, new=self.completed_tasks)
         self.completed_tasks.add(task_id)
 
         # move robot from active to idle robots
@@ -334,7 +198,6 @@ class Coordinator(object):
         """Template method to set task state as failed.
         Extend as needed in a child class
         """
-        # move(item=task_id, old=self.processing_tasks, new=self.failed_tasks)
         self.failed_tasks.add(task_id)
 
     def task_cancelled(self, task_id):
