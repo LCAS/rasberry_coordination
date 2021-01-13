@@ -203,12 +203,12 @@ class PickerDetails(AgentDetails):
     def task_abandonded(self): #courtesy call by coordinator
         self.task_created() #task cancelled by robot, reset to how it was before robot assigned
 
+
     """ Inform picker of given stage """
     def set_picker_state(self, state):  #TODO: replace with KeyValuePair?
         msg = Str()
         msg.data = '{\"user\":\"%s\", \"state\": \"%s\"}' % (self.picker_id, state)
         self.car_state_pub.publish(msg)
-
 
     """ Picker Location Pose """
     def picker_posestamped_cb(self, msg):

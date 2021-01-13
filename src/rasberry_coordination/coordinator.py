@@ -101,9 +101,29 @@ class Coordinator(object):
         self.topo_map = msg
         self.rec_topo_map = True
 
+    def cancel_task_ros_srv(self, req):
+        """Template service definition to cancel a task.
+        Extend as needed in a child class
+        """
+        task_id = req.task_id
 
+        #Set picker to abandon task
+        picker = self.picker_manager.get_task_handler(task_id)
+        if picker:
+            picker.task_finished()
+
+        # Set robot to abandon task
+        robot = self.robot_manager.get_task_handler(task_id)
+        if robot:
+            robot._cancel_task()
+            robot._set_target_base()
+
+        return True
+
+    cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
 
     def inform_toc_active_tasks(self):
+
         task_list = TasksDetailsList()
 
         """ loop through tasks owned by pickers """
@@ -249,7 +269,7 @@ class Coordinator(object):
         """ On CAR call to cancel task, inform the assigned robot if there is one """
         robot = self.robot_manager.get_task_handler(task_id)
         if robot:
-            robot._cancel_task2()
+            robot._cancel_task()
             robot._set_target_base()
 
     def run(self):

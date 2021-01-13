@@ -380,7 +380,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             self.picker_manager.get_task_handler(robot.task_id).task_abandonded()
 
         """ Prevent robot from taking new task """
-        robot._cancel_task()
+        robot._drm_cancel_task()
         robot.registered = False
 
         """ Set to appear red and return success"""
