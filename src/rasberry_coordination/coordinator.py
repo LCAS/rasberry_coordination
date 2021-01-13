@@ -22,6 +22,7 @@ import thorvald_base.msg
 
 import rasberry_coordination.robot
 import rasberry_coordination.srv
+from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails
 from rasberry_coordination.coordinator_tools import logmsg, remove, add, move
 from rasberry_coordination.agent_managers.robot_manager import RobotManager
 from rasberry_coordination.agent_managers.picker_manager import PickerManager
@@ -90,6 +91,8 @@ class Coordinator(object):
                 picker.task_priority = 0
         """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+        self.active_tasks_pub = rospy.Publisher(self.ns + "active_tasks_details",
+                                                rasberry_coordination.msg.TasksDetails, latch=True, queue_size=5)
         logmsg(msg='coordinator initialised')
 
     def _map_cb(self, msg):
@@ -97,6 +100,48 @@ class Coordinator(object):
         """
         self.topo_map = msg
         self.rec_topo_map = True
+
+
+
+    def inform_toc_active_tasks(self):
+        task_list = TasksDetailsList()
+
+        """ loop through tasks owned by pickers """
+        for picker in self.picker_manager.get_all_task_handlers():
+
+            """ get the task details """
+            task = SingleTaskDetails()
+            task.task_id = picker.task_id
+            task.state = picker.task_stage
+
+            """ identify connected robot """
+            assigned_robot = self.robot_manager[picker.task_id]
+            if assigned_robot:
+                task.robot_id = assigned_robot.agent_id
+            task.picker_id = picker.agent_id
+
+            """ add task to list """
+            task_list.tasks.append(task)
+
+        """ loop through tasks owned by robots """
+        for robot in self.robot_manager.get_all_task_handlers():
+
+            """ if task is already added, move on """
+            if robot.task_id in [T.task_id for T in task_list.tasks]:
+                continue
+
+            """ get the task details """
+            task = SingleTaskDetails()
+            task.task_id = robot.task_id
+            task.state = robot.task_stage
+
+            """ label connected robot """
+            task.robot_id = robot.agent_id
+
+            """ add task to list """
+            task_list.tasks.append(task)
+
+        self.active_tasks_pub.publish(task_list)
 
     def all_tasks_info_ros_srv(self, req):
         """Get all tasks grouped into processing, failed, cancelled, unassigned and completed tasks.
@@ -222,6 +267,7 @@ class Coordinator(object):
 
             # slow down the loop
             rospy.sleep(5.0)
+            self.inform_toc_active_tasks()
 
     def on_shutdown(self, ):
         """Template method on_shutdown.

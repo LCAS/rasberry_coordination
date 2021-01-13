@@ -42,6 +42,8 @@ class AgentManager(object):
             return self.agent_details[item]
         else:
             return None
+    def get_all_task_handlers(self):
+        return [A for A in self.agent_details.values() if A.task_id]
 
     """Item retrieval objects (slow so don't use unnecessarily)"""
     def get_list(self, list_id):

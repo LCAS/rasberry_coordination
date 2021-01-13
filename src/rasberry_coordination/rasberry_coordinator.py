@@ -902,8 +902,17 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                                         pickers=self.picker_manager,
                                         callbacks=routing_cb)
 
+        #TOC callback timeout
+        iterations = 100
+
         while not rospy.is_shutdown():
-            rospy.sleep(0.01)
+            rospy.sleep(0.01)  # TODO: look into methods to remove the artificial delay
+
+            """ update TOC with latest tasks states """
+            iterations=iterations-1
+            if iterations < 0:
+                self.inform_toc_active_tasks()
+                iterations = 100
 
             """ if there are unassigned tasks and there robots able to take them on """
             available_robots = self.robot_manager.available_robots()
@@ -915,10 +924,10 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 rospy.sleep(0.2)
                 self.assign_tasks()
 
-            # check progress of active robots
+            """ check progress of active robots """
             self.handle_tasks()
 
-            # replan if needed
+            """ replan if needed """
             if self.trigger_replan:
                 self.route_finder.find_routes()
 
