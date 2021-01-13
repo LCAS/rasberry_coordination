@@ -233,7 +233,7 @@ class RobotDetails(AgentDetails):
         robot.start_time = Now()
         if len(robot.task_stage_list):
             robot._change_task_stage(robot.task_stage_list.pop(0))
-    def _change_task_stage(robot, stage): #TODO: this if overengineered, unacceptable
+    def _change_task_stage(robot, stage): #TODO: these 2 functions are overengineered
         if robot.task_stage == stage:
             return
         robot.task_stage = stage
@@ -250,8 +250,8 @@ class RobotDetails(AgentDetails):
         robot.paused = False
     def _drm_cancel_task(robot):
         robot.unregistration_type = "cancel_task"
-        robot._cancel_task2()
-    def _cancel_task(robot):  # TODO: rename this
+        robot._cancel_task()
+    def _cancel_task(robot):
         robot.goal_node = None
         robot._end_task()
         robot.robot_interface.cancel_execpolicy_goal()
