@@ -174,14 +174,14 @@ class Robot(object):
     def _fb_execpolicy_cb(self, fb):
         """feedback callback
         """
-        logmsg(category="rob_py", msg='_fb_execpolicy_cb {current_wp:%s}' % (str(fb.current_wp)))
+        logmsg(category="robnav", msg='_fb_execpolicy_cb {current_wp:%s}' % (str(fb.current_wp)))
         self.execpolicy_current_wp = fb.current_wp
         self.execpolicy_status = fb.status
 
     def _done_execpolicy_cb(self, status, result):
         """done callback
         """
-        logmsg(category='rob_py', id=self.robot_id, msg='_done_execpolicy_cb, route has been completed with result: {%s}'%(result))
+        logmsg(category='rob_py', id=self.robot_id, msg='_done_execpolicy_cb, route completed: {%s}'%(result))
         self.execpolicy_status = status
         self.execpolicy_result = result
         self.execpolicy_goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()

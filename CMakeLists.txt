@@ -70,6 +70,7 @@ add_message_files(
   TaskDetails.msg
   TasksDetails.msg
   MarkerDetails.msg
+  KeyValuePair.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -81,16 +82,15 @@ add_message_files(
 
 add_service_files(
   FILES
+  AgentID.srv
   AllTasksInfo.srv
+  ConnectAgent.srv
   RobotState.srv
   RobotStates.srv
   TrayLoaded.srv
   TriggerRobot.srv
+  UnregisterAgent.srv
   UpdateTask.srv
-  ConnectRobot.srv
-  DisconnectRobot.srv
-  RegisterRobot.srv
-  UnregisterRobot.srv
 )
 
 ## Generate actions in the 'action' folder

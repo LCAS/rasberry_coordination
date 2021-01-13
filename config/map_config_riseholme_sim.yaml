@@ -6,6 +6,8 @@ active_tasks: # list of tasks active in the simulation
   - transportation
   #- picking
   #- uv_treatment
+max_load_duration: 60 # timeout for how long the robot should wait to be loaded at the picker
+max_unload_duration: 10 # timeout for how long the robot should wait to be loaded at the picker
 
 #TOPOLOGY
 base_station_nodes_pool: &base_stations_nodes_pool # potential base station locations
@@ -22,6 +24,9 @@ local_storage_nodes: # node to collate the picked fruit
 
 use_cold_storage: false # is cold storage active
 cold_storage_node: None # node to deposit the collated fruit
+
+#ROUTING
+planning_type: fragment_planner # method used for coordinating routes
 
 #ROBOTS
 admissible_robot_ids: # robots allowed to register with simulation
