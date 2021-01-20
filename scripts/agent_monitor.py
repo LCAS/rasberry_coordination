@@ -143,7 +143,7 @@ class diagnostic_printout:
     def get_task_completion_percentage(self):
         if self.type == "robot":
             task_states = {"go_to_picker": "0/1", "wait_loading": "1/4", "go_to_storage": "1/2", "wait_unloading": "3/4",
-                           "go_to_base": "1/1", str(None): "1/1"}
+                           "go_to_base": "1/1", str(None): "1/1", "paused": "0/1"}
         elif self.type == "picker":
             task_states = {"CREATED": "0/1", "CALLED": "0/1",
                            "ASSIGNED": "2/5", "ACCEPT": "2/5",

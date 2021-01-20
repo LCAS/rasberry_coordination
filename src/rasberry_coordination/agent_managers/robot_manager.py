@@ -171,59 +171,59 @@ class RobotDetails(AgentDetails):
     def _set_as_idle(robot):
         robot.idle = True
         robot.moving = robot.active = False
-        robot.interruptable = False #not needed
+        robot.interruptable = False  # not needed
     def _begin_task(robot, task_id):
-
         if robot.interruptable:
             robot.robot_interface.cancel_execpolicy_goal()
             robot._finish_task_stage("")
-
         robot.task_id = task_id
-        robot.task_stage_list = ["start_task", "go_to_picker", "wait_loading", "go_to_storage",
+        robot.task_stage_list = ["go_to_picker", "wait_loading", "go_to_storage",
                                  "wait_unloading", "go_to_base", None]
         robot.idle = False
         robot.active = True
         robot.interruptable = False
-        #robot.moving = False
-
+        #print("_init_task: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
         robot._finish_task_stage(robot.task_stage_list.pop(0))
-    def _end_task(robot):
-        robot.task_id = None
-
-        if robot.registered:
-            robot.idle = True
-
-        robot.active = False
-        robot.interruptable = False
-        #robot.moving = True
-
-        robot._change_task_stage(None)
+        #print("_begin_task: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+    def _reached_picker(robot):
+        robot.robot_interface.cancel_execpolicy_goal()
+        #robot._finish_task_stage("go_to_picker")
+        robot._finish_task_stage(robot.task_stage_list.pop(0))
+        #print("_reached_picker: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+    def _tray_loaded(robot):
+        robot.tray_loaded = True
+        #robot._finish_task_stage("wait_loading")
+        robot._finish_task_stage(robot.task_stage_list.pop(0))
+        #print("_tray_loaded: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+    def _reached_storage(robot):
+        robot.robot_interface.cancel_execpolicy_goal()
+        #robot._finish_task_stage("go_to_storage")
+        robot._finish_task_stage(robot.task_stage_list.pop(0))
+        #print("_reached_storage: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
     def _tray_unloaded(robot):
         robot.task_id = None
         robot.tray_loaded = False
-
         robot.interruptable = True
         robot.moving = False
-        #robot.moving = False
-        #robot.active = True
-        #robot.idle = False?
-
         robot.current_storage = None
-
-        robot._finish_task_stage("wait_unloading")
-    def _tray_loaded(robot):
-        robot.tray_loaded = True
-        robot._finish_task_stage("wait_loading")
+        #robot._finish_task_stage("wait_unloading")
+        robot._finish_task_stage(robot.task_stage_list.pop(0))
+        #print("_tray_unloaded: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
     def _set_target_base(robot):
         robot.idle = False
         robot.active = True
         robot.interruptable = True
-        # robot.task_stage_list = [None, "go_to_base", None]
         robot._change_task_stage("go_to_base")
+    def _end_task(robot):
+        robot.task_id = None
+        if robot.registered:
+            robot.idle = True
+        robot.active = False
+        robot.interruptable = False
+        robot._change_task_stage(None)
 
     def _finish_route_fragment(robot):
         robot.moving = False
-
         robot.route = []
         robot.route_fragments = []
         robot.robot_interface.execpolicy_result = None
@@ -232,7 +232,7 @@ class RobotDetails(AgentDetails):
             robot._finish_route_fragment()
         robot.start_time = Now()
         if len(robot.task_stage_list):
-            robot._change_task_stage(robot.task_stage_list.pop(0))
+            robot._change_task_stage(state)
     def _change_task_stage(robot, stage): #TODO: these 2 functions are overengineered
         if robot.task_stage == stage:
             return
@@ -243,11 +243,17 @@ class RobotDetails(AgentDetails):
     """ Registration Controls """
     def _pause_task(robot):
         robot.unregistration_type = "pause_task"
-        robot.robot_interface.cancel_execpolicy_goal()
         robot.paused = True
-    def _unpause_task(robot):
+        robot.task_stage_list.insert(0,robot.task_stage)
+        robot.task_stage = "paused"
+        #print("_pause_task: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+        robot.robot_interface.cancel_execpolicy_goal()
+    def _unpause_robot(robot):
         robot.unregistration_type = None
         robot.paused = False
+    def _unpause_task(robot):
+        robot._finish_task_stage(robot.task_stage_list.pop(0))
+        #print("_unpause_task: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
     def _drm_cancel_task(robot):
         robot.unregistration_type = "cancel_task"
         robot._cancel_task()

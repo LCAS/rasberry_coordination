@@ -163,8 +163,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             robot = self.robot_manager[req.robot_id]
 
             if robot.moving and robot.task_stage == "go_to_picker":
-                robot.robot_interface.cancel_execpolicy_goal()
-                robot._finish_task_stage("go_to_picker")
+
+                robot._reached_picker()
                 self.publish_task_state(robot.task_id, req.robot_id, "ARRIVED")
 
                 resp.success = True
@@ -195,8 +195,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             robot = self.robot_manager[req.robot_id]
 
             if robot.moving and robot.task_stage == "go_to_storage":
-                robot.robot_interface.cancel_execpolicy_goal()
-                robot._finish_task_stage("go_to_storage")
+                robot._reached_storage()
                 self.publish_task_state(robot.task_id, req.robot_id, "STORAGE")
 
                 resp.success = True
@@ -294,8 +293,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         """ When registering, robot can be in 1 of 4 states """
         if robot.unregistration_type is "pause_task":
-            robot._unpause_task()
-            if not robot.task_id and robot._get_start_node() is not robot.base_station:
+            robot._unpause_robot()
+            #if not robot.task_id and robot._get_start_node() is not robot.base_station: #check empty task list?
+            if not robot.task_stage_list:
                 robot._set_target_base()
             self.trigger_replan = True
         elif robot.unregistration_type is "cancel_task":
@@ -398,7 +398,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             return {'success':0, 'msg':'unregistration failed, robot is not connected'}
         elif not robot.registered:
             return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
-        elif not robot.task_id:
+        elif not robot.task_id and robot.task_stage != "go_to_base":
             return self.unregister_robot_complete_task_ros_srv(req)
 
         """ Set to appear red and return success"""
@@ -650,6 +650,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """set task state as failed
         """
         # remove(self.failed_tasks, task_id)
+        robot = self.robot_manager.get_task_handler(task_id)
         robot.goal_node = None
 
         self.write_log({"action_type": "task_update",
@@ -729,13 +730,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         # set robot to finish stage
                         if completed_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
                             logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
-                            robot._finish_task_stage(robot.task_stage)  # TODO: replace all robot.finish_task_stage with more meaningful functions
 
                         # set picker to finish the stage
                         if completed_stage == "go_to_picker":
+                            robot._reached_picker()
                             self.publish_task_state(task_id, robot_id, "ARRIVED")
 
                         elif completed_stage == "go_to_storage":
+                            robot._reached_storage()
                             self.publish_task_state(task_id, robot_id, "STORAGE")
 
                         elif completed_stage == "go_to_base":
@@ -747,24 +749,36 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         # finished only a fragment. may have to wait for clearance
                         robot._finish_route_fragment()
                     else:
-                        print("completed route early due to unregistration?")
                         robot._finish_route_fragment()
 
                 else:
+                    #if robot is idle and hasnt completed its task stage
                     logmsg(category="robot", id=robot_id, msg='execpolicy_result is not success or None (%s)'%(robot.robot_interface.execpolicy_result))
+                    logmsg(category="robot", id=robot_id, msg='current task stage: %s'%(robot.task_stage))
 
-                    trigger_replan = True  # trigger replan as robot is being sent back to base
-                    # robot failed execution sending to base
-                    logmsg(category="task", id=task_id, msg='failed to complete task %s at stage %s'%(task_id, robot.task_stage))
-                    if robot.task_stage == "go_to_picker" and robot.unregistration_type != "pause_task":  # TODO: join unregistration type query with "for robot_id in ..." loop
+                    #if robot has failed to complete task
+                    trigger_replan = True
+                    if robot.task_stage == "paused":
+                        logmsg(category="robot", id=robot_id, msg='unpausing task at stage %s'%(robot.task_stage_list[0]))
+                    else:
+                        logmsg(category="robot", id=robot_id, msg='failed to complete task %s at stage %s' % (task_id, robot.task_stage))
+
+                    # robot has either failed to complete its task, or it has paused its task
+                    if robot.task_stage == "paused":
+                        logmsg(category="robot", id=robot_id, msg='task unpaused')
+                        robot._unpause_task()
+
+                    elif robot.task_stage == "go_to_picker":
                         # task is good enough to be assigned to another robot
                         self.readd_task(task_id)
                         self.send_robot_to_base(robot_id)
+
                     elif robot.task_stage == "go_to_base":
                         # robot failed exececute_policy_mode goal. retry going to base
                         self.send_robot_to_base(robot_id)
                         # another option is to leave the robot out there with a request for help. (# TODO)
                         # in that case, remove robot from active_robots and don't add to idle_robots.
+
                     else:
                         # set the task as failed as it cannot be readded at this stage
                         if task_id not in self.cancelled_tasks or task_id not in self.failed_tasks :
@@ -773,8 +787,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         self.send_robot_to_base(robot_id)
 
             else:
+
+                # robot has either failed to complete its task, or it has paused its task
+                if robot.task_stage == "paused":
+                    logmsg(category="robot", id=robot_id, msg='task unpaused')
+                    robot._unpause_task()
+
                 # wait_loading or wait_unloading
-                if robot.task_stage == "wait_loading":
+                elif robot.task_stage == "wait_loading":
                     """ If conditions are satisfied, finish waiting """
                     tray_loaded = False
 
@@ -789,6 +809,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
                     """ If the robot has been loaded """
                     if tray_loaded:
+                        logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
                         self.publish_task_state(task_id, robot_id, "LOADED")    #update picker
                         robot._tray_loaded() #update robot
                         trigger_replan = True
@@ -809,6 +830,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
                     """ If the robot has been unloaded """
                     if not tray_unloaded:
+                        logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
                         self.publish_task_state(task_id, robot_id, "DELIVERED")
                         robot._tray_unloaded()
 
