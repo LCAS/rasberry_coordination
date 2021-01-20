@@ -1,5 +1,5 @@
 version: 1.1.0
-use_sim: false # is this a simulated environment
+use_sim: true # is this a simulated environment
 
 #TASKS
 active_tasks: # list of tasks active in the simulation
@@ -11,16 +11,15 @@ max_unload_duration: 10 # timeout for how long the robot should wait to be loade
 
 #TOPOLOGY
 base_station_nodes_pool: &base_stations_nodes_pool # potential base station locations
-  - WayPoint140
-  - WayPoint141
-  - WayPoint142
+  - WayPoint22
+  - WayPoint24
 wait_nodes_pool: *base_stations_nodes_pool # potential idle locations
 
 charging_station_nodes: # node the robots can use to charge their batteries
-  - WayPoint72
+  - WayPoint24
 
 local_storage_nodes: # node to collate the picked fruit
-  - WayPoint68
+  - WayPoint23
 
 use_cold_storage: false # is cold storage active
 cold_storage_node: None # node to deposit the collated fruit
@@ -78,7 +77,7 @@ virtual_picker_ids: # valid virtual picker ids within the simulation
 #INITIALISATION
 spawn_list:  # robots to initialise when simulation started
   - default: null  #REQUIRED
-  - robot_id: thorvald_014
-    base_station_node: Waypoint140
-  - robot_id: thorvald_019
-    base_station_node: Waypoint141
+  - robot_id: thorvald_003
+    base_station_node: Waypoint22
+  - robot_id: thorvald_005
+    base_station_node: Waypoint24
