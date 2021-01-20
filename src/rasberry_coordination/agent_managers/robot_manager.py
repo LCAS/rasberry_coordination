@@ -254,10 +254,10 @@ class RobotDetails(AgentDetails):
     def _unpause_task(robot):
         robot._finish_task_stage(robot.task_stage_list.pop(0))
         #print("_unpause_task: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
-    def _drm_cancel_task(robot):
-        robot.unregistration_type = "cancel_task"
-        robot._cancel_task()
-    def _cancel_task(robot):
+    def _drm_release_task(robot):
+        robot.unregistration_type = "release_task"
+        robot._release_task()
+    def _release_task(robot):
         robot.goal_node = None
         robot._end_task()
         robot.robot_interface.cancel_execpolicy_goal()

@@ -298,7 +298,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             if not robot.task_stage_list:
                 robot._set_target_base()
             self.trigger_replan = True
-        elif robot.unregistration_type is "cancel_task":
+        elif robot.unregistration_type is "release_task":
             """ if robot has not started moving to base do that """
             """ if robot has not reached base do that """
             """ if robot is at base do nout """
@@ -324,7 +324,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def unregister_robot_ros_srv(self, req):
         actions = {'complete_task': self.unregister_robot_complete_task_ros_srv,
                    'pause_task': self.unregister_robot_pause_task_ros_srv,
-                   'cancel_task': self.unregister_robot_cancel_task_ros_srv}
+                   'release_task': self.unregister_robot_release_task_ros_srv}
         if req.action in actions:
             return actions[req.action](req)
             # return actions[req.action]({'agent_id': req.agent_id})
@@ -363,7 +363,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
     unregister_robot_complete_task_ros_srv.type = rasberry_coordination.srv.AgentID
 
-    def unregister_robot_cancel_task_ros_srv(self, req):
+    def unregister_robot_release_task_ros_srv(self, req):
         logmsg(category="drm", id=req.agent_id, msg='unregistering from task allocation canceling any active tasks')
         robot = self.robot_manager[req.agent_id]
 
@@ -380,14 +380,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             self.picker_manager.get_task_handler(robot.task_id).task_abandonded()
 
         """ Prevent robot from taking new task """
-        robot._drm_cancel_task()
+        robot._drm_release_task()
         robot.registered = False
 
         """ Set to appear red and return success"""
         self.modify_robot_marker(req.agent_id, color='red')
         return {'success': 1, 'msg': 'robot has unregistered'}
 
-    unregister_robot_cancel_task_ros_srv.type = rasberry_coordination.srv.AgentID
+    unregister_robot_release_task_ros_srv.type = rasberry_coordination.srv.AgentID
 
     def unregister_robot_pause_task_ros_srv(self, req):
         logmsg(category="drm", id=req.agent_id, msg='unregistering from task allocation pausing active tasks')
