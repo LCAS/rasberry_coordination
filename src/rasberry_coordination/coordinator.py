@@ -107,7 +107,7 @@ class Coordinator(object):
         """
         task_id = req.task_id
 
-        #Set picker to abandon task
+        #Set picker to finish task
         picker = self.picker_manager.get_task_handler(task_id)
         if picker:
             picker.task_finished()
@@ -115,9 +115,10 @@ class Coordinator(object):
         # Set robot to abandon task
         robot = self.robot_manager.get_task_handler(task_id)
         if robot:
-            robot._cancel_task()
+            robot._release_task()
             robot._set_target_base()
 
+        self.inform_toc_task_ended(task_id=task_id, reason="task_cancelled")
         return True
 
     cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
@@ -161,7 +162,55 @@ class Coordinator(object):
             """ add task to list """
             task_list.tasks.append(task)
 
+        """ Convert task state to a toc-recognised state """
+        for T in task_list.tasks:
+            T.state = self.toc_legacy_responses(T.state)
+
         self.active_tasks_pub.publish(task_list)
+
+    def inform_toc_task_ended(self, task_id, reason, robot_id=None, picker_id=None):
+        task_list = TasksDetailsList()
+
+        """ get the task details """
+        task = SingleTaskDetails()
+        task.task_id = task_id
+        task.robot_id = str(robot_id)
+        task.picker_id = str(picker_id)
+        task.state = self.toc_legacy_responses(reason)
+
+        """ add task to list and publish """
+        task_list.tasks.append(task)
+        self.active_tasks_pub.publish(task_list)
+
+    def toc_legacy_responses(self, state):
+        return {'CREATED': None,
+                'ASSIGNED':       'ACCEPT',
+                'go_to_picker':   'ACCEPT',
+
+                'ARRIVED':        'ARRIVED',
+
+                'LOADED':         'LOADED',
+                'wait_loading':   'LOADED',
+
+                'go_to_storage':  'STORAGE',
+                'wait_unloading': 'STORAGE',
+
+                'task_completed': 'DELIVERED',
+
+                'task_cancelled': 'CANCELLED',
+
+                'paused': 'PAUSED',
+                'go_to_base': None,
+                'None': None}[str(state)]
+
+        # picker task stages:
+        # "CREATED", "ASSIGNED", "ARRIVED", "LOADED", None
+
+        # robot task stages:
+        # go_to_picker, wait_loading, go_to_storage, wait_unloading, go_to_base, None, paused
+
+        # additional task states:
+        # task_completed, task_cancelled
 
     def all_tasks_info_ros_srv(self, req):
         """Get all tasks grouped into processing, failed, cancelled, unassigned and completed tasks.
@@ -266,11 +315,17 @@ class Coordinator(object):
         self.failed_tasks.add(task_id)
 
     def task_cancelled(self, task_id):
-        """ On CAR call to cancel task, inform the assigned robot if there is one """
+        """ Callback from picker_manager, on CAR call to cancel task """
+
+        """ Inform the assigned robot if there is one  """
         robot = self.robot_manager.get_task_handler(task_id)
         if robot:
-            robot._cancel_task()
+            robot._release_task()
             robot._set_target_base()
+
+        """ Inform TOC """
+        self.set_task_failed(task_id)
+        self.inform_toc_task_ended(task_id=task_id, reason="task_cancelled")
 
     def run(self):
         """Template main loop of the coordinator.

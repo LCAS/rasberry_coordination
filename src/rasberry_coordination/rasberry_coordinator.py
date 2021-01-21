@@ -627,7 +627,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 if sum(dists) < min_dist:
                     robot.current_storage = storage
 
-    def finish_task(self, robot_id):
+    def finish_task(self, robot_id): #TODO: when is this called from?
         """set the task assigned to the robot as finished whenever trays are unloaded
         """
         robot = self.robot_manager[robot_id]
@@ -640,24 +640,27 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         # mark task as complete
         robot._tray_unloaded()
 
+        """ Inform TOC of task completion """
+        self.inform_toc_task_ended(task_id=task_id, reason="task_completed", robot_id=robot_id)
+
         self.write_log({"action_type": "task_update",
                         "task_updates": "task_finish",
                         "task_id": task_id,
                         "robot_id": robot_id,
                         })
 
-    def set_task_failed(self, task_id):
-        """set task state as failed
-        """
-        # remove(self.failed_tasks, task_id)
-        robot = self.robot_manager.get_task_handler(task_id)
-        robot.goal_node = None
-
-        self.write_log({"action_type": "task_update",
-                        "task_updates": "task_failed",
-                        "task_id": task_id,
-                        "details": "Assigned robot failed to complete task after reaching picker",
-                        })
+    # def set_task_failed(self, task_id):
+    #     """set task state as failed
+    #     """
+    #     # remove(self.failed_tasks, task_id)
+    #     robot = self.robot_manager.get_task_handler(task_id)
+    #     robot.goal_node = None
+    #
+    #     self.write_log({"action_type": "task_update",
+    #                     "task_updates": "task_failed",
+    #                     "task_id": task_id,
+    #                     "details": "Assigned robot failed to complete task after reaching picker",
+    #                     })
 
     def publish_task_state(self, task_id, robot_id, state):
         """publish the state of task (or picker) in CAR
@@ -833,6 +836,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
                         self.publish_task_state(task_id, robot_id, "DELIVERED")
                         robot._tray_unloaded()
+                        self.inform_toc_task_ended(task_id=task_id, robot_id=robot_id, reason="task_completed")
 
                         trigger_replan = True
 
