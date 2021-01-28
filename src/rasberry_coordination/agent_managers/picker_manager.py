@@ -111,8 +111,11 @@ class PickerManager(AgentManager):
 
         # Load new task id onto picker
         if new_state == "CALLED":
-            picker.task_id = self.new_task_id()
-            logmsg(category="task", id=picker.task_id, msg='task called by %s' % (picker.agent_id))
+            if picker.task_id: #task was released by robot
+                return
+            else: #new task is created
+                picker.task_id = self.new_task_id()
+                logmsg(category="task", id=picker.task_id, msg='task called by %s' % (picker.agent_id))
 
         # Every valid action must have a task_id by this point
         if not picker.task_id:
@@ -179,6 +182,7 @@ class PickerDetails(AgentDetails):
     def task_assigned(self): #courtesy call by coordinator
         self.task_stage = "ASSIGNED"
         self.start_time = Now()
+        self.set_picker_state("ACCEPT")
     def robot_arrived(self): #called by coordinator
         self.task_stage = "ARRIVED"
         self.start_time = Now()
@@ -202,6 +206,7 @@ class PickerDetails(AgentDetails):
         #this one can maybe be avoided by making coordinator generate new list of tasks locally
     def task_abandonded(self): #courtesy call by coordinator
         self.task_created() #task cancelled by robot, reset to how it was before robot assigned
+        self.set_picker_state("CALLED")
 
 
     """ Inform picker of given stage """
