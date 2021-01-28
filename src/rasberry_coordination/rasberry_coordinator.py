@@ -919,6 +919,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         robot.moving = True
 
     def run(self, planning_type='fragment_planner'):
+        self.run_old(planning_type)
+    def run_old(self, planning_type='fragment_planner'):
         """the main loop of the coordinator
         """
         routing_cb = {'publish_task_state': self.publish_task_state,
@@ -961,6 +963,27 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
                 # assign first fragment of each robot
                 self.set_execute_policy_routes()
+
+    def run_new(self, planning_type='fragment_planner'):
+
+        while not rospy.is_shutdown():
+            # Get list of all currently connected agents
+            FullAgentList = self.robot_manager.agent_list + self.picker_manager.agent_list
+                            #+ self.storage_manager.agent_list + self.battery_station_manager.agent_list
+
+            # Query each agents task completion (tasks can be set to complete from here or from srvs)
+            for A in FullAgentList:
+                A.task_stage_list[0][1]._query() if not A.stage_complete_flag else None
+
+            # Complete stage if marked as such (also starts next stage and handles task completion)
+            for A in FullAgentList:
+                A.stage_completion() if A.stage_complete_flag else None
+
+            # Perform routing
+            if any([A.replan_required for A in FullAgentList]):
+                self.route_finder.find_routes()
+                self.set_execute_policy_routes()
+
 
     def write_log(self, field_vals):
         """write given fileds to the log file
