@@ -964,26 +964,88 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 # assign first fragment of each robot
                 self.set_execute_policy_routes()
 
+    """ Main loop for task progression """
     def run_new(self, planning_type='fragment_planner'):
+        """ For details see: rasberry_coordination/src/CoordinatorStructure.md
 
+            Notation Worth Noting:
+                - Specific agents are represented by the variable A
+                - An active task is identified by __call__, e.g. A()
+                - Task details can be identified by __getitem__, e.g. A[key]
+                - Task details can be set using __setitem__, e.g. A[key]=val
+        """
+        
         while not rospy.is_shutdown():
-            # Get list of all currently connected agents
-            FullAgentList = self.robot_manager.agent_list + self.picker_manager.agent_list
-                            #+ self.storage_manager.agent_list + self.battery_station_manager.agent_list
 
-            # Query each agents task completion (tasks can be set to complete from here or from srvs)
-            for A in FullAgentList:
-                A.task_stage_list[0][1]._query() if not A.stage_complete_flag else None
+            """ Get list of all currently connected agents """
+            AllAgentsList = self.robot_manager.agent_list + \
+                            self.picker_manager.agent_list
+                            #+ self.storage_manager.agent_list
+                            #+ self.battery_station_manager.agent_list
 
-            # Complete stage if marked as such (also starts next stage and handles task completion)
-            for A in FullAgentList:
-                A.stage_completion() if A.stage_complete_flag else None
 
-            # Perform routing
-            if any([A.replan_required for A in FullAgentList]):
+            """ Default to Idle Task if no Task Present """
+            for A in AllAgentsList:
+                A.load_idle_task() if not A.task_stage_list else None
+
+            """ Perform stage initialisation where required """
+            for A in AllAgentsList:
+                A()._start() if A['new_stage'] else None
+
+            """ Perform any required communication with assosiated agent """
+            for A in AllAgentsList:
+                A()._notify_start()
+
+            """ Perform agent-specific request """
+            for A in AllAgentsList:
+                self.offer_service(A) if A.task_details['coordinator_action_required'] else None
+
+            """ Perform multi-agent request """
+            if any([A.replan_required for A in AllAgentsList]):
                 self.route_finder.find_routes()
                 self.set_execute_policy_routes()
 
+            """ Query each agents task completion """
+            for A in AllAgentsList:
+                A()._query()
+
+            """ Complete stage where needed """
+            for A in AllAgentsList:
+                if A['stage_complete_flag']:
+                    A()._notify_end()
+                    A.end_stage()  # calls __del__
+
+
+    """ Services offerd by Coordinator to assist with tasks """
+    def offer_service(self, agent):
+        service_category = agent.task_details['service_category']
+        service_type = agent.task_details['service_type']
+        conditions = agent.task_details['service_conditions']
+
+        """ ROOM TO EXPAND
+        Services Offered:
+            find_agent:
+                - closest
+                - furthest?
+                - ...?
+            ...?
+        """
+
+        responses = {'find_agent':self.find_agent}  # ROOM TO EXPAND
+        responses[service_category](agent, service_type, conditions)
+    def find_agent(self, agent, search_type, KV):
+        A = [a for a in self.agent_list if (a is not agent)
+                                        and (agent.getattr(KV['key']) is KV['var'])] #list of robots matching the KeyValue criteria given
+
+        responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
+        agent.task_details['recipient'] = responses["closest"](agent, A)
+    def find_closest_agent(self, agent, agent_list):
+            dist_list = [self.dist(agent._get_start_node(),a._get_start_node())
+                for a in agent_list]
+            return agent_list.index(min(dist_list))
+    def dist(self, start_node, goal_node):
+        _,_,route_dists = self.get_path_details(start_node, goal_node)
+        return sum(route_dists)
 
     def write_log(self, field_vals):
         """write given fileds to the log file

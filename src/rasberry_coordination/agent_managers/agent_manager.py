@@ -159,3 +159,81 @@ class AgentDetails(object):
             return
         if hasattr(self, 'live_diagnostics_pub'): #TODO: probably a way to get rid of this
             self.live_diagnostics_pub.publish(KeyValuePair(key, str(value)))
+
+
+
+    """
+    while True:
+        A = getList()
+        for A: start
+        for A: srv
+        if replan: replan, execute
+        for A: query
+        for A: end, 
+
+
+    call:
+        Assignment: set srv
+        AwaitStoreAccess: replan
+        Navigation: replan
+        
+    notify:
+        
+        ACCEPT
+        ARRIVED
+        INIT
+            
+    """
+
+
+
+    """ Define a given task for the agent """
+    def load_idle_task(self):
+        switch_dict = {"picker":  TaskDef.idle_picker,
+                       "courier": TaskDef.idle_courier,
+                       "storage": TaskDef.idle_Storage}
+        switch_dict[self.agent_type]()
+
+    def new_task(A, type, details={}):
+        switch_dict = {"transportation_request": TaskDef.transportation_request,
+                       "transportation_courier": TaskDef.transportation_courier,
+                       "transportation_storage": TaskDef.transportation_storage}
+        switch_dict[type](A, details)
+
+    """ Convenience function to return active stage and modif task_details """
+    def __call__(A, index=0):
+        return A.task_stage_list[index]
+    def __getitem__(A, key):
+        return A.task_details[key]
+    def __setitem__(A, key, val):
+        A.task_details[key] = val
+
+    """ Set the flag for stage completion """
+    def flag(A, flag):
+        A['stage_complete_flag'] = flag
+
+    """ How to respond to task completion """
+    def end_stage(A):
+        A.task_stage_list.pop(0)
+
+
+
+
+
+    """ DUMMY METHODS """
+    """ DUMMY METHODS """
+    """ DUMMY METHODS """
+    """ DUMMY METHODS """
+
+    def init(A):
+        A.agent_type = "courier"
+
+    """ Placeholder methods to update task state """
+    def picker_pressed_button_with_intent_to_call_courier(self, task_id_made_by_picker_manager):
+        self['task_id'] = task_id_made_by_picker_manager
+    def picker_pressed_button_with_intent_to_cancel_task(self):
+        pass #TODO: add a Stage.cancelled()
+    def picker_pressed_button_after_putting_tray_on_robot(self):
+        self['picker_has_tray'] = False
+    def storage_manager_pressed_button_after_taking_tray_from_robot(self):
+        self['storage_has_tray'] = True
