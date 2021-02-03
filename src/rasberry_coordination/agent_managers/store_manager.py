@@ -15,7 +15,7 @@ from geometry_msgs.msg import PoseStamped
 from rasberry_coordination.msg import TasksDetails, TaskUpdates
 from rasberry_coordination.coordinator_tools import logmsg
 
-class PickerManager(AgentManager):
+class StoreManager(AgentManager):
 
     """Initialise class with callback details to apply to pickers"""
     def __init__(self, callback_dict):
@@ -139,7 +139,22 @@ class PickerDetails(AgentDetails):
     def __init__(self, ID, cb):
 
         """Initialise Fields in Parent Class"""
-        super(PickerDetails, self).__init__(ID, cb, "picker")
+        super(PickerDetails, self).__init__(ID, cb)
+
+        """Meta Management"""
+        self.picker_id = ID
+        self.registered = True
+
+        """Task Details"""
+        self.task_type = None
+        self.task_id = None
+        self.task_location = None
+        self.task_action = None
+        self.task_priority = 1
+        self.picker_task = False
+        self.picker_states = None
+        self.task_stage = None
+        self.start_time = Now()
 
         """Picker State Monitor Details""" #TODO: Find out if this is a necessary inclusion
         self.posestamped = None
@@ -156,8 +171,41 @@ class PickerDetails(AgentDetails):
         super(PickerDetails, self)._remove()
         self.posestamped_sub.unregister()
 
+    """State Monitoring""" #TODO: simplify this and remove repeated lines
+    def task_created(self): #called by picker
+        self.task_stage = "CREATED"
+        self.task_location = self._get_start_node()
+        self.start_time = Now()
+    def task_assigned(self): #courtesy call by coordinator
+        self.task_stage = "ASSIGNED"
+        self.start_time = Now()
+    def robot_arrived(self): #called by coordinator
+        self.task_stage = "ARRIVED"
+        self.start_time = Now()
+        self.set_picker_state("ARRIVED")
+    def robot_loaded(self): #called by picker
+        self.task_stage = "LOADED"
+        self.start_time = Now()
+        #coordinator queries this task_stage to know when to let robot leave
+    def task_finished(self): #called by coordinator
+        self.task_id = None
+        self.task_stage = None
+        self.start_time = Now()
+        self.set_picker_state("INIT")
+    def task_canceled(self): #called by picker
+        task_id = self.task_id
+        self.task_id = None
+        self.task_stage = None
+        self.start_time = Now()
+        self.set_picker_state("INIT")
+        self.cb['task_cancelled'](task_id) #needs to tell coordinator that the robot doesnt need to come anymore
+        #this one can maybe be avoided by making coordinator generate new list of tasks locally
+    def task_abandonded(self): #courtesy call by coordinator
+        self.task_created() #task cancelled by robot, reset to how it was before robot assigned
+
+
     """ Inform picker of given stage """
-    def set_state(self, state):  #TODO: replace with KeyValuePair?`
+    def set_picker_state(self, state):  #TODO: replace with KeyValuePair?
         msg = Str()
         msg.data = '{\"user\":\"%s\", \"state\": \"%s\"}' % (self.picker_id, state)
         self.car_state_pub.publish(msg)

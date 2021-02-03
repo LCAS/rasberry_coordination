@@ -973,9 +973,15 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 - An active task is identified by __call__, e.g. A()
                 - Task details can be identified by __getitem__, e.g. A[key]
                 - Task details can be set using __setitem__, e.g. A[key]=val
+
+            Key Concepts:
+                - Approach requires no lock as task progression uses linear buffers
         """
         
         while not rospy.is_shutdown():
+
+            #TODO: add extra condition to only progress if there are any tasks which require updates?
+            #TODO: add system to update picker location for navigate task
 
             """ Get list of all currently connected agents """
             AllAgentsList = self.robot_manager.agent_list + \
@@ -1001,11 +1007,12 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 self.offer_service(A) if A.task_details['coordinator_action_required'] else None
 
             """ Perform multi-agent request """
-            if any([A.replan_required for A in AllAgentsList]):
+            if any([A['replan_required'] for A in AllAgentsList]):
                 self.route_finder.find_routes()
                 self.set_execute_policy_routes()
+            #TODO: abstract this for generalisation
 
-            """ Query each agents task completion """
+            """ Query each agents task stage for completion """
             for A in AllAgentsList:
                 A()._query()
 
@@ -1021,6 +1028,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         service_category = agent.task_details['service_category']
         service_type = agent.task_details['service_type']
         conditions = agent.task_details['service_conditions']
+        response_location = agent.task_details['response_location']
 
         """ ROOM TO EXPAND
         Services Offered:
@@ -1032,13 +1040,13 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """
 
         responses = {'find_agent':self.find_agent}  # ROOM TO EXPAND
-        responses[service_category](agent, service_type, conditions)
+        responses[service_category](agent, service_type, conditions, response_location)
     def find_agent(self, agent, search_type, KV):
         A = [a for a in self.agent_list if (a is not agent)
-                                        and (agent.getattr(KV['key']) is KV['var'])] #list of robots matching the KeyValue criteria given
+                                        and (agent.getattr(KV['key']) is KV['val'])] #list of robots matching the KeyValue criteria given
 
         responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
-        agent.task_details['recipient'] = responses["closest"](agent, A)
+        agent[response_location] = responses["closest"](agent, A)
     def find_closest_agent(self, agent, agent_list):
             dist_list = [self.dist(agent._get_start_node(),a._get_start_node())
                 for a in agent_list]

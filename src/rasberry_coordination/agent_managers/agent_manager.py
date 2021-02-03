@@ -66,30 +66,15 @@ class AgentManager(object):
 
 """Container for all functions related abstractly to the agent"""
 class AgentDetails(object):
-
     def __repr__(self):
         if self.agent_id.startswith("picker"):
             return "Picker(\"%s\"|\"%s\"|\"%s\")" % (self.agent_id, self.current_node, self.task_stage)
         return "Robot(\"%s\"|\"%s\"|\"%s\")" % (self.agent_id, self.current_node, self.task_stage)
+    def __del__(self):
+        for sub in self.subscribers.values():
+            sub.unregister()
 
-    """Initialise all fields"""
-    def __init__(self, ID, cb):
-        self.live_diagnostics_pub = Pub('/rasberry_coordination/agent_monitor/'+ID, KeyValuePair, latch=True, queue_size=5)
-
-        """Callbacks"""
-        self.cb = cb
-
-        """Meta Management"""
-        self.agent_id = ID
-
-        """Localisation Details"""
-        self.previous_node = None
-        self.current_node = None
-        self.closest_node = None
-        self.current_node_sub = Sub(ID+"/current_node", Str, self._current_node_cb)
-        self.closest_node_sub = Sub(ID+"/closest_node", Str, self._closest_node_cb)
-
-    """Dump all values for agent into file"""
+    """Debug Tools, for dumping data to file/monitoring node"""
     def _dump(self, filename=""):
 
         if filename == "":
@@ -108,8 +93,21 @@ class AgentDetails(object):
                 padding = (attr_len-len(attr)) * ' '
                 writer.write("%s%s\t=\t%r\n" % (attr, padding, str(getattr(self, attr))))
         print('write complete -> '+filename)
+    def __setattr__(self, key, value):
+        val = None
+        if hasattr(self, key):
+            val = getattr(self, key)
+        super(AgentDetails, self).__setattr__(key, value)
+        if val != value:
+            self.update_live_diagnostics(key, value)
+    def update_live_diagnostics(self, key, value):
+        if key not in ["task_id","task_stage","current_node",
+                       "previous_node","closest_node","registered"]:
+            return
+        if hasattr(self, 'live_diagnostics_pub'): #TODO: probably a way to get rid of this
+            self.live_diagnostics_pub.publish(KeyValuePair(key, str(value)))
 
-    """Callback for current node of agent"""
+    """Callback for current/closest node of agent"""
     def _current_node_cb(self, msg):
 
         if self.current_node != None:
@@ -123,8 +121,6 @@ class AgentDetails(object):
 
         if self.cb['update_topo_map']:
             self.cb['update_topo_map']()
-
-    """Callback for closest node from agent"""
     def _closest_node_cb(self, msg):
         self.closest_node = msg.data
         if self.closest_node == "none":
@@ -139,51 +135,30 @@ class AgentDetails(object):
         else:
             return self.closest_node
 
-    """On shutdown"""
-    def _remove(self):
-        self.current_node_sub.unregister()
-        self.closest_node_sub.unregister()
+    """Initialise all fields"""
+    def __init__(self, ID, cb, agent_type):
+        self.live_diagnostics_pub = Pub('/rasberry_coordination/agent_monitor/'+ID, KeyValuePair, latch=True, queue_size=5)
 
-    """Monitoring"""
-    def __setattr__(self, key, value):
-        val = None
-        if hasattr(self, key):
-            val = getattr(self, key)
-        super(AgentDetails, self).__setattr__(key, value)
-        if val != value:
-            self.update_live_diagnostics(key, value)
+        """Callbacks"""
+        self.cb = cb
+        self.subscribers = {}
 
-    def update_live_diagnostics(self, key, value):
-        if key not in ["task_id","task_stage","current_node",
-                       "previous_node","closest_node","registered"]:
-            return
-        if hasattr(self, 'live_diagnostics_pub'): #TODO: probably a way to get rid of this
-            self.live_diagnostics_pub.publish(KeyValuePair(key, str(value)))
+        """Meta Management"""
+        self.agent_id = ID
+        self.agent_type = agent_type
+        self.registered = True
 
+        """Task Details"""
+        self.task_details = {}
+        self.task_stage_list = []
 
+        """Localisation Details"""
+        self.previous_node = None
+        self.current_node = None
+        self.closest_node = None
+        self.subscribers['current_node'] = Sub(ID+"/current_node", Str, self._current_node_cb)
+        self.subscribers['closest_node'] = Sub(ID+"/closest_node", Str, self._closest_node_cb)
 
-    """
-    while True:
-        A = getList()
-        for A: start
-        for A: srv
-        if replan: replan, execute
-        for A: query
-        for A: end, 
-
-
-    call:
-        Assignment: set srv
-        AwaitStoreAccess: replan
-        Navigation: replan
-        
-    notify:
-        
-        ACCEPT
-        ARRIVED
-        INIT
-            
-    """
 
 
 
@@ -200,11 +175,11 @@ class AgentDetails(object):
                        "transportation_storage": TaskDef.transportation_storage}
         switch_dict[type](A, details)
 
-    """ Convenience function to return active stage and modif task_details """
+    """ Convenience function to return active stage and modify task_details """
     def __call__(A, index=0):
         return A.task_stage_list[index]
     def __getitem__(A, key):
-        return A.task_details[key]
+        return A.task_details[key] if key in A.task_details else None
     def __setitem__(A, key, val):
         A.task_details[key] = val
 
@@ -224,9 +199,6 @@ class AgentDetails(object):
     """ DUMMY METHODS """
     """ DUMMY METHODS """
     """ DUMMY METHODS """
-
-    def init(A):
-        A.agent_type = "courier"
 
     """ Placeholder methods to update task state """
     def picker_pressed_button_with_intent_to_call_courier(self, task_id_made_by_picker_manager):
