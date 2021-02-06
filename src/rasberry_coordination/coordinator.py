@@ -80,7 +80,7 @@ class Coordinator(object):
         self.task_robot_id = {} # {task_id:robot_id} to track which robot is assigned to a task
 
         """Robot Detail Manage Initialisation"""
-        cb_dict = {'update_topo_map': None, 'task_cancelled': self.task_cancelled}
+        cb_dict = {'update_topo_map': None, 'task_cancelled': self.task_cancelled, 'task_update': self.task_update}
         self.robot_manager = RobotManager(cb_dict)
         self.robot_manager.add_agents(robot_ids)
         self.picker_manager = PickerManager(cb_dict)
@@ -326,6 +326,9 @@ class Coordinator(object):
         """ Inform TOC """
         self.set_task_failed(task_id)
         self.inform_toc_task_ended(task_id=task_id, reason="task_cancelled")
+
+    def task_update(self, update, task_id, details):
+        pass
 
     def run(self):
         """Template main loop of the coordinator.

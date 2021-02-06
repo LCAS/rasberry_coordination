@@ -216,5 +216,11 @@ class PickerDetails(AgentDetails):
         self.car_state_pub.publish(msg)
 
     """ Picker Location Pose """
+    def _current_node_cb(self, msg):
+        if self.current_node != msg.data:
+            goal_update = True #TODO: not necessarially, either could be None
+        super(PickerDetails, self)._current_node_cb(msg)
+        if goal_update and self.task_id:
+            self.cb['task_update']("picker_node_update", self.task_id, self.curent_node)
     def picker_posestamped_cb(self, msg):
         self.posestamped = msg

@@ -649,6 +649,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         "robot_id": robot_id,
                         })
 
+    def task_update(self, update, task_id, details):
+        if update == "picker_node_update":
+            robot = self.robot_manager.get_task_handler(task_id)
+            if robot:
+                robot.goal_node = details
+            self.trigger_replan = True
+
+
     # def set_task_failed(self, task_id):
     #     """set task state as failed
     #     """
