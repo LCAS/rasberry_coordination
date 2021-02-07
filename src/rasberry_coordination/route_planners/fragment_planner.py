@@ -39,8 +39,6 @@ class FragmentPlanner(object):
         logmsg(msg='FragmentPlanner received Topological map ...')
         self.available_topo_map = copy.deepcopy(self.topo_map) #empty map used to measure routes
 
-        self.task_lock = threading.Lock()
-
     def _map_cb(self, msg):
         """This function receives the Topological Map
         """
@@ -446,13 +444,4 @@ class FragmentPlanner(object):
             agent.route_edges = []
 
         # find critical points and fragment routes to avoid critical point collistions
-        for i in range(10):
-            locked = self.task_lock.acquire(False)
-            if locked:
-                break
-            rospy.sleep(0.05)
-        if locked:
-            # restrict finding critical_path as task may get cancelled and moved
-            # from processing_tasks
-            self.split_critical_paths()
-            self.task_lock.release()
+        self.split_critical_paths()
