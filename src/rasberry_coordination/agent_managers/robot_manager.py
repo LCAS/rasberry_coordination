@@ -80,8 +80,9 @@ class RobotManager(AgentManager):
                 return 1
         return 0
     def moving_robots_exist(self):
+        #If any robot is moving(not idle), return true
         for robot in self.agent_details.values():
-            if robot.idle:
+            if not robot.idle:
                 return 1
         return 0
     def available_robots(self):
@@ -227,12 +228,14 @@ class RobotDetails(AgentDetails):
         robot.route = []
         robot.route_fragments = []
         robot.robot_interface.execpolicy_result = None
+
     def _finish_task_stage(robot, state):
         if robot.task_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
             robot._finish_route_fragment()
         robot.start_time = Now()
         if len(robot.task_stage_list):
             robot._change_task_stage(state)
+
     def _change_task_stage(robot, stage): #TODO: these 2 functions are overengineered
         if robot.task_stage == stage:
             return

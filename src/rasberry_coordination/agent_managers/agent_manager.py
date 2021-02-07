@@ -28,7 +28,10 @@ class AgentManager(object):
         for agent_id in agent_id_list:
             self.add_agent(agent_id)
 
+
     """Add AgentDetails objects"""
+    def add_agent(self, agent_id):
+        self.agent_details[agent_id] = AgentDetails(agent_id, self.cb)
     def remove_agent(self, agent_id):
         self.agent_details[agent_id]._remove()
         self.agent_details.pop(agent_id)
@@ -134,10 +137,10 @@ class AgentDetails(object):
     def _get_start_node(self):  # When between nodes, the current node is None
         if self.current_node:
             return self.current_node
-        elif self.previous_node:
-            return self.previous_node
-        else:
+        elif self.closest_node:
             return self.closest_node
+        else:
+            return self.previous_node
 
     """On shutdown"""
     def _remove(self):

@@ -55,9 +55,10 @@ class PickerManager(AgentManager):
         return task
 
     """ Unassigned tasks queries """
+    def assigned_tasks(self):
+        return {P.task_id:P.picker_id for P in self.agent_details.values() if P.task_id and P.task_stage is not "CREATED"}
     def unassigned_tasks(self):
         return {P.task_id:P.picker_id for P in self.agent_details.values() if P.task_id and P.task_stage is "CREATED"}
-
     def get_unassigned_tasks_ordered(self):
         unassigned_pickers = [P for P in self.agent_details.values() if P.task_stage is "CREATED"]
         picker_priorities = sorted(list(set([P.task_priority for P in unassigned_pickers])), reverse=True)

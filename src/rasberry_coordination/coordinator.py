@@ -72,10 +72,10 @@ class Coordinator(object):
 
         self.last_id = 0
 
-        self.all_task_ids = [] # list of all task_ids
-        self.completed_tasks = {} # {task_id:Task_definition}
-        self.cancelled_tasks = {} # {task_id:Task_definition}
-        self.failed_tasks = {} # {task_id:Task_definition}
+        self.all_task_ids = [] # lists of all task_ids
+        self.completed_tasks = []
+        self.cancelled_tasks = []
+        self.failed_tasks = []
 
         self.task_robot_id = {} # {task_id:robot_id} to track which robot is assigned to a task
 
@@ -136,7 +136,7 @@ class Coordinator(object):
             task.state = picker.task_stage
 
             """ identify connected robot """
-            assigned_robot = self.robot_manager[picker.task_id]
+            assigned_robot = self.robot_manager.get_task_handler(picker.task_id)
             if assigned_robot:
                 task.robot_id = assigned_robot.agent_id
             task.picker_id = picker.agent_id
@@ -216,19 +216,24 @@ class Coordinator(object):
         """Get all tasks grouped into processing, failed, cancelled, unassigned and completed tasks.
         """
         resp = rasberry_coordination.srv.AllTasksInfoResponse()
-        for task_id in self.processing_tasks:
-            resp.processing_tasks.append(self.picker_manager.format_task_obj(task_id=T))
-        for task_id in self.failed_tasks:
-            resp.failed_tasks.append(self.failed_tasks[task_id])
-        for task_id in self.cancelled_tasks:
-            resp.cancelled_tasks.append(self.cancelled_tasks[task_id])
-        for task_id in self.completed_tasks:
-            resp.completed_tasks.append(self.completed_tasks[task_id])
-        for P in self.picker_manager.unassigned_tasks():
+        for task_id in self.failed_tasks: #added in coordinator.set_task_failed
+            resp.failed_tasks.append(self.format_task_obj(task_id))
+        for task_id in self.cancelled_tasks: #added in coordinator.task_cancelled
+            resp.cancelled_tasks.append(self.format_task_obj(task_id))
+        for task_id in self.completed_tasks: #added in [rasberry_]coordinator.finish_task
+            resp.completed_tasks.append(self.format_task_obj(task_id))
+        for P in self.picker_manager.unassigned_tasks(): #queries (picker.task_id and picker.task_stage is "CREATED")
             resp.unassigned_tasks.append(self.picker_manager.format_task_obj(picker_id=P))
+        for P in self.picker_manager.assigned_tasks(): #queries (picker.task_id and picker.task_stage is not "CREATED")
+            resp.processing_tasks.append(self.picker_manager.format_task_obj(picker_id=P))
         return resp
 
     all_tasks_info_ros_srv.type = rasberry_coordination.srv.AllTasksInfo
+
+    def format_task_obj(self, task_id): #TODO: remove this
+        task = strands_executive_msgs.msg.Task
+        task.task_id = task_id
+        return task
 
     def advertise_services(self):
         """Adverstise ROS services.
@@ -326,6 +331,7 @@ class Coordinator(object):
         """ Inform TOC """
         self.set_task_failed(task_id)
         self.inform_toc_task_ended(task_id=task_id, reason="task_cancelled")
+        self.cancelled_tasks.add(task_id)
 
     def task_update(self, update, task_id, details):
         pass

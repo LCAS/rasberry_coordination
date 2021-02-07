@@ -7,8 +7,7 @@
 
 import rospy
 import copy
-import threading #TODO: find out why this is used
-import operator #TODO: find out if there is an alternative sorting which doesnt use imports
+import operator
 
 # import strands_executive_msgs.msg
 # import strands_executive_msgs.srv
@@ -18,7 +17,7 @@ import strands_navigation_msgs.msg
 import topological_navigation.route_search
 import topological_navigation.tmap_utils
 
-from rasberry_coordination.coordinator_tools import logmsg#, remove, add, move
+from rasberry_coordination.coordinator_tools import logmsg
 
 class FragmentPlanner(object):
     def __init__(self, robot_manager_pointer, picker_manager_pointer, callbacks):

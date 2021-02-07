@@ -634,7 +634,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         # move task from processing to completed
         task_id = robot.task_id
-        self.completed_tasks.append(task_id)
+        self.completed_tasks.add(task_id)
         robot.goal_node = None
 
         # mark task as complete
@@ -854,7 +854,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         # no other moving robots - replan
                         trigger_replan = True
                     else:
-                        # should wait until one of the moving robots to finish its route fragment
+                        # wait for a moving robot to finish its route fragment
                         pass
 
         self.trigger_replan = self.trigger_replan or trigger_replan
