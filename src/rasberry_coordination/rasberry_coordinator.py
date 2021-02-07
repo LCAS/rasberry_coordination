@@ -634,7 +634,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         # move task from processing to completed
         task_id = robot.task_id
-        self.completed_tasks.add(task_id)
+        self.completed_tasks.append(task_id)
         robot.goal_node = None
 
         # mark task as complete
@@ -850,7 +850,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
                 else:
                     # robot is waiting before a critical point
-                    if not self.robot_manager.moving_robots_exist():
+                    if self.robot_manager.moving_robots_exist():
                         # no other moving robots - replan
                         trigger_replan = True
                     else:

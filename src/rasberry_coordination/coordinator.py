@@ -307,7 +307,7 @@ class Coordinator(object):
         robot = self.robot_manager[robot_id]
         task_id = robot.task_id
         robot.task_id = None
-        self.completed_tasks.add(task_id)
+        self.completed_tasks.append(task_id)
 
         # move robot from active to idle robots
         robot.idle = True
@@ -317,7 +317,7 @@ class Coordinator(object):
         """Template method to set task state as failed.
         Extend as needed in a child class
         """
-        self.failed_tasks.add(task_id)
+        self.failed_tasks.append(task_id)
 
     def task_cancelled(self, task_id):
         """ Callback from picker_manager, on CAR call to cancel task """
@@ -331,7 +331,7 @@ class Coordinator(object):
         """ Inform TOC """
         self.set_task_failed(task_id)
         self.inform_toc_task_ended(task_id=task_id, reason="task_cancelled")
-        self.cancelled_tasks.add(task_id)
+        self.cancelled_tasks.append(task_id)
 
     def task_update(self, update, task_id, details):
         pass
