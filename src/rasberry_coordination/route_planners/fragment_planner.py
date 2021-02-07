@@ -65,9 +65,9 @@ class FragmentPlanner(object):
 
         """For each agent, if they do not have a current_node, extract the closest_node"""
         for i in range(len(curr_nodes)):
-            if curr_nodes[i] == None:
+            if curr_nodes[i] is None:
                 curr_nodes[i] = clos_nodes[i]
-            if curr_nodes[i] != None:
+            if curr_nodes[i] is not None:
                 agent_nodes.append(curr_nodes[i])
 
         for node in topo_map.nodes:
@@ -155,10 +155,10 @@ class FragmentPlanner(object):
                 # add edge_distance only if the source node is not the one we look for
                 # also make sure we start adding from current/closest node
                 if not adding_ok:
-                    if robot.current_node != None:
+                    if robot.current_node is not None:
                         if robot.current_node == robot.route[i]:
                             adding_ok = True
-                    elif robot.closest_node != None:
+                    elif robot.closest_node is not None:
                         if robot.closest_node == robot.route[i]:
                             adding_ok = True
                 if adding_ok:
@@ -256,9 +256,9 @@ class FragmentPlanner(object):
 
                     """
                     each critical vertice can be given to 1 robot
-                    thus we give it to the closest robot and 
+                    thus we give it to the closest robot and
                     prevent it being taken again by adding it to
-                    allowed_cpoints, 
+                    allowed_cpoints,
                     """
                     if (agent_id == nearest_robot and v not in allowed_cpoints):
                         """ if vertice is unassigned, and is best assigned to this robot, assign it so"""
@@ -398,7 +398,7 @@ class FragmentPlanner(object):
                 """if route is not available, replan route to wait node"""
                 if (route is None and
                     robot.task_stage == "go_to_storage" and
-                    robot.wait_node != None and
+                    robot.wait_node is not None and
                     robot.wait_node != robot.current_node):
                     logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
                     goal_node = robot.wait_node
@@ -410,7 +410,7 @@ class FragmentPlanner(object):
                     if robot.no_route_found_notification:
                         logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
                         robot.no_route_found_notification = False
-                    if start_node == None:
+                    if start_node is None:
                         self.robot_manager.dump_details(filename='no route found from None')
                     if start_node == "none":
                         self.robot_manager.dump_details(filename='no route found from none')
@@ -437,9 +437,9 @@ class FragmentPlanner(object):
 
         """for each picker/virtual picker, mark current position as node to make routing not interfere"""
         for agent in self.picker_manager.agent_details.values():
-            if agent.current_node != None:
+            if agent.current_node is not None:
                 agent.route = [agent.current_node]
-            elif agent.previous_node != None:
+            elif agent.previous_node is not None:
                 agent.route = [agent.previous_node]
             else:
                 agent.route = [agent.closest_node]

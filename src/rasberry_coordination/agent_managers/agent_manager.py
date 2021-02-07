@@ -112,7 +112,7 @@ class AgentDetails(object):
     """Callback for current node of agent"""
     def _current_node_cb(self, msg):
 
-        if self.current_node != None:
+        if self.current_node is not None:
             self.previous_node = self.current_node
 
         self.current_node = msg.data

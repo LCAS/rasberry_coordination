@@ -520,7 +520,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 continue
 
             # ignore if the robot's closest_node and current_node is not yet available
-            if robot.current_node == None and robot.closest_node == None:
+            if robot.current_node is None and robot.closest_node is None:
                 continue
 
             # ignore if the task priority is less than the min task priority for the robot
@@ -529,12 +529,12 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 continue
 
             # use current_node as start_node if available
-            if robot.current_node != None:
+            if robot.current_node is not None:
                 start_node = robot.current_node
             else:
                 start_node = robot.closest_node
 
-            if start_node == None or goal_node == None or start_node is None or goal_node is None:
+            if start_node is None or goal_node is None or start_node is None or goal_node is None:
                 route_dists = [float("inf")]
             elif start_node != goal_node:
                 route_nodes, route_edges, route_dists = self.get_path_details(start_node, goal_node)
