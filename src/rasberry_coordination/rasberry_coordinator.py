@@ -652,7 +652,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def task_update(self, update, task_id, details):
         if update == "picker_node_update":
             robot = self.robot_manager.get_task_handler(task_id)
-            if robot:
+            if robot: #and robot.task_stage == "go_to_picker":
                 robot.goal_node = details
             self.trigger_replan = True
 

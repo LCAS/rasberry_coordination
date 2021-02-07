@@ -170,6 +170,9 @@ class PickerDetails(AgentDetails):
         """ State Publisher """
         self.car_state_pub = rospy.Publisher("/car_client/set_states", Str, latch=True, queue_size=5)
 
+        """ Manual Location Moving """
+        self.move_current_node_sub = Sub(ID+"/move_current_node", Str, self._move_current_node_cb)
+
     def _remove(self):
         super(PickerDetails, self)._remove()
         self.posestamped_sub.unregister()
@@ -216,11 +219,18 @@ class PickerDetails(AgentDetails):
         self.car_state_pub.publish(msg)
 
     """ Picker Location Pose """
+    def _move_current_node_cb(self, msg):
+        self.current_node_sub.unregister()
+        self._current_node_cb(msg)
+
     def _current_node_cb(self, msg):
+        goal_update = False
         if self.current_node != msg.data:
+            logmsg(category="picker", id=self.agent_id, msg='moved to new location %s' % (msg.data))
             goal_update = True #TODO: not necessarially, either could be None
         super(PickerDetails, self)._current_node_cb(msg)
         if goal_update and self.task_id:
-            self.cb['task_update']("picker_node_update", self.task_id, self.curent_node)
+            logmsg(category="task", id=self.task_id, msg='new target assigned to robot')
+            self.cb['task_update']("picker_node_update", self.task_id, self.current_node)
     def picker_posestamped_cb(self, msg):
         self.posestamped = msg
