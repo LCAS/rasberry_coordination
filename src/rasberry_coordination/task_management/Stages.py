@@ -88,10 +88,19 @@ Notes:
 class StageDef(object):
     class StageBase(object):
         def __repr__(self):
+            return self.get_class()
+        def get_class(self):
             return str(self.__class__).replace("<class '__main__.","").replace("'>","")
         def __init__(self, agent):
             self.agent = agent
             self.agent['new_stage'] = True
+            self._summary()
+        def _summary(self):
+            self.agent['summary_start'] = "-"
+            self.agent['summary_notify_start'] = "-"
+            self.agent['summary_action'] = "-"
+            self.agent['summary_notify_end'] = "-"
+            self.agent['summary_del'] = "-"
         def _start(self):
             self.agent['new_stage'] = False
         def _notify_start(self):
@@ -124,14 +133,14 @@ class StageDef(object):
         def _start(self):
             self.agent.task_details = {}
         def _query(self):
-            success_conditions = [self.agent.task_details]
+            success_conditions = [self.agent['start_time']]
             self.agent.flag(any(success_conditions))
     class IdlePicker(IdleTask):  #TODO: for picker task to start, any value must be assigned into task_details (TASK_ID, start_time would be beter though?)
         def __del__(self):
             self.agent.new_task('transportation_picker', {'target_agent': self.agent}) #self.agent doesnt exist...
     class IdleCourier(IdleTask):
         def __del__(self):
-            self.agent.new_task(self.agent['task_type'], {'target_agent': self.agent['target']})??? #ADD ABILITY TO FOLLOW PICKER
+            self.agent.new_task(self.agent['task_type'], {'target_agent': self.agent['target']})#??? #ADD ABILITY TO FOLLOW PICKER
     class IdleStorage(IdleTask):
         def _query(self):
             success_conditions = [len(self.agent.request_admittance) > 0] #TODO: this may prove error prone w/ _start
@@ -205,6 +214,8 @@ class StageDef(object):
             success_conditions = [self.agent.location ==
                                   self.agent['target_agent'].location]
             self.agent.flag(any(success_conditions))
+        def __del__(self):
+            self.agent.interface.cancel_execpolicy_goal()
     class NavigateToPicker(Navigation):
         pass
     class NavigateToStorage(Navigation):
@@ -248,11 +259,11 @@ class StageDef(object):
     """ Loading Modifiers for Courier """
     class Loading(StageBase):
         def _query(self):
-            success_conditions = [self.agent['tray_is_with_courier']]
+            success_conditions = [self.agent['tray_present']]
             self.agent.flag(any(success_conditions))
     class Unloading(StageBase):
         def _query(self):
-            success_conditions = [not self.agent['tray_is_with_courier']]
+            success_conditions = [not self.agent['tray_present']]
             self.agent.flag(any(success_conditions))
 
 
@@ -269,14 +280,19 @@ class StageDef(object):
             self.agent.flag(any(success_conditions))
 
 
+    """ Meta Stages """
+    class Pause(StageBase):
+        def _start(self):
+            self.agent.registration=False
+            self.agent.task_stage_list[1]._pause()
+                 ^ # ^ self.agent.interface.cancel_execpolicy_goal()
+        def _query(self):
+            success_conditions = [self.registration]
+            self.agent.flag(any(success_conditions))
 
-"""
+
+    """
     if True:
-        "" Meta Stages ""
-        class Pause(StageBase):
-            def query(self):
-                success_conditions = [self.agent.registration]
-                self.agent.flag(any(success_conditions))
 
         "" Move to Target Stages ""
         class TargetedMovement(StageBase):
@@ -354,4 +370,4 @@ class StageDef(object):
             def __call__(self):
                 self.agent.storage = closest_storage_location()
                 self.agent.storage.new_task('store', {'robot': self.agent})
-"""
+    """

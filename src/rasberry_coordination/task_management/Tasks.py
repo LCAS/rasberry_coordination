@@ -7,7 +7,7 @@ class TaskDef(object):
     # agent handling the task.
 
 
-    """ Runtsime Method for Custom Task Definitions """
+    """ Runtime Method for Custom Task Definitions """
     @classmethod
     def generate_task(cls, agent, list, details={}):
         agent.task_details = details

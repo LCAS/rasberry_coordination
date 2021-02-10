@@ -5,211 +5,164 @@
 # @date:
 # ----------------------------------
 
-import actionlib
-import rospy
 
-from rospy import Subscriber as Sub, get_rostime as Now
-from std_msgs.msg import String as Str
-from rasberry_coordination.agent_managers.agent_manager import AgentManager, AgentDetails
-from geometry_msgs.msg import PoseStamped
-from rasberry_coordination.msg import TasksDetails, TaskUpdates
-from rasberry_coordination.coordinator_tools import logmsg
+""" Agent Details """
+class AgentManager(object):
+    __metaclass__ = ABCMeta  # @abstractmethod
 
-class StoreManager(AgentManager):
-
-    """Initialise class with callback details to apply to pickers"""
+    """ Initialisation """
     def __init__(self, callback_dict):
-        super(PickerManager, self).__init__(callback_dict)
-        self.latest_task_id = 0
-        self.dump_cb = Sub("rasberry_coordination/picker_manager/dump", Str, self.dump_details)
+        self.agent_details = {}
+        self.cb = callback_dict
+    def add_agents(self, agent_id_list):
+        for agent_id in agent_id_list:
+            self.add_agent(agent_id)
+    @abstractmethod
+    def add_agent(self, agent_id):
+        pass
 
-        ns = "rasberry_coordination/picker_manager/"
+    """ Conveniences """
+    def __getitem__(self, key):
+        return self.agent_details[key] if key in self.agent_details else None
 
-        # Define interaction services with CAR interface
-        self.car_event_sub = rospy.Subscriber("/car_client/get_states", Str, self.car_event_cb)
-
-        #   Define
-        # self.task_updates_sub = rospy.Subscriber("rasberry_coordination/task_updates", TaskUpdates, self.task_updates_cb)
-        # self.active_tasks_pub = rospy.Publisher("rasberry_coordination/active_tasks_details", TasksDetails, latch=True, queue_size=5)
-
-
-    """Add Picker Details Objects"""
+class RobotManager(AgentManager):
+    """ Initialisation """
+    def add_agent(self, agent_id):
+        self.agent_details[agent_id] = RobotDetails(agent_id, self.cb)
+class PickerManager(AgentManager):
+    """ Initialisation """
     def add_agent(self, agent_id):
         self.agent_details[agent_id] = PickerDetails(agent_id, self.cb)
+class StorageManager(AgentManager):
+    """ Initialisation """
+    def add_agent(self, agent_id):
+        self.agent_details[agent_id] = StorageDetails(agent_id, self.cb)
 
-    """ Picker Manager query functions """
-    def get_task(self):
-        return [P.task for P in self.agent_details]
 
-    def format_task_obj(self, picker_id=None, task_id=None): #TODO: remove this
-        if task_id:
-            picker = self.get_task_handler(task_id)
-        elif picker_id:
-            picker = self.agent_details[picker_id]
-        else:
-            return None
-        task = strands_executive_msgs.msg.Task
-        task.task_id = picker.task_id
-        task.start_node_id = picker.task_location
-        task.action = picker.task_action
-        return task
-
-    """ Unassigned tasks queries """
-    def unassigned_tasks(self):
-        return {P.task_id:P.picker_id for P in self.agent_details.values() if P.task_id and P.task_stage is "CREATED"}
-
-    def get_unassigned_tasks_ordered(self):
-        unassigned_pickers = [P for P in self.agent_details.values() if P.task_stage is "CREATED"]
-        picker_priorities = sorted(list(set([P.task_priority for P in unassigned_pickers])), reverse=True)
-        tasks = []
-        for priority in picker_priorities:
-            tasks = tasks + sorted([P.task_id for P in unassigned_pickers if P.task_priority == priority])
-        return tasks
-
-    """Communication from coordinator"""
-    def task_updates(self, picker_id='', task_id='', robot_id='', state=''):
-
-        if picker_id == '' and task_id != '':
-            picker_task_dict = {picker.task_id: picker.picker_id for picker in self.agent_details.values()}
-            #if picker.task_id is not None} #TODO: add this in eventually
-            if task_id not in picker_task_dict:#TODO: remove this eventually
-                return
-            else:
-                picker_id = picker_task_dict[task_id]
-
-        #Only allow communications which should come from the coordinator
-        if state in ["ACCEPT", "ARRIVED", "ABANDONED"]:#ASSIGNED
-            self.update_state(state, picker_id, robot_id)
-
-    """Communication from CAR"""
-    def car_event_cb(self, msg):
-        msg = eval(msg.data)
-
-        # Currently picker_state_monitor publishes the states of each picker
-        # this is not needed in the new approach
-        if "states" in msg: #TODO: remove this
-            return
-
-        # If the given state is valid, update the picker object
-        if msg["state"] in ["CALLED", "LOADED", "INIT"]:#CREATED
-            self.update_state(new_state=msg["state"], picker_id=msg["user"])
-
+""" Agent Management """
+class AgentDetails(object):
+    __metaclass__ = ABCMeta #@abstractmethod
+    """ Fields:
+    - agent_id, agent_type
+    - idle_task_definition, new_task_definition
+    - interface
+    - task_stage_list, task_details
+    - (subs) current_node, closest_node, previous_node
     """
-    picker_action CREATE_TASK()  { idle -> wait_accept          | button_1 }
-    robot_action  ACCEPT_TASK()  { wait_accept -> wait_arrival  | robot assigned to task }
-    robot_action  REACH_PICKER() { wait_arrival -> wait_loading | robot arrives }
-    picker_action LOAD_ROBOT()   { wait_loading -> idle         | button_2 }
 
-    picker_action CANCEL_TASK()  { wait_arr... -> idle | button_3 }
-    robot_action  ABANDON_TASK() { wait_arr... -> idle | robot ded }
-    """
-    """ Modify State of Picker """
-    def update_state(self, new_state, picker_id, robot_id=''):
+    """ Initialisation """
+    @abstractmethod
+    def __init__(self, ID):
+        self.agent_id = ID
+        self.idle_task_definition = None #TaskDef.idle_picker
+        self.new_task_definition = {'default': None} #TaskDef.transportation_courier
+        self.interface = None
+        pass
+    def start_idle_task(self):
+        self.idle_task_definition(self)
+    def start_new_task(self, task='default', details={}):
+        self.new_task_definition[task](self, details)
 
-        # Define picker in question
-        picker = self.agent_details[picker_id]
+    """ Localisation """
+    def current_node(self, msg):
+        self.previous_node = self.current_node if self.current_node else self.previous_node
+        self.current_node = None if msg.data == "none" else msg.data
+        if self.cb['update_topo_map']:
+            self.cb['update_topo_map']()
+    def closest_node(self, msg):
+        self.closest_node = None if msg.data == "none" else msg.data
+    def location(self):
+        return self.current_node or self.closest_node or self.previous_node
 
-        # Load new task id onto picker
-        if new_state == "CALLED":
-            picker.task_id = self.new_task_id()
-            logmsg(category="task", id=picker.task_id, msg='task called by %s' % (picker.agent_id))
+    """ Conveniences """
+    def __call__(A, index=0):
+        return A.task_stage_list[index]
+    def __getitem__(A, key):
+        return A.task_details[key] if key in A.task_details else None
+    def __setitem__(A, key, val):
+        A.task_details[key] = val
 
-        # Every valid action must have a task_id by this point
-        if not picker.task_id:
-            return
+    """ Standard Task Interactions """
+    def notify(self, state):
+        self.interface.publish(state)
+    def flag(self, flag):
+        self['stage_complete_flag'] = flag
+    def end_stage(self):
+        self.task_stage_list.pop(0)
 
-        # Take appropriate action
-        actions = {"CALLED":    picker.task_created,     # +new task  #"CREATED
-                   "ACCEPT":    picker.task_assigned,    #            #"ASSIGNED"
-                   "ARRIVED":   picker.robot_arrived,    #
-                   "LOADED":    picker.robot_loaded,     # +task complete
-                   "ABANDONED": picker.task_abandonded,  # +task complete
-                   "INIT":      picker.task_canceled}    #
-        actions[new_state]()
-
-    def new_task_id(self): #TODO: could add a tack lock here for safety?
-        self.latest_task_id = self.latest_task_id+1
-        return self.latest_task_id
-
-
-
-"""Centralised container for all details pertaining to the picker"""
+class StorageDetails(AgentDetails):
+    def __init__(self):
+        self.idle_task_definition = TaskDef.idle_courier
+        self.new_task_definition = TaskDef.transportation_courier
+        self.interface = Robot_Interface(agent_id=self.agent_id,
+                                         responses={'UNLOADED' :self.unloaded,
+                                                    'OFFLINE'  :self.offline,
+                                                    'ONLINE'   :self.online})
+        pass
+    def unloaded(self):
+        self['storage_has_tray'] = True
+    def offline(self):
+        pass
+    def online(self):
+        pass
 class PickerDetails(AgentDetails):
-
-    def __init__(self, ID, cb):
-
-        """Initialise Fields in Parent Class"""
-        super(PickerDetails, self).__init__(ID, cb)
-
-        """Meta Management"""
-        self.picker_id = ID
-        self.registered = True
-
-        """Task Details"""
-        self.task_type = None
-        self.task_id = None
-        self.task_location = None
-        self.task_action = None
-        self.task_priority = 1
-        self.picker_task = False
-        self.picker_states = None
-        self.task_stage = None
-        self.start_time = Now()
-
-        """Picker State Monitor Details""" #TODO: Find out if this is a necessary inclusion
-        self.posestamped = None
-        self.posestamped_sub = Sub("/%s/posestamped" % ID, PoseStamped, self.picker_posestamped_cb)
-
-        """Picker information"""
-        self.time_connected = Now()
-        self.virtual = False
-
-        """ State Publisher """
-        self.car_state_pub = rospy.Publisher("/car_client/set_states", Str, latch=True, queue_size=5)
-
-    def _remove(self):
-        super(PickerDetails, self)._remove()
-        self.posestamped_sub.unregister()
-
-    """State Monitoring""" #TODO: simplify this and remove repeated lines
-    def task_created(self): #called by picker
-        self.task_stage = "CREATED"
-        self.task_location = self._get_start_node()
-        self.start_time = Now()
-    def task_assigned(self): #courtesy call by coordinator
-        self.task_stage = "ASSIGNED"
-        self.start_time = Now()
-    def robot_arrived(self): #called by coordinator
-        self.task_stage = "ARRIVED"
-        self.start_time = Now()
-        self.set_picker_state("ARRIVED")
-    def robot_loaded(self): #called by picker
-        self.task_stage = "LOADED"
-        self.start_time = Now()
-        #coordinator queries this task_stage to know when to let robot leave
-    def task_finished(self): #called by coordinator
-        self.task_id = None
-        self.task_stage = None
-        self.start_time = Now()
-        self.set_picker_state("INIT")
-    def task_canceled(self): #called by picker
-        task_id = self.task_id
-        self.task_id = None
-        self.task_stage = None
-        self.start_time = Now()
-        self.set_picker_state("INIT")
-        self.cb['task_cancelled'](task_id) #needs to tell coordinator that the robot doesnt need to come anymore
-        #this one can maybe be avoided by making coordinator generate new list of tasks locally
-    def task_abandonded(self): #courtesy call by coordinator
-        self.task_created() #task cancelled by robot, reset to how it was before robot assigned
+    def __init__(self):
+        self.idle_task_definition = TaskDef.idle_picker
+        self.new_task_definition = TaskDef.transportation_picker
+        self.interface = LAR_Device(agent_id=self.agent_id,
+                                    responses={'CALLED':self.called,
+                                               'LOADED':self.loaded,
+                                               'INIT'  :self.reset})
+        pass
+    def called(self):
+        self['start_time'] = Now()  #self['task_id'] = task_id_made_by_picker_manager
+        self['task_id'] = "%s_%s"%(self.agent_id,self.total_tasks)
+        self.total_tasks += 1
+    def loaded(self):
+        self['picker_has_tray'] = False
+    def reset(self):
+        pass
+class CourierDetails(AgentDetails):
+    def __init__(self, ID):
+        self.idle_task_definition = TaskDef.idle_courier
+        self.active_task_definition = {'default': TaskDef.transportation_courier}
+        self.interface = Robot_Interface(agent_id=self.agent_id,
+                                         responses={'PAUSE'  :self.pause,
+                                                    'UNPAUSE':self.unpause,
+                                                    'RELEASE':self.release})
+        pass
+    def pause(self):
+        self.task_stage_list.insert(0, StageDef.Pause(self))
+    def unpause(self):
+        self.registration = True
+    def release(self):
+        self.task_stage_list = []
 
 
-    """ Inform picker of given stage """
-    def set_picker_state(self, state):  #TODO: replace with KeyValuePair?
-        msg = Str()
-        msg.data = '{\"user\":\"%s\", \"state\": \"%s\"}' % (self.picker_id, state)
-        self.car_state_pub.publish(msg)
+""" Agent Interface Devices / Systems """
+class AgentInterface(object):
+    def __init__(self, agent_id, responses, sub_topic, pub_topic):
+        self.sub = rospy.Subscriber(sub_topic, Str, self.callback)
+        self.pub = rospy.Publisher(pub_topic, Str)
+        self.agent_id = agent_id
+        self.responses = responses
+    def callback(self, msg): #Look into sub/feature
+        if msg["user"] == self.agent_id:
+            self.responses[msg["state"]]()
+    def notify(self, state):
+        self.pub.publish(str({'user': self.agent_id, 'state': state}))
 
-    """ Picker Location Pose """
-    def picker_posestamped_cb(self, msg):
-        self.posestamped = msg
+#Definitions for CallARobot/LoadARobot (picker), UnloadARobot (storage), and Robot_Interface (robot)
+class CAR_App(AgentInterface):
+    def __init__(self, agent_id, responses, sub_topic='/car/get_states', pub_topic='/car/set_states'):
+        super(CAR_App, self).__init__(agent_id, responses, sub_topic, pub_topic)
+class LAR_Device(AgentInterface):
+    def __init__(self, agent_id, responses, sub_topic='/lar/get_states', pub_topic='/lar/set_states'):
+        super(LAR_Device, self).__init__(agent_id, responses, sub_topic, pub_topic)
+class UAR_Device(AgentInterface):
+    def __init__(self, agent_id, responses, sub_topic='/uar/get_states', pub_topic='/uar/set_states'):
+        super(UAR_Device, self).__init__(agent_id, responses, sub_topic, pub_topic)
+class Robot_Interface(AgentInterface):
+    def __init__(self, agent_id, responses, sub_topic='/robot/get_states', pub_topic='/robot/set_states'):
+        super(Robot_Interface, self).__init__(agent_id, responses, sub_topic, pub_topic)
+

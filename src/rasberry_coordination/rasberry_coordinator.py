@@ -977,51 +977,73 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             Key Concepts:
                 - Approach requires no lock as task progression uses linear buffers
         """
-        
+
+        self.task_progression_log = './task_progression.csv'
+        self.log_data('init')
+        self.timestep = 0
+        self.iteration = 0
+        self.preious_log_iteration = ""
+
         while not rospy.is_shutdown():
 
             #TODO: add extra condition to only progress if there are any tasks which require updates?
-            #TODO: add system to update picker location for navigate task
 
             """ Get list of all currently connected agents """
-            AllAgentsList = self.robot_manager.agent_list + \
-                            self.picker_manager.agent_list
-                            #+ self.storage_manager.agent_list
+            self.AllAgentsList = self.picker_manager.agent_list\
+                            + self.robot_manager.agent_list\
+                            #+ self.storage_manager.agent_list\
                             #+ self.battery_station_manager.agent_list
+            self.log_data('iteration', linebreak=True)
+            self.enable_task_logging = True
 
 
             """ Default to Idle Task if no Task Present """
+            self.log_data(['stage', 'break', 'task_id'])
             for A in AllAgentsList:
                 A.load_idle_task() if not A.task_stage_list else None
+            self.log_data(['stage','break'])
 
             """ Perform stage initialisation where required """
+            self.log_data(['new_stage'])
             for A in AllAgentsList:
                 A()._start() if A['new_stage'] else None
+            self.log_data(['summary_start','break'])
 
             """ Perform any required communication with assosiated agent """
             for A in AllAgentsList:
                 A()._notify_start()
+            self.log_data(['summary_notify_start','break'])
 
             """ Perform agent-specific request """
+            self.log_data(['coordinator_action_required'])
             for A in AllAgentsList:
                 self.offer_service(A) if A.task_details['coordinator_action_required'] else None
+            self.log_data(['summary_action','break'])
 
             """ Perform multi-agent request """
+            self.log_data(['replan_required'])
             if any([A['replan_required'] for A in AllAgentsList]):
                 self.route_finder.find_routes()
                 self.set_execute_policy_routes()
-            #TODO: abstract this for generalisation
+                #TODO: abstract this for generalisation
+            self.log_data(['route','break'])
 
             """ Query each agents task stage for completion """
             for A in AllAgentsList:
                 A()._query()
+            self.log_data(['summary_query','stage_complete_flag','break'])
 
             """ Complete stage where needed """
+            self.log_data(['summary_notify_end','summary_end_stage'])
             for A in AllAgentsList:
                 if A['stage_complete_flag']:
                     A()._notify_end()
                     A.end_stage()  # calls __del__
 
+            """ Publish log if any updates occured this round """
+            if self.enable_task_logging:
+                if self.current_log_iteration != self.previous_log_iteration:
+                    self.publish_log()
 
     """ Services offerd by Coordinator to assist with tasks """
     def offer_service(self, agent):
@@ -1080,3 +1102,61 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             if robot.active:
                 robot.robot_interface.cancel_execpolicy_goal()
                 robot.robot_interface.cancel_toponav_goal()
+
+
+
+
+    """ Task Stage Logging """
+    def log_linebreak(self):
+        with open(self.task_progression_log, 'a') as log:
+            dash_lengths = [13, 13, 22, 39, 3]
+            log.write(',|,'.join(['-'*dl for dl in dash_lengths[:3]]))
+            log.write(',|,'.join(['-'*dash_lengths[3] for a in range(len(self.AllAgentsList))]))
+            log.write(',|,'.join(['-' * dl for dl in dash_lengths[4]]))
+    def log_init(self):
+        with open(self.task_progression_log, 'w+') as log:
+            log.write(' ,'*5+"|,Agents:\n")
+        return ['Timestep','Iteration','Stage']+[a.agent_id for a in AllAgentsList]
+    def log_break(self):
+        return ['' for a in range(3+len(self.AllAgentList))]
+    def log_iteration(self):
+        return [self.timestep, self.iteration]+['' for a in range(1 + len(self.AllAgentsList))]
+    def log_value(self, detail):
+        return ['','']+[a[detail] for a in self.AllAgentList]
+    def log_not_none(self, detail):
+        return ['', ''] + [a[detail] is not None for a in self.AllAgentsList]
+    def log_stage(self):
+        return ['','']+[a.get_class() for a in self.AllAgentsList]
+
+    def log_data(self, switches, detail=None, linebreak=False):
+        if not self.enable_task_logging:
+            return
+        self.log_linebreak() if linebreak else None
+
+        switch_group_empty = {'init':self.log_init,
+                              'break':self.log_break,
+                              'iteration':self.log_iteration,
+                              'stage': self.log_stage}
+        switch_group_value = {'task_id':self.log_not_none,                 #('task_id')
+                              'route':self.log_not_none,                   #('route')
+                              'new_stage':self.log_value,                  #('new_stage')
+                              'coordinatr_action_required':self.log_value, #('coordinator_action_required')
+                              'replan_required':self.log_value,            #('replan_required')
+                              'stage_complete_flag':self.log_value,        #('stage_complete_flag')
+                              'summary_start':self.log_value,              #('summary_start')
+                              'summary_notify_start':self.log_value,       #('summary_notify_start')
+                              'summary_action':self.log_value,             #('summary_action')
+                              'summary_query_condition':self.log_value,    #('summary_query')
+                              'summary_notify_end':self.log_value,         #('summary_notify_end')
+                              'summary_end_stage':self.log_value}          #('summary_del')
+
+        for switch in switches:
+            details = switch_group_empty[switch]() if switch in switch_group_empty else None
+            details = switch_group_value[switch](switch) if switch in switch_group_value else None
+            details.insert(3,switch) if switch not in ["break", "init", "iteration"] else details.insert(3,'')
+            self.current_log_iteration.append(',|,'.join(details) + "\n")
+
+    def publish_log(self):
+        with open(self.task_progression_log, 'a') as log:
+            log.write(self.current_log_iteration)
+        self.preious_log_iteration = self.current_log_iteration
