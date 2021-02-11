@@ -348,7 +348,7 @@ class FragmentPlanner(object):
 
 
                 """get start node and goal node"""
-                start_node = robot._get_start_node()
+                start_node = robot._get_start_node(accuracy=True)
                 goal_node = robot._get_goal_node() #TODO: improve this function
 
                 """if current node is goal node, generate empty route and set task as finished"""
@@ -411,9 +411,9 @@ class FragmentPlanner(object):
                         logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
                         robot.no_route_found_notification = False
                     if start_node is None:
-                        self.robot_manager.dump_details(filename='no route found from None')
+                        robot._dump(filename='no route found from None')
                     if start_node == "none":
-                        self.robot_manager.dump_details(filename='no route found from none')
+                        robot._dump(filename='no route found from none')
 
                     #TODO: see how we could improve this by generating wait_node dynamically based on map activity
                 else:

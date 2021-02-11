@@ -134,13 +134,11 @@ class AgentDetails(object):
             self.closest_node = None
 
     """return start node as current node, previous node or closest node"""
-    def _get_start_node(self):  # When between nodes, the current node is None
-        if self.current_node:
-            return self.current_node
-        elif self.closest_node:
-            return self.closest_node
+    def _get_start_node(self, accuracy=None):  # When between nodes, the current node is None
+        if accuracy:
+            return self.current_node or self.previous_node or self.closest_node
         else:
-            return self.previous_node
+            return self.current_node or self.closest_node or self.previous_node
 
     """On shutdown"""
     def _remove(self):

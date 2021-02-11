@@ -656,7 +656,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 robot.goal_node = details
             self.trigger_replan = True
 
-
     # def set_task_failed(self, task_id):
     #     """set task state as failed
     #     """
