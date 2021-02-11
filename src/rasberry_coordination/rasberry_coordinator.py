@@ -486,7 +486,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         logmsg(category="robot", id=robot_id, msg='attempting to send to base station')
 
         robot = self.robot_manager[robot_id]
-        if robot.current_node == robot.base_station:
+        if robot._get_start_node() == robot.base_station:
             logmsg(category="robot", id=robot_id, msg='already at base station')
             # already at base station. set as idle
             robot._set_as_idle()
