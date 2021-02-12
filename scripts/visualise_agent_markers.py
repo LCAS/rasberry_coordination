@@ -20,17 +20,26 @@ class MarkerPublisher:
     def __init__(self, config):
         self.config = config
 
-        # Initialise variables
-        self.robot_ids = [self.config_get('robot_id', config=robot) for robot in self.config_get('spawn_list')[1:]]
-        self.picker_ids = [] + self.config_get("picker_ids")
-        self.virtual_picker_ids = [] + self.config_get("virtual_picker_ids")
+        # Identify agents
+        if config['version'] == '1.1.0':
+            r = [self.config_get('robot_id', config=robot) for robot in self.config_get('spawn_list')[1:]]
+            p = [] + self.config_get("picker_ids")
+            vp = [] + self.config_get("virtual_picker_ids")
+        else:
+            r = [agent['agent_id'] for agent in config['agent_list'][1:] if agent['agent_type'] is "robotic_courier"]
+            p = [agent['agent_id'] for agent in config['agent_list'][1:] if agent['agent_type'] is "human_picker"]
+            vp = [agent['agent_id'] for agent in config['agent_list'][1:] if agent['agent_type'] is "virtual_picker"]
+        self.robot_ids = r
+        self.picker_ids = p
+        self.virtual_picker_ids = vp
 
+        # Initialise publisher handlers
         self.thorvald_marker_publishers = {}
         self.picker_marker_publishers = {}
         self.virtual_picker_marker_publishers = {}
         self.base_frame_publishers = {}
 
-        # add markers defined in config file
+        # Add markers defined in config file
         self.startup_markers()
 
         # Listen for additional markers to be added

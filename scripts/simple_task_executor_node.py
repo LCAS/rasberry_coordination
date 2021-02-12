@@ -82,10 +82,10 @@ if __name__ == '__main__':
     # configuration file validation
     template_location = "raspberry_coordination/config/map_config_template.yaml"
     if "version" not in config_data:
-        raise Exception('\033[92m'+"Config outdated, update following: "+template+'\033[0m')
+        raise Exception('\033[92m'+"Config outdated, update following: "+template_location+'\033[0m')
     if config_data["version"] != "1.1.0":
         print("Config version: "+config_data["version"])
-        raise Exception('\033[92m'+"Config outdated, update following: "+template+'\033[0m')
+        raise Exception('\033[92m'+"Config outdated, update following: "+template_location+'\033[0m')
 
     # Ensure all required fields are filled with the correct data types
     validate_types(config_file, config_data)
