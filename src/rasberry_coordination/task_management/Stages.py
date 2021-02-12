@@ -90,7 +90,7 @@ class StageDef(object):
         def __repr__(self):
             return self.get_class()
         def get_class(self):
-            return str(self.__class__).replace("<class '__main__.","").replace("'>","")
+            return str(self.__class__).replace("<class 'rasberry_coordination.task_management.Stages.","").replace("'>","")
         def __init__(self, agent):
             self.agent = agent
             self.agent['new_stage'] = True
@@ -210,15 +210,16 @@ class StageDef(object):
         def _start(self):
             super(Navigation, self)._start()
             self.agent['replan_required'] = True
+        def __del__(self):
+            self.agent.interface.cancel_execpolicy_goal()
+    class NavigateToAgent(Navigation):
         def _query(self):
             success_conditions = [self.agent.location ==
                                   self.agent['target_agent'].location]
             self.agent.flag(any(success_conditions))
-        def __del__(self):
-            self.agent.interface.cancel_execpolicy_goal()
-    class NavigateToPicker(Navigation):
+    class NavigateToPicker(NavigateToAgent):
         pass
-    class NavigateToStorage(Navigation):
+    class NavigateToStorage(NavigateToAgent):
         pass
     class FollowAgent(StageBase):
         def _update(self):
@@ -285,7 +286,7 @@ class StageDef(object):
         def _start(self):
             self.agent.registration=False
             self.agent.task_stage_list[1]._pause()
-                 ^ # ^ self.agent.interface.cancel_execpolicy_goal()
+            pass #^ # ^ self.agent.interface.cancel_execpolicy_goal()
         def _query(self):
             success_conditions = [self.registration]
             self.agent.flag(any(success_conditions))

@@ -1,3 +1,7 @@
+
+
+from rasberry_coordination.task_management.Stages import StageDef
+
 class TaskDef(object):
     """ Definitions for Task Initialisation Criteria """
     # Consistent attributes accessible directly, task-specific
@@ -9,8 +13,22 @@ class TaskDef(object):
 
     """ Runtime Method for Custom Task Definitions """
     @classmethod
+    def load_details(cls, details):
+        if 'coordinator_action_required' not in details:
+            details['coordinator_action_required'] = False
+        if 'replan_required' not in details:
+            details['replan_required'] = False
+        if 'stage_complete_flag' not in details:
+            details['stage_complete_flag'] = False
+        if 'new_stage' not in details:
+            details['new_stage'] = True
+        return details
+
+
+    """ Runtime Method for Custom Task Definitions """
+    @classmethod
     def generate_task(cls, agent, list, details={}):
-        agent.task_details = details
+        agent.task_details = cls.load_details(details)
         agent.task_stage_list = []
 
         #Create dictionary for access to each stage defined in StageDef
@@ -29,19 +47,19 @@ class TaskDef(object):
     """ Initial Task Stages for Agents """
     @classmethod
     def idle_picker(cls, agent, details={}):
-        agent.task_details = details
+        agent.task_details = cls.load_details(details)    
         agent.task_stage_list.append(
             StageDef.IdlePicker(agent)
         )
     @classmethod
     def idle_courier(cls, agent, details={}):
-        agent.task_details = details
+        agent.task_details = cls.load_details(details)
         agent.task_stage_list.append(
             StageDef.IdleCourier(agent)
         )
     @classmethod
     def idle_storage(cls, agent, details={}):
-        agent.task_details = details
+        agent.task_details = cls.load_details(details)
         agent.task_stage_list.append(
             StageDef.IdleStorage(agent)
         )
@@ -49,7 +67,7 @@ class TaskDef(object):
     """ Picker Logistics Transportation """
     @classmethod
     def transportation_request(cls, agent, details={}):
-        agent.task_details = details
+        agent.task_details = cls.load_details(details)
         agent.task_stage_list.append(
             StageDef.StartTask(),
             StageDef.AssignCourier(agent),
@@ -62,7 +80,7 @@ class TaskDef(object):
         )
     @classmethod
     def transportation_courier(cls, agent, details={}):
-        agent.task_details = details
+        agent.task_details = cls.load_details(details)
         agent.task_stage_list.append(
             StageDef.StartTask(),
             StageDef.NavigateToPicker(agent),
@@ -76,7 +94,7 @@ class TaskDef(object):
         )
     @classmethod
     def transportation_storage(cls, agent, details={}):
-        agent.task_details = details
+        agent.task_details = cls.load_details(details)
         agent.task_stage_list.append(
             StageDef.StartTask(),
             StageDef.AwaitCourier(agent),
@@ -88,7 +106,7 @@ class TaskDef(object):
     """ Trailer Logistics Transportation """
     @classmethod
     def trailer_courier(cls, agent, details={}):
-        agent.task_details = details
+        agent.task_details = cls.load_details(details)
         agent.task_stage_list.append(
             StageDef.AssignStorage(agent),
             StageDef.AwaitStoreAccess(agent),
@@ -128,4 +146,13 @@ class TaskDef(object):
         agent.task_stage_list.append(
             ("navigation", StageDef.Navigation(agent, details['row_start_node'])),
             ("data_collection", StageDef.RowDataCollection(agent, details['row_end_node']))
+        )
+
+    """ Maintenance """
+    @classmethod
+    def charge_robot(cls, agent, details={}):
+        agent.task_stage_list.append(
+            StageDef.FindChargingNode(agent),
+            StageDef.Navigation(agent),
+            StageDef.WaitCharging(agent)
         )

@@ -26,116 +26,254 @@ import topological_navigation.tmap_utils
 
 import rasberry_coordination.robot
 import rasberry_coordination.msg
+from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 import rasberry_coordination.srv
 import rasberry_coordination.coordinator
 from rasberry_coordination.coordinator_tools import logmsg, remove, add, move
 from rasberry_coordination.route_planners.route_planners import RouteFinder
+from rasberry_coordination.task_management.Tasks import TaskDef
+from rasberry_coordination.task_management.Stages import StageDef
+from rasberry_coordination.agent_managers import store_manager as agent_managers
 
 
 class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     """RasberryCoordinator class definition
     """
-    def __init__(self, robot_ids, picker_ids, virtual_picker_ids,
-                 local_storages, cold_storage, use_cold_storage,
-                 base_stations, wait_nodes,
-                 max_task_priorities,
-                 admissible_robot_ids, active_tasks,
-                 base_station_nodes_pool, wait_nodes_pool,
-                 max_load_duration, max_unload_duration,
-                 ns="rasberry_coordination"):
-        """initialise a RasberryCoordinator object
+    def __init__(self, agent_list, base_station_nodes_pool, wait_nodes_pool, planning_type, ns):
 
-        Keyword arguments:
-            robot_ids -- list of robot_ids
-            picker_ids-- list of human picker_ids
-            virtual_picker_ids -- list of virtual (DES) picker_ids
-            local_storages -- list of local storage nodes
-            cold_storage -- cold storage node
-            use_cold_storage -- flag to use cold/local storage
-            base_stations -- base station nodes for the robots {robot_id:base_node}
-            wait_nodes -- waiting nodes (if robot cannot go to storage, it could
-                          wait at this node) {robot_id:wait_node}
-            max_task_priorities -- max priority of tasks a robot can be assigned to.
-                                   this is used to set some robots exclusively for
-                                   tasks from human pickers (at higher priority),
-                                   while some robots can be assigned to both human
-                                   and virtual pickers. (To make demos interesting)
-            admissible_robot_ids -- list of robots ids for the robots which are allowed to connect to the system
-            active_tasks -- list of tasks which the system is currently performing
-            base_station_nodes_pool -- pool defining list of all base stations within the system
-            wait_nodes_pool -- pool defining list all waiting nodes
-        """
-
-        self.log_routes = False  # define whether to log route details to console
-
-        super(RasberryCoordinator, self).__init__(robot_ids,
-                                                  picker_ids,
-                                                  virtual_picker_ids,
-                                                  ns=ns,
-                                                  is_parent=True)
-
-        self.local_storages = local_storages
-        self.cold_storage = cold_storage
-        self.use_cold_storage = use_cold_storage
-
-        # Base station initialisation
-        self.base_station_nodes_pool = set(base_station_nodes_pool)
-        used_base_stations = set(base_stations.values())
-        self.available_base_stations = list(self.base_station_nodes_pool.difference(used_base_stations))
-
-        logmsg(msg='base stations in use: %s' % (base_stations.values()))
-        logmsg(msg='base stations available: %s' % (str(self.available_base_stations)))
-
-        # Wait node initialisation
-        self.wait_nodes_pool = set(wait_nodes_pool)
-        used_wait_nodes = set(wait_nodes.values())
-        self.available_wait_nodes = list(self.wait_nodes_pool.difference(used_wait_nodes))
-
-        # Initialise conditions for robot registration
-        self.admissible_robot_ids = admissible_robot_ids
-        self.active_tasks = active_tasks
-        logmsg(msg='active tasks: ' + ', '.join(self.active_tasks))
-
-        # Initialise topics for marker management
-        self.marker_add_pub = rospy.Publisher('/rasberry_coordination/marker_add',
-                                                rasberry_coordination.msg.MarkerDetails, queue_size=5)
-        self.marker_remove_pub = rospy.Publisher('/rasberry_coordination/marker_remove',
-                                                  rasberry_coordination.msg.MarkerDetails, queue_size=5)
-
-        self.task_lock = threading.Lock()
-
-        logs_dir = os.path.join(os.environ["HOME"], "rasberry_coordination_logs")
-        if not os.path.exists(logs_dir):
-            os.makedirs(logs_dir)
-        dt = datetime.datetime.now()
-        self.log_file = open(os.path.join(logs_dir, dt.strftime("%Y%m%d-%H%M%S_coordinator.csv")), "w")
-        self.log_headers = ["id", "time", "datetime", "action_type",
-                            "task_id", "robot_id", "robot_task_stage",
-                            "task_updates", "details", "current_node",
-                            "closest_node", "source", "edge_ids"]
-        self.log_count = 0
-        self.log_writer = csv.DictWriter(self.log_file, fieldnames=self.log_headers)
-        self.log_writer.writeheader()
-        self.write_log({"action_type": "starting coordinator"})
-
-        """Robot Detail Manage Initialisation"""
-        self.robot_manager.add_agents(robot_ids)
-        for robot in self.robot_manager.agent_details.values():
-            robot.base_station = base_stations[robot.robot_id]
-            robot.wait_node = wait_nodes[robot.robot_id]
-            robot.max_task_priority = max_task_priorities[robot.robot_id]
-
+        """ Meta Fields """
+        self.ns = ns.strip("/") + "/"
+        self.is_parent = True
         self.trigger_replan = False
+        self.log_count = 0
 
-        logmsg(msg='robots initialised: ' + ', '.join(self.robot_manager.agent_details.keys()))
 
-        # calling from the child class
-        self.advertise_services()
-
+        """ Initialise Task Parameters: """ #This should be done within Stages.py programatically
+        """
+        self.active_tasks = active_tasks
         self.max_load_duration = max_load_duration
         self.max_unload_duration = max_unload_duration
+        self.max_task_priority = max_task_priority
+        """
+
+        """ Initialise System Details: """
+        self.base_station_nodes_pool = base_station_nodes_pool
+        self.wait_nodes_pool = wait_nodes_pool
+
+        # Cold storage node is an agnet now, and should be defined as such
+        """
+        self.use_cold_storage = use_cold_storage
+        self.cold_storage_node = cold_storage_node
+        """
+
+        """ Initialise Agents: """
+        callbacks = {'update_topo_map': None, 'task_cancelled': self.task_cancelled} #This should not exist
+
+        #Define Managers
+        self.courier_manager = agent_managers.CourierManager(callbacks)
+        self.picker_manager  = agent_managers.PickerManager(callbacks)
+        self.storage_manager = agent_managers.StorageManager(callbacks)
+
+        #Add Agents
+        self.courier_manager.add_agents([agent for agent in agent_list[1:] if agent['agent_type'] == 'robotic_courier'])
+        self.picker_manager.add_agents( [agent for agent in agent_list[1:] if agent['agent_type'] == 'human_picker'])
+        self.storage_manager.add_agents([agent for agent in agent_list[1:] if agent['agent_type'] == 'local_storage'])
+
+        # Extra Types
+        #self.courier_manager.add_agents([agent for agent in agent_list if agent.agent_type == 'human_courier'])
+        #self.picker_manager.add_agents( [agent for agent in agent_list if agent.agent_type == 'robotic_picker'])
+        #self.picker_manager.add_agents( [agent for agent in agent_list if agent.agent_type == 'virtual_picker'])
+        #self.storage_manager.add_agents([agent for agent in agent_list if agent.agent_type == 'cold_storage'])
+
+        """ Initialise Map: """  # This should be done within the route planner
+        self.topo_map = None
+        self.rec_topo_map = False
+        rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
+        logmsg(msg='coordinator waiting for Topological map ...')
+        while not self.rec_topo_map:
+            rospy.sleep(rospy.Duration.from_sec(0.1))
+        logmsg(msg='coordinator received Topological map ...')
+
+        # default route search object
+        self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
+
+        # route planning may be done on available_topo_map avoiding other tracked agents
+        # available_topo_map = full_topomap - edges_to_nodes_currently_occupied
+        self.available_topo_map = copy.deepcopy(self.topo_map)
+        # create a topological_navigation.route_search.TopologicalRouteSearch object
+        # with the current self.available_topo_map to plan routes avoiding
+        # other agents, when necessary
+
+        """ Routing Details """
+        routing_cb = {'publish_task_state': self.publish_task_state,
+                      'send_robot_to_base': self.send_robot_to_base}  # These need to be eventually managed better
+        self.route_finder = RouteFinder(planning_type=planning_type,
+                                        robots=self.courier_manager,
+                                        pickers=self.picker_manager, #this should be made to not need these
+                                        #stores=self.storage_manager,
+                                        #agents=self.agent_manager
+                                        callbacks=routing_cb)
+
+
+        """ Communications Setup """
+        self.advertise_services()
+
+        # Initialise topics for marker management #Combine these into 1 topic
+        self.marker_add_pub = rospy.Publisher('/rasberry_coordination/marker_add', MarkerDetails, queue_size=5)
+        self.marker_remove_pub = rospy.Publisher('/rasberry_coordination/marker_remove', MarkerDetails, queue_size=5)
+
+        """ TOC Communications """
+        self.active_tasks_pub = rospy.Publisher(self.ns + "active_tasks_details",
+                                                rasberry_coordination.msg.TasksDetails, latch=True, queue_size=5)
+
 
         logmsg(msg='coordinator initialised')
+        return
+
+    # def old___init__(self, robot_ids, picker_ids, virtual_picker_ids,
+    #              local_storages, cold_storage, use_cold_storage,
+    #              base_stations, wait_nodes,
+    #              max_task_priorities,
+    #              admissible_robot_ids, active_tasks,
+    #              base_station_nodes_pool, wait_nodes_pool,
+    #              max_load_duration, max_unload_duration,
+    #              ns="rasberry_coordination"):
+    #     """initialise a RasberryCoordinator object
+    #
+    #     Keyword arguments:
+    #         robot_ids -- list of robot_ids
+    #         picker_ids-- list of human picker_ids
+    #         virtual_picker_ids -- list of virtual (DES) picker_ids
+    #         local_storages -- list of local storage nodes
+    #         cold_storage -- cold storage node
+    #         use_cold_storage -- flag to use cold/local storage
+    #         base_stations -- base station nodes for the robots {robot_id:base_node}
+    #         wait_nodes -- waiting nodes (if robot cannot go to storage, it could
+    #                       wait at this node) {robot_id:wait_node}
+    #         max_task_priorities -- max priority of tasks a robot can be assigned to.
+    #                                this is used to set some robots exclusively for
+    #                                tasks from human pickers (at higher priority),
+    #                                while some robots can be assigned to both human
+    #                                and virtual pickers. (To make demos interesting)
+    #         admissible_robot_ids -- list of robots ids for the robots which are allowed to connect to the system
+    #         active_tasks -- list of tasks which the system is currently performing
+    #         base_station_nodes_pool -- pool defining list of all base stations within the system
+    #         wait_nodes_pool -- pool defining list all waiting nodes
+    #     """
+    #
+    #     self.log_routes = False  # define whether to log route details to console
+    #
+    #     """Initialise the base Coordinator class object.
+    #
+    #     Keyword arguments:
+    #         robot_ids -- list of all robots' ids
+    #         picker_ids -- list of all human pickers' ids
+    #         virtual_picker_ids -- list of all DES simulated pickers' ids
+    #         is_parent -- if this is a parent class of another class
+    #     """
+    #     # TODO: this will strip leading slashes as well
+    #     self.ns = ns.strip("/") + "/"
+    #
+    #     self.human_picker_ids = picker_ids
+    #     self.virtual_picker_ids = virtual_picker_ids
+    #
+    #     self.is_parent = is_parent
+    #
+    #     self.topo_map = None
+    #     self.rec_topo_map = False
+    #     rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
+    #     logmsg(msg='coordinator waiting for Topological map ...')
+    #     while not self.rec_topo_map:
+    #         rospy.sleep(rospy.Duration.from_sec(0.1))
+    #     logmsg(msg='coordinator received Topological map ...')
+    #
+    #
+    #     # default route search object
+    #     self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
+    #
+    #     # route planning may be done on available_topo_map avoiding other tracked agents
+    #     # available_topo_map = full_topomap - edges_to_nodes_currently_occupied
+    #     self.available_topo_map = copy.deepcopy(self.topo_map)
+    #     # create a topological_navigation.route_search.TopologicalRouteSearch object
+    #     # with the current self.available_topo_map to plan routes avoiding
+    #     # other agents, when necessary
+    #
+    #     if not self.is_parent:
+    #         # this should only be called from the child class
+    #         self.advertise_services()
+    #
+    #     self.last_id = 0
+    #
+    #     self.all_task_ids = []  # list of all task_ids
+    #     self.completed_tasks = {}  # {task_id:Task_definition}
+    #     self.cancelled_tasks = {}  # {task_id:Task_definition}
+    #     self.failed_tasks = {}  # {task_id:Task_definition}
+    #
+    #     self.task_robot_id = {}  # {task_id:robot_id} to track which robot is assigned to a task
+    #
+    #     """Robot Detail Manage Initialisation"""
+    #     cb_dict = {'update_topo_map': None, 'task_cancelled': self.task_cancelled}
+    #     self.robot_manager = RobotManager(cb_dict)
+    #     self.robot_manager.add_agents(robot_ids)
+    #     self.picker_manager = PickerManager(cb_dict)
+    #     self.picker_manager.add_agents(picker_ids + virtual_picker_ids)
+    #     for picker in self.picker_manager.agent_details.values():
+    #         if picker.picker_id in virtual_picker_ids:
+    #             picker.virtual = True
+    #             picker.task_priority = 0
+    #     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    #
+    #     self.active_tasks_pub = rospy.Publisher(self.ns + "active_tasks_details",
+    #                                             rasberry_coordination.msg.TasksDetails, latch=True, queue_size=5)
+    #     logmsg(msg='coordinator initialised')
+    #
+    #
+    #     self.local_storages = local_storages
+    #     self.cold_storage = cold_storage
+    #     self.use_cold_storage = use_cold_storage
+    #
+    #     # Base station initialisation
+    #     self.base_station_nodes_pool = set(base_station_nodes_pool)
+    #     used_base_stations = set(base_stations.values())
+    #     self.available_base_stations = list(self.base_station_nodes_pool.difference(used_base_stations))
+    #
+    #     logmsg(msg='base stations in use: %s' % (base_stations.values()))
+    #     logmsg(msg='base stations available: %s' % (str(self.available_base_stations)))
+    #
+    #     # Wait node initialisation
+    #     self.wait_nodes_pool = set(wait_nodes_pool)
+    #     used_wait_nodes = set(wait_nodes.values())
+    #     self.available_wait_nodes = list(self.wait_nodes_pool.difference(used_wait_nodes))
+    #
+    #     # Initialise conditions for robot registration
+    #     self.admissible_robot_ids = admissible_robot_ids
+    #     self.active_tasks = active_tasks
+    #     logmsg(msg='active tasks: ' + ', '.join(self.active_tasks))
+    #
+    #     # Initialise topics for marker management
+    #     self.marker_add_pub = rospy.Publisher('/rasberry_coordination/marker_add',
+    #                                             rasberry_coordination.msg.MarkerDetails, queue_size=5)
+    #     self.marker_remove_pub = rospy.Publisher('/rasberry_coordination/marker_remove',
+    #                                               rasberry_coordination.msg.MarkerDetails, queue_size=5)
+    #
+    #     """Robot Detail Manage Initialisation"""
+    #     self.robot_manager.add_agents(robot_ids)
+    #     for robot in self.robot_manager.agent_details.values():
+    #         robot.base_station = base_stations[robot.robot_id]
+    #         robot.wait_node = wait_nodes[robot.robot_id]
+    #         robot.max_task_priority = max_task_priorities[robot.robot_id]
+    #
+    #     self.trigger_replan = False
+    #
+    #     logmsg(msg='robots initialised: ' + ', '.join(self.robot_manager.agent_details.keys()))
+    #
+    #     # calling from the child class
+    #     self.advertise_services()
+    #
+    #     self.max_load_duration = max_load_duration
+    #     self.max_unload_duration = max_unload_duration
+    #
+    #     logmsg(msg='coordinator initialised')
 
     def tray_loaded_ros_srv(self, req):
         """tray_loaded service
@@ -918,168 +1056,56 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     if goal.route.edge_id:
                         robot.moving = True
 
-    def run(self, planning_type='fragment_planner'):
-        self.run_old(planning_type)
-    def run_old(self, planning_type='fragment_planner'):
-        """the main loop of the coordinator
-        """
-        routing_cb = {'publish_task_state': self.publish_task_state,
-                      'send_robot_to_base': self.send_robot_to_base}
-        self.route_finder = RouteFinder(planning_type=planning_type,
-                                        robots=self.robot_manager,
-                                        pickers=self.picker_manager,
-                                        callbacks=routing_cb)
-
-        #TOC callback timeout
-        iterations = 100
-
-        while not rospy.is_shutdown():
-            rospy.sleep(0.01)  # TODO: look into methods to remove the artificial delay
-
-            """ update TOC with latest tasks states """
-            iterations=iterations-1
-            if iterations < 0:
-                self.inform_toc_active_tasks()
-                iterations = 100
-
-            """ if there are unassigned tasks and there robots able to take them on """
-            available_robots = self.robot_manager.available_robots()
-            unassigned_tasks = self.picker_manager.unassigned_tasks()
-            if available_robots and unassigned_tasks:
-                logmsg(category="task", msg='unassigned task present, %s robots available' % (len(available_robots)))
-                logmsg(category="list", msg='available robots: %s' % (str(available_robots)))
-                # try to assign all tasks
-                rospy.sleep(0.2)
-                self.assign_tasks()
-
-            """ check progress of active robots """
-            self.handle_tasks()
-
-            """ replan if needed """
-            if self.trigger_replan:
-                self.route_finder.find_routes()
-
-                self.trigger_replan = False
-
-                # assign first fragment of each robot
-                self.set_execute_policy_routes()
-
-    """ Main loop for task progression """
-    def run_new(self, planning_type='fragment_planner'):
-        """ For details see: rasberry_coordination/src/CoordinatorStructure.md
-
-            Notation Worth Noting:
-                - Specific agents are represented by the variable A
-                - An active task is identified by __call__, e.g. A()
-                - Task details can be identified by __getitem__, e.g. A[key]
-                - Task details can be set using __setitem__, e.g. A[key]=val
-
-            Key Concepts:
-                - Approach requires no lock as task progression uses linear buffers
-        """
-
-        self.task_progression_log = './task_progression.csv'
-        self.log_data('init')
-        self.timestep = 0
-        self.iteration = 0
-        self.preious_log_iteration = ""
-
-        while not rospy.is_shutdown():
-
-            #TODO: add extra condition to only progress if there are any tasks which require updates?
-
-            """ Get list of all currently connected agents """
-            self.AllAgentsList = self.picker_manager.agent_list\
-                            + self.robot_manager.agent_list\
-                            #+ self.storage_manager.agent_list\
-                            #+ self.battery_station_manager.agent_list
-            self.log_data('iteration', linebreak=True)
-            self.enable_task_logging = True
-
-
-            """ Default to Idle Task if no Task Present """
-            self.log_data(['stage', 'break', 'task_id'])
-            for A in AllAgentsList:
-                A.load_idle_task() if not A.task_stage_list else None
-            self.log_data(['stage','break'])
-
-            """ Perform stage initialisation where required """
-            self.log_data(['new_stage'])
-            for A in AllAgentsList:
-                A()._start() if A['new_stage'] else None
-            self.log_data(['summary_start','break'])
-
-            """ Perform any required communication with assosiated agent """
-            for A in AllAgentsList:
-                A()._notify_start()
-            self.log_data(['summary_notify_start','break'])
-
-            """ Perform agent-specific request """
-            self.log_data(['coordinator_action_required'])
-            for A in AllAgentsList:
-                self.offer_service(A) if A.task_details['coordinator_action_required'] else None
-            self.log_data(['summary_action','break'])
-
-            """ Perform multi-agent request """
-            self.log_data(['replan_required'])
-            if any([A['replan_required'] for A in AllAgentsList]):
-                self.route_finder.find_routes()
-                self.set_execute_policy_routes()
-                #TODO: abstract this for generalisation
-            self.log_data(['route','break'])
-
-            """ Query each agents task stage for completion """
-            for A in AllAgentsList:
-                A()._query()
-            self.log_data(['summary_query','stage_complete_flag','break'])
-
-            """ Complete stage where needed """
-            self.log_data(['summary_notify_end','summary_end_stage'])
-            for A in AllAgentsList:
-                if A['stage_complete_flag']:
-                    A()._notify_end()
-                    A.end_stage()  # calls __del__
-
-            """ Publish log if any updates occured this round """
-            if self.enable_task_logging:
-                if self.current_log_iteration != self.previous_log_iteration:
-                    self.publish_log()
-
-    """ Services offerd by Coordinator to assist with tasks """
-    def offer_service(self, agent):
-        service_category = agent.task_details['service_category']
-        service_type = agent.task_details['service_type']
-        conditions = agent.task_details['service_conditions']
-        response_location = agent.task_details['response_location']
-
-        """ ROOM TO EXPAND
-        Services Offered:
-            find_agent:
-                - closest
-                - furthest?
-                - ...?
-            ...?
-        """
-
-        responses = {'find_agent':self.find_agent}  # ROOM TO EXPAND
-        responses[service_category](agent, service_type, conditions, response_location)
-    def find_agent(self, agent, search_type, KV):
-        A = [a for a in self.agent_list if (a is not agent)
-                                        and (agent.getattr(KV['key']) is KV['val'])] #list of robots matching the KeyValue criteria given
-
-        responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
-        agent[response_location] = responses["closest"](agent, A)
-    def find_closest_agent(self, agent, agent_list):
-            dist_list = [self.dist(agent._get_start_node(),a._get_start_node())
-                for a in agent_list]
-            return agent_list.index(min(dist_list))
-    def dist(self, start_node, goal_node):
-        _,_,route_dists = self.get_path_details(start_node, goal_node)
-        return sum(route_dists)
+    # def run(self, planning_type='fragment_planner'):
+    #     self.run_new(planning_type)
+    # def run_old(self, planning_type='fragment_planner'):
+    #     """the main loop of the coordinator
+    #     """
+    #     routing_cb = {'publish_task_state': self.publish_task_state,
+    #                   'send_robot_to_base': self.send_robot_to_base}
+    #     self.route_finder = RouteFinder(planning_type=planning_type,
+    #                                     robots=self.robot_manager,
+    #                                     pickers=self.picker_manager,
+    #                                     callbacks=routing_cb)
+    #
+    #     #TOC callback timeout
+    #     iterations = 100
+    #
+    #     while not rospy.is_shutdown():
+    #         rospy.sleep(0.01)  # TODO: look into methods to remove the artificial delay
+    #
+    #         """ update TOC with latest tasks states """
+    #         iterations=iterations-1
+    #         if iterations < 0:
+    #             self.inform_toc_active_tasks()
+    #             iterations = 100
+    #
+    #         """ if there are unassigned tasks and there robots able to take them on """
+    #         available_robots = self.robot_manager.available_robots()
+    #         unassigned_tasks = self.picker_manager.unassigned_tasks()
+    #         if available_robots and unassigned_tasks:
+    #             logmsg(category="task", msg='unassigned task present, %s robots available' % (len(available_robots)))
+    #             logmsg(category="list", msg='available robots: %s' % (str(available_robots)))
+    #             # try to assign all tasks
+    #             rospy.sleep(0.2)
+    #             self.assign_tasks()
+    #
+    #         """ check progress of active robots """
+    #         self.handle_tasks()
+    #
+    #         """ replan if needed """
+    #         if self.trigger_replan:
+    #             self.route_finder.find_routes()
+    #
+    #             self.trigger_replan = False
+    #
+    #             # assign first fragment of each robot
+    #             self.set_execute_policy_routes()
 
     def write_log(self, field_vals):
         """write given fileds to the log file
         """
+        return
         time_now = time.time()
         dt = datetime.datetime.fromtimestamp(time_now)
         row = {"id": self.log_count,
@@ -1095,68 +1121,283 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """on shutdown cancel all goals
         """
         self.write_log({"action_type":"shutdown coordinator"})
-        self.log_file.close()
+        # self.log_file.close()
 
         logmsg(level='warn', msg='shutting down all actions')
-        for robot in self.robot_manager.agent_details.values():
-            if robot.active:
-                robot.robot_interface.cancel_execpolicy_goal()
-                robot.robot_interface.cancel_toponav_goal()
+        # for robot in self.courier_manager.agent_details.values():
+        #     if robot.active:
+        #         robot.interface.cancel_execpolicy_goal()
+        #         robot.interface.cancel_toponav_goal()
 
 
+    """ Main loop for task progression """
+    def run(self, planning_type='fragment_planner'):
+        """ For details see: rasberry_coordination/src/CoordinatorStructure.md
 
+            Notation Worth Noting:
+                - Specific agents are represented by the variable A
+                - An active task is identified by __call__, e.g. A()
+                - Task details can be identified by __getitem__, e.g. A[key]
+                - Task details can be set using __setitem__, e.g. A[key]=val
+
+            Key Concepts:
+                - Approach requires no lock as task progression uses linear buffers
+        """
+
+        self.AllAgentsList = self.picker_manager.agent_details.copy()
+        self.AllAgentsList.update(self.courier_manager.agent_details)
+        # self.AllAgentsList.update(self.storage_manager.agent_details)
+        # self.AllAgentsList.update(self.battery_station_manager.agent_details)
+
+        self.enable_task_logging = True
+        self.task_progression_log = '/home/jheselden/task_progression.csv'
+        self.timestep = 0
+        self.iteration = 0
+        self.previous_log_iteration = ""
+        self.current_log_iteration = ""
+        self.log_data(['init'])
+
+        while not rospy.is_shutdown():
+
+            #TODO: add extra condition to only progress if there are any tasks which require updates?
+
+            """ Get list of all currently connected agents """
+            self.AllAgentsList = self.picker_manager.agent_details.copy()
+            self.AllAgentsList.update(self.courier_manager.agent_details)
+            # self.AllAgentsList.update(self.storage_manager.agent_details)
+            # self.AllAgentsList.update(self.battery_station_manager.agent_details)
+
+            self.log_data(['linebreak','iteration'])
+            self.enable_task_logging = True
+
+
+            """ Default to Idle Task if no Task Present """
+            self.log_data(['stage', 'break', 'task_stage_list'])
+            for A in self.AllAgentsList.values():
+                A.start_idle_task() if not A.task_stage_list else None
+            self.log_data(['stage','break'])
+
+            """ Perform stage initialisation where required """
+            self.log_data(['new_stage'])
+            for A in self.AllAgentsList.values():
+                A()._start() if A['new_stage'] else None
+            self.log_data(['summary_start','break'])
+
+            """ Perform any required communication with assosiated agent """
+            for A in self.AllAgentsList.values():
+                A()._notify_start()
+            self.log_data(['summary_notify_start','break'])
+
+            """ Perform agent-specific request """
+            self.log_data(['coordinator_action_required'])
+            for A in self.AllAgentsList.values():
+                self.offer_service(A) if A['coordinator_action_required'] else None
+            self.log_data(['summary_action','break'])
+
+            """ Perform multi-agent request """
+            self.log_data(['replan_required'])
+            if any([A['replan_required'] for A in self.AllAgentsList.values()]):
+                self.route_finder.find_routes()
+
+            """ Set Navigation Routes """
+            for A in [A for A in self.AllAgentsList.values() if A['replan_required']]:
+                self.execute_policy_routes(A)
+                #TODO: abstract this for generalisation #A.interface.set_execute_policy_routes()
+            self.log_data(['route','break'])
+
+            """ Query each agents task stage for completion """
+            for A in self.AllAgentsList.values():
+                A()._query()
+            self.log_data(['summary_query','stage_complete_flag','break'])
+
+            """ Complete stage where needed """
+            self.log_data(['summary_notify_end','summary_del'])
+            for A in self.AllAgentsList.values():
+                if A['stage_complete_flag']:
+                    A()._notify_end()
+                    A.end_stage()  # calls __del__
+
+            """ Publish log if any updates occured this round """
+            if self.enable_task_logging:
+                self.publish_log()
+
+
+    """ Services offerd by Coordinator to assist with tasks """
+    def offer_service(self, agent):
+        service_category = agent.task_details['service_category']
+        service_type = agent.task_details['service_type']
+        conditions = agent.task_details['service_conditions']
+        response_location = agent.task_details['response_location']
+
+        """ ROOM TO EXPAND
+        Services Offered:
+            find_agent:
+                - closest
+                - furthest?
+                - ...?
+            find_node
+                - wait_node
+                - ...?
+            ...?
+        """
+
+        responses = {'find_agent':self.find_agent}  # ROOM TO EXPAND
+        responses[service_category](agent, service_type, conditions, response_location)
+    def find_agent(self, agent, search_type, KV):
+        A = [a for a in self.agent_details if (a is not agent)
+                                        and (agent.getattr(KV['key']) is KV['val'])] #list of robots matching the KeyValue criteria given
+
+        responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
+        agent[response_location] = responses["closest"](agent, A)
+    def find_closest_agent(self, agent, agent_list):
+            dist_list = [self.dist(agent._get_start_node(),a._get_start_node())
+                for a in agent_list]
+            return agent_list.index(min(dist_list))
+    def dist(self, start_node, goal_node):
+        _,_,route_dists = self.get_path_details(start_node, goal_node)
+        return sum(route_dists)
+
+
+    """ Publish generated route to agent if route differes from existing one """
+    def execute_policy_routes(self, robot):
+        robot = self.robot_manager[robot_id]
+
+        """ For each robot with route, build ExecutePolicyModeGoal object """
+        goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
+
+        """ Define route """
+        if robot.route_fragments:
+            goal.route.source = robot.route_fragments[0]
+            goal.route.edge_id = robot.route_edges[0]
+
+        """ Flag to identify if new route is the same and should not be re-published """
+        check_route = True
+
+        """ Identify key elements in routes. """
+        old_node = robot.robot_interface.execpolicy_goal.source
+        old_node = robot.robot_interface.execpolicy_goal.edge_id
+        old_start_node = old_node[0]
+        old_start_edge = old_edge[0]
+        old_target_node = old_node[-1]
+        old_target_edge = old_node[-1]
+        new_node = goal.route.source
+        new_edge = goal.route.edge_id
+        new_start_node = new_node[0]
+        new_start_edge = new_edge[0]
+        new_target_node = new_node[-1]
+        new_target_edge = new_node[-1]
+
+        """ Do lists have different entrances to the target node? """
+        # old: R========T
+        # new:          T=====R
+        if check_route and new_target_edge != old_target_edge:
+            check_route = False
+
+        """ Do lists have different lengths? """
+        # old: R========T
+        # new:     R====T
+        if check_route and len(new_edge) != len(old_edge):
+            # If new_route is larger, routes are different
+            if len(new_edge) > len(old_edge):
+                check_route = False
+            else:
+                """ Go backwards from target till smaller route is used up. """
+                # old: R========T
+                # new:     R====T
+                old_edge_crop=[]
+                for i, e in enumerate(list(zip(*(old_start_edge[::-1],new_start_edge[::-1])))):
+                    old_edge_crop.append(e[0])
+                old_edge_crop.reverse()
+
+        """ Do same-sized routes differ? """
+        # old: ****R====T
+        # new:     R=-_=T
+        if check_route:
+            for i, e in enumerate(list(zip(*(old_edge_crop,new_edge)))):
+                if e[0] != e[1]:
+                    print("new route different")
+                    check_route = False
+                    break
+
+        """ If check_route is false, routes are different """
+        if check_route:
+            robot.robot_interface.set_execpolicy_goal(goal)
+            if self.log_routes:
+                logmsg(category="robot", id=robot_id, msg='new route %s, previous route was %s' % (goal, robot.robot_interface.execpolicy_goal))
 
     """ Task Stage Logging """
     def log_linebreak(self):
-        with open(self.task_progression_log, 'a') as log:
-            dash_lengths = [13, 13, 22, 39, 3]
-            log.write(',|,'.join(['-'*dl for dl in dash_lengths[:3]]))
-            log.write(',|,'.join(['-'*dash_lengths[3] for a in range(len(self.AllAgentsList))]))
-            log.write(',|,'.join(['-' * dl for dl in dash_lengths[4]]))
+        dash_lengths = [13, 13, 36, 20, 3]
+        dashes = []
+        dashes += [',|,'.join(['-'*dl for dl in dash_lengths[:3]])]
+        dashes += [',|,'.join(['-'*dash_lengths[3] for a in range(len(self.AllAgentsList))])]
+        dashes += ['-' *dash_lengths[4]]
+        return dashes
     def log_init(self):
         with open(self.task_progression_log, 'w+') as log:
             log.write(' ,'*5+"|,Agents:\n")
-        return ['Timestep','Iteration','Stage']+[a.agent_id for a in AllAgentsList]
+
+        return ['Timestep','Iteration','Stage']+[a.agent_id for a in self.AllAgentsList.values()]
     def log_break(self):
-        return ['' for a in range(3+len(self.AllAgentList))]
+        return ['' for a in range(3+len(self.AllAgentsList))]
     def log_iteration(self):
         return [self.timestep, self.iteration]+['' for a in range(1 + len(self.AllAgentsList))]
     def log_value(self, detail):
-        return ['','']+[a[detail] for a in self.AllAgentList]
+        return ['','']+[a[detail] for a in self.AllAgentsList.values()]
     def log_not_none(self, detail):
-        return ['', ''] + [a[detail] is not None for a in self.AllAgentsList]
+        return ['', ''] + [a[detail] is not None for a in self.AllAgentsList.values()]
     def log_stage(self):
-        return ['','']+[a.get_class() for a in self.AllAgentsList]
+        stages = []
+        for a in self.AllAgentsList.values():
+            if a.task_stage_list:
+                stages += [a().get_class()]
+            else:
+                stages += [None]
+        return ['','']+stages
 
     def log_data(self, switches, detail=None, linebreak=False):
         if not self.enable_task_logging:
             return
-        self.log_linebreak() if linebreak else None
 
         switch_group_empty = {'init':self.log_init,
                               'break':self.log_break,
                               'iteration':self.log_iteration,
-                              'stage': self.log_stage}
-        switch_group_value = {'task_id':self.log_not_none,                 #('task_id')
-                              'route':self.log_not_none,                   #('route')
-                              'new_stage':self.log_value,                  #('new_stage')
-                              'coordinatr_action_required':self.log_value, #('coordinator_action_required')
-                              'replan_required':self.log_value,            #('replan_required')
-                              'stage_complete_flag':self.log_value,        #('stage_complete_flag')
-                              'summary_start':self.log_value,              #('summary_start')
-                              'summary_notify_start':self.log_value,       #('summary_notify_start')
-                              'summary_action':self.log_value,             #('summary_action')
-                              'summary_query_condition':self.log_value,    #('summary_query')
-                              'summary_notify_end':self.log_value,         #('summary_notify_end')
-                              'summary_end_stage':self.log_value}          #('summary_del')
+                              'stage': self.log_stage,
+                              'linebreak': self.log_linebreak}
+        switch_group_value = {'task_stage_list':self.log_not_none,          #('task_id')
+                              'route':self.log_not_none,                    #('route')
+                              'new_stage':self.log_value,                   #('new_stage')
+                              'coordinator_action_required':self.log_value, #('coordinator_action_required')
+                              'replan_required':self.log_value,             #('replan_required')
+                              'stage_complete_flag':self.log_value,         #('stage_complete_flag')
+                              'summary_start':self.log_value,               #('summary_start')
+                              'summary_notify_start':self.log_value,        #('summary_notify_start')
+                              'summary_action':self.log_value,              #('summary_action')
+                              'summary_query':self.log_value,               #('summary_query')
+                              'summary_notify_end':self.log_value,          #('summary_notify_end')
+                              'summary_del':self.log_value}                 #('summary_del')
+
 
         for switch in switches:
             details = switch_group_empty[switch]() if switch in switch_group_empty else None
-            details = switch_group_value[switch](switch) if switch in switch_group_value else None
-            details.insert(3,switch) if switch not in ["break", "init", "iteration"] else details.insert(3,'')
-            self.current_log_iteration.append(',|,'.join(details) + "\n")
+            details = switch_group_value[switch](switch) if switch in switch_group_value else details
 
+            if switch in ["break", "iteration"]:
+                details.insert(2,'')
+            elif switch in ["init", "linebreak"]:
+                pass
+            else:
+                details.insert(2, switch)
+                details += ['']
+            details = [str(d) for d in details]
+            self.current_log_iteration += "%s\n" % ',|,'.join(details)
     def publish_log(self):
-        with open(self.task_progression_log, 'a') as log:
-            log.write(self.current_log_iteration)
-        self.preious_log_iteration = self.current_log_iteration
+        if self.previous_log_iteration != self.current_log_iteration:
+            with open(self.task_progression_log, 'a') as log:
+                log.write(self.current_log_iteration)
+                print("writing...")
+
+        self.previous_log_iteration = self.current_log_iteration
+        self.current_log_iteration = ""
+
+    """  """
