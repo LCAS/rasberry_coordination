@@ -359,6 +359,7 @@ class FragmentPlanner(object):
                     robot._finish_task_stage(robot.task_stage)
 
                     if task_stage == "go_to_picker":
+                        robot._reached_picker()
                         self.callbacks['publish_task_state'](robot.task_id, robot_id, "ARRIVED")
                         #logmsg(category="note", msg='publish_task_state callback within fragment planner should be removed')
                     elif task_stage == "go_to_storage":
