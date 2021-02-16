@@ -125,7 +125,8 @@ if __name__ == '__main__':
         base_station_nodes_pool=base_station_nodes_pool,
         wait_nodes_pool=wait_nodes_pool,
         planning_type=planning_type,
-        ns="rasberry_coordination")
+        ns="rasberry_coordination",
+        special_nodes=config_data['special_nodes'][1:])  # We are not certain of ordering?
 
     rospy.on_shutdown(coordinator.on_shutdown)
     rospy.sleep(1)  # give a second to let everything settle

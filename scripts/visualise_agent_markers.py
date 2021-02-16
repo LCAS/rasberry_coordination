@@ -26,9 +26,9 @@ class MarkerPublisher:
             p = [] + self.config_get("picker_ids")
             vp = [] + self.config_get("virtual_picker_ids")
         else:
-            r = [agent['agent_id'] for agent in config['agent_list'][1:] if agent['agent_type'] is "robotic_courier"]
-            p = [agent['agent_id'] for agent in config['agent_list'][1:] if agent['agent_type'] is "human_picker"]
-            vp = [agent['agent_id'] for agent in config['agent_list'][1:] if agent['agent_type'] is "virtual_picker"]
+            r = [agent['agent_id'] for agent in config['agent_list'][1:] if agent['agent_type'] == "robotic_courier"]
+            p = [agent['agent_id'] for agent in config['agent_list'][1:] if agent['agent_type'] == "human_picker"]
+            vp = [agent['agent_id'] for agent in config['agent_list'][1:] if agent['agent_type'] == "virtual_picker"]
         self.robot_ids = r
         self.picker_ids = p
         self.virtual_picker_ids = vp
@@ -154,16 +154,16 @@ if __name__ == "__main__":
     config_keys = rasberry_des.config_utils.get_config_keys(config_file)
 
     # Check for required parameters
-    req_params = ["spawn_list", "picker_ids"]
+    req_params = ["agent_list"]
     for key in config_keys:
         if key in req_params:
             req_params.remove(key)
 
     if len(req_params) != 0:
         raise Exception("not all required keys are set in the config file")
-    elif config_data["spawn_list"].__class__ != list:
+    elif config_data["agent_list"].__class__ != list:
         raise Exception("robot_ids should be a list in the config file")
-    elif len(config_data["spawn_list"]) == 0:
+    elif len(config_data["agent_list"]) == 0:
         raise Exception("robot_ids should not be an empty list in the config file")
 
     # Start node
