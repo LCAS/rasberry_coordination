@@ -7,12 +7,48 @@
 
 import rospy
 
-def logmsgbreak():
-    logmsg(category="null")
-    logmsg(category="null")
-    logmsg(category="null")
+
+def logmsgbreak(total=3):
+    """ Print a number of lines using logmsg formatting
+
+    :param total: number of lines to print (default: 3)
+    :return: None
+    """
+
+    for i in range(total):
+        logmsg(category="null")
+
 
 def logmsg(level="info", category="OTHER", id="empty", msg=''):
+    """ Print formatted log messages to console.
+
+    Functionality offered:
+    > Clear division of category, id and message
+    > Option to remove msg time
+    > Option to highlight key details
+    > Ability to filter out certain categories
+
+    In order to retain speed and simplicity, properties are preset internally here for:
+    :attr reject_tags: list of tags to ignore (useful for managing debugging tools)
+    :attr color_id: list of id's to color
+    :attr color_category: list of categories to color
+    :attr valid_categories: list of accepted categories (used to define column widths)
+    :attr quick_print: boolean to define if logging should default to use print()
+    :attr use_custom_formatting: boolean to define if logging should use basic rospy.logmsg or formatted variant
+    :attr disable_ros_time_printout: boolean to define if logging should omit the rospy.Time.now() in logging (slower)
+    :attr reset: text color to return to after logmsg
+    :attr info_color: color for rospy log info
+    :attr warn_color: color for rospy log warn
+    :attr err_color: color for rospy log error
+    :attr green_highlight: highlight color for color_id
+    :attr yellow_highlight: highlight color for color_categories
+
+    :param level: level of verbosity [info, warn, error] [fatal and bug/debug not included]
+    :param category: type of logging [robot, picker, task, note]
+    :param id: agent_id or task_id used for identification
+    :param msg: message to display
+    :return: None
+    """
     quick_print = False
     if quick_print:
         if category == "null":
@@ -111,7 +147,12 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
 
 
 def remove(collection, item):
-    """removes and returns a given item if it is found within a given collection"""
+    """ Removes and returns a given item if it is found within a given collection
+
+    :param collection: The collection to remove an item from
+    :param item: The item to find and remove
+    :return: The item removed
+    """
     if item in collection:
         dt = str(collection.__class__)
         if dt in ["<type 'list'>", "<type 'set'>"]:
@@ -122,7 +163,12 @@ def remove(collection, item):
 
 
 def add(collection, item):
-    """add a given item if it is not already found within a given collection"""
+    """ Adds a given item if it is not found within a given collection
+
+    :param collection: The collection to remove an item from
+    :param item: The item to add
+    :return: None
+    """
     if item is None:
         return
     dt = str(collection.__class__)
@@ -137,7 +183,14 @@ def add(collection, item):
 
 
 def move(item, old, new):
-    """move an item from one collection to another"""
+    """ Move a given item from an old collection (if it exists in that collection),
+    and add it to a new collection (if it is not in the new collection).
+
+    :param item: The item to add
+    :param old: The collection to remove an item from
+    :param new: The collection to add an item to
+    :return: None
+    """
     if str(new.__class__) == "<type 'dict'>":
         val = remove(collection=old, item=item)
         add(collection=new, item=[item, val])
@@ -145,8 +198,9 @@ def move(item, old, new):
         add(collection=new, item=remove(collection=old, item=item))
 
 
-
 if __name__ == '__main__':
+    """ Example of how move works. """
+
     d1 = {'a': 1, 'b': 2, 'c': 3}
     d2 = {'d': 4, 'e': 5}
 

@@ -64,6 +64,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             active_tasks -- list of tasks which the system is currently performing
             base_station_nodes_pool -- pool defining list of all base stations within the system
             wait_nodes_pool -- pool defining list all waiting nodes
+            max_load_duration -- time to wait until the coordinator forces advancement through LOADING stage
+            max_unload_duration -- time to wait until the coordinator forces advancement through UNLOADING stage
         """
 
         self.log_routes = False  # define whether to log route details to console
@@ -263,6 +265,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     connect_robot_ros_srv.type = rasberry_coordination.srv.ConnectAgent
 
     def connect_robot(self, robot_id):
+        """ initialise newly connected agent
+        """
         self.robot_manager.add_agent(robot_id)
         robot = self.robot_manager[robot_id]
         robot.registered = False
@@ -322,6 +326,10 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     register_robot_ros_srv.type = rasberry_coordination.srv.AgentID
 
     def unregister_robot_ros_srv(self, req):
+        """Based on the action included in the request,
+        perform the respective action required to unregister the robot.
+        """
+
         actions = {'complete_task': self.unregister_robot_complete_task_ros_srv,
                    'pause_task': self.unregister_robot_pause_task_ros_srv,
                    'release_task': self.unregister_robot_release_task_ros_srv}
@@ -364,6 +372,13 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     unregister_robot_complete_task_ros_srv.type = rasberry_coordination.srv.AgentID
 
     def unregister_robot_release_task_ros_srv(self, req):
+        """Prevent robot from accepting tasks and set to unregister
+        and release the active task.
+        Return success if robot is already unregistered (regardless of how)
+        Return failure if robot does not exist.
+        If robt does not have task, call unregister_complete_task.
+        """
+
         logmsg(category="drm", id=req.agent_id, msg='unregistering from task allocation canceling any active tasks')
         robot = self.robot_manager[req.agent_id]
 
@@ -390,6 +405,12 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     unregister_robot_release_task_ros_srv.type = rasberry_coordination.srv.AgentID
 
     def unregister_robot_pause_task_ros_srv(self, req):
+        """Prevent robot from accepting tasks and set to unregister
+        and pause the active task, cancelling any active route.
+        Return success if robot is already unregistered (regardless of how)
+        Return failure if robot does not exist.
+        If robot does not have task, call unregister_complete_task.
+        """
         logmsg(category="drm", id=req.agent_id, msg='unregistering from task allocation pausing active tasks')
         robot = self.robot_manager[req.agent_id]
 
@@ -462,7 +483,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         logmsg(category="drm", id=robot_id, msg="disconnection complete")
 
     def modify_robot_marker(self, robot_id, color=''):
-        # Add/modify marker to display in rviz
+        """Add/modify marker to display in rviz"""
         marker = rasberry_coordination.msg.MarkerDetails()
         marker.type = 'robot'
         marker.name = robot_id
@@ -472,7 +493,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.marker_add_pub.publish(marker)
 
     def clear_robot_marker(self, robot_id):
-        # Modify rviz marker to reflect removal
+        """Modify rviz marker to reflect removal"""
         marker = rasberry_coordination.msg.MarkerDetails()
         marker.type = "robot"
         marker.name = robot_id
@@ -650,6 +671,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         })
 
     def task_update(self, update, task_id, details):
+        """ If the pickers location has updated while robot is navigating to them
+        this function is called to update the robots goal and trigger a replan.
+        """
         if update == "picker_node_update":
             robot = self.robot_manager.get_task_handler(task_id)
             if robot: #and robot.task_stage == "go_to_picker":

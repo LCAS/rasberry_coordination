@@ -14,6 +14,13 @@ from rasberry_coordination.msg import KeyValuePair
 
 class diagnostic_printout:
     def __init__(self, agent_id, type):
+        """ Class to output live details about a given agent.
+
+        :attr agent_dict: define default properties which may not be published but are needed for display.
+
+        :param agent_id: the unique identifier for the agent
+        :param type: the agents type [robot/picker]
+        """
         self.circles = {}
         self.init_circles()
         self.type = type
@@ -22,6 +29,10 @@ class diagnostic_printout:
         self.agent_cb = Sub('/rasberry_coordination/agent_monitor/'+agent_id, KeyValuePair, self.callback)
 
     def init_circles(self):
+        """ Define progress indicators and save references to self.circles
+
+        :return: None
+        """
         e0 = u"     ▄▄▀▀▀▀▀▀▄▄     "
         e1 = u"   ▄▀          ▀▄   "
         e2 = u"  ▄▀            ▀▄  "
@@ -127,6 +138,17 @@ class diagnostic_printout:
                                       "4/5": FIFTH4, "1/1": FULL}
 
     def callback(self, msg):
+        """ Callback from ['/rasberry_coordination/agent_monitor/%s' % agent_id] to detail changes to the AgentDetails
+        object managed by the coordinator.
+
+        For each call, redraw the monitor display:
+        > identify progression chart with self.get_task_completion_percentage
+        > attach details from agent_dict in the order defined by printable_fields
+        > empty fields in printable_fields will not print a ":"
+
+        :param msg: KayValuePair {'key':agent_attribute, 'val':value}
+        :return: None
+        """
         print(msg)
         self.agent_dict[msg.key] = msg.value
         printable_fields = ["agent_id", "", "task_id", "task_stage", "",
@@ -141,6 +163,10 @@ class diagnostic_printout:
                 print(row + "  |  ")
 
     def get_task_completion_percentage(self):
+        """ Based on the type of agent, and its current task_stage, return the appropriate progress indicator.
+
+        :return: List of utf strings representing a progress indicator for the task.
+        """
         if self.type == "robot":
             task_states = {"go_to_picker": "0/1", "wait_loading": "1/4", "go_to_storage": "1/2", "wait_unloading": "3/4",
                            "go_to_base": "1/1", str(None): "1/1", "paused": "0/1"}

@@ -124,7 +124,7 @@ class Coordinator(object):
     cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
 
     def inform_toc_active_tasks(self):
-
+        """ publish TasksDetailsList to inform TOC of the current state of all pickers and robots """
         task_list = TasksDetailsList()
 
         """ loop through tasks owned by pickers """
@@ -169,6 +169,7 @@ class Coordinator(object):
         self.active_tasks_pub.publish(task_list)
 
     def inform_toc_task_ended(self, task_id, reason, robot_id=None, picker_id=None):
+        """ build a TasksDetailsList object to send to TOC to inform of task end """
         task_list = TasksDetailsList()
 
         """ get the task details """
@@ -183,6 +184,7 @@ class Coordinator(object):
         self.active_tasks_pub.publish(task_list)
 
     def toc_legacy_responses(self, state):
+        """ as not all task_stage identifiers are TOC-compatible, remap these here """
         return {'CREATED': None,
                 'ASSIGNED':       'ACCEPT',
                 'go_to_picker':   'ACCEPT',
@@ -230,7 +232,8 @@ class Coordinator(object):
 
     all_tasks_info_ros_srv.type = rasberry_coordination.srv.AllTasksInfo
 
-    def format_task_obj(self, task_id): #TODO: remove this
+    def format_task_obj(self, task_id):
+        """ format strands_executive_msgs.msg.Task object with the given task_id """
         task = strands_executive_msgs.msg.Task
         task.task_id = task_id
         return task
@@ -334,6 +337,9 @@ class Coordinator(object):
         self.cancelled_tasks.append(task_id)
 
     def task_update(self, update, task_id, details):
+        """ Abstract base function as placeholder
+        till rasberry_coordinator is defined
+        """
         pass
 
     def run(self):
