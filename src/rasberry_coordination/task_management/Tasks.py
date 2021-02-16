@@ -39,37 +39,45 @@ class TaskDef(object):
         #For each required stage, append the StageDef.Stage to a list
         for S in task_stage_list:
             if S == "start_task":
-                agent.task_stage_list.append(stage_dict[S]())
+                agent.task_stage_list += [stage_dict[S]()]
             else:
-                agent.task_stage_list.append(stage_dict[S](agent))
+                agent.task_stage_list += [stage_dict[S](agent)]
 
 
     """ Initial Task Stages for Agents """
     @classmethod
-    def idle_picker(cls, agent, details={}):
-        agent.task_details = cls.load_details(details)    
-        agent.task_stage_list.append(
+    def idle_picker(cls, agent, details={}, task_id=None):
+        print("idle_picker begun")
+        agent.task_name = "idle_picker"
+        agent.task_details = cls.load_details(details)
+        agent.task_stage_list += [
             StageDef.IdlePicker(agent)
-        )
+        ]
     @classmethod
-    def idle_courier(cls, agent, details={}):
+    def idle_courier(cls, agent, details={}, task_id=None):
+        agent.task_name = "idle_courier"
         agent.task_details = cls.load_details(details)
-        agent.task_stage_list.append(
+        agent.task_stage_list += [
             StageDef.IdleCourier(agent)
-        )
+        ]
     @classmethod
-    def idle_storage(cls, agent, details={}):
+    def idle_storage(cls, agent, details={}, task_id=None):
+        agent.task_name = "idle_storage"
         agent.task_details = cls.load_details(details)
-        agent.task_stage_list.append(
+        agent.task_stage_list += [
             StageDef.IdleStorage(agent)
-        )
+        ]
+
+
+
 
     """ Picker Logistics Transportation """
     @classmethod
-    def transportation_request(cls, agent, details={}):
+    def transportation_request(cls, agent, details={}, task_id=None):
+        agent.task_name = "transportation_request"
         agent.task_details = cls.load_details(details)
-        agent.task_stage_list.append(
-            StageDef.StartTask(),
+        agent.task_stage_list += [
+            StageDef.StartTask(agent, task_id),
             StageDef.AssignCourier(agent),
             # robot has accepted task (ACCEPT)
             StageDef.AwaitCourier(agent),
@@ -77,12 +85,13 @@ class TaskDef(object):
             StageDef.LoadCourier(agent),
             # task is marked as complete (INIT)
             StageDef.IdlePicker(agent) #not needed, added automatically when empty
-        )
+        ]
     @classmethod
-    def transportation_courier(cls, agent, details={}):
+    def transportation_courier(cls, agent, details={}, task_id=None):
+        agent.task_name = "transportation_courier"
         agent.task_details = cls.load_details(details)
-        agent.task_stage_list.append(
-            StageDef.StartTask(),
+        agent.task_stage_list += [
+            StageDef.StartTask(agent, task_id),
             StageDef.NavigateToPicker(agent),
             StageDef.Loading(agent),
             StageDef.AssignStorage(agent),
@@ -91,23 +100,24 @@ class TaskDef(object):
             StageDef.NavigateToStorage(agent),
             StageDef.Unloading(agent),
             StageDef.IdleCourier(agent)
-        )
+        ]
     @classmethod
-    def transportation_storage(cls, agent, details={}):
+    def transportation_storage(cls, agent, details={}, task_id=None):
+        agent.task_name = "transportation_storage"
         agent.task_details = cls.load_details(details)
-        agent.task_stage_list.append(
-            StageDef.StartTask(),
+        agent.task_stage_list += [
+            StageDef.StartTask(agent, task_id),
             StageDef.AwaitCourier(agent),
             StageDef.UnloadCourier(agent),
             StageDef.AwaitCourierExit(agent),
             StageDef.IdleStorage(agent)
-        )
+        ]
 
     """ Trailer Logistics Transportation """
     @classmethod
-    def trailer_courier(cls, agent, details={}):
+    def trailer_courier(cls, agent, details={}, task_id=None):
         agent.task_details = cls.load_details(details)
-        agent.task_stage_list.append(
+        agent.task_stage_list += [
             StageDef.AssignStorage(agent),
             StageDef.AwaitStoreAccess(agent),
             StageDef.NavigateToStorage(agent),
@@ -118,41 +128,41 @@ class TaskDef(object):
             StageDef.NavigateToStorage(agent),
             StageDef.Loading(agent),
             StageDef.IdleCourier(agent)
-        )
+        ]
 
     """ UV Treatment """
     @classmethod
-    def uv_edge_treatment(cls, agent, details={}):
-        agent.task_stage_list.append(
+    def uv_edge_treatment(cls, agent, details={}, task_id=None):
+        agent.task_stage_list += [
             ("navigation",    StageDef.Navigation(agent, details['edge_start_node'])),
             ("uv_treat_edge", StageDef.EdgeUVTreatment(agent, details['edge_end_node']))
-        )
+        ]
     @classmethod
-    def uv_row_treatment(cls, agent, details={}):
-        agent.task_stage_list.append(
+    def uv_row_treatment(cls, agent, details={}, task_id=None):
+        agent.task_stage_list += [
             ("navigation",    StageDef.Navigation(agent, details['row_start_node'])),
             ("uv_treat_row",  StageDef.RowUVTreatment(agent, details['row_end_node']))
-        )
+        ]
 
     """ Monitoring """
     @classmethod
-    def data_collection_edge(cls, agent, details={}):
-        agent.task_stage_list.append(
+    def data_collection_edge(cls, agent, details={}, task_id=None):
+        agent.task_stage_list += [
             ("navigation",    StageDef.Navigation(agent, details['row_start_node'])),
             ("data_collection",  StageDef.EdgeDataCollection(agent, details['row_end_node']))
-        )
+        ]
     @classmethod
-    def data_collection_row(cls, agent, details={}):
-        agent.task_stage_list.append(
+    def data_collection_row(cls, agent, details={}, task_id=None):
+        agent.task_stage_list += [
             ("navigation", StageDef.Navigation(agent, details['row_start_node'])),
             ("data_collection", StageDef.RowDataCollection(agent, details['row_end_node']))
-        )
+        ]
 
     """ Maintenance """
     @classmethod
-    def charge_robot(cls, agent, details={}):
-        agent.task_stage_list.append(
+    def charge_robot(cls, agent, details={}, task_id=None):
+        agent.task_stage_list += [
             StageDef.FindChargingNode(agent),
             StageDef.Navigation(agent),
             StageDef.WaitCharging(agent)
-        )
+        ]
