@@ -183,7 +183,7 @@ class Coordinator(object):
         self.active_tasks_pub.publish(task_list)
 
     def toc_legacy_responses(self, state):
-        return {'CREATED': None,
+        return {'CREATED': 'CALLED',
                 'ASSIGNED':       'ACCEPT',
                 'go_to_picker':   'ACCEPT',
 
@@ -200,8 +200,8 @@ class Coordinator(object):
                 'task_cancelled': 'CANCELLED',
 
                 'paused': 'PAUSED',
-                'go_to_base': None,
-                'None': None}[str(state)]
+                'go_to_base': 'None',
+                'None': 'None'}[str(state)]
 
         # picker task stages:
         # "CREATED", "ASSIGNED", "ARRIVED", "LOADED", None
