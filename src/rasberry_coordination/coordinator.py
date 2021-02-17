@@ -118,6 +118,10 @@ class Coordinator(object):
             robot._release_task()
             robot._set_target_base()
 
+        # if task is not active for any picker or robot, it is invalid
+        if picker is None and robot is None:
+            return False
+
         self.inform_toc_task_ended(task_id=task_id, reason="task_cancelled")
         return True
 
