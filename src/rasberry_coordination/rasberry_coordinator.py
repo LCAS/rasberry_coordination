@@ -648,7 +648,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 if sum(dists) < min_dist:
                     robot.current_storage = storage
 
-    def finish_task(self, robot_id): #TODO: when is this called from?
+    def finish_task(self, robot_id):
         """set the task assigned to the robot as finished whenever trays are unloaded
         """
         robot = self.robot_manager[robot_id]
