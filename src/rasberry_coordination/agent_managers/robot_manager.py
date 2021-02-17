@@ -130,7 +130,7 @@ class RobotManager(AgentManager):
         """
         #If any robot is moving(not idle), return true
         for robot in self.agent_details.values():
-            if not robot.idle:
+            if not robot.moving:
                 return 1
         return 0
     def available_robots(self):

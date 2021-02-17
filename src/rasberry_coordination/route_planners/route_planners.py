@@ -5,9 +5,6 @@
 # @date:
 # ----------------------------------
 
-from rasberry_coordination.agent_managers.robot_manager import RobotManager
-from rasberry_coordination.agent_managers.picker_manager import PickerManager
-
 from rasberry_coordination.route_planners.fragment_planner import FragmentPlanner
 
 
