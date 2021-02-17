@@ -185,7 +185,7 @@ class Coordinator(object):
 
     def toc_legacy_responses(self, state):
         """ as not all task_stage identifiers are TOC-compatible, remap these here """
-        return {'CREATED': None,
+        return {'CREATED':        'CALLED',
                 'ASSIGNED':       'ACCEPT',
                 'go_to_picker':   'ACCEPT',
 
@@ -201,9 +201,9 @@ class Coordinator(object):
 
                 'task_cancelled': 'CANCELLED',
 
-                'paused': 'PAUSED',
-                'go_to_base': None,
-                'None': None}[str(state)]
+                'paused':         'PAUSED',
+                'go_to_base':     'None',
+                'None':           'None'}[str(state)]
 
         # picker task stages:
         # "CREATED", "ASSIGNED", "ARRIVED", "LOADED", None
