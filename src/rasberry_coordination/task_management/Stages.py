@@ -87,6 +87,8 @@ Notes:
 
 from rospy import Time, Duration
 
+from rasberry_coordination.coordinator_tools import logmsg
+
 class StageDef(object):
     class StageBase(object):
         def __repr__(self):
@@ -95,6 +97,7 @@ class StageDef(object):
             return str(self.__class__).replace("<class 'rasberry_coordination.task_management.Stages.","").replace("'>","")
         def __init__(self, agent):
             self.agent = agent
+            print("agent: %s begun stage %s"%(agent.agent_id,self.get_class()))
             self.new_stage = True
             self.target = None
             self._tags()
@@ -122,6 +125,7 @@ class StageDef(object):
             self.agent['replan_required'] = False
             self.agent['stage_complete_flag'] = False
             self.agent['start_time'] = Time.now()
+            self.agent['action_dict'] = {}
             #^ should these just be local proerties?
         def _notify_start(self):
             pass
@@ -171,6 +175,14 @@ class StageDef(object):
             self.summary['_start'] = "adopt active task_id"
             self.summary['_query'] = "return true"
 
+    class WaitForLocalisation(StageBase):
+        def _query(self):
+            success_conditions = [self.agent.location() is not None]
+            self.agent.flag(any(success_conditions))
+        def __del__(self):
+            super(StageDef.WaitForLocalisation, self).__del__()
+            print("localisation achieved "+self.agent.current_node)
+            print("\n\n\n")
 
     """ Idle Placeholder Task """
     class IdleTask(StageBase):
@@ -179,14 +191,14 @@ class StageDef(object):
             super(StageDef.IdleTask, self)._start()
         def _query(self):
             success_conditions = [len(self.agent.task_stage_list) > 1
-                                 #,self.agent['begin_task'] == "transpottation_picker"
+                                 #,self.agent['begin_task'] == "transportation_picker"
                                  ]
             self.agent.flag(any(success_conditions))
         def _summary(self):
             super(StageDef.IdleTask, self)._summary()
             self.summary['_start'] = 'clear task_details'
             self.summary['_query'] = 'len(task_stage_list) > 1'
-            self.summary['_del'] = 'new task begun'
+
     class IdlePicker(IdleTask):
         """ Assigned to any picker agents with an empty task_stage_list
         this task empties task_details no longer needed.
@@ -205,21 +217,20 @@ class StageDef(object):
             success_conditions = [len(self.agent.request_admittance) > 0] #TODO: this may prove error prone w/ _start
             self.agent.flag(any(success_conditions))
         def __del__(self):
-            self.admittance = self.agent.request_admittance[0]
-            self.agent.new_task('transportation_storage', {'target_agent': self.agent})
+            self.agent.start_new_task('transportation_storage', {'target_agent': self.agent})
+        def _summary(self):
+            super(StageDef.IdleStorage, self)._summary()
+            self.summary['_query'] = 'len(store.request_admittance) > 0'
+            self.summary['_del'] = 'begin task'
 
 
     """ Assignment-Based Task Stages (involves coordinator) """
-    class Assignment(StageBase):
-        def _start(self, category='find_agent', style='closest', target_type='robot', response='courier'):
+    class Assignment(StageBase): #Define as ABC
+        def _start(self):
             super(StageDef.Assignment, self)._start()
             self.agent['coordinator_action_required'] = True
-            self.agent['service_category'] = category
-            self.agent['service_type'] = style
-            self.agent['service_conditions'] = {'key':'type','val':target_type} #TODO: this is badly done
-            self.agent['response_location'] = response
         def _query(self):
-            success_conditions = [self.agent['response_location'] != None]
+            success_conditions = [self.agent[self.agent['action_dict']['response_location']] != None]
             self.agent.flag(any(success_conditions))
         def __del__(self):
             self.agent['coordinator_action_required'] = False
@@ -230,7 +241,11 @@ class StageDef(object):
 
     class AssignCourier(Assignment):
         def _start(self):
-            super(StageDef.AssignCourier, self)._start(response='courier',target_type="robot")
+            super(StageDef.AssignCourier, self)._start() #defined as default setup
+            self.agent['action_dict']['action_type'] = 'find_agent'
+            self.agent['action_dict']['action_style'] = 'closest'
+            self.agent['action_dict']['response_location'] = 'courier'
+            self.agent['action_dict']['agent_type'] = 'robot'  # local_storage/cold_storage
         def _notify_end(self):
             self.agent.interface.notify("ACCEPT")
         def __del__(self):
@@ -249,14 +264,52 @@ class StageDef(object):
             self.summary['_notify_end'] = "agent -> ACCEPT"
     class AssignStorage(Assignment):
         def _start(self):
-            super(StageDef.AssignStorage, self)._start(response='storage', target_type="storage")
+            super(StageDef.AssignStorage, self)._start()
+            self.agent['action_dict']['action_type'] = 'find_agent'
+            self.agent['action_dict']['action_style'] = 'closest'
+            self.agent['action_dict']['response_location'] = 'storage'
+
+            self.agent['action_dict']['agent_type'] = 'storage' #local_storage/cold_storage
         def __del__(self):
             super(StageDef.AssignStorage, self).__del__()
-            self.agent['storage'].request_admittance.append(self.agent)
+            self.agent['storage'].request_admittance.append(self.agent.agent_id)
     class AssignWaitNode(Assignment):
         def _start(self):
-            super(StageDef.AssignWaitNode, self)._start(category='find_node', response='wait_node', target_type="wait_node")
+            super(StageDef.AssignWaitNode, self)._start()
+            self.agent['action_dict']['action_type'] = 'find_node'
+            self.agent['action_dict']['action_style'] = 'closest'
+            self.agent['action_dict']['response_location'] = 'wait_node'
 
+            self.agent['action_dict']['descriptor'] = 'wait_node'  # local_storage/cold_storage
+    class AssignBaseStationNode(Assignment):
+        def _start(self):
+            super(StageDef.AssignBaseStationNode, self)._start()
+            self.agent['action_dict']['action_type'] = 'find_node'
+            self.agent['action_dict']['action_style'] = 'closest'
+            self.agent['action_dict']['response_location'] = 'base_station'
+
+            self.agent['action_dict']['descriptor'] = 'base_station'  # local_storage/cold_storage
+
+    class AcceptCourier(Assignment):
+        def _start(self):
+            super(StageDef.AcceptCourier, self)._start()
+            self.agent['action_dict']['action_type'] = 'find_agent_from_list'
+            self.agent['action_dict']['action_style'] = 'closest'
+            self.agent['action_dict']['response_location'] = 'courier'
+
+            self.agent['action_dict']['list'] = self.agent.request_admittance
+        def __del__(self):
+            super(StageDef.AcceptCourier, self).__del__()
+            logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent['courier'].agent_id, self.agent.request_admittance))
+            self.agent.request_admittance.remove(self.agent['courier'].agent_id)
+        #On completion: courier being accepted is found @ agent['courier']
+        # def __del__(self):
+        #     print("\n\n\n")
+        #     print("AcceptCourier __del__()")
+        #     print(self.agent['courier'].__dict__)
+        #     print("\n-----\n")
+        #     print(self.agent.__dict__)
+        #     print("\n\n\n-----")
 
     """ Idle Actions for Pending Actions """
     class Idle(StageBase):
@@ -271,17 +324,31 @@ class StageDef(object):
             super(StageDef.AwaitCourier, self)._summary()
             self.summary['_query'] = "courier @ agent"
             self.summary['_notify_end'] = "agent -> ARRIVED"
+
     class AwaitStoreAccess(Idle):
         #While waiting for store access, move to a wait_node
         # (ideally this should be identified by the coordinator and assigned dynamically)
         def _start(self):
             super(StageDef.AwaitStoreAccess, self)._start()
-            self.agent['replan_required'] = True # Though moving to a wait node, dont end task on arrival
-        def _query(self):
-            store = self.agent['recipient']
-            success_conditions = [store['admittance'] == self.agent.agent_id]
-            self.agent.flag(any(success_conditions))
+            self.agent['replan_required'] = True
+            # Despite moving to a wait node, dont end task on arrival #huh?
 
+            # print("\n\n\n")
+            # print("AwaitStoreAccess _Start()")
+            # print(self.agent['storage'].__dict__)
+            # print("\n-----\n")
+            # print(self.agent.__dict__)
+            # print("\n\n\n-----")
+
+        def _query(self):
+            courier = self.agent['storage']['courier']
+            if not courier:
+                return
+            success_conditions = [courier.agent_id == self.agent.agent_id]
+            self.agent.flag(any(success_conditions))
+        # def __del__(self):
+        #     print("await_store stage completed")
+        #     print(self.agent['storage'].__dict__)
 
     """ Navigation Controllers for Courier """
     class Navigation(StageBase):
@@ -290,19 +357,45 @@ class StageDef(object):
             self.agent['replan_required'] = True
         def __del__(self):
             self.agent.temp_interface.cancel_execpolicy_goal()
+
+    """ Agent Navigation """
     class NavigateToAgent(Navigation):
         def _start(self):
             super(StageDef.NavigateToAgent, self)._start()
             self.target = self.agent['target_agent'].location()
         def _query(self):
             # self.target = self.agent['target_agent'].location()
-            success_conditions = [self.agent.location() == self.target]
+            success_conditions = [self.agent.location(accurate=True) == self.target]
                                 # , self.agent.execpolicy.success]
             self.agent.flag(any(success_conditions))
     class NavigateToPicker(NavigateToAgent):
         pass
     class NavigateToStorage(NavigateToAgent):
-        pass
+        def _start(self):
+            super(StageDef.NavigateToStorage, self)._start()
+            self.target = self.agent['storage'].location()
+
+    """ Node Navigation """
+    class NavigateToNode(Navigation):
+        def __init__(self, agent, target_identifier):
+            super(StageDef.NavigateToNode, self).__init__(agent)
+            self.target_identifier = target_identifier
+        def _start(self):
+            super(StageDef.NavigateToNode, self)._start()
+            self.target = self.agent[self.target_identifier]
+        def _query(self):
+            success_conditions = [self.agent.location(accurate=True) == self.target]
+            # , self.agent.execpolicy.success]
+            self.agent.flag(any(success_conditions))
+    class NavigateToBaseStationNode(NavigateToNode):
+        def __init__(self, agent):
+            super(StageDef.NavigateToBaseStationNode, self).__init__(agent, target_identifier='base_station')
+    class NavigateToWaitNode(Navigation):
+        def __init__(self, agent):
+            super(StageDef.StartTask, self).__init__(agent, target_identifier='wait_node')
+
+
+    """ Active Navigation """
     class FollowAgent(StageBase):
         def _update(self):
             self.agent['target'] = self.agent['following'].location
@@ -344,8 +437,8 @@ class StageDef(object):
     class Loading(StageBase):
         def _query(self):
             success_conditions = [self.agent['tray_present']]
-            if any(success_conditions):
-                print("Loading stage complete")
+            # if any(success_conditions):
+            #     print("Loading stage complete")
             self.agent.flag(any(success_conditions))
     class Unloading(StageBase):
         def _query(self):

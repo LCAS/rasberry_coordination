@@ -1,6 +1,7 @@
 
 
 from rasberry_coordination.task_management.Stages import StageDef
+from rasberry_coordination.coordinator_tools import logmsg
 
 class TaskDef(object):
     """ Definitions for Task Initialisation Criteria """
@@ -43,23 +44,35 @@ class TaskDef(object):
             else:
                 agent.task_stage_list += [stage_dict[S](agent)]
 
+    """ Courier Initialisation Check """
+    @classmethod
+    def init_courier(cls, agent, details={}, task_id=None):
+        agent.task_name = "init_courier"
+        agent.task_details = cls.load_details(details)
+        agent.task_stage_list += [
+            StageDef.WaitForLocalisation(agent)
+        ]
+        logmsg(category="TASK", id=agent.agent_id, msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
 
     """ Initial Task Stages for Agents """
     @classmethod
     def idle_picker(cls, agent, details={}, task_id=None):
-        print("idle_picker begun")
         agent.task_name = "idle_picker"
         agent.task_details = cls.load_details(details)
         agent.task_stage_list += [
             StageDef.IdlePicker(agent)
         ]
+        logmsg(category="TASK", id=agent.agent_id, msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
     @classmethod
     def idle_courier(cls, agent, details={}, task_id=None):
         agent.task_name = "idle_courier"
         agent.task_details = cls.load_details(details)
         agent.task_stage_list += [
+            StageDef.AssignBaseStationNode(agent),
+            StageDef.NavigateToBaseStationNode(agent),
             StageDef.IdleCourier(agent)
         ]
+        logmsg(category="TASK", id=agent.agent_id, msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
     @classmethod
     def idle_storage(cls, agent, details={}, task_id=None):
         agent.task_name = "idle_storage"
@@ -67,6 +80,7 @@ class TaskDef(object):
         agent.task_stage_list += [
             StageDef.IdleStorage(agent)
         ]
+        logmsg(category="TASK", id=agent.agent_id, msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
 
 
 
@@ -84,8 +98,8 @@ class TaskDef(object):
             # robot has arrived (ARRIVED)
             StageDef.LoadCourier(agent),
             # task is marked as complete (INIT)
-            StageDef.IdlePicker(agent) #not needed, added automatically when empty
         ]
+        logmsg(category="TASK", id=agent.agent_id, msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
     @classmethod
     def transportation_courier(cls, agent, details={}, task_id=None):
         agent.task_name = "transportation_courier"
@@ -94,24 +108,32 @@ class TaskDef(object):
             StageDef.StartTask(agent, task_id),
             StageDef.NavigateToPicker(agent),
             StageDef.Loading(agent),
+
             StageDef.AssignStorage(agent),
             StageDef.AssignWaitNode(agent),
+
             StageDef.AwaitStoreAccess(agent),
             StageDef.NavigateToStorage(agent),
-            StageDef.Unloading(agent),
-            StageDef.IdleCourier(agent)
+            StageDef.Unloading(agent)
         ]
+        logmsg(category="TASK", id=agent.agent_id, msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
     @classmethod
     def transportation_storage(cls, agent, details={}, task_id=None):
         agent.task_name = "transportation_storage"
         agent.task_details = cls.load_details(details)
         agent.task_stage_list += [
+            #-> store.admit_plz > 0
             StageDef.StartTask(agent, task_id),
+            # -> True
+            StageDef.AcceptCourier(agent),
+            # -> store.admitance != None
             StageDef.AwaitCourier(agent),
+            # -> courier.location == store.location
             StageDef.UnloadCourier(agent),
-            StageDef.AwaitCourierExit(agent),
-            StageDef.IdleStorage(agent)
+            # -> store.has_tray = False
+            # StageDef.AwaitCourierExit(agent)
         ]
+        logmsg(category="TASK", id=agent.agent_id, msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
 
     """ Trailer Logistics Transportation """
     @classmethod

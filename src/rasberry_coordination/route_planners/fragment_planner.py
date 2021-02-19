@@ -203,7 +203,7 @@ class FragmentPlanner(BasePlanner):
             if agent.agent_id in res_routes:
                 agent.route_fragments = res_routes[agent.agent_id]
 
-        logmsg(msg="All fragments identified")
+        logmsg(category="route", msg="All fragments identified")
 
         res_edges = {}
         # split the edges as per the route_fragmentsf
@@ -238,7 +238,7 @@ class FragmentPlanner(BasePlanner):
             # print(agent.route_fragments)
             # print(" ")
 
-        logmsg(msg="All fragments formatted")
+        logmsg(category="route", msg="All fragments formatted")
 
         """ for each agent, apply their route edges """
         # self.route_edges = res_edges
@@ -253,7 +253,7 @@ class FragmentPlanner(BasePlanner):
             # print(agent.route_edges)
             # print(" ")
 
-        logmsg(msg="All fragment edges formatted")
+        logmsg(category="route", msg="All fragment edges formatted")
 
     def find_routes(self, ):
         """find_routes - find indiviual paths, find critical points in these paths, and fragment the
@@ -261,8 +261,8 @@ class FragmentPlanner(BasePlanner):
         """
         actives =   [a for a in self.agent_details.values() if a.goal()]
         inactives = [a for a in self.agent_details.values() if not a.goal()]
-        logmsg(msg="actives: "+str([a.agent_id for a in actives]))
-        logmsg(msg="inactives: "+str([a.agent_id for a in inactives]))
+        logmsg(category="route", msg="actives: "+str([a.agent_id for a in actives]))
+        logmsg(category="route", msg="inactives: "+str([a.agent_id for a in inactives]))
 
         """find unblocked routes for all agents which need one"""
         for agent in actives:
@@ -282,7 +282,7 @@ class FragmentPlanner(BasePlanner):
             start_node = agent.location(accurate=False) #?
             goal_node = agent.goal()
 
-            logmsg(msg="Finding route for %s: %s -> %s" % (agent_id, start_node, goal_node))
+            logmsg(category="route", msg="Finding route for %s: %s -> %s" % (agent_id, start_node, goal_node))
 
             """if current node is goal node, generate empty route""" #task progression is not to be handled here
             # """if current node is goal node, generate empty route and set task as finished"""
@@ -352,7 +352,7 @@ class FragmentPlanner(BasePlanner):
 
             if route is None:
                 if agent.no_route_found_notification:
-                    logmsg(category="robot", id=agent_id, msg='no route found from %s to %s' % (start_node, goal_node))
+                    logmsg(category="route", id=agent_id, msg='no route found from %s to %s' % (start_node, goal_node))
                     agent.no_route_found_notification = False
                 # # if start_node == None:
                 # #     self.robot_manager.dump_details(filename='no route found from None')
@@ -385,7 +385,7 @@ class FragmentPlanner(BasePlanner):
             agent.route_edges = []
             self.get_edge_distances(agent.agent_id)
 
-        logmsg(msg="All agents assigned routes")
+        logmsg(category="route", msg="All agents assigned routes")
 
         # find critical points and fragment routes to avoid critical point collisions
         for i in range(10):

@@ -1075,6 +1075,9 @@ class RasberryCoordinator():
             """ Perform agent-specific request """
             # self.log_data(['coordinator_action_required','_action'])
             for A in self.AllAgentsList.values():
+                if A['coordinator_action_required']:
+                    logmsg(category="action", id=A.agent_id, msg="%s : %s" % (A.agent_id, A.task_stage_list))
+                    print({a.agent_id:a['coordinator_action_required'] for a in self.AllAgentsList.values()})
                 self.offer_service(A) if A['coordinator_action_required'] else None
             # self.log_data(['break'])
             self.log_data(['_action','break'])
@@ -1115,25 +1118,59 @@ class RasberryCoordinator():
 
     """ Services offerd by Coordinator to assist with tasks """
     def offer_service(self, agent):
-        service_category = agent['service_category']
-        service_type = agent['service_type']
-        conditions = agent['service_conditions']
-        response_location = agent['response_location']
+        action_type =       agent['action_dict']['action_type']
+        response_location = agent['action_dict']['response_location']
 
         responses = {'find_agent':self.find_agent,
-                     'find_node': self.find_node}  # ROOM TO EXPAND
+                     'find_node': self.find_node,
+                     'find_agent_from_list': self.find_agent_from_list}  # ROOM TO EXPAND
 
-        print("%s - %s - %s - %s" % (service_category, service_type, conditions, response_location))
-        responses[service_category](agent, service_type, conditions, response_location)
+        logmsg(category="action", id=agent.agent_id, msg="Performing action for: %s" % str(agent['action_dict']))
+        responses[action_type](agent)
+
         if agent[response_location]:
-            print("Found %s: %s" % (conditions['val'], agent[response_location]))
+            logmsg(category="action", id=agent.agent_id, msg="Found %s: %s" % (response_location, agent[response_location]))
             agent['coordinator_action_required'] = False
 
-    """ Find Agent """
-    def find_agent(self, agent, search_type, KV, response_location):
-        A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (a.tags[KV['key']] is KV['val'])}
+    """ Action Category """
+    def find_agent(self, agent):
+        action_style =      agent['action_dict']['action_style']
+        response_location = agent['action_dict']['response_location']
+        agent_type = agent['action_dict']['agent_type']
+
+        A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (a.tags['type'] is agent_type)}
+
         responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
-        agent[response_location] = responses["closest"](agent, A)
+        agent[response_location] = responses[action_style](agent, A)
+
+    def find_node(self, agent):
+        action_style =      agent['action_dict']['action_style']
+        response_location = agent['action_dict']['response_location']
+        descriptor =        agent['action_dict']['descriptor']
+
+        taken = [a.current_node for a in self.AllAgentsList.values() if
+                 (a.agent_id is not agent.agent_id) and a.current_node is not None] #Check if node is occupied
+        # print("\n\n\n-----")
+        # print(self.special_nodes)
+        # print({n['id']:n for n in self.special_nodes})
+        N = {n['id']:n for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in taken)}
+        # print("nodeTaken: %s" % taken)
+        # print("node2search: %s" % N)
+        # print("\n\n\n")
+        responses = {"closest": self.find_closest_node}  # ROOM TO EXPAND
+        agent[response_location] = responses[action_style](agent, N)
+
+    def find_agent_from_list(self, agent):
+        action_style =      agent['action_dict']['action_style']
+        response_location = agent['action_dict']['response_location']
+        agent_list =        agent['action_dict']['list']
+
+        A = {agent_id:self.AllAgentsList[agent_id] for agent_id in agent_list} #convert list to set()
+
+        responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
+        agent[response_location] = responses[action_style](agent, A)
+
+    """ Action Style """
     def find_closest_agent(self, agent, agent_list):
         """ Find the closest agent (via optimal route) to the given agent.
 
@@ -1142,15 +1179,9 @@ class RasberryCoordinator():
         :return: The agent_details object closest to the agent querying against.
         """
         dist_list = {a.agent_id:self.dist(agent.location(),a.location()) for a in agent_list.values()}
-        print(dist_list)
+        logmsg(category="action", msg="Finding closest in: %s" % dist_list)
         return agent_list[min(dist_list, key=dist_list.get)]
-
-    """ Find Node """
-    def find_node(self, agent, search_type, KV, response_location):
-        N = {n['id']:n for n in self.special_nodes[1:] if n['descriptors'] == KV['val']} #Add check against if node is occupied
-        responses = {"closest": self.find_closest_node}  # ROOM TO EXPAND
-        agent[response_location] = responses["closest"](agent, N)
-    def find_closest_node(self, node, node_list):
+    def find_closest_node(self, agent, node_list):
         """ Find the closest node (via optimal route) to the given agent.
 
         :param agent: The agent to query against.
@@ -1158,11 +1189,11 @@ class RasberryCoordinator():
         :return: The node_id closest to the agent querying against.
         """
         dist_list = {n:self.dist(agent.location(),n) for n in node_list}
+        logmsg(category="action", msg="Finding closest in: %s" % dist_list)
         return min(dist_list, key=dist_list.get)
 
     """ Find Distance """
     def dist(self, start_node, goal_node):
-        # print(start_node, goal_node)
         _,_,route_dists = self.get_path_details(start_node, goal_node)
         return sum(route_dists)
 
@@ -1250,7 +1281,7 @@ class RasberryCoordinator():
             if check_route:
                 for i, e in enumerate(list(zip(*(old_edge,new_edge)))):
                     if e[0] != e[1]:
-                        logmsg(category="robot", id=agent.agent_id, msg="New route different from existing route")
+                        logmsg(category="route", id=agent.agent_id, msg="New route different from existing route")
                         check_route = False
                         break
 
@@ -1260,7 +1291,7 @@ class RasberryCoordinator():
             agent.temp_interface.set_execpolicy_goal(policy)
             agent['replan_required'] = False
             if self.log_routes:
-                logmsg(category="robot", id=agent.agent_id,
+                logmsg(category="route", id=agent.agent_id,
                        msg='new route %s, previous route was %s' % (policy, agent.temp_interface.execpolicy_goal))
 
     def get_path_details(self, start_node, goal_node):
@@ -1275,10 +1306,10 @@ class RasberryCoordinator():
         route = self.route_finder.planner.route_search.search_route(start_node, goal_node)
         if route is None:
             if start_node == goal_node:
-                logmsg(msg='start_node %s is goal_node %s' % (start_node, goal_node))
+                logmsg(category="route", msg='start_node %s is goal_node %s' % (start_node, goal_node))
                 return ([], [], [0])
             else:
-                logmsg(msg='no route between %s and %s' % (start_node, goal_node))
+                logmsg(category="route", msg='no route between %s and %s' % (start_node, goal_node))
                 return ([], [], [float("inf")])
         route_nodes = route.source
         route_nodes.append(goal_node)
@@ -1392,7 +1423,7 @@ class RasberryCoordinator():
             with open(self.task_progression_log, 'a') as log:
                 log.write(self.current_log_iteration % (self.timestep, self.iteration)) #use rospy.Time.now() ?
                 self.iteration += 1
-                logmsg(msg="writing...")
+                logmsg(category="log", msg="Updating log")
 
         self.previous_log_iteration = self.current_log_iteration
         self.current_log_iteration = ""

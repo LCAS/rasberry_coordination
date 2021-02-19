@@ -73,6 +73,7 @@ class AgentDetails(object):
         self.total_tasks = 0
 
         #Location and Callbacks
+        self.has_presence = True #used for routing
         self.subs = {}
         self.current_node = None
         self.previous_node = None
@@ -95,8 +96,8 @@ class AgentDetails(object):
         self.current_node = None if msg.data == "none" else msg.data
         if self.cb['update_topo_map']:
             self.cb['update_topo_map']()
-        if self.current_node:
-            logmsg(msg="Agent: %s now at node: %s" % (self.agent_id,self.current_node))
+        # if self.current_node:
+            # logmsg(msg="Agent: %s now at node: %s" % (self.agent_id,self.current_node))
 
     def closest_node_cb(self, msg):
         self.closest_node = None if msg.data == "none" else msg.data
@@ -128,6 +129,7 @@ class AgentDetails(object):
     def flag(self, flag):
         self['stage_complete_flag'] = flag
     def end_stage(self):
+        logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self.task_stage_list[0])
         self.task_stage_list.pop(0)
 
     """ Logging """
@@ -139,7 +141,8 @@ class AgentDetails(object):
 class CourierDetails(AgentDetails):
     def __init__(self, agent_dict, callbacks):
         super(CourierDetails, self).__init__(agent_dict, callbacks)
-        self.idle_task_definition = {'default': TaskDef.idle_courier}
+        self.idle_task_definition = {'default': TaskDef.idle_courier,
+                                     'init': TaskDef.init_courier}
         self.new_task_definition = {'default': TaskDef.transportation_courier,
                                     'low_battery': TaskDef.charge_robot} #i.e.
         interfaces = {"robot_interface":Robot_Interface}
@@ -149,6 +152,7 @@ class CourierDetails(AgentDetails):
                                                                         'RELEASE':self.release})
         self.tags = {'type':'robot'}
         self.temp_interface = RobotInterface_Old(self.agent_id)
+        self.start_idle_task('init')
         pass
     def pause(self):
         self.task_stage_list.insert(0, StageDef.Pause(self))
@@ -182,20 +186,24 @@ class PickerDetails(AgentDetails):
         logmsg(category="picker", id=self.agent_id, msg="picker has INIT")
         pass
 class StorageDetails(AgentDetails):
+    """
+    Because the storage details can have multiple pending agents, we need to select which
+    """
     def __init__(self, agent_dict, callbacks):
         super(StorageDetails, self).__init__(agent_dict, callbacks)
-        self.idle_task_definition = {'default': TaskDef.idle_courier}
-        self.new_task_definition = {'default': TaskDef.transportation_courier}
+        self.idle_task_definition = {'default': TaskDef.idle_storage}
+        self.new_task_definition = {'default': TaskDef.transportation_storage}
         interfaces = {"car_app":CAR_App,
                       "uar_app":UAR_App,
                       "car_device":CAR_Device,
                       "uar_device":UAR_Device}
         self.interface = interfaces[agent_dict['interface_type']](agent_id=self.agent_id,
-                                                             responses={'UNLOADED' :self.unloaded,
+                                                                  responses={'UNLOADED' :self.unloaded,
                                                                         'OFFLINE'  :self.offline,
                                                                         'ONLINE'   :self.online})
         self.tags = {'type':'storage'}
         self.request_admittance = []
+        self.has_presence = False #used for routing
         pass
     def unloaded(self):
         self['storage_has_tray'] = True

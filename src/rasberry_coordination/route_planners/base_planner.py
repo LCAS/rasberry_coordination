@@ -106,7 +106,8 @@ class BasePlanner(object):
             all_agent_details_pointer - pointer to coordinator.all_agents_list a dictionary of all agent_details objects
             callbacks -
         """
-        self.agent_details = all_agent_details_pointer
+        # Filter out agents with no physical presence
+        self.agent_details = {a.agent_id:a for a in all_agent_details_pointer.values() if a.has_presence}
         self.callbacks = callbacks
 
         """ Change callback location to modify the FragmentPlanner available topomap """
@@ -115,10 +116,10 @@ class BasePlanner(object):
 
         """ Download Topological Map """
         rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
-        logmsg(msg='Route Planner waiting for Topological map ...')
+        logmsg(category="route", msg='Route Planner waiting for Topological map ...')
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
-        logmsg(msg='Route Planner received Topological map.')
+        logmsg(category="route", msg='Route Planner received Topological map.')
         self.available_topo_map = copy.deepcopy(self.topo_map)  # empty map used to measure routes
 
         """ Setup object to perform route_searching in empty map """
