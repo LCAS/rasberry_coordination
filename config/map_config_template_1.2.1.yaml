@@ -1,0 +1,198 @@
+#If updated, ensure simple_task_executor_node.py/validate_types() is updated accordingly
+version: 1.2.1    # This is the latest version ID
+use_sim: BOOLEAN  # is this a simulated environment
+
+#TOPOLOGY (Node Descriptors)
+special_nodes:
+  - id: NODE_ID
+    descriptors:
+      - base_station
+      - wait_node
+      - charging_station
+
+#ROUTING
+planning_type: STR # method used for coordinating routes
+
+#ROBOTS
+low_battery_voltage: FLOAT # battery_voltage threshold to set robot as unhealthy
+
+#INITIALISATION
+agent_list:
+  - default: null  #REQUIRED
+  
+  # Example
+  - agent_id: thorvald_001           #REQUIRED
+    agent_type: robotic_courier      #REQUIRED
+    interface_type: robot_interface  #REQUIRED
+    new_task_default: default        #OPTIONAL
+    idle_task_default: default       #OPTIONAL
+    initial_location: NODE_ID        #OPTIONAL
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#FORM DEFINITION
+#form_definitions:
+#  - agent_type: shortstack
+#    interface_type: robot_interface
+#    task_types:
+#    - robotic_uv
+#    - robotic_courier
+#    
+#  - agent_type: shortstack_arm
+#    interface_type: robot_interface
+#    task_types:
+#    - robotic_picker
+#    
+#  - agent_type: human
+#    interface_type: car_app
+#    task_types:
+#    - human_picker
+#    - human_courier
+      
+    
+    
+#INITIALISATION
+#agent_list:
+#  - form: shortstack
+#    agent_list:
+#      - agent_id: thorvald_001
+#      - agent_id: thorvald_002
+#        
+#  - form: shortstack_arm
+#    agent_list:
+#      - agent_id: thorvald_003
+#        initial_location: NODE_ID
+#        
+#  - form: human_picker
+#    agent_list:
+#      - agent_id: thorvald_003
+#        initial_location: NODE_ID
+#
+#  - form: human_picker
+#    agent_list:
+#      - agent_id: picker01
+#        initial_location: NODE_ID
+#      - agent_id: picker02
+#        initial_location: NODE_ID
+#
+#  - agent_type: local_storage
+#    interface_type: uar_app
+#    initial_location: WayPoint69
+#    agent_list: 
+#        - storage01
+
+
+
+#agent_list:
+#  - agent_id: thorvald_001
+#    agent_type: robotic_courier
+#    interface_type: robot_interface
+#
+#  - agent_id: thorvald_002
+#    agent_type: robotic_courier
+#    interface_type: robot_interface
+#
+#  - agent_id: picker01
+#    agent_type: human_picker
+#    interface_type: car_app
+#
+#  - agent_id: picker02
+#    agent_type: human_picker
+#    interface_type: car_app
+#
+#  - agent_id: storage01
+#    agent_type: local_storage
+#    interface_type: uar_app
+#    initial_location: WayPoint69
+    
+#UNIQUE KEY: AGENT_TYPE
+#agent_list:
+#  - agent_type: robotic_courier
+#    agents: 
+#    - agent_id: thorvald_001
+#    - agent_id: thorvald_002
+#
+#  - agent_type: robotic_uv
+#    agents: 
+#    - agent_id: thorvald_002
+#    - agent_id: thorvald_003
+#
+#  - agent_type: human_picker
+#    interface_type: car_app
+#    agents:
+#    - agent_id: picker01
+#    - agent_id: picker02
+#
+#  - agent_type: local_storage
+#    interface_type: uar_app
+#    agents: 
+#    - agent_id: storage01
+#      initial_location: WayPoint69
+      
+  
+#UNIQUE KEY: AGENT_ID
+agent_setups:
+  - id: setup_01
+    task_types: 
+    - robotic_courier
+    - robotic_uv
+    interface_type: robot_interface
+    new_task_default: transportation_courier
+    idle_task_default: default
+    
+  - id: setup_02
+    task_types: 
+    - robotic_courier
+    interface_type: robot_interface
+  
+  - id: setup_03
+    task_types: 
+    - human_picker
+    interface_type: car_app
+  
+  - id: setup_04
+    task_types: 
+    - human_picker
+    interface_type: car_app
+    
+agent_list:
+  - agent_id: thorvald_001
+    setup_type: setup_01
+
+  - agent_id: thorvald_002
+    setup_type: setup_02
+
+  - agent_id: picker01
+    setup_type: setup_03
+
+  - agent_id: picker02
+    setup_type: setup_03
+
+  - agent_id: storage01
+    setup_type: setup_04
+    initial_location: WayPoint69     #OPTIONAL
+    
+task_details:
+  - task_name: transportation
+    wait_loading: 20
+    wait_unloading: 40
+    task_def_file: 
+    
+    
+    
+    
+    
+
