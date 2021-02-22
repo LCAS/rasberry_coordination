@@ -29,7 +29,7 @@ import rasberry_coordination.msg
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 import rasberry_coordination.srv
 import rasberry_coordination.coordinator
-from rasberry_coordination.coordinator_tools import logmsg, remove, add, move
+from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, remove, add, move
 from rasberry_coordination.route_planners.route_planners import RouteFinder
 from rasberry_coordination.task_management.Tasks import TaskDef
 from rasberry_coordination.task_management.Stages import StageDef
@@ -1023,6 +1023,8 @@ class RasberryCoordinator():
 
     """ Main loop for task progression """
     def run(self, planning_type='fragment_planner'):
+        self.run_minimalist()
+    def run_bulk(self, planning_type='fragment_planner'):
         """ For details see: rasberry_coordination/src/CoordinatorStructure.md
 
             Notation Worth Noting:
@@ -1109,34 +1111,76 @@ class RasberryCoordinator():
             if self.enable_task_logging:
                 self.publish_log()
 
+    def run_minimalist(self):
+        #
+        offer_service  = self.offer_service
+        l              = self.log_minimal
+        find_routes    = self.route_finder.find_routes
+        publish_routes = self.execute_policy_routes
+        get_agents     = self.get_agents
+
+        A = self.get_all_agents()
+        self.enable_task_logging = True
+        self.task_progression_log = '/home/jheselden/task_progression.csv'
+        self.log_routes = False
+        self.timestep = 0
+        self.iteration = 0
+        self.previous_log_iteration = ""
+        self.current_log_iteration = ""
+
+        l(-1)
+        while not rospy.is_shutdown():
+            A = get_agents()
+            logmsg() if any([not a.task_stage_list for a in A]) else None
+            [a.start_idle_task() for a in A if not a.task_stage_list];             """ Start Idle Task """
+            l(0);
+            logmsg() if any([a().new_stage for a in A]) else None
+            [a.start_stage()    for a in A if a().new_stage];                      """ Start Stage """
+            logmsg() if any([a().action_required for a in A]) else None
+            [offer_service(a)   for a in A if a().action_required];                """ Offer Service """
+            l(2)
+
+            logmsg() if any([a().route_required for a in A]) else None
+            find_routes()       if any([a().route_required for a in A]) else None; """ Find Routes """
+            [publish_routes(a)  for a in A if a().route_required];                 """ Publish Routes """
+            l(3)
+            [a()._query()       for a in A];                                       """" Query """
+            l(4)
+            logmsg() if any([a().stage_complete for a in A]) else None
+            [a.end_stage()      for a in A if a().stage_complete];                 """ End Stage """
+            l(-2) #publish route
+
     def get_all_agents(self):
         all_agents = self.picker_manager.agent_details.copy()
         all_agents.update(self.courier_manager.agent_details)
         all_agents.update(self.storage_manager.agent_details)
         # all_agents.update(self.battery_station_manager.agent_details)
         return all_agents
+    def get_agents(self):
+        self.AllAgentsList = self.get_all_agents()
+        return self.AllAgentsList.values()
 
     """ Services offerd by Coordinator to assist with tasks """
     def offer_service(self, agent):
-        action_type =       agent['action_dict']['action_type']
-        response_location = agent['action_dict']['response_location']
+        action_type =       agent().action['action_type']
+        response_location = agent().action['response_location']
 
         responses = {'find_agent':self.find_agent,
                      'find_node': self.find_node,
                      'find_agent_from_list': self.find_agent_from_list}  # ROOM TO EXPAND
 
-        logmsg(category="action", id=agent.agent_id, msg="Performing action for: %s" % str(agent['action_dict']))
+        logmsg(category="action", id=agent.agent_id, msg="Action: %s" % str(agent().action))
         responses[action_type](agent)
 
         if agent[response_location]:
-            logmsg(category="action", id=agent.agent_id, msg="Found %s: %s" % (response_location, agent[response_location]))
-            agent['coordinator_action_required'] = False
+            logmsg(category="action", msg="Found %s: %s" % (response_location, agent[response_location]))
+            agent().action_required = False
 
     """ Action Category """
     def find_agent(self, agent):
-        action_style =      agent['action_dict']['action_style']
-        response_location = agent['action_dict']['response_location']
-        agent_type = agent['action_dict']['agent_type']
+        action_style =      agent().action['action_style']
+        response_location = agent().action['response_location']
+        agent_type = agent().action['agent_type']
 
         A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (a.tags['type'] is agent_type)}
 
@@ -1144,9 +1188,9 @@ class RasberryCoordinator():
         agent[response_location] = responses[action_style](agent, A)
 
     def find_node(self, agent):
-        action_style =      agent['action_dict']['action_style']
-        response_location = agent['action_dict']['response_location']
-        descriptor =        agent['action_dict']['descriptor']
+        action_style =      agent().action['action_style']
+        response_location = agent().action['response_location']
+        descriptor =        agent().action['descriptor']
 
         taken = [a.current_node for a in self.AllAgentsList.values() if
                  (a.agent_id is not agent.agent_id) and a.current_node is not None] #Check if node is occupied
@@ -1161,9 +1205,9 @@ class RasberryCoordinator():
         agent[response_location] = responses[action_style](agent, N)
 
     def find_agent_from_list(self, agent):
-        action_style =      agent['action_dict']['action_style']
-        response_location = agent['action_dict']['response_location']
-        agent_list =        agent['action_dict']['list']
+        action_style =      agent().action['action_style']
+        response_location = agent().action['response_location']
+        agent_list =        agent().action['list']
 
         A = {agent_id:self.AllAgentsList[agent_id] for agent_id in agent_list} #convert list to set()
 
@@ -1287,9 +1331,10 @@ class RasberryCoordinator():
 
         """ If check_route is false, routes are different """
         if check_route:
-            print(policy)
+            if self.log_routes:
+                print(policy)
             agent.temp_interface.set_execpolicy_goal(policy)
-            agent['replan_required'] = False
+            agent().route_required = False
             if self.log_routes:
                 logmsg(category="route", id=agent.agent_id,
                        msg='new route %s, previous route was %s' % (policy, agent.temp_interface.execpolicy_goal))
@@ -1367,10 +1412,10 @@ class RasberryCoordinator():
         for a in self.AllAgentsList.values():
             switch = {'_start':a().new_stage,
                       '_notify_start':a().new_stage,
-                      '_action':a['coordinator_action_required'],
-                      '_query':a['stage_complete_flag'],
-                      '_notify_end':a['stage_complete_flag'],
-                      '_del':a['stage_complete_flag']}
+                      '_action':a().action_required,
+                      '_query':a().stage_complete,
+                      '_notify_end':a().stage_complete,
+                      '_del':a().stage_complete}
             if switch[detail]:
                 lst += [a().summary[detail]]
             else:
@@ -1388,16 +1433,16 @@ class RasberryCoordinator():
                               'stage': self.log_stage,
                               'new_stage':self.log_new_stage,
                               'linebreak': self.log_linebreak}
-        switch_group_value = {'route':self.log_not_none,                    #('route')
-                              'coordinator_action_required':self.log_value, #('coordinator_action_required')
-                              'replan_required':self.log_value,             #('replan_required')
-                              'stage_complete_flag':self.log_value}         #('stage_complete_flag')
-        switch_group_summary = {'_start':self.log_summary,                  #('_start')
-                                '_notify_start':self.log_summary,           #('_notify_start')
-                                '_action':self.log_summary,                 #('_action')
-                                '_query':self.log_summary,                  #('_query')
-                                '_notify_end':self.log_summary,             #('_notify_end')
-                                '_del':self.log_summary}                    #('_del')
+        switch_group_value = {'route':self.log_not_none,          #('route')
+                              'action_required':self.log_value,   #('action_required')
+                              'route_required':self.log_value,    #('route_required')
+                              'stage_complete':self.log_value}    #('stage_complete')
+        switch_group_summary = {'_start':self.log_summary,        #('_start')
+                                '_notify_start':self.log_summary, #('_notify_start')
+                                '_action':self.log_summary,       #('_action')
+                                '_query':self.log_summary,        #('_query')
+                                '_notify_end':self.log_summary,   #('_notify_end')
+                                '_del':self.log_summary}          #('_del')
 
 
         for switch in switches:
@@ -1419,16 +1464,32 @@ class RasberryCoordinator():
             details = [str(d) for d in details]
             self.current_log_iteration += "%s\n" % ',|,'.join(details)
     def publish_log(self):
-        if self.previous_log_iteration != self.current_log_iteration:
-            with open(self.task_progression_log, 'a') as log:
-                log.write(self.current_log_iteration % (self.timestep, self.iteration)) #use rospy.Time.now() ?
-                self.iteration += 1
-                logmsg(category="log", msg="Updating log")
+        if self.enable_task_logging:
+            if self.previous_log_iteration != self.current_log_iteration:
+                with open(self.task_progression_log, 'a') as log:
+                    log.write(self.current_log_iteration % (self.timestep, self.iteration)) #use rospy.Time.now() ?
+                    self.iteration += 1
+                    logmsgbreak()
+                    logmsg(category="log", msg="Updating log")
+                    print('------------------------------------------')
 
-        self.previous_log_iteration = self.current_log_iteration
-        self.current_log_iteration = ""
+            self.previous_log_iteration = self.current_log_iteration
+            self.current_log_iteration = ""
 
-        # if self.iteration >= 2:
-        #     quit()
+            # if self.iteration >= 2:
+            #     quit()
 
-    """  """
+    def log_minimal(self, idx):
+        switch = {-2: self.publish_log,
+                  -1:['init'],
+                  0: ['linebreak', 'iteration', 'task', 'stage', 'new_stage', 'break'],
+                  1: ['_start', '_notify_start', 'break'],
+                  2: ['_action', 'break'],
+                  3: ['route_required'],
+                  4: ['route', 'break'],
+                  5: ['_query', 'break', '_notify_end', '_del']}
+
+        if idx == min(switch):
+            switch[idx]()
+        else:
+            self.log_data(switch[idx])

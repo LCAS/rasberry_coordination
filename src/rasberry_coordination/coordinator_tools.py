@@ -27,7 +27,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
     # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
     # TODO: include padding at end of msg
 
-    reject_tags = ["ROUTE", "ROBNAV", "LIST"]
+    reject_tags = ["ROBNAV", "LIST"]
     if category.upper() in reject_tags:
         return
 
@@ -39,7 +39,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
 
         """ Define id and/or category to highlight """
         color_id = ["thorvald_001", "thorvald_002"]
-        color_category = ["ACTION", "STAGE", "TASK"]  # TODO move these out of this definition and into some config file
+        color_category = ["ROUTE", "ACTION", "STAGE", "TASK"]  # TODO move these out of this definition and into some config file
         # (load from parameter server in launch file?)
 
         """ Format category portion of message """

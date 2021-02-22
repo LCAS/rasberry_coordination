@@ -15,15 +15,7 @@ class TaskDef(object):
     """ Runtime Method for Custom Task Definitions """
     @classmethod
     def load_details(cls, details):
-        if 'coordinator_action_required' not in details:
-            details['coordinator_action_required'] = False
-        if 'replan_required' not in details:
-            details['replan_required'] = False
-        if 'stage_complete_flag' not in details:
-            details['stage_complete_flag'] = False
-        if 'new_stage' not in details:
-            details['new_stage'] = True
-        return details
+        return details.copy()
 
 
     """ Runtime Method for Custom Task Definitions """
@@ -68,8 +60,8 @@ class TaskDef(object):
         agent.task_name = "idle_courier"
         agent.task_details = cls.load_details(details)
         agent.task_stage_list += [
-            StageDef.AssignBaseStationNode(agent),
-            StageDef.NavigateToBaseStationNode(agent),
+            StageDef.AssignBaseNode(agent),
+            StageDef.NavigateToBaseNode(agent),
             StageDef.IdleCourier(agent)
         ]
         logmsg(category="TASK", id=agent.agent_id, msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))

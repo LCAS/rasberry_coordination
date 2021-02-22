@@ -70,7 +70,7 @@ class FragmentPlanner(BasePlanner):
 
         By this point, every agent...
         """
-        active_agents = [agent.agent_id for agent in self.agent_details.values() if agent().active]
+        active_agents = [agent.agent_id for agent in self.agent_details.values() if agent.goal()]
         # active_robots = self.robot_manager.active_list()
         critical_points = {}  # {[route: critical point]} each route which contains a critical point
         critical_agents = {}  # {[critical_point: robot_ids]} all robots touching a critical point

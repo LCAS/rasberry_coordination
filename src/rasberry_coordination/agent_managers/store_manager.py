@@ -124,11 +124,16 @@ class AgentDetails(object):
         A.task_details[key] = val
 
     """ Standard Task Interactions """
+    def start_stage(self):
+        self()._start()
+        self()._notify_start()
+        self().new_stage = False
     def notify(self, state):
         self.interface.publish(state)
     def flag(self, flag):
-        self['stage_complete_flag'] = flag
+        self().stage_complete = flag
     def end_stage(self):
+        self()._notify_end()
         logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self.task_stage_list[0])
         self.task_stage_list.pop(0)
 
