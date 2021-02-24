@@ -26,15 +26,21 @@ import topological_navigation.tmap_utils
 
 import rasberry_coordination.robot
 import rasberry_coordination.msg
-from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 import rasberry_coordination.srv
-import rasberry_coordination.coordinator
+# import rasberry_coordination.coordinator
+from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, remove, add, move
+
+#Route Planning
 from rasberry_coordination.route_planners.route_planners import RouteFinder
-# from rasberry_coordination.task_management.Tasks import TaskDef
-# from rasberry_coordination.task_management.Stages import StageDef
+
+#Task Managment
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef
-from rasberry_coordination.agent_managers import store_manager as agent_managers
+
+#Agent Management
+from rasberry_coordination.agent_managers.robots import CourierManager#, UV_Manager
+from rasberry_coordination.agent_managers.humans import PickerManager#, StorageManager #(Since store managed by human)
+from rasberry_coordination.agent_managers.stores import StorageManager
 
 
 class RasberryCoordinator():
@@ -72,9 +78,9 @@ class RasberryCoordinator():
         callbacks = {'update_topo_map': None, 'task_cancelled': self.task_cancelled} #This should not exist
 
         #Define Managers
-        self.courier_manager = agent_managers.CourierManager(callbacks)
-        self.picker_manager  = agent_managers.PickerManager(callbacks)
-        self.storage_manager = agent_managers.StorageManager(callbacks)
+        self.courier_manager = CourierManager(callbacks)
+        self.picker_manager  = PickerManager(callbacks)
+        self.storage_manager = StorageManager(callbacks)
 
         #Add Agents
         self.courier_manager.add_agents([agent for agent in agent_list[1:] if agent['agent_type'] == 'robotic_courier']) #TODO: remove 'defeult' before passing agent_list here
