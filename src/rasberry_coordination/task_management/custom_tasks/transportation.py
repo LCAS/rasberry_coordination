@@ -166,7 +166,7 @@ class StageDef(object):
             self.end_requirement = False #flag must be this to end task
             self.agent['picker_has_tray'] = True #local flag
         def _query(self):
-            success_conditions = [Time.now() - self.agent['start_time'] > self.wait_timeout,
+            success_conditions = [Time.now() - self.start_time > self.wait_timeout,
                                  self.agent['picker_has_tray'] == self.end_requirement]
             self.agent.flag(any(success_conditions))
         def _notify_end(self):
@@ -178,7 +178,7 @@ class StageDef(object):
             self.end_requirement = True #flag must be this to end task
             self.agent['storage_has_tray'] = False  # local flag
         def _query(self):
-            success_conditions = [Time.now() - self.agent['start_time'] > self.wait_timeout,
+            success_conditions = [Time.now() - self.start_time > self.wait_timeout,
                                   self.agent['storage_has_tray'] == self.end_requirement]
             self.agent.flag(any(success_conditions))
 
