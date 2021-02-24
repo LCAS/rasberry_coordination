@@ -37,6 +37,7 @@ rosbridge_port: $(arg rosbridge_port)
 # Topics being published in the server to expose locally
 remote_topics: [
                     ['/topological_map', 'strands_navigation_msgs/TopologicalMap', '/topological_map', True],
+                    ['/topological_map_2', 'std_msgs/String', '/topological_map_2', True],
                     ['/$(arg robot_name)/current_route', 'nav_msgs/Path', '/$(arg robot_name)/current_route', True],
                ]
 # Topics being published in the local roscore to expose remotely
@@ -47,10 +48,10 @@ local_topics: [
               ]
 # Services running in the server to expose locally
 remote_services: [
-                    ['/topological_map_manager/get_tags', 'strands_navigation_msgs/GetTags'],
-                    ['/topological_map_manager/get_node_tags', 'strands_navigation_msgs/GetNodeTags'],
-                    ['/topological_map_manager/get_tagged_nodes', 'strands_navigation_msgs/GetTaggedNodes'],
-                    ['/topological_map_publisher/get_topological_map', 'strands_navigation_msgs/GetTopologicalMap']
+                    ['/topological_map_manager2/get_tags', 'strands_navigation_msgs/GetTags'],
+                    ['/topological_map_manager2/get_node_tags', 'strands_navigation_msgs/GetNodeTags'],
+                    ['/topological_map_manager2/get_tagged_nodes', 'strands_navigation_msgs/GetTaggedNodes'],
+                    ['/topological_map_manager2/get_topological_map', 'strands_navigation_msgs/GetTopologicalMap']
                  ]
 # Services running locally to expose to the robot
 local_services: []
