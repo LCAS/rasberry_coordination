@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-
 import rospy
-
-import rasberry_coordination.rasberry_coordinator
-import rasberry_coordination.picker_state_monitor
-
 import rasberry_des.config_utils
 
 
@@ -119,7 +114,13 @@ if __name__ == '__main__':
     # Start ROSNode
     rospy.init_node('simple_task_coordinator', anonymous=False)
 
+    # Initialise task manager to store all task and stage definitions in single objects for later access
+    tasks = ['transportation', 'uv']  # assume for now
+    import rasberry_coordination.task_management.__init__ as task_init
+    task_init.def_tasks(tasks)
+
     # initialise the coordinator and internally all robots
+    import rasberry_coordination.rasberry_coordinator
     coordinator = rasberry_coordination.rasberry_coordinator.RasberryCoordinator(
         agent_list=config_data['agent_list'],
         base_station_nodes_pool=base_station_nodes_pool,

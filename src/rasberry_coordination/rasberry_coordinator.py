@@ -31,8 +31,9 @@ import rasberry_coordination.srv
 import rasberry_coordination.coordinator
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, remove, add, move
 from rasberry_coordination.route_planners.route_planners import RouteFinder
-from rasberry_coordination.task_management.Tasks import TaskDef
-from rasberry_coordination.task_management.Stages import StageDef
+# from rasberry_coordination.task_management.Tasks import TaskDef
+# from rasberry_coordination.task_management.Stages import StageDef
+from rasberry_coordination.task_management.__init__ import TaskDef, StageDef
 from rasberry_coordination.agent_managers import store_manager as agent_managers
 
 

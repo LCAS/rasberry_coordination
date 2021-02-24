@@ -11,8 +11,8 @@ from rospy import Subscriber, Publisher, Time
 from std_msgs.msg import String as Str
 from rasberry_coordination.msg import KeyValuePair
 from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.task_management.Tasks import TaskDef
 from rasberry_coordination.robot import Robot as RobotInterface_Old
+from rasberry_coordination.task_management.__init__ import TaskDef, StageDef
 
 """ Agent Details """
 class AgentManager(object):
