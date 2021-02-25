@@ -213,7 +213,7 @@ class StageDef(object):
         def __repr__(self):
             return self.get_class()
         def get_class(self):
-            return str(self.__class__).replace("<class 'rasberry_coordination.task_management.Stages.","").replace("'>","")
+            return str(self.__class__).replace("<class 'rasberry_coordination.task_management.","").replace("'>","")
         def __init__(self, agent):
             self.agent = agent
             self.action_required = False

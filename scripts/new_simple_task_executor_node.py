@@ -40,19 +40,26 @@ def validate_types(file, config):
     # Routing Fields
     validate_field(file, config, mandatory=True, key='planning_type', datatype=[str])
 
-    # Robot Fields
-    validate_field(file, config, mandatory=True, key='low_battery_voltage', datatype=[float])
+    # Agent Initialisation
+    for setup in config['agent_setups']:
+        validate_field(file, setup['setup'], mandatory=True,  key='manager', datatype=[str])
+        for task in setup['setup']['tasks']:
+            validate_field(file, task, mandatory=True,  key='module', datatype=[str])
+            validate_field(file, task, mandatory=True,  key='role', datatype=[str])
+        validate_field(file, setup['setup'], mandatory=True,  key='interface_type', datatype=[str])
+        validate_field(file, setup['setup'], mandatory=True,  key='idle_task_default', datatype=[str])
+        validate_field(file, setup['setup'], mandatory=True,  key='new_task_default', datatype=[str])
 
     # Agent Initialisation
     for agent in config['agent_list']:
-        if 'default' in agent:
-            continue
         validate_field(file, agent, mandatory=True,  key='agent_id', datatype=[str])
-        validate_field(file, agent, mandatory=True,  key='agent_type', datatype=[str])
-        validate_field(file, agent, mandatory=True,  key='interface_type', datatype=[str])
-        validate_field(file, agent, mandatory=False, key='idle_task_default', datatype=[str])
-        validate_field(file, agent, mandatory=False, key='new_task_default', datatype=[str])
-        validate_field(file, agent, mandatory=False, key='initial_location', datatype=[str])
+        validate_field(file, agent, mandatory=True,  key='setup', datatype=[dict])
+        validate_field(file, agent, mandatory=False,  key='initial_location', datatype=[str])
+
+    # Agent Initialisation
+    for task in config['active_tasks']:
+        validate_field(file, task, mandatory=True,  key='module', datatype=[str])
+        validate_field(file, agent, mandatory=False,  key='properties', datatype=[dict])
 
 
 if __name__ == '__main__':
@@ -66,8 +73,8 @@ if __name__ == '__main__':
     config_data = rasberry_des.config_utils.get_config_data(config_file)
     config_keys = rasberry_des.config_utils.get_config_keys(config_file)
 
-    # configuration file validation
-    VERSION = "1.2.0"
+    """ Configuration File Validation """
+    VERSION = "1.2.1"
     template_location = "raspberry_coordination/config/map_config_template_%s.yaml" % VERSION
     if "version" not in config_data:
         raise Exception('\033[92m'+"Config outdated, update following: %s\033[0m" % template_location)
@@ -79,7 +86,7 @@ if __name__ == '__main__':
     # Ensure all required fields are filled with the correct data types
     validate_types(config_file, config_data)
 
-    # TOPOLOGY (Node Descriptors)
+    """ TOPOLOGY (Node Descriptors) """
     base_station_nodes_pool = set()
     wait_nodes_pool = set()
     charging_station_pool = set()
@@ -93,31 +100,49 @@ if __name__ == '__main__':
         if 'charging_station' in node['descriptors']:
             charging_station_pool.add(node['id'])
 
-    # ROUTING
+    """ ROUTING """
     planning_type = config_data["planning_type"]
 
-    # INITIALISATION
+    """ INITIALISATION """
+    # load default values for non-mandatory fields
     for agent in config_data['agent_list']:
         if 'default' in agent:
             continue
 
-        # if task_definitions omitted default apply 'default'
-        if "idle_task_definition" not in agent:
-            agent['idle_task_default'] = 'default'
-        if "new_task_definition" not in agent:
-            agent['new_task_default'] = 'default'
+        # Default physical presence to True
+        if 'physical' not in agent['setup']:
+            agent['setup']['physical'] = True
+
+        #
+        if len(agent['setup']['tasks']) < 1:
+            print("Agent %s connected with 0 available tasks." % agent['agent_id'])
 
         # if initial_location omitted default to None
         if "initial_location" not in agent:
             agent['initial_location'] = None
 
+    """ ACTIVE TASKS """
+    modules_to_load = set([t['module'] for t in config_data['active_tasks']])
+
     # Start ROSNode
     rospy.init_node('simple_task_coordinator', anonymous=False)
 
     # Initialise task manager to store all task and stage definitions in single objects for later access
-    tasks = ['transportation', 'uv']  # assume for now
     import rasberry_coordination.task_management.__init__ as task_init
-    task_init.def_tasks(tasks)
+    task_init.def_tasks(list(modules_to_load))
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # initialise the coordinator and internally all robots
     import rasberry_coordination.rasberry_coordinator

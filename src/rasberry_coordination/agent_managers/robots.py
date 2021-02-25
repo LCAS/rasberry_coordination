@@ -26,19 +26,23 @@ class CourierManager(AgentManager):
 """ Agent Management """
 class CourierDetails(AgentDetails):
     def __init__(self, agent_dict, callbacks):
+        print(agent_dict)
         super(CourierDetails, self).__init__(agent_dict, callbacks)
-        self.idle_task_definition = {'default': TaskDef.idle_courier,
-                                     'init': TaskDef.init_courier}
-        self.new_task_definition = {'default': TaskDef.transportation_courier,
-                                    'low_battery': TaskDef.charge_robot} #i.e.
+
+
+        #Define interface to agent
         interfaces = {"robot_interface":Robot_Interface}
-        self.interface = interfaces[agent_dict['interface_type']](agent_id=self.agent_id,
-                                                             responses={'PAUSE'  :self.pause,
-                                                                        'UNPAUSE':self.unpause,
-                                                                        'RELEASE':self.release})
+        self.interface = interfaces[self.interface_type](agent_id=self.agent_id,
+                                                          responses={'PAUSE'  :self.pause,
+                                                                     'UNPAUSE':self.unpause,
+                                                                     'RELEASE':self.release})
+
+        #
         self.tags = {'type':'robot'}
         self.temp_interface = RobotInterface_Old(self.agent_id)
-        self.start_idle_task('init')
+
+        #Start the dfault idle task
+        self.start_idle_task('init_courier')
         pass
     def pause(self):
         self.task_stage_list.insert(0, StageDef.Pause(self))

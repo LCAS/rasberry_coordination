@@ -54,9 +54,17 @@ class AgentDetails(object):
         self.task_name = None
         self.task_details = {}
         self.task_stage_list = []
-        self.idle_task_default = agent_dict['idle_task_default']
-        self.new_task_default = agent_dict['new_task_default']
         self.total_tasks = 0
+
+        # Define Default Tasks
+        setup = agent_dict['setup']
+        if 'idle_task_default' in setup and hasattr(TaskDef, setup['idle_task_default']):
+            self.default_idle_task_definition = getattr(TaskDef, setup['idle_task_default'])
+        if 'new_task_default' in setup and hasattr(TaskDef, setup['new_task_default']):
+            self.default_new_task_definition = getattr(TaskDef, setup['new_task_default'])
+
+        #Interface
+        self.interface_type = setup['interface_type']
 
         #Location and Callbacks
         self.has_presence = True #used for routing
@@ -69,12 +77,28 @@ class AgentDetails(object):
         self.subs['current_node'] = Subscriber('/%s/current_node'%(self.agent_id), Str, self.current_node_cb)
         self.subs['closest_node'] = Subscriber('/%s/closest_node'%(self.agent_id), Str, self.closest_node_cb)
 
-    def start_idle_task(self, task="default", details={}):
-        task = task if task in self.idle_task_definition else self.idle_task_default
-        self.idle_task_definition[task](self, details)
-    def start_new_task(self, task="default", details={}, task_id=None):
-        task = task if task in self.new_task_definition else self.new_task_default
-        self.new_task_definition[task](self, details, task_id)
+    def start_idle_task(self, task=None, details={}):
+        if not task:
+            self.default_idle_task_definition(self, details)
+        else:
+            getattr(TaskDef, task)(self, details)
+
+    def start_new_task(self, task=None, details={}, task_id=None):
+        if not task:
+            self.default_new_task_definition(self, details)
+        else:
+            getattr(TaskDef, task)(self, details)
+
+    # Potential Reduction
+    # def start_task(self, type="idle", task=None, details={}, task_id=None):
+    #     if not task:
+    #         switch = {'idle':self.default_idle_task_definition,
+    #                   'new':self.default_new_task_definition}
+    #         switch[type](self, details, task_id)
+    #     else:
+    #         getattr(TaskDef, task)(self, details)
+
+
 
     """ Localisation """
     def current_node_cb(self, msg):

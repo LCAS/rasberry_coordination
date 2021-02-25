@@ -27,23 +27,26 @@ class PickerDetails(AgentDetails):
         super(PickerDetails, self).__init__(agent_dict, callbacks)
         self.idle_task_definition = {'default': TaskDef.idle_picker}
         self.new_task_definition = {'default': TaskDef.transportation_request}
-        interfaces = {"car_app":CAR_App,
-                      "lar_app":LAR_App,
-                      "car_device":CAR_Device,
-                      "lar_device":LAR_Device}
-        self.interface = interfaces[agent_dict['interface_type']](agent_id=self.agent_id,
-                                                             responses={'CALLED':self.called,
-                                                                        'LOADED':self.loaded,
-                                                                        'INIT'  :self.reset})
-        self.tags = {'type':'picker'}
+        interfaces = {"car_app": CAR_App,
+                      "lar_app": LAR_App,
+                      "car_device": CAR_Device,
+                      "lar_device": LAR_Device}
+        self.interface = interfaces[self.interface_type](agent_id=self.agent_id,
+                                                         responses={'CALLED': self.called,
+                                                                    'LOADED': self.loaded,
+                                                                    'INIT': self.reset})
+        self.tags = {'type': 'picker'}
         pass
+
     def called(self):
         logmsg(category="picker", id=self.agent_id, msg="picker has CALLED")
-        self.start_new_task(task='transportation_picker', details={'target_agent': self})
+        self.start_new_task(task='transportation_request', details={'target_agent': self})
         self['start_time'] = Time.now()
+
     def loaded(self):
         logmsg(category="picker", id=self.agent_id, msg="picker has LOADED")
         self['picker_has_tray'] = False
+
     def reset(self):
         logmsg(category="picker", id=self.agent_id, msg="picker has INIT")
         pass

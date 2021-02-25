@@ -32,22 +32,25 @@ class StorageDetails(AgentDetails):
         super(StorageDetails, self).__init__(agent_dict, callbacks)
         self.idle_task_definition = {'default': TaskDef.idle_storage}
         self.new_task_definition = {'default': TaskDef.transportation_storage}
-        interfaces = {"car_app":CAR_App,
-                      "uar_app":UAR_App,
-                      "car_device":CAR_Device,
-                      "uar_device":UAR_Device}
-        self.interface = interfaces[agent_dict['interface_type']](agent_id=self.agent_id,
-                                                                  responses={'UNLOADED' :self.unloaded,
-                                                                        'OFFLINE'  :self.offline,
-                                                                        'ONLINE'   :self.online})
-        self.tags = {'type':'storage'}
+        interfaces = {"car_app": CAR_App,
+                      "uar_app": UAR_App,
+                      "car_device": CAR_Device,
+                      "uar_device": UAR_Device}
+        self.interface = interfaces[self.interface_type](agent_id=self.agent_id,
+                                                         responses={'UNLOADED': self.unloaded,
+                                                                    'OFFLINE': self.offline,
+                                                                    'ONLINE': self.online})
+        self.tags = {'type': 'storage'}
         self.request_admittance = []
-        self.has_presence = False #used for routing
+        self.has_presence = False  # used for routing (swap out for physical?)
         pass
+
     def unloaded(self):
         self['storage_has_tray'] = True
+
     def offline(self):
         pass
+
     def online(self):
         pass
 

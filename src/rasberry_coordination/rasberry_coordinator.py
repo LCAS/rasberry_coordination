@@ -78,14 +78,13 @@ class RasberryCoordinator():
         callbacks = {'update_topo_map': None, 'task_cancelled': self.task_cancelled} #This should not exist
 
         #Define Managers
-        self.courier_manager = CourierManager(callbacks)
-        self.picker_manager  = PickerManager(callbacks)
-        self.storage_manager = StorageManager(callbacks)
+        self.agent_managers = {'RobotManager': CourierManager(callbacks),
+                               'PickerManager': PickerManager(callbacks),
+                               'StorageManager': StorageManager(callbacks)}
 
-        #Add Agents
-        self.courier_manager.add_agents([agent for agent in agent_list[1:] if agent['agent_type'] == 'robotic_courier']) #TODO: remove 'defeult' before passing agent_list here
-        self.picker_manager.add_agents( [agent for agent in agent_list[1:] if agent['agent_type'] == 'human_picker'])
-        self.storage_manager.add_agents([agent for agent in agent_list[1:] if agent['agent_type'] == 'local_storage'])
+        for Type, Manager in list(self.agent_managers.items()):
+            Manager.add_agents([agent for agent in agent_list[1:] if agent['setup']['manager'] == Type])
+
         # Extra Types
         #self.courier_manager.add_agents([agent for agent in agent_list[1:] if agent['agent_type'] == 'human_courier'])
         #self.picker_manager.add_agents( [agent for agent in agent_list[1:] if agent['agent_type'] == 'robotic_picker'])
@@ -1158,10 +1157,12 @@ class RasberryCoordinator():
             l(-2) #publish route
 
     def get_all_agents(self):
-        all_agents = self.picker_manager.agent_details.copy()
-        all_agents.update(self.courier_manager.agent_details)
-        all_agents.update(self.storage_manager.agent_details)
-        # all_agents.update(self.battery_station_manager.agent_details)
+        managers = self.agent_managers.values()
+
+        all_agents = managers[0].agent_details.copy()
+        for manager in managers[1:]:
+            all_agents.update(manager.agent_details)
+
         return all_agents
     def get_agents(self):
         self.AllAgentsList = self.get_all_agents()

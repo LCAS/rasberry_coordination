@@ -111,6 +111,7 @@ class BasePlanner(object):
         self.callbacks = callbacks
 
         """ Download Topological Map """
+        self.rec_topo_map = False
         rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
         logmsg(category="route", msg='Route Planner waiting for Topological map ...')
         while not self.rec_topo_map:
