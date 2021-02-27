@@ -1,7 +1,49 @@
+from std_msgs.msg import String as Str
 from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.task_management.base import StageDef as RootDef
+from rospy import Time, Duration, Subscriber, Publisher, Time
+from rasberry_coordination.task_management.base import StageDef as RootDef, InterfaceDef as CommsDef
+from rasberry_coordination.robot import Robot as RobotInterface_Old
 
 from rospy import Time, Duration
+
+class InterfaceDef(object):
+    class transportation_picker(CommsDef.AgentInterface):
+        def __init__(self, agent, sub='/car_client/get_states', pub='/car_client/set_states'):
+            responses = {'CALLED': self.called, 'LOADED': self.loaded, 'INIT': self.reset}
+            super(InterfaceDef.transportation_picker, self).__init__(agent, responses, sub=sub, pub=pub)
+
+
+        def called(self):
+            self.agent.start_new_task(task='transportation_request', details={'target_agent': self.agent})
+            self.agent['start_time'] = Time.now()
+        def loaded(self): self.agent['picker_has_tray'] = False
+        def reset(self): pass
+
+    class transportation_storage(CommsDef.AgentInterface):
+        def __init__(self, agent, sub='/uar/get_states', pub='/uar/set_states'):
+            responses={'UNLOADED': self.unloaded, 'OFFLINE': self.offline, 'ONLINE': self.online}
+            super(InterfaceDef.transportation_storage, self).__init__(agent, responses, sub=sub, pub=pub)
+
+            #These need a new home
+            self.agent.request_admittance = []
+            self.agent.has_presence = False  # used for routing (swap out for physical?)
+
+        def unloaded(self): self.agent['storage_has_tray'] = True
+        def offline(self): pass
+        def online(self): pass
+
+    class transportation_courier(CommsDef.AgentInterface):
+        def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
+            responses={'PAUSE':self.pause, 'UNPAUSE':self.unpause, 'RELEASE':self.release}
+            super(InterfaceDef.transportation_courier, self).__init__(agent, responses, sub=sub, pub=pub)
+
+            #These need a new home
+            self.agent.temp_interface = RobotInterface_Old(self.agent.agent_id)
+            self.agent.start_idle_task('init_courier')
+
+        def pause(self): self.agent.task_stage_list.insert(0, StageDef.Pause(self))
+        def unpause(self): self.agent.registration = True
+        def release(self): self.agent.task_stage_list = [] #+ inform associated robots
 
 class TaskDef(object):
     """ Picker Logistics Transportation """
@@ -53,7 +95,6 @@ class TaskDef(object):
             # StageDef.AwaitCourierExit(agent)
         ]
         logmsg(category="TASK", id=agent.agent_id, msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
-
 class StageDef(object):
     """ Assignment-Based Task Stages (involves coordinator) """
     class AssignCourier(RootDef.Assignment):
@@ -62,9 +103,9 @@ class StageDef(object):
             self.action['action_type'] = 'find_agent'
             self.action['action_style'] = 'closest'
             self.action['response_location'] = 'courier'
-            self.action['agent_type'] = 'robot'  # local_storage/cold_storage
+            self.action['agent_type'] = 'courier'  # local_storage/cold_storage
         def _notify_end(self):
-            self.agent.interface.notify("ACCEPT")
+            self.agent.interfaces['transportation_picker'].notify("ACCEPT")
         def __del__(self):
             """ On completion of assign courier, a courier should have been identified.
             As a result of the completion, the couier should be assigned a task, and be
@@ -117,7 +158,10 @@ class StageDef(object):
             success_conditions = [self.agent['courier'].location() == self.agent.location()]
             self.agent.flag(any(success_conditions))
         def _notify_end(self):
-            self.agent.interface.notify("ARRIVED")
+            if 'transportation_picker' in self.agent.interfaces:
+                self.agent.interfaces['transportation_picker'].notify("ARRIVED")
+            else:
+                self.agent.interfaces['transportation_storage'].notify("ARRIVED")
         def _summary(self):
             super(StageDef.AwaitCourier, self)._summary()
             self.summary['_query'] = "courier @ agent"
@@ -170,7 +214,7 @@ class StageDef(object):
                                  self.agent['picker_has_tray'] == self.end_requirement]
             self.agent.flag(any(success_conditions))
         def _notify_end(self):
-            self.agent.interface.notify("INIT")
+            self.agent.interfaces['transportation_picker'].notify("INIT")
     class UnloadCourier(LoadModifier): #STORAGE
         def __init__(self, agent):
             super(StageDef.UnloadCourier, self).__init__(agent)

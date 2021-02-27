@@ -5,17 +5,16 @@
 # @date:
 # ----------------------------------
 
-from abc import ABCMeta, abstractmethod
+# from abc import ABCMeta, abstractmethod
 from rospy import Subscriber, Publisher, Time
 from std_msgs.msg import String as Str
 from rasberry_coordination.msg import KeyValuePair
 from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.robot import Robot as RobotInterface_Old
-from rasberry_coordination.task_management.__init__ import TaskDef, StageDef
+from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
+
 
 """ Agent Details """
 class AgentManager(object):
-    __metaclass__ = ABCMeta  # @abstractmethod
 
     """ Initialisation """
     def __init__(self, callback_dict):
@@ -24,18 +23,24 @@ class AgentManager(object):
     def add_agents(self, agent_list):
         for agent in agent_list:
             self.add_agent(agent)
-    @abstractmethod
-    def add_agent(self, agent):
-        pass
+    def add_agent(self, agent_dict):
+        self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
 
     """ Conveniences """
     def __getitem__(self, key):
         return self.agent_details[key] if key in self.agent_details else None
 
 
+
+# class PickerAgent(AgentDetails):                  self.tags = {'type':'picker'}
+# class StorageDetails(AgentDetails):               self.tags = {'type':'storage'}
+# class Courier_RoboticAgent(AgentDetails):         self.tags = {'type':'robot'}
+# class UV_RoboticAgent(AgentDetails):              pass
+# class DataCollection_RoboticAgent(AgentDetails):  pass
+
+
 """ Agent Management """
 class AgentDetails(object):
-    __metaclass__ = ABCMeta #@abstractmethod
     """ Fields:
     - agent_id, agent_type
     - idle_task_definition, new_task_definition
@@ -45,7 +50,6 @@ class AgentDetails(object):
     """
 
     """ Initialisations """
-    @abstractmethod
     def __init__(self, agent_dict, callbacks):
         self.agent_id = agent_dict['agent_id']
         self.cb = callbacks
@@ -56,15 +60,21 @@ class AgentDetails(object):
         self.task_stage_list = []
         self.total_tasks = 0
 
+        # Define interface for each role given #TODO: what about differentiating between Device and App?
+        self.roles = []
+        self.interfaces = dict()
+        for task in agent_dict['setup']['tasks']:
+            self.roles += [task['role']]
+            interface_name = '%s_%s' % (task['module'], task['role'])
+            definition = getattr(InterfaceDef, interface_name)
+            self.interfaces[interface_name] = definition(agent=self)
+
         # Define Default Tasks
         setup = agent_dict['setup']
         if 'idle_task_default' in setup and hasattr(TaskDef, setup['idle_task_default']):
             self.default_idle_task_definition = getattr(TaskDef, setup['idle_task_default'])
         if 'new_task_default' in setup and hasattr(TaskDef, setup['new_task_default']):
             self.default_new_task_definition = getattr(TaskDef, setup['new_task_default'])
-
-        #Interface
-        self.interface_type = setup['interface_type']
 
         #Location and Callbacks
         self.has_presence = True #used for routing
@@ -77,18 +87,17 @@ class AgentDetails(object):
         self.subs['current_node'] = Subscriber('/%s/current_node'%(self.agent_id), Str, self.current_node_cb)
         self.subs['closest_node'] = Subscriber('/%s/closest_node'%(self.agent_id), Str, self.closest_node_cb)
 
+    """ Task Starters """
     def start_idle_task(self, task=None, details={}):
         if not task:
             self.default_idle_task_definition(self, details)
         else:
             getattr(TaskDef, task)(self, details)
-
     def start_new_task(self, task=None, details={}, task_id=None):
         if not task:
             self.default_new_task_definition(self, details)
         else:
             getattr(TaskDef, task)(self, details)
-
     # Potential Reduction
     # def start_task(self, type="idle", task=None, details={}, task_id=None):
     #     if not task:
@@ -98,8 +107,6 @@ class AgentDetails(object):
     #     else:
     #         getattr(TaskDef, task)(self, details)
 
-
-
     """ Localisation """
     def current_node_cb(self, msg):
         self.previous_node = self.current_node if self.current_node else self.previous_node
@@ -108,7 +115,6 @@ class AgentDetails(object):
             self.cb['update_topo_map']()
         # if self.current_node:
             # logmsg(msg="Agent: %s now at node: %s" % (self.agent_id,self.current_node))
-
     def closest_node_cb(self, msg):
         self.closest_node = None if msg.data == "none" else msg.data
     def location(self, accurate=False):

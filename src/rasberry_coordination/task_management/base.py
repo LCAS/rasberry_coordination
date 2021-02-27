@@ -128,8 +128,35 @@ Notes:
 -> `python -c "import this"`
 """
 
-from rospy import Time, Duration
+from std_msgs.msg import String as Str
+from rospy import Time, Duration, Subscriber, Publisher, Time
 from rasberry_coordination.coordinator_tools import logmsg
+
+class InterfaceDef(object):
+    class AgentInterface(object):
+        def __init__(self, agent, responses, sub, pub):
+            self.agent = agent
+            self.responses = responses
+            self.pub = Publisher(pub, Str, queue_size=5)
+            self.sub = Subscriber(sub, Str, self.callback, agent.agent_id)
+        def callback(self, msg, agent_id):  # Look into sub/feature
+            msg = eval(msg.data)
+            if "states" in msg: return # car callback sends two msgs, this filters second
+            if msg['user'] == agent_id:
+                if msg['state'] in self.responses:
+                    self.responses[msg['state']]()
+        def notify(self, state):
+            msg = Str('{\"user\":\"%s\", \"state\": \"%s\"}' % (self.agent.agent_id, state))
+            logmsg(msg="PUBLISHING \"%s\"" % msg)
+            self.pub.publish(msg)
+
+    class CAR_App(AgentInterface):
+        def __init__(self, agent_id, responses, sub_topic='/car_client/get_states', pub_topic='/car_client/set_states'):
+            super(InterfaceDef.CAR_App, self).__init__(agent_id, responses, sub_topic, pub_topic)
+
+    class CAR_Device(AgentInterface):
+        pass
+
 
 class TaskDef(object):
     """ Definitions for Task Initialisation Criteria """

@@ -17,37 +17,20 @@ from rasberry_coordination.agent_managers.agents import AgentManager, AgentDetai
 from rasberry_coordination.agent_managers.interfaces import Robot_Interface
 
 """ Agent Details """
-class CourierManager(AgentManager):
-    """ Initialisation """
-    def add_agent(self, agent):
-        self.agent_details[agent['agent_id']] = CourierDetails(agent, self.cb)
-
-
-""" Agent Management """
-class CourierDetails(AgentDetails):
-    def __init__(self, agent_dict, callbacks):
-        print(agent_dict)
-        super(CourierDetails, self).__init__(agent_dict, callbacks)
-
-
-        #Define interface to agent
-        interfaces = {"robot_interface":Robot_Interface}
-        self.interface = interfaces[self.interface_type](agent_id=self.agent_id,
-                                                          responses={'PAUSE'  :self.pause,
-                                                                     'UNPAUSE':self.unpause,
-                                                                     'RELEASE':self.release})
-
-        #
-        self.tags = {'type':'robot'}
-        self.temp_interface = RobotInterface_Old(self.agent_id)
-
-        #Start the dfault idle task
-        self.start_idle_task('init_courier')
-        pass
-    def pause(self):
-        self.task_stage_list.insert(0, StageDef.Pause(self))
-    def unpause(self):
-        self.registration = True
-    def release(self):
-        self.task_stage_list = []
-
+# class RobotManager(AgentManager):
+#     """ Initialisation """
+#     def add_agent(self, agent):
+#         switch = {'courier_robot': Courier_RobotAgent,
+#                   'uv_robot': UV_RobotAgent,
+#                   'data_collection_robot': DataCollection_RobotAgent}
+#         self.agent_details[agent['agent_id']] = CourierRobotAgent(agent, self.cb)
+#
+#
+# """ Agent Management """
+# class Courier_RoboticAgent(AgentDetails):
+#     self.temp_interface = RobotInterface_Old(self.agent_id)
+#     self.tags = {'type':'robot'}
+#     self.start_idle_task('init_courier')
+#     pass
+# class UV_RoboticAgent(AgentDetails): pass
+# class DataCollection_RoboticAgent(AgentDetails): pass

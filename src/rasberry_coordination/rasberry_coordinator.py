@@ -35,12 +35,13 @@ from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, remove,
 from rasberry_coordination.route_planners.route_planners import RouteFinder
 
 #Task Managment
-from rasberry_coordination.task_management.__init__ import TaskDef, StageDef
+from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
 #Agent Management
-from rasberry_coordination.agent_managers.robots import CourierManager#, UV_Manager
-from rasberry_coordination.agent_managers.humans import PickerManager#, StorageManager #(Since store managed by human)
-from rasberry_coordination.agent_managers.stores import StorageManager
+# from rasberry_coordination.agent_managers.robots import RobotManager
+# from rasberry_coordination.agent_managers.humans import CrewManager#, StorageManager #(Since store managed by human)
+# from rasberry_coordination.agent_managers.stores import StorageManager
+from rasberry_coordination.agent_managers.agents import AgentManager
 
 
 class RasberryCoordinator():
@@ -78,38 +79,10 @@ class RasberryCoordinator():
         callbacks = {'update_topo_map': None, 'task_cancelled': self.task_cancelled} #This should not exist
 
         #Define Managers
-        self.agent_managers = {'RobotManager': CourierManager(callbacks),
-                               'PickerManager': PickerManager(callbacks),
-                               'StorageManager': StorageManager(callbacks)}
-
-        for Type, Manager in list(self.agent_managers.items()):
-            Manager.add_agents([agent for agent in agent_list[1:] if agent['setup']['manager'] == Type])
-
-        # Extra Types
-        #self.courier_manager.add_agents([agent for agent in agent_list[1:] if agent['agent_type'] == 'human_courier'])
-        #self.picker_manager.add_agents( [agent for agent in agent_list[1:] if agent['agent_type'] == 'robotic_picker'])
-        #self.picker_manager.add_agents( [agent for agent in agent_list[1:] if agent['agent_type'] == 'virtual_picker'])
-        #self.storage_manager.add_agents([agent for agent in agent_list[1:] if agent['agent_type'] == 'cold_storage'])
+        self.agent_manager = AgentManager(callbacks)
+        self.agent_manager.add_agents(agent_list)
         self.AllAgentsList = self.get_all_agents()
 
-        # """ Initialise Map: """  # This should be done within the route planner
-        # self.topo_map = None
-        # self.rec_topo_map = False
-        # rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
-        # logmsg(msg='coordinator waiting for Topological map ...')
-        # while not self.rec_topo_map:
-        #     rospy.sleep(rospy.Duration.from_sec(0.1))
-        # logmsg(msg='coordinator received Topological map ...')
-        #
-        # # default route search object
-        # self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
-        #
-        # # route planning may be done on available_topo_map avoiding other tracked agents
-        # # available_topo_map = full_topomap - edges_to_nodes_currently_occupied
-        # self.available_topo_map = copy.deepcopy(self.topo_map)
-        # # create a topological_navigation.route_search.TopologicalRouteSearch object
-        # # with the current self.available_topo_map to plan routes avoiding
-        # # other agents, when necessary
 
         """ Routing Details """
         routing_cb = {'publish_task_state': self.publish_task_state,
@@ -1157,13 +1130,12 @@ class RasberryCoordinator():
             l(-2) #publish route
 
     def get_all_agents(self):
-        managers = self.agent_managers.values()
-
-        all_agents = managers[0].agent_details.copy()
-        for manager in managers[1:]:
-            all_agents.update(manager.agent_details)
-
-        return all_agents
+        # managers = self.agent_managers.values()
+        # all_agents = managers[0].agent_details.copy()
+        # for manager in managers[1:]:
+        #     all_agents.update(manager.agent_details)
+        # return all_agents
+        return self.agent_manager.agent_details.copy()
     def get_agents(self):
         self.AllAgentsList = self.get_all_agents()
         return self.AllAgentsList.values()
@@ -1190,7 +1162,7 @@ class RasberryCoordinator():
         response_location = agent().action['response_location']
         agent_type = agent().action['agent_type']
 
-        A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (a.tags['type'] is agent_type)}
+        A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (agent_type in a.roles)}
 
         responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
         agent[response_location] = responses[action_style](agent, A)
