@@ -88,9 +88,6 @@ class RasberryCoordinator():
         routing_cb = {'publish_task_state': self.publish_task_state,
                       'send_robot_to_base': self.send_robot_to_base}  # These need to be eventually managed better
         self.route_finder = RouteFinder(planning_type=planning_type,
-                                        # robots=self.courier_manager,
-                                        # pickers=self.picker_manager, #this should be made to not need these
-                                        # stores=self.storage_manager,
                                         agents=self.AllAgentsList,
                                         callbacks=routing_cb)
 
@@ -1111,7 +1108,7 @@ class RasberryCoordinator():
         while not rospy.is_shutdown():
             A = get_agents()
             logmsg() if any([not a.task_stage_list for a in A]) else None
-            [a.start_idle_task() for a in A if not a.task_stage_list];             """ Start Idle Task """
+            [a.start_next_task() for a in A if not a.task_stage_list];             """ Start Buffered Task """
             l(0);
             logmsg() if any([a().new_stage for a in A]) else None
             [a.start_stage()    for a in A if a().new_stage];                      """ Start Stage """
@@ -1143,16 +1140,27 @@ class RasberryCoordinator():
     """ Services offerd by Coordinator to assist with tasks """
     def offer_service(self, agent):
         action_type =       agent().action['action_type']
+        action_style =      agent().action['action_style']
         response_location = agent().action['response_location']
 
         responses = {'find_agent':self.find_agent,
                      'find_node': self.find_node,
                      'find_agent_from_list': self.find_agent_from_list}  # ROOM TO EXPAND
 
-        logmsg(category="action", id=agent.agent_id, msg="Action: %s" % str(agent().action))
+        # logmsg(category="action", id=agent.agent_id, msg="Action: %s" % str(agent().action))
+
+        action_deets = agent().action.copy()
+        del action_deets['action_type']
+        del action_deets['action_style']
+        del action_deets['response_location']
+        logmsg(category="action", id=agent.agent_id,
+               msg="Perfoming %s(%s_%s) - details: %s" \
+                   % (action_type, action_style, response_location, action_deets))
+
+
         responses[action_type](agent)
 
-        if agent[response_location]:
+        if agent.task_pointers[response_location]:
             logmsg(category="action", msg="Found %s: %s" % (response_location, agent[response_location]))
             agent().action_required = False
 
@@ -1165,24 +1173,30 @@ class RasberryCoordinator():
         A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (agent_type in a.roles)}
 
         responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
-        agent[response_location] = responses[action_style](agent, A)
+        agent.task_pointers[response_location] = responses[action_style](agent, A)
 
     def find_node(self, agent):
         action_style =      agent().action['action_style']
         response_location = agent().action['response_location']
         descriptor =        agent().action['descriptor']
-
+        # print("\n\n\n")
+        logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
         taken = [a.current_node for a in self.AllAgentsList.values() if
                  (a.agent_id is not agent.agent_id) and a.current_node is not None] #Check if node is occupied
+        logmsg(category='action', msg='Occupied Nodes: %s'%taken)
         # print("\n\n\n-----")
         # print(self.special_nodes)
         # print({n['id']:n for n in self.special_nodes})
         N = {n['id']:n for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in taken)}
+        logmsg(category='action', msg='Nodes to Compare Against:')
+        [logmsg(category='action', msg="    - %s: %s"%(n,N[n])) for n in N]
+
         # print("nodeTaken: %s" % taken)
         # print("node2search: %s" % N)
         # print("\n\n\n")
         responses = {"closest": self.find_closest_node}  # ROOM TO EXPAND
-        agent[response_location] = responses[action_style](agent, N)
+        agent.task_pointers[response_location] = responses[action_style](agent, N)
+        # print("\n\n\n")
 
     def find_agent_from_list(self, agent):
         action_style =      agent().action['action_style']
@@ -1192,7 +1206,7 @@ class RasberryCoordinator():
         A = {agent_id:self.AllAgentsList[agent_id] for agent_id in agent_list} #convert list to set()
 
         responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
-        agent[response_location] = responses[action_style](agent, A)
+        agent.task_pointers[response_location] = responses[action_style](agent, A)
 
     """ Action Style """
     def find_closest_agent(self, agent, agent_list):
@@ -1213,7 +1227,8 @@ class RasberryCoordinator():
         :return: The node_id closest to the agent querying against.
         """
         dist_list = {n:self.dist(agent.location(),n) for n in node_list}
-        logmsg(category="action", msg="Finding closest in: %s" % dist_list)
+        logmsg(category="action", msg="Finding closest in:")
+        [logmsg(category='action', msg="    - %s: %s"%(n,dist_list[n])) for n in dist_list]
         return min(dist_list, key=dist_list.get)
 
     """ Find Distance """

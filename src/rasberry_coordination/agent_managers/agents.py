@@ -49,6 +49,7 @@ class AgentDetails(object):
     - (subs) current_node, closest_node, previous_node
     """
 
+    print('creating new agent')
     """ Initialisations """
     def __init__(self, agent_dict, callbacks):
         self.agent_id = agent_dict['agent_id']
@@ -57,7 +58,9 @@ class AgentDetails(object):
         #Task Defaults
         self.task_name = None
         self.task_details = {}
+        self.task_pointers = {}
         self.task_stage_list = []
+        self.task_buffer = []
         self.total_tasks = 0
 
         # Define interface for each role given #TODO: what about differentiating between Device and App?
@@ -72,9 +75,10 @@ class AgentDetails(object):
         # Define Default Tasks
         setup = agent_dict['setup']
         if 'idle_task_default' in setup and hasattr(TaskDef, setup['idle_task_default']):
-            self.default_idle_task_definition = getattr(TaskDef, setup['idle_task_default'])
-        if 'new_task_default' in setup and hasattr(TaskDef, setup['new_task_default']):
-            self.default_new_task_definition = getattr(TaskDef, setup['new_task_default'])
+            self.default_idle_task = setup['idle_task_default']
+            # self.default_idle_task_definition = getattr(TaskDef, setup['idle_task_default'])
+        # if 'new_task_default' in setup and hasattr(TaskDef, setup['new_task_default']):
+        #     self.default_new_task_definition = getattr(TaskDef, setup['new_task_default'])
 
         #Location and Callbacks
         self.has_presence = True #used for routing
@@ -87,25 +91,93 @@ class AgentDetails(object):
         self.subs['current_node'] = Subscriber('/%s/current_node'%(self.agent_id), Str, self.current_node_cb)
         self.subs['closest_node'] = Subscriber('/%s/closest_node'%(self.agent_id), Str, self.closest_node_cb)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     """ Task Starters """
-    def start_idle_task(self, task=None, details={}):
-        if not task:
-            self.default_idle_task_definition(self, details)
-        else:
-            getattr(TaskDef, task)(self, details)
-    def start_new_task(self, task=None, details={}, task_id=None):
-        if not task:
-            self.default_new_task_definition(self, details)
-        else:
-            getattr(TaskDef, task)(self, details)
-    # Potential Reduction
-    # def start_task(self, type="idle", task=None, details={}, task_id=None):
+    # def start_idle_task(self, task=None, details={}):
     #     if not task:
-    #         switch = {'idle':self.default_idle_task_definition,
-    #                   'new':self.default_new_task_definition}
-    #         switch[type](self, details, task_id)
+    #         self.default_idle_task_definition(self, details)
     #     else:
     #         getattr(TaskDef, task)(self, details)
+    def add_idle_task(self):
+        self.add_task(self.default_idle_task)
+
+
+    def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, pointers={}):
+        """ Called by task stages, this is used to buffer new tasks for the agent
+        """
+        if task_name not in dir(TaskDef): return
+
+        #picker.interface.called(): self.agent.add_task('transport_request')
+        1. #find TaskDef
+        2. #task = TaskDef()
+        3. #buffer += [task]
+
+        task_def = getattr(TaskDef, task_name)
+        task = task_def(self, task_id=task_id, details=details, pointers=pointers)
+        self.task_buffer += [task]
+
+        logmsg(category="TASK", id=self.agent_id, msg="Buffering %s, task stage list:" % task['name'])
+        [logmsg(category="TASK", msg='    - %s'%t) for t in task['stage_list']]
+
+        # print(str(self.task_buffer))
+        # print('\n')
+
+    def start_next_task(self, idx=0):
+        if len(self.task_buffer) < 1: self.add_idle_task()
+        if len(self.task_buffer) <= idx: return
+
+        #coordinator sees buffer has task: self.agent.start__next_task()
+        1. #task = buffer[0]
+        2. #TaskDef.load_buffered_task(task)
+
+        task = self.task_buffer.pop(idx)
+        # print(task)
+        TaskDef.load_task(self, task)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     """ Localisation """
     def current_node_cb(self, msg):
@@ -151,6 +223,9 @@ class AgentDetails(object):
     def end_stage(self):
         self()._notify_end()
         logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self.task_stage_list[0])
+        # print('\n')
+        # print(self.task_details)
+        # print('\n\n')
         self.task_stage_list.pop(0)
 
     """ Logging """
