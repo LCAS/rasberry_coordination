@@ -1459,6 +1459,7 @@ class RasberryCoordinator():
             details = [str(d) for d in details]
             self.current_log_iteration += "%s\n" % ',|,'.join(details)
     def publish_log(self):
+        #TODO: add extra flag to set is ANY log returns a value? or query against empty log?
         if self.enable_task_logging:
             if self.previous_log_iteration != self.current_log_iteration:
                 with open(self.task_progression_log, 'a') as log:
