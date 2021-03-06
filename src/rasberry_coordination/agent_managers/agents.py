@@ -62,6 +62,8 @@ class AgentDetails(object):
         self.task_stage_list = []
         self.task_buffer = []
         self.total_tasks = 0
+        self.interruption = None
+        self.properties = agent_dict['setup']['properties']
 
         # Define interface for each role given #TODO: what about differentiating between Device and App?
         self.roles = []
@@ -92,26 +94,6 @@ class AgentDetails(object):
         self.subs['closest_node'] = Subscriber('/%s/closest_node'%(self.agent_id), Str, self.closest_node_cb)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     """ Task Starters """
     # def start_idle_task(self, task=None, details={}):
     #     if not task:
@@ -120,7 +102,6 @@ class AgentDetails(object):
     #         getattr(TaskDef, task)(self, details)
     def add_idle_task(self):
         self.add_task(self.default_idle_task)
-
 
     def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, pointers={}):
         """ Called by task stages, this is used to buffer new tasks for the agent
@@ -153,30 +134,6 @@ class AgentDetails(object):
         task = self.task_buffer.pop(idx)
         # print(task)
         TaskDef.load_task(self, task)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     """ Localisation """
@@ -219,7 +176,9 @@ class AgentDetails(object):
     def notify(self, state):
         self.interface.publish(state)
     def flag(self, flag):
-        self().stage_complete = flag
+        # TODO: this is not very good here, the state of an agent being interrupted should be handled abstractly
+        if not self.interruption:
+            self().stage_complete = flag
     def end_stage(self):
         self()._notify_end()
         logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self.task_stage_list[0])

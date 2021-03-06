@@ -49,6 +49,7 @@ def validate_types(file, config):
         validate_field(file, setup['setup'], mandatory=True,  key='interface_type', datatype=[str])
         validate_field(file, setup['setup'], mandatory=True,  key='idle_task_default', datatype=[str])
         validate_field(file, setup['setup'], mandatory=True,  key='new_task_default', datatype=[str])
+        validate_field(file, setup['setup'], mandatory=False,  key='properties', datatype=[dict])
 
     # Agent Initialisation
     for agent in config['agent_list']:
@@ -113,6 +114,10 @@ if __name__ == '__main__':
         if 'physical' not in agent['setup']:
             agent['setup']['physical'] = True
 
+        # Default properties to empty dict
+        if 'properties' not in agent['setup']:
+            agent['setup']['properties'] = dict().copy()
+
         #
         if len(agent['setup']['tasks']) < 1:
             print("Agent %s connected with 0 available tasks." % agent['agent_id'])
@@ -120,6 +125,7 @@ if __name__ == '__main__':
         # if initial_location omitted default to None
         if "initial_location" not in agent:
             agent['initial_location'] = None
+
 
     """ ACTIVE TASKS """
     modules_to_load = set([t['module'] for t in config_data['active_tasks']])

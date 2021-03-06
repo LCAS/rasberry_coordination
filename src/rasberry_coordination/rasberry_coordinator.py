@@ -1094,6 +1094,7 @@ class RasberryCoordinator():
         find_routes    = self.route_finder.find_routes
         publish_routes = self.execute_policy_routes
         get_agents     = self.get_agents
+        interrupt_task = self.interrupt_task
 
         A = self.get_all_agents()
         self.enable_task_logging = True
@@ -1107,9 +1108,13 @@ class RasberryCoordinator():
         l(-1)
         while not rospy.is_shutdown():
             A = get_agents()
+
+            interrupt_task()    if any([a.interruption for a in A]) else None;     """ Interrupt Task Execution """
+
             logmsg() if any([not a.task_stage_list for a in A]) else None
             [a.start_next_task() for a in A if not a.task_stage_list];             """ Start Buffered Task """
             l(0);
+
             logmsg() if any([a().new_stage for a in A]) else None
             [a.start_stage()    for a in A if a().new_stage];                      """ Start Stage """
             logmsg() if any([a().action_required for a in A]) else None
@@ -1120,8 +1125,10 @@ class RasberryCoordinator():
             find_routes()       if any([a().route_required for a in A]) else None; """ Find Routes """
             [publish_routes(a)  for a in A if a().route_required];                 """ Publish Routes """
             l(3)
+
             [a()._query()       for a in A];                                       """" Query """
             l(4)
+
             logmsg() if any([a().stage_complete for a in A]) else None
             [a.end_stage()      for a in A if a().stage_complete];                 """ End Stage """
             l(-2) #publish route
@@ -1163,6 +1170,40 @@ class RasberryCoordinator():
         if agent.task_pointers[response_location]:
             logmsg(category="action", msg="Found %s: %s" % (response_location, agent[response_location]))
             agent().action_required = False
+    def interrupt_task(self):
+        interruption_types = {'pause': self.pause_task,
+                              'unpause': self.unpause_task,
+                              'cancel': self.cancel_task}
+        [interruption_types[a.interruption](a) for a in self.AllAgentsList.values() if a.interruption]
+
+    def pause_task(self, agent):
+        agent.task_stage_list.insert(0, StageDef.Pause(self))
+        agent.interruption = "paused" #This state is queried for query success
+        agent.temp_interface.cancel_exec_policy_goal()
+        #interrupt action?
+
+        #Options:
+        1. #add whole task to buffer and start new active task of TaskDef.pause_task
+        2. #add StageDef.pause_task to the head of the stage list
+        3. #prevent query from completing until pause completes
+        4. #prevent flag from being set until unpaused
+
+        #Reccomendation:
+        4. # (simple execution, reliable)
+        4. # {feels hard-coded, shouldnt we treat pausing like a stage?}
+        4. # [how should we handle unpausing? should we set unpause to trigger start_task?]
+        pass
+    def unpause_task(self, agent):
+        agent.interruption = None #This can be queried for progression
+        agent().new_stage = True #This will re-enable the _start() call
+        pass
+
+    def cancel_task(self, agent):
+        agent.interruption = None
+        for a in agent.task_pointers: #contacts:
+            agent.interface.on_cancel(a.task_id, a)
+
+        pass
 
     """ Action Category """
     def find_agent(self, agent):

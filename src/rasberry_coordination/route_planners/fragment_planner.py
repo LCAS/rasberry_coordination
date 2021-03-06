@@ -203,7 +203,7 @@ class FragmentPlanner(BasePlanner):
             if agent.agent_id in res_routes:
                 agent.route_fragments = res_routes[agent.agent_id]
 
-        logmsg(category="route", msg="All fragments identified")
+        logmsg(category="route", msg="    - All fragments identified")
 
         res_edges = {}
         # split the edges as per the route_fragmentsf
@@ -238,7 +238,7 @@ class FragmentPlanner(BasePlanner):
             # print(agent.route_fragments)
             # print(" ")
 
-        logmsg(category="route", msg="All fragments formatted")
+        logmsg(category="route", msg="    - All fragments formatted")
 
         """ for each agent, apply their route edges """
         # self.route_edges = res_edges
@@ -253,7 +253,7 @@ class FragmentPlanner(BasePlanner):
             # print(agent.route_edges)
             # print(" ")
 
-        logmsg(category="route", msg="All fragment edges formatted")
+        logmsg(category="route", msg="    - All fragment edges formatted")
 
     def find_routes(self, ):
         """find_routes - find indiviual paths, find critical points in these paths, and fragment the
@@ -385,7 +385,7 @@ class FragmentPlanner(BasePlanner):
             agent.route_edges = []
             self.get_edge_distances(agent.agent_id)
 
-        logmsg(category="route", msg="All agents assigned routes")
+        logmsg(category="route", msg="    - All agents assigned routes")
 
         # find critical points and fragment routes to avoid critical point collisions
         for i in range(10):
