@@ -342,7 +342,7 @@ class FragmentPlanner(BasePlanner):
             #     route = avail_route_search.search_route(start_node, goal_node)
             if route is None:
                 agent().route_failed = True
-                inactives.add(agent)
+                inactives += [agent]
                 continue
 
             """if route is found""" #can this be moved below `for agent in inactives:`?

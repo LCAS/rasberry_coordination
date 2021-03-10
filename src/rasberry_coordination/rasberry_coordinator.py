@@ -1148,7 +1148,6 @@ class RasberryCoordinator():
     def offer_service(self, agent):
         action_type =       agent().action['action_type']
         action_style =      agent().action['action_style']
-        response_location = agent().action['response_location']
 
         responses = {'find_agent':self.find_agent,
                      'find_node': self.find_node,
@@ -1161,24 +1160,24 @@ class RasberryCoordinator():
         del action_deets['action_style']
         del action_deets['response_location']
         logmsg(category="action", id=agent.agent_id,
-               msg="Perfoming %s(%s_%s) - details: %s" \
-                   % (action_type, action_style, response_location, action_deets))
+               msg="Perfoming %s(%s) - details: %s" \
+                   % (action_type, action_style, action_deets))
 
 
-        responses[action_type](agent)
+        agent().action['response_location'] = responses[action_type](agent)
 
-        if agent.task_pointers[response_location]:
-            logmsg(category="action", msg="Found %s: %s" % (response_location, agent[response_location]))
+        if agent().action['response_location']:
+            logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
             agent().action_required = False
     def interrupt_task(self):
         interruption_types = {'pause': self.pause_task,
                               'unpause': self.unpause_task,
                               'cancel': self.cancel_task}
-        [interruption_types[a.interruption](a) for a in self.AllAgentsList.values() if a.interruption]
+        [interruption_types[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption]
 
     def pause_task(self, agent):
         agent.task_stage_list.insert(0, StageDef.Pause(self))
-        agent.interruption = "paused" #This state is queried for query success
+        agent.interruption[0] = "paused" #This state is queried for query success
         agent.temp_interface.cancel_exec_policy_goal()
         #interrupt action?
 
@@ -1199,26 +1198,32 @@ class RasberryCoordinator():
         pass
 
     def cancel_task(self, agent):
+        logmsg(category="task", id=agent.agent_id, msg="Task cancellation request made")
+        logmsg(category="task", msg="Informing task_contacts:")
+        [logmsg(category="task", msg="    - %s"%contact) for contact in self.agent.task_contacts]
+
+        module = agent.interruption[1]
         agent.interruption = None
-        for a in agent.task_pointers: #contacts:
-            agent.interface.on_cancel(a.task_id, a)
+
+        for aid, a in agent.task_contacts.items(): #contacts:
+            a.interfaces[module].on_cancel(task_id=a['task_id'], contact_id=agent.agent_id)
+
+        agent.interfaces[module].on_cancel(agent['task_id'], "self")
 
         pass
 
     """ Action Category """
     def find_agent(self, agent):
         action_style =      agent().action['action_style']
-        response_location = agent().action['response_location']
         agent_type = agent().action['agent_type']
 
         A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (agent_type in a.roles)}
 
         responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
-        agent.task_pointers[response_location] = responses[action_style](agent, A)
+        return responses[action_style](agent, A)
 
     def find_node(self, agent):
         action_style =      agent().action['action_style']
-        response_location = agent().action['response_location']
         descriptor =        agent().action['descriptor']
         # print("\n\n\n")
         logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
@@ -1236,18 +1241,17 @@ class RasberryCoordinator():
         # print("node2search: %s" % N)
         # print("\n\n\n")
         responses = {"closest": self.find_closest_node}  # ROOM TO EXPAND
-        agent.task_pointers[response_location] = responses[action_style](agent, N)
+        return responses[action_style](agent, N)
         # print("\n\n\n")
 
     def find_agent_from_list(self, agent):
         action_style =      agent().action['action_style']
-        response_location = agent().action['response_location']
         agent_list =        agent().action['list']
 
         A = {agent_id:self.AllAgentsList[agent_id] for agent_id in agent_list} #convert list to set()
 
         responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
-        agent.task_pointers[response_location] = responses[action_style](agent, A)
+        return responses[action_style](agent, A)
 
     """ Action Style """
     def find_closest_agent(self, agent, agent_list):

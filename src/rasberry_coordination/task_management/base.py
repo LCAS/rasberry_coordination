@@ -16,7 +16,7 @@ Standard Stage Methods:
     - name: _query_
       description:
 
-    - name: __del__
+    - name: _end
       description:
       super: True
 
@@ -113,7 +113,7 @@ Rules for Custom Stages:
 - all communication must be limited to the Stage._notify* methods
 - all overloading of __init__ must include a call to super first
 - all overloading of _start must include a call to super
-- all overloading of __del__ must include a call to super
+- all overloading of _end must include a call to super
 
 Notes:
 - __init__ is called when the task stages are added to an agent
@@ -157,6 +157,7 @@ class InterfaceDef(object):
 
     class CAR_Device(AgentInterface):
         pass
+
 class TaskDef(object):
     """ Definitions for Task Initialisation Criteria """
     #TODO: change agent.task_details = cls.load_details(details) to call on start_task._start()
@@ -164,29 +165,26 @@ class TaskDef(object):
     """ Runtime Method for Custom Task Definitions """
     @classmethod
     def load_details(cls, details):
-        # print('making copy...')
         c=deepcopy(details)
-        # print('copy complete')
         return c
     @classmethod
     def load_task(cls, agent, task):
-        agent.task_id = task['id']
         agent.task_name = task['name']
         agent.task_details = deepcopy(task['details'])
-        agent.task_pointers = task['pointers'].copy()
+        agent['task_id'] = task['id']
+        agent.task_contacts = task['contacts'].copy()
         agent.task_stage_list = task['stage_list']
         logmsg(category="TASK", id=agent.agent_id, msg="Active task: %s" % task['name'])
         logmsg(category="TASK", msg="Task details:")
         for stage in task['stage_list']: logmsg(category="TASK", msg="    - %s" % stage)
 
-
     """ Runtime Method for Custom Task Definitions """
     @classmethod
-    def generate_task(cls, agent, name, stage_list, task_id=None, details={}, pointers={}):
+    def generate_task(cls, agent, name, stage_list, task_id=None, details={}, contacts={}):
         #generate_task(self, "do_this", [navigate, wait, navigate], {wait_time:10}, {})
         task_name = name
         task_details = cls.load_details(details)
-        task_pointers = pointers.copy()
+        task_contacts = contacts.copy()
         task_stage_list = []
 
         #Create dictionary for access to each stage defined in StageDef
@@ -201,29 +199,29 @@ class TaskDef(object):
             else:
                 task_stage_list += [stage_dict[S](agent)]
 
-        agent.task_buffer.append([task_name, task_id, task_stage_list, task_details, task_pointers])
+        agent.task_buffer.append([task_name, task_id, task_stage_list, task_details, task_contacts])
         logmsg(category="TASK", id=agent.agent_id, msg="Buffering %s: %s" % (task_name, task_stage_list))
 
 
     """ Robot Initialisation Check """
     @classmethod
-    def init_courier(cls, agent, task_id=None, details={}, pointers={}):
+    def init_courier(cls, agent, task_id=None, details={}, contacts={}):
         task_name = "init_courier"
         task_details = cls.load_details(details)
-        task_pointers = pointers.copy()
+        task_contacts = contacts.copy()
         task_stage_list = [StageDef.WaitForLocalisation(agent)]
 
         return({'id': task_id,
                 'name': task_name,
                 'details': task_details,
-                'pointers': task_pointers,
+                'contacts': task_contacts,
                 'stage_list': task_stage_list})
 
     @classmethod
-    def idle(cls, agent, task_id=None, details={}, pointers={}):
+    def idle(cls, agent, task_id=None, details={}, contacts={}):
         task_name = "idle"
         task_details = cls.load_details(details)
-        task_pointers = pointers.copy()
+        task_contacts = contacts.copy()
         task_stage_list = [
             StageDef.IdleTask(agent)
         ]
@@ -231,14 +229,14 @@ class TaskDef(object):
         return({'id': task_id,
                 'name': task_name,
                 'details': task_details,
-                'pointers': task_pointers,
+                'contacts': task_contacts,
                 'stage_list': task_stage_list})
 
     @classmethod
-    def wait_at_base(cls, agent, task_id=None, details={}, pointers={}):
+    def wait_at_base(cls, agent, task_id=None, details={}, contacts={}):
         task_name = "wait_at_base"
         task_details = cls.load_details(details)
-        task_pointers = pointers.copy()
+        task_contacts = contacts.copy()
         task_stage_list = [
             StageDef.AssignBaseNode(agent),
             StageDef.NavigateToBaseNode(agent),
@@ -247,17 +245,17 @@ class TaskDef(object):
         return({'id': task_id,
                 'name': task_name,
                 'details': task_details,
-                'pointers': task_pointers,
+                'contacts': task_contacts,
                 'stage_list': task_stage_list})
 
 
 
     """ Edge Task Template """
     @classmethod
-    def edge_task(cls, agent, task_id=None, details={}, pointers={}):
+    def edge_task(cls, agent, task_id=None, details={}, contacts={}):
         task_name = "edge_task"
         task_details = cls.load_details(details)
-        task_pointers = pointers.copy()
+        task_contacts = contacts.copy()
         task_stage_list = [
             StageDef.Navigation(agent), #navigate to edge start
             StageDef.Navigation(agent)  #navigate to edge end
@@ -266,143 +264,37 @@ class TaskDef(object):
         return({'id': task_id,
                 'name': task_name,
                 'details': task_details,
-                'pointers': task_pointers,
+                'contacts': task_contacts,
                 'stage_list': task_stage_list})
 
 
     """ Task Management """
     # @classmethod
-    # def pause_task(cls, agent, task_id=None, details={}, pointers={}):
+    # def pause_task(cls, agent, task_id=None, details={}, contacts={}):
     #     task_name = "pause_task"
     #     task_details = cls.load_details(details)
-    #     task_pointers = pointers.copy()
+    #     task_contacts = contacts.copy()
     #     task_stage_list = [StageDef.Pause(agent)]
     #
     #
     #     1. #push this to start of main task
     #     2. #replace main task with this
     #     #either way, this becomed first, so do we move or remove the current task?
-    # @classmethod
-    # def cancel_task(cls, agent, task_id=None, details={}, pointers={}):
-    #     logmsg(category="TASK", id=agent.agent_id, msg="Cancelling task %s" % (agent.task_name))
-    #     task_name = ""
-    #     task_details = cls.load_details(details)
-    #     task_pointers = pointers.copy()
-    #     task_stage_list = []
-    #
-    #     1. #remove ative task
-    #     2. #notify each connected agent ?
-    # @classmethod
-    # def release_task(cls, agent, task_id=None, details={}, pointers={}):
-    #     logmsg(category="TASK", id=agent.agent_id, msg="Releasing task %s" % (agent.task_name))
-    #
-    #     1. #?
-    #
-    #     #identify connected agents
-    #     TaskDef.cancel_task(agent)
+    @classmethod
+    def release_task(cls, agent):
+        logmsg(category="TASK", id=agent.agent_id, msg="Ending task %s" % (agent.task_name))
+        task_name = agent.task_name
+        agent.task_name = None
+        agent.task_details = {}
+        agent.task_contacts = {}
+        agent.task_stage_list = []
+        return task_name
+    @classmethod
+    def restart_task(cls, agent):
+        logmsg(category="TASK", id=agent.agent_id, msg="Restarting task %s" % (agent.task_name))
+        task_name = TaskDef.ending_task(agent)
+        agent.add_task(task_name=task_name, index=0, agent=agent)#?
 
-# class TaskDef2(object):
-#     """ Definitions for Task Initialisation Criteria """
-#     #TODO: change agent.task_details = cls.load_details(details) to call on start_task._start()
-#
-#     """ Runtime Method for Custom Task Definitions """
-#     @classmethod
-#     def load_details(cls, details):
-#         # print('making copy...')
-#         # if 'association' not in details:
-#         #     details['association'] = dict()
-#         c=deepcopy(details)
-#         # print('copy complete')
-#         return c
-#     """ Runtime Method for Custom Task Definitions """
-#     @classmethod
-#     def generate_task(cls, agent, list, details={}):
-#         agent.task_details = cls.load_details(details)
-#         agent.task_stage_list = []
-#
-#         #Create dictionary for access to each stage defined in StageDef
-#         stage_dict = {stage:StageDef().__getattribute__(stage)
-#                       for stage in dir(StageDef)
-#                       if not stage.startswith('__')}
-#
-#         #For each required stage, append the StageDef.Stage to a list
-#         for S in task_stage_list:
-#             if S == "start_task":
-#                 agent.task_stage_list += [stage_dict[S]()]
-#             else:
-#                 agent.task_stage_list += [stage_dict[S](agent)]
-#
-#     """ Courier Initialisation Check """
-#     @classmethod
-#     def init_courier(cls, agent, details=dict(), task_id=None):
-#         agent.task_name = "init_courier"
-#         agent.task_details = cls.load_details(details)
-#         agent.task_stage_list += [
-#             StageDef.WaitForLocalisation(agent)
-#         ]
-#         logmsg(category="TASK", id=agent.agent_id, msg="Starting %s: %s" % (task_name, task_stage_list))
-#
-#
-#     """ Initial Task Stages for Agents """
-#     @classmethod
-#     def idle_picker(cls, agent, details={}, task_id=None):
-#         agent.task_name = "idle_picker"
-#         agent.task_details = cls.load_details(details)
-#         agent.task_stage_list += [
-#             StageDef.IdlePicker(agent)
-#         ]
-#         logmsg(category="TASK", id=agent.agent_id, msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
-#     @classmethod
-#     def idle_courier(cls, agent, details={}, task_id=None):
-#         agent.task_name = "idle_courier"
-#         agent.task_details = cls.load_details(details)
-#         agent.task_stage_list += [
-#             StageDef.AssignBaseNode(agent),
-#             StageDef.NavigateToBaseNode(agent),
-#             StageDef.IdleCourier(agent)
-#         ]
-#         logmsg(category="TASK", id=agent.agent_id, msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
-#     @classmethod
-#     def idle_storage(cls, agent, details={}, task_id=None):
-#         agent.task_name = "idle_storage"
-#         agent.task_details = cls.load_details(details)
-#         agent.task_stage_list += [
-#             StageDef.IdleStorage(agent)
-#         ]
-#         logmsg(category="TASK", id=agent.agent_id, msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
-#
-#     """ Initial Task Stages for Agents """
-#     @classmethod
-#     def charge_robot(cls, agent, details={}, task_id=None):
-#         agent.task_name = "charge_robot"
-#         agent.task_details = cls.load_details(details)
-#         agent.task_stage_list += [
-#             # StageDef.IdlePicker(agent)
-#         ]
-#         logmsg(category="TASK", id=agent.agent_id,
-#                msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
-#
-#     """ Task Management """
-#     @classmethod
-#     def pause_task(cls, agent, details={}, task_id=None):
-#         agent.task_name = "pause_task"
-#         agent.task_details = cls.load_details(details)
-#         agent.task_stage_list += [
-#             StageDef.Pause(agent)
-#         ]
-#         logmsg(category="TASK", id=agent.agent_id,
-#                msg="Beginning %s: %s" % (agent.task_name, agent.task_stage_list))
-#     @classmethod
-#     def cancel_task(cls, agent, details={}, task_id=None):
-#         logmsg(category="TASK", id=agent.agent_id, msg="Cancelling task %s" % (agent.task_name))
-#         agent.task_name = ""
-#         agent.task_details = cls.load_details(details)
-#         agent.task_stage_list = []
-#     @classmethod
-#     def release_task(cls, agent, details={}, task_id=None):
-#         logmsg(category="TASK", id=agent.agent_id, msg="Cancelling task %s" % (agent.task_name))
-#         #identify connected agents
-#         TaskDef.cancel_task(agent)
 class StageDef(object):
     class StageBase(object):
         def __repr__(self):
@@ -441,7 +333,7 @@ class StageDef(object):
             self.agent.flag(any(success_conditions))
         def _notify_end(self):
             pass
-        def __del__(self):
+        def _end(self):
             self.stage_complete = False
             pass
 
@@ -459,8 +351,8 @@ class StageDef(object):
 
         This stage completes without any conditions.
         """
-        def __init__(self, details, task_id=None):
-            super(StageDef.StartTask, self).__init__(details)
+        def __init__(self, agent, task_id=None):
+            super(StageDef.StartTask, self).__init__(agent)
             self.task_id = task_id if task_id else "%s_%s" % (self.agent.agent_id, self.agent.total_tasks)
             self.agent.total_tasks += 1
         def _start(self):
@@ -473,13 +365,23 @@ class StageDef(object):
             super(StageDef.StartTask, self)._summary()
             self.summary['_start'] = "adopt active task_id"
             self.summary['_query'] = "return true"
+    class EndTask(StageBase):
+        def __init__(self, agent):
+            super(StageDef.EndTask, self).__init__(agent)
+            self.agent.task_name = None
+            self.agent.task_details = {}
+            self.agent.task_contacts = {}
+            self.agent.task_stage_list = []
+        def _summary(self):
+            super(StageDef.EndTask, self)._summary()
+            self.summary['__init__'] = "remove all task information"
 
     class WaitForLocalisation(StageBase):
         def _query(self):
             success_conditions = [self.agent.location() is not None]
             self.agent.flag(any(success_conditions))
-        def __del__(self):
-            super(StageDef.WaitForLocalisation, self).__del__()
+        def _end(self):
+            super(StageDef.WaitForLocalisation, self)._end()
             logmsg(category="stage", msg="Localisation achieved %s" % self.agent.location())
 
     """ Idle Placeholder Task """
@@ -503,8 +405,7 @@ class StageDef(object):
             super(StageDef.Assignment, self)._start()
             self.action_required = True
         def _query(self):
-            # print(self.agent.task_pointers)
-            success_conditions = [self.agent.task_pointers[self.action['response_location']] != None]
+            success_conditions = [self.action['response_location'] != None]
             self.agent.flag(any(success_conditions))
         def _summary(self):
             super(StageDef.Assignment, self)._summary()
@@ -517,19 +418,19 @@ class StageDef(object):
             super(StageDef.AssignWaitNode, self)._start()
             self.action['action_type'] = 'find_node'
             self.action['action_style'] = 'closest'
-            self.action['response_location'] = 'wait_node'
-
             self.action['descriptor'] = 'wait_node'
-            self.agent.task_pointers[self.action['response_location']] = None
+            self.action['response_location'] = None
+        def _end(self):
+            self.agent.task_contacts['wait_node'] = self.action['response_location']
     class AssignBaseNode(AssignNode):
         def _start(self):
             super(StageDef.AssignBaseNode, self)._start()
             self.action['action_type'] = 'find_node'
             self.action['action_style'] = 'closest'
-            self.action['response_location'] = 'base_node'
-
             self.action['descriptor'] = 'base_node'
-            self.agent.task_pointers[self.action['response_location']] = None
+            self.action['response_location'] = None
+        def _end(self):
+            self.agent.task_contacts['base_node'] = self.action['response_location']
 
     """ Idle Actions for Pending Actions """
     class Idle(StageBase):
@@ -546,16 +447,16 @@ class StageDef(object):
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
             self.agent.flag(any(success_conditions))
-        def __del__(self):
+        def _end(self):
             self.agent.temp_interface.cancel_execpolicy_goal()
     class NavigateToAgent(Navigation):
         def _start(self):
             super(StageDef.NavigateToAgent, self)._start()
-            self.target = self.agent.task_pointers[self.association].location()
+            self.target = self.agent.task_contacts[self.association].location()
     class NavigateToNode(Navigation):
         def _start(self):
             super(StageDef.NavigateToNode, self)._start()
-            self.target = self.agent.task_pointers[self.association]
+            self.target = self.agent.task_contacts[self.association]
 
     """ Navigation SubSubclasses """
     class NavigateToBaseNode(NavigateToNode):
@@ -628,7 +529,7 @@ class StageDef(object):
                 self.target = target
             def set_nav_target(self):
                 self.agent.target = self.target
-            def __del__(self):
+            def _end(self):
                 self.agent.target = None
         class Navigation(TargetedMovement):
             def query(self):
@@ -671,7 +572,7 @@ class StageDef(object):
     #     def _query(self):
     #         success_conditions = [len(self.agent.request_admittance) > 0]
     #         self.agent.flag(any(success_conditions))
-    #     def __del__(self):
+    #     def _end(self):
     #         self.agent.admittance = self.agent.request_admittance.pop(0)
 
                 
