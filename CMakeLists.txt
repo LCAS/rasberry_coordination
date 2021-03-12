@@ -69,6 +69,8 @@ add_message_files(
   TaskUpdates.msg
   TaskDetails.msg
   TasksDetails.msg
+  MarkerDetails.msg
+  KeyValuePair.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -80,11 +82,14 @@ add_message_files(
 
 add_service_files(
   FILES
+  AgentID.srv
   AllTasksInfo.srv
+  ConnectAgent.srv
   RobotState.srv
   RobotStates.srv
   TrayLoaded.srv
   TriggerRobot.srv
+  UnregisterAgent.srv
   UpdateTask.srv
 )
 
@@ -199,6 +204,7 @@ include_directories(
 install(PROGRAMS
   scripts/simple_task_executor_node.py
   scripts/visualise_agent_markers.py
+  scripts/agent_monitor.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

@@ -9,6 +9,7 @@
 import rospy
 import visualization_msgs.msg
 import tf
+from std_msgs.msg import ColorRGBA
 
 class ThorvaldMarkerPublisher(object):
     """
@@ -29,6 +30,7 @@ class ThorvaldMarkerPublisher(object):
         time_now = rospy.get_rostime()
         for marker in self._marker_array.markers:
             marker.header.stamp = time_now
+            marker.lifetime = rospy.Duration(2)
         self.marker_pub.publish(self._marker_array)
 
     def _create_markers(self):
@@ -222,6 +224,51 @@ class ThorvaldMarkerPublisher(object):
         name_marker.frame_locked = True
 
         return name_marker
+
+
+class ColoredThorvaldMarkerPublisher(ThorvaldMarkerPublisher):
+
+    def __init__(self, robot_name, color=''):
+        """
+        """
+        self.robot_name = robot_name
+        self._marker_array = visualization_msgs.msg.MarkerArray()
+        self.frame_id = self.robot_name+"/base_link"
+        self._create_markers()
+
+        if color != '':
+            if color == "red":
+                pipe = ColorRGBA(.5, 0, 0, 1)
+                wheel = ColorRGBA(0, 0, 0, 1)
+                tower = ColorRGBA(1, 0, 0, 1)
+            if color == "green":
+                pipe = ColorRGBA(0, .5, 0, 1)
+                wheel = ColorRGBA(0, 0, 0, 1)
+                tower = ColorRGBA(0, 1, 0, 1)
+            if color == "blue":
+                pipe = ColorRGBA(0, 0, .5, 1)
+                wheel = ColorRGBA(0, 0, 0, 1)
+                tower = ColorRGBA(0, 0, 1, 1)
+            if color == "black":
+                pipe = ColorRGBA(0, 0, 0, 1)
+                wheel = ColorRGBA(0, 0, 0, 1)
+                tower = ColorRGBA(0, 0, 0, 1)
+            if color == "white":
+                pipe = ColorRGBA(1, 1, 1, 1)
+                wheel = ColorRGBA(0, 0, 0, 1)
+                tower = ColorRGBA(1, 1, 1, 1)
+
+            for marker in self._marker_array.markers:
+                if marker.ns.startswith('pipe'):
+                    marker.color = pipe
+                if marker.ns.startswith('tower'):
+                    marker.color = tower
+                if marker.ns.startswith('wheel'):
+                    marker.color = wheel
+
+        self.marker_pub = rospy.Publisher("/%s/vis" %(robot_name), visualization_msgs.msg.MarkerArray, queue_size=10)
+        self.publish()
+
 
 class HumanMarkerPublisher(object):
     """
