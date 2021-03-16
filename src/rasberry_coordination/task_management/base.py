@@ -509,8 +509,9 @@ class StageDef(object):
     class Pause(StageBase):
         def _start(self):
             self.agent.registration=False
-            self.agent.task_stage_list[1]._pause()
-            pass #^ # ^ self.agent.interface.cancel_execpolicy_goal()
+            # self.agent.task_stage_list[1]._pause()
+            self.agent.temp_interface.cancel_execpolicy_goal()
+            pass
         def _query(self):
             success_conditions = [self.registration]
             self.agent.flag(any(success_conditions))

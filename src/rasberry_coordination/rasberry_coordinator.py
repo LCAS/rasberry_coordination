@@ -1170,31 +1170,32 @@ class RasberryCoordinator():
             logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
             agent().action_required = False
     def interrupt_task(self):
-        interruption_types = {'pause': self.pause_task,
-                              'unpause': self.unpause_task,
-                              'cancel': self.cancel_task}
-        [interruption_types[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption]
+        interrupts = {'pause': self.pause_task,
+                      'unpause': self.unpause_task,
+                      'cancel': self.cancel_task}
+        [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption in interrupts]
 
     def pause_task(self, agent):
+        agent().new_stage = True #This will re-enable the _start() call for once unpaused
         agent.task_stage_list.insert(0, StageDef.Pause(self))
-        agent.interruption[0] = "paused" #This state is queried for query success
-        agent.temp_interface.cancel_exec_policy_goal()
-        #interrupt action?
+        agent.registration = False #This state is queried for query success
+        # agent.temp_interface.cancel_exec_policy_goal()
+        agent.interruption = None #This state is queried for entry to this function
 
         #Options:
-        1. #add whole task to buffer and start new active task of TaskDef.pause_task
-        2. #add StageDef.pause_task to the head of the stage list
-        3. #prevent query from completing until pause completes
-        4. #prevent flag from being set until unpaused
+        # 1. #add whole task to buffer and start new active task of TaskDef.pause_task
+        # 2. #add StageDef.pause_task to the head of the stage list
+        # 3. #prevent query from completing until pause completes
+        # 4. #prevent flag from being set until unpaused
 
         #Reccomendation:
-        4. # (simple execution, reliable)
-        4. # {feels hard-coded, shouldnt we treat pausing like a stage?}
-        4. # [how should we handle unpausing? should we set unpause to trigger start_task?]
+        # 4. # (simple execution, reliable)
+        # 4. # {feels hard-coded, shouldnt we treat pausing like a stage?}
+        # 4. # [how should we handle unpausing? should we set unpause to trigger start_task?]
         pass
     def unpause_task(self, agent):
-        agent.interruption = None #This can be queried for progression
-        agent().new_stage = True #This will re-enable the _start() call
+        agent.registration = True #This state is queried for query success
+        agent.interruption = None #This state is queried for entry to this function
         pass
 
     def cancel_task(self, agent):
