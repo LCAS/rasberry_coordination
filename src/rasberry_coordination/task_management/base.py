@@ -141,6 +141,7 @@ class InterfaceDef(object):
             self.pub = Publisher(pub, Str, queue_size=5)
             self.sub = Subscriber(sub, Str, self.callback, agent.agent_id)
         def callback(self, msg, agent_id):  # Look into sub/feature
+            print("callback reached for %s with %s" % (agent_id, msg))
             msg = eval(msg.data)
             if "states" in msg: return # car callback sends two msgs, this filters second
             if msg['user'] == agent_id:
@@ -513,7 +514,7 @@ class StageDef(object):
             self.agent.temp_interface.cancel_execpolicy_goal()
             pass
         def _query(self):
-            success_conditions = [self.registration]
+            success_conditions = [self.agent.registration]
             self.agent.flag(any(success_conditions))
     class Unregister(StageBase): pass
 

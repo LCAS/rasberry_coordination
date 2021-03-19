@@ -1170,17 +1170,21 @@ class RasberryCoordinator():
             logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
             agent().action_required = False
     def interrupt_task(self):
+        print("interrupt detected")
         interrupts = {'pause': self.pause_task,
                       'unpause': self.unpause_task,
                       'cancel': self.cancel_task}
-        [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption in interrupts]
+        [interrupts[a.interruption](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption in interrupts]
 
     def pause_task(self, agent):
+        print("coordinator.pause_task")
         agent().new_stage = True #This will re-enable the _start() call for once unpaused
-        agent.task_stage_list.insert(0, StageDef.Pause(self))
+        agent.task_stage_list.insert(0, StageDef.Pause(agent))
         agent.registration = False #This state is queried for query success
         # agent.temp_interface.cancel_exec_policy_goal()
         agent.interruption = None #This state is queried for entry to this function
+
+        self.modify_robot_marker(agent.agent_id, color='red')
 
         #Options:
         # 1. #add whole task to buffer and start new active task of TaskDef.pause_task
@@ -1196,6 +1200,7 @@ class RasberryCoordinator():
     def unpause_task(self, agent):
         agent.registration = True #This state is queried for query success
         agent.interruption = None #This state is queried for entry to this function
+        self.modify_robot_marker(agent.agent_id, color='no_color')
         pass
 
     def cancel_task(self, agent):

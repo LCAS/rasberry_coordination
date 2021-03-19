@@ -43,8 +43,8 @@ class InterfaceDef(object):
             self.agent.temp_interface = RobotInterface_Old(self.agent.agent_id)
             self.agent.add_task('init_courier')
 
-        def pause(self): self.agent.interruption = "pause"
-        def unpause(self): self.agent.interruption = "unpause"
+        def pause(self): self.agent.interruption = "pause"; print("agent paused")
+        def unpause(self): self.agent.interruption = "unpause"; print("agent unpaused")
         def release(self): self.agent.interruption = "cancel"
 
         def on_cancel(self, task_id, contact_id):
