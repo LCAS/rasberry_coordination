@@ -1086,7 +1086,6 @@ class RasberryCoordinator():
             """ Publish log if any updates occured this round """
             if self.enable_task_logging:
                 self.publish_log()
-
     def run_minimalist(self):
         #
         offer_service  = self.offer_service
@@ -1095,6 +1094,7 @@ class RasberryCoordinator():
         publish_routes = self.execute_policy_routes
         get_agents     = self.get_agents
         interrupt_task = self.interrupt_task
+        def lognull(): logmsg(category="null")
 
         A = self.get_all_agents()
         self.enable_task_logging = True
@@ -1111,25 +1111,26 @@ class RasberryCoordinator():
 
             interrupt_task()    if any([a.interruption for a in A]) else None;     """ Interrupt Task Execution """
 
-            logmsg() if any([not a.task_stage_list for a in A]) else None
+            lognull() if any([not a.task_stage_list for a in A]) else None
             [a.start_next_task() for a in A if not a.task_stage_list];             """ Start Buffered Task """
             l(0);
 
-            logmsg() if any([a().new_stage for a in A]) else None
+            lognull() if any([a().new_stage for a in A]) else None
             [a.start_stage()    for a in A if a().new_stage];                      """ Start Stage """
-            logmsg() if any([a().action_required for a in A]) else None
+            lognull() if any([a().action_required for a in A]) else None
             [offer_service(a)   for a in A if a().action_required];                """ Offer Service """
             l(2)
 
-            logmsg() if any([a().route_required for a in A]) else None
+            lognull() if any([a().route_required for a in A]) else None
             find_routes()       if any([a().route_required for a in A]) else None; """ Find Routes """
+            # logmsg(category="action", msg=str([(a.agent_id,a().route_required) for a in A]), throttle=10)
             [publish_routes(a)  for a in A if a().route_required];                 """ Publish Routes """
             l(3)
 
             [a()._query()       for a in A];                                       """" Query """
             l(4)
 
-            logmsg() if any([a().stage_complete for a in A]) else None
+            lognull() if any([a().stage_complete for a in A]) else None
             [a.end_stage()      for a in A if a().stage_complete];                 """ End Stage """
             l(-2) #publish route
 

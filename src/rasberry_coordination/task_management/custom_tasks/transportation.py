@@ -114,17 +114,24 @@ class TaskDef(object):
 
     @classmethod
     def idle_storage(cls, agent, task_id=None, details={}, contacts={}):
+        if len(agent.request_admittance) > 0:
+            # logmsg(category="TASK", msg="accepting new agent")
+            return TaskDef.transportation_storage(agent=agent, task_id=task_id, details=details, contacts=contacts)
+        else:
+            # logmsg(category="TASK", msg="going idle")
+            return TaskDef.idle_storage_def(agent=agent, task_id=task_id, details=details, contacts=contacts)
+
+    @classmethod
+    def idle_storage_def(cls, agent, task_id=None, details={}, contacts={}):
         task_name = "idle_storage"
         task_details = TDef.load_details(details)
         task_contacts = contacts.copy()
-        task_stage_list = [
-            StageDef.IdleStorage(agent)
-        ]
-        return({'id': task_id,
-                'name': task_name,
-                'details': task_details,
-                'contacts': task_contacts,
-                'stage_list': task_stage_list})
+        task_stage_list = [StageDef.IdleStorage(agent)]
+        return ({'id': task_id,
+                 'name': task_name,
+                 'details': task_details,
+                 'contacts': task_contacts,
+                 'stage_list': task_stage_list})
 
 
     """ Picker Logistics Transportation """
@@ -210,8 +217,9 @@ class StageDef(object):
         def _query(self):
             success_conditions = [len(self.agent.request_admittance) > 0] #TODO: this may prove error prone w/ _start
             self.agent.flag(any(success_conditions))
+            if any(success_conditions): print("admittance required: %s"%self.agent.request_admittance)
         def _end(self):
-            self.agent.add_task('transportation_storage', contacts={'courier': self.agent})
+            self.agent.add_task('transportation_storage')
         def _summary(self):
             super(StageDef.IdleStorage, self)._summary()
             self.summary['_query'] = 'len(store.request_admittance) > 0'
@@ -259,7 +267,7 @@ class StageDef(object):
             self.agent.task_contacts['storage'].request_admittance.append(self.agent.agent_id)
 
         def _summary(self):
-            super(StageDef.AssignCourier, self)._summary()
+            super(StageDef.AssignStorage, self)._summary()
             self.summary['_start'] = "setup action to find storage"
             self.summary['_action'] = "find closest local storage"
             self.summary['_del'] = "contact[storage].request_admittance"
@@ -273,20 +281,26 @@ class StageDef(object):
             self.action['response_location'] = None
         def _end(self):
             super(StageDef.AcceptCourier, self)._end()
-            logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent.task_contacts['courier'].agent_id, self.agent.request_admittance))
             self.agent.task_contacts['courier'] = self.action['response_location']
+            logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent.task_contacts['courier'].agent_id, self.agent.request_admittance))
+            logmsg(category="stage", msg="AcceptCourier: stage_complete=%s" % self.stage_complete)
             self.agent.request_admittance.remove(self.agent.task_contacts['courier'].agent_id)
 
         def _summary(self):
-            super(StageDef.AssignCourier, self)._summary()
+            super(StageDef.AcceptCourier, self)._summary()
             self.summary['_start'] = "setup action to find admittant"
             self.summary['_action'] = "find closest robot request"
             self.summary['_del'] = "contact[courier].request_admittance"
 
     """ Idle Actions for Pending Actions """
-    class AwaitCourier(SDef.Idle): #PICKER + STORAGE
+    class AwaitCourier(SDef.Idle):   #PICKER + STORAGE
+        def __repr__(self):
+            if 'courier' in self.agent.task_contacts:
+                return "%s(%s)"%(self.get_class(), self.agent.task_contacts['courier'].agent_id)
+            else:
+                return "%s()" % (self.get_class())
         def _query(self):
-            success_conditions = [self.agent.task_contacts['courier'].location() == self.agent.location()]
+            success_conditions = [self.agent.task_contacts['courier'].location(accurate=True) == self.agent.location()]
             self.agent.flag(any(success_conditions))
         def _notify_end(self):
             self.agent.interfaces['transportation'].notify("ARRIVED")
@@ -297,15 +311,22 @@ class StageDef(object):
     class AwaitStoreAccess(SDef.Idle):
         #While waiting for store access, move to a wait_node
         # (ideally this should be identified by the coordinator and assigned dynamically)
+        def __repr__(self):
+            if 'storage' in self.agent.task_contacts:
+                return "%s(%s)"%(self.get_class(), self.agent.task_contacts['storage'].agent_id)
+            else:
+                return "%s()" % (self.get_class())
         def _start(self):
             super(StageDef.AwaitStoreAccess, self)._start()
-            self.route_required = True
+            #self.route_required = True
             # Despite moving to a wait node, dont end task on arrival #huh?
-
         def _query(self):
-            courier = self.agent.task_contacts['storage'].task_contacts['courier']
-            if not courier:
+            """ If a courier is assigned as the contact to the storage contact, check if it is this stage's owner """
+            storage = self.agent.task_contacts['storage']
+            if 'courier' not in storage.task_contacts:
+                print("no courier found wewoweo: %s" % storage.task_contacts);
                 return
+            courier = storage.task_contacts['courier']
             success_conditions = [courier.agent_id == self.agent.agent_id]
             self.agent.flag(any(success_conditions))
 
@@ -349,6 +370,7 @@ class StageDef(object):
         def _end(self):
             super(StageDef.Loading, self)._end()
             self.agent.properties['load'] += 1
+            print("agent: %s has new load %s" % (self.agent.agent_id, self.agent.properties['load']))
     class Unloading(SDef.StageBase):
         def _query(self):
             success_conditions = [self.agent['has_tray'] == False]
@@ -356,3 +378,4 @@ class StageDef(object):
         def _end(self):
             super(StageDef.Unloading, self)._end()
             self.agent.properties['load'] = 0
+            print("agent: %s has load %s" % (self.agent.agent_id, self.agent.properties['load']))

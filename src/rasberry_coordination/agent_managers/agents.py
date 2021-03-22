@@ -82,7 +82,7 @@ class AgentDetails(object):
         #     self.default_new_task_definition = getattr(TaskDef, setup['new_task_default'])
 
         #Location and Callbacks
-        self.has_presence = True #used for routing
+        self.has_presence = True if self.properties['presence'] == 1 else False #used for routing
         self.subs = {}
         self.current_node = None
         self.previous_node = None
@@ -171,13 +171,13 @@ class AgentDetails(object):
         if not self.interruption:
             self().stage_complete = flag
     def end_stage(self):
+        logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self.task_stage_list[0])
         self()._notify_end()
         self()._end()
-        logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self.task_stage_list[0])
         self.task_stage_list.pop(0)
 
     """ Logging """
     def __repr__(self):
-        return self.get_class()
+        return "%s(%s)" % (self.get_class(), self.agent_id)
     def get_class(self):
-        return str(self.__class__).replace("<class 'rasberry_coordination.agent_managers.store_manager.", "").replace("'>", "")
+        return str(self.__class__).replace("<class 'rasberry_coordination.agent_managers.agents.", "").replace("'>", "")

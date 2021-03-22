@@ -175,6 +175,7 @@ class TaskDef(object):
         agent['task_id'] = task['id']
         agent.task_contacts = task['contacts'].copy()
         agent.task_stage_list = task['stage_list']
+
         logmsg(category="TASK", id=agent.agent_id, msg="Active task: %s" % task['name'])
         logmsg(category="TASK", msg="Task details:")
         for stage in task['stage_list']: logmsg(category="TASK", msg="    - %s" % stage)
@@ -325,7 +326,7 @@ class StageDef(object):
             """ Called whenever a new stage is set.
             Also called whenever Stage.new_stage is set to True
             """
-            logmsg(category="stage", id=self.agent.agent_id, msg="Begun stage %s" % self.get_class())
+            logmsg(category="stage", id=self.agent.agent_id, msg="Begun stage %s" % self)
             self.start_time = Time.now()
         def _notify_start(self):
             pass
@@ -439,9 +440,15 @@ class StageDef(object):
 
     """ Navigation Controllers for Courier """
     class Navigation(StageBase):
+        def __repr__(self):
+            if self.target:
+                return "%s(%s)"%(self.get_class(), self.target)
+            else:
+                return "%s()" % (self.get_class())
         def __init__(self, agent, association):
             super(StageDef.Navigation, self).__init__(agent)
             self.association = association
+            self.target = None
         def _start(self):
             super(StageDef.Navigation, self)._start()
             self.route_required = True
@@ -453,7 +460,7 @@ class StageDef(object):
     class NavigateToAgent(Navigation):
         def _start(self):
             super(StageDef.NavigateToAgent, self)._start()
-            self.target = self.agent.task_contacts[self.association].location()
+            self.target = self.agent.task_contacts[self.association].location(accurate=True)
     class NavigateToNode(Navigation):
         def _start(self):
             super(StageDef.NavigateToNode, self)._start()

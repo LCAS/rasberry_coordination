@@ -29,7 +29,7 @@ class FragmentPlanner(BasePlanner):
         without the edges going into the nodes occupied by the agents. When current node
         of an agent is none, the closest node of the agent is taken.
         """
-        agent_nodes = [agent.location(accurate=True) for agent in self.agent_details.values()]
+        agent_nodes = [agent.location(accurate=True) for agent in self.agent_details.values() if agent.has_presence]
         topo_map = copy.deepcopy(self.topo_map)
         for node in topo_map.nodes:
             to_pop = []
@@ -204,9 +204,11 @@ class FragmentPlanner(BasePlanner):
                 agent.route_fragments = res_routes[agent.agent_id]
 
         logmsg(category="route", msg="    - All fragments identified")
+        for a in self.agent_details.values():
+            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,a.route_fragments))
 
         res_edges = {}
-        # split the edges as per the route_fragmentsf
+        # split the edges as per the route_fragments
         """ for each active robot """
         for agent_id in active_agents:
             agent = self.agent_details[agent_id]
@@ -239,6 +241,8 @@ class FragmentPlanner(BasePlanner):
             # print(" ")
 
         logmsg(category="route", msg="    - All fragments formatted")
+        for a in self.agent_details.values():
+            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,a.route_fragments))
 
         """ for each agent, apply their route edges """
         # self.route_edges = res_edges
@@ -254,15 +258,22 @@ class FragmentPlanner(BasePlanner):
             # print(" ")
 
         logmsg(category="route", msg="    - All fragment edges formatted")
+        for a in self.agent_details.values():
+            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,a.route_edges))
 
     def find_routes(self, ):
         """find_routes - find indiviual paths, find critical points in these paths, and fragment the
         paths at critical points - whenever triggered
         """
+        logmsg(category="route", id="ROUTING", msg="Finding routes for Active agents")
         actives =   [a for a in self.agent_details.values() if a.goal()]
         inactives = [a for a in self.agent_details.values() if not a.goal()]
         logmsg(category="route", msg="actives: "+str([a.agent_id for a in actives]))
         logmsg(category="route", msg="inactives: "+str([a.agent_id for a in inactives]))
+
+        need_route = [a for a in self.agent_details.values() if a().route_required]
+        logmsg(category="route", msg="requires: "+str([a.agent_id for a in need_route]))
+        logmsg(category="route", msg="stagae: "+str([a.task_stage_list for a in need_route]))
 
         """find unblocked routes for all agents which need one"""
         for agent in actives:
@@ -316,7 +327,7 @@ class FragmentPlanner(BasePlanner):
             avail_topo_map = self.unblock_node(avail_topo_map, start_node)
             # if agent().get_class() == "NavigateToPicker": #is there any situation when we dont want to unblock our target node?
             #     avail_topo_map = self.unblock_node(avail_topo_map, goal_node)
-            avail_topo_map = self.unblock_node(avail_topo_map, goal_node)
+            #avail_topo_map = self.unblock_node(avail_topo_map, goal_node)
 
             """generate route from start node to goal node"""
             avail_route_search = topological_navigation.route_search.TopologicalRouteSearch(avail_topo_map)
@@ -341,7 +352,12 @@ class FragmentPlanner(BasePlanner):
             #     avail_route_search = topological_navigation.route_search.TopologicalRouteSearch(avail_topo_map)
             #     route = avail_route_search.search_route(start_node, goal_node)
             if route is None:
+
+                #if wait_node route is valid, send there instead
+                #else add to inactives
+
                 agent().route_failed = True
+                print("agent %s failed to find route"%agent.agent_id)
                 inactives += [agent]
                 continue
 
@@ -386,6 +402,8 @@ class FragmentPlanner(BasePlanner):
             self.get_edge_distances(agent.agent_id)
 
         logmsg(category="route", msg="    - All agents assigned routes")
+        for a in self.agent_details.values():
+            logmsg(category="route", msg="        - %s:%s" % (a.agent_id, a.route))
 
         # find critical points and fragment routes to avoid critical point collisions
         for i in range(10):
