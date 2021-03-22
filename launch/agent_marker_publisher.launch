@@ -3,6 +3,6 @@
 
   <arg name="config_file" />
 
-  <node pkg="rasberry_coordination" type="visualise_agent_markers.py" name="visualise_agent_markers" args="$(arg config_file)" />
+  <node pkg="rasberry_coordination" type="visualise_agent_markers.py" name="visualise_agent_markers" args="$(arg config_file)" output="screen"/>
 
 </launch>
