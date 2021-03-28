@@ -16,6 +16,7 @@ import threading
 
 import rospy
 
+import std_srvs.srv
 import strands_executive_msgs.msg
 import strands_executive_msgs.srv
 import strands_navigation_msgs.msg
@@ -127,6 +128,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             robot.wait_node = wait_nodes[robot.robot_id]
             robot.max_task_priority = max_task_priorities[robot.robot_id]
 
+        self.system_paused_robots = []
+        self.task_pause = False
         self.trigger_replan = False
 
         logmsg(msg='robots initialised: ' + ', '.join(self.robot_manager.agent_details.keys()))
@@ -481,6 +484,26 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.clear_robot_marker(robot_id)
 
         logmsg(category="drm", id=robot_id, msg="disconnection complete")
+
+
+    def pause_coordinator_ros_srv(self, req):
+        logmsg(category="drm", msg='request made to switch pause status of coordinator to pause=%s'%str(req.data))
+        AgentIDRequest = rasberry_coordination.srv.AgentIDRequest
+
+        if req.data:
+            self.system_paused_robots = [robot for robot in self.robot_manager.agent_details.values() if robot.registered]
+            [self.unregister_robot_pause_task_ros_srv(AgentIDRequest(r.agent_id)) for r in self.system_paused_robots]
+            self.task_pause = True
+            logmsg(category="drm", msg='coordinator has been paused')
+            return {'success': 1, 'message': 'coordinator paused'}
+        else:
+            [self.register_robot_ros_srv(AgentIDRequest(r.agent_id)) for r in self.system_paused_robots]
+            self.task_pause = False
+            self.trigger_replan = True
+            logmsg(category="drm", msg='coordinator has been unpaused')
+            return {'success': 1, 'message': 'coordinator unpaused'}
+
+    pause_coordinator_ros_srv.type = std_srvs.srv.SetBool
 
     def modify_robot_marker(self, robot_id, color=''):
         """Add/modify marker to display in rviz"""
@@ -964,6 +987,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         while not rospy.is_shutdown():
             rospy.sleep(0.01)  # TODO: look into methods to remove the artificial delay
+            if self.task_pause: continue
 
             """ update TOC with latest tasks states """
             iterations=iterations-1
