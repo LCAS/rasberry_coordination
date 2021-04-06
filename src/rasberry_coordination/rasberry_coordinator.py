@@ -490,13 +490,22 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         logmsg(category="drm", msg='request made to switch pause status of coordinator to pause=%s'%str(req.data))
         AgentIDRequest = rasberry_coordination.srv.AgentIDRequest
 
-        if req.data:
+        if req.data and self.task_pause:
+            # already paused and new pause call -> pause any newly registered robots
+            extra_robots = [robot for robot in self.robot_manager.agent_details.values() if robot.registered]
+            [self.unregister_robot_pause_task_ros_srv(AgentIDRequest(r.agent_id)) for r in extra_robots]
+            self.system_paused_robots.extend(extra_robots)
+            logmsg(category="drm", msg='coordinator has been paused')
+            return {'success': 1, 'message': 'coordinator paused'}
+        elif req.data:
+            # not paused now and new pause call -> pause all registered robots
             self.system_paused_robots = [robot for robot in self.robot_manager.agent_details.values() if robot.registered]
             [self.unregister_robot_pause_task_ros_srv(AgentIDRequest(r.agent_id)) for r in self.system_paused_robots]
             self.task_pause = True
             logmsg(category="drm", msg='coordinator has been paused')
             return {'success': 1, 'message': 'coordinator paused'}
         else:
+            # new unpause call -> unpause all paused robots
             [self.register_robot_ros_srv(AgentIDRequest(r.agent_id)) for r in self.system_paused_robots]
             self.task_pause = False
             self.trigger_replan = True
