@@ -7,8 +7,8 @@
 
 import rospy
 import copy
-import threading #TODO: find out why this is used
-import operator #TODO: find out if there is an alternative sorting which doesnt use imports
+import threading
+import operator
 
 # import strands_executive_msgs.msg
 # import strands_executive_msgs.srv
@@ -18,7 +18,7 @@ import strands_navigation_msgs.msg
 import topological_navigation.route_search
 import topological_navigation.tmap_utils
 
-from rasberry_coordination.coordinator_tools import logmsg#, remove, add, move
+from rasberry_coordination.coordinator_tools import logmsg
 
 class FragmentPlanner(object):
     def __init__(self, robot_manager_pointer, picker_manager_pointer, callbacks):
@@ -38,8 +38,6 @@ class FragmentPlanner(object):
             rospy.sleep(rospy.Duration.from_sec(0.1))
         logmsg(msg='FragmentPlanner received Topological map ...')
         self.available_topo_map = copy.deepcopy(self.topo_map) #empty map used to measure routes
-
-        self.task_lock = threading.Lock()
 
     def _map_cb(self, msg):
         """This function receives the Topological Map
@@ -65,9 +63,9 @@ class FragmentPlanner(object):
 
         """For each agent, if they do not have a current_node, extract the closest_node"""
         for i in range(len(curr_nodes)):
-            if curr_nodes[i] == None:
+            if curr_nodes[i] is None:
                 curr_nodes[i] = clos_nodes[i]
-            if curr_nodes[i] != None:
+            if curr_nodes[i] is not None:
                 agent_nodes.append(curr_nodes[i])
 
         for node in topo_map.nodes:
@@ -155,10 +153,10 @@ class FragmentPlanner(object):
                 # add edge_distance only if the source node is not the one we look for
                 # also make sure we start adding from current/closest node
                 if not adding_ok:
-                    if robot.current_node != None:
+                    if robot.current_node is not None:
                         if robot.current_node == robot.route[i]:
                             adding_ok = True
-                    elif robot.closest_node != None:
+                    elif robot.closest_node is not None:
                         if robot.closest_node == robot.route[i]:
                             adding_ok = True
                 if adding_ok:
@@ -256,9 +254,9 @@ class FragmentPlanner(object):
 
                     """
                     each critical vertice can be given to 1 robot
-                    thus we give it to the closest robot and 
+                    thus we give it to the closest robot and
                     prevent it being taken again by adding it to
-                    allowed_cpoints, 
+                    allowed_cpoints,
                     """
                     if (agent_id == nearest_robot and v not in allowed_cpoints):
                         """ if vertice is unassigned, and is best assigned to this robot, assign it so"""
@@ -350,7 +348,7 @@ class FragmentPlanner(object):
 
 
                 """get start node and goal node"""
-                start_node = robot._get_start_node()
+                start_node = robot._get_start_node(accuracy=True)
                 goal_node = robot._get_goal_node() #TODO: improve this function
 
                 """if current node is goal node, generate empty route and set task as finished"""
@@ -361,8 +359,11 @@ class FragmentPlanner(object):
                     robot._finish_task_stage(robot.task_stage)
 
                     if task_stage == "go_to_picker":
+                        robot._reached_picker()
                         self.callbacks['publish_task_state'](robot.task_id, robot_id, "ARRIVED")
                         #logmsg(category="note", msg='publish_task_state callback within fragment planner should be removed')
+                    elif task_stage == "go_to_storage":
+                        robot._reached_storage()
                     elif task_stage == "go_to_base":
                         self.callbacks['send_robot_to_base'](robot_id)
                         #logmsg(category="note", msg='send_robot_to_base callback within fragment planner should be removed')
@@ -398,7 +399,7 @@ class FragmentPlanner(object):
                 """if route is not available, replan route to wait node"""
                 if (route is None and
                     robot.task_stage == "go_to_storage" and
-                    robot.wait_node != None and
+                    robot.wait_node is not None and
                     robot.wait_node != robot.current_node):
                     logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
                     goal_node = robot.wait_node
@@ -410,10 +411,10 @@ class FragmentPlanner(object):
                     if robot.no_route_found_notification:
                         logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
                         robot.no_route_found_notification = False
-                    if start_node == None:
-                        self.robot_manager.dump_details(filename='no route found from None')
+                    if start_node is None:
+                        robot._dump(filename='no route found from None')
                     if start_node == "none":
-                        self.robot_manager.dump_details(filename='no route found from none')
+                        robot._dump(filename='no route found from none')
 
                     #TODO: see how we could improve this by generating wait_node dynamically based on map activity
                 else:
@@ -437,22 +438,13 @@ class FragmentPlanner(object):
 
         """for each picker/virtual picker, mark current position as node to make routing not interfere"""
         for agent in self.picker_manager.agent_details.values():
-            if agent.current_node != None:
+            if agent.current_node is not None:
                 agent.route = [agent.current_node]
-            elif agent.previous_node != None:
+            elif agent.previous_node is not None:
                 agent.route = [agent.previous_node]
             else:
                 agent.route = [agent.closest_node]
             agent.route_edges = []
 
         # find critical points and fragment routes to avoid critical point collistions
-        for i in range(10):
-            locked = self.task_lock.acquire(False)
-            if locked:
-                break
-            rospy.sleep(0.05)
-        if locked:
-            # restrict finding critical_path as task may get cancelled and moved
-            # from processing_tasks
-            self.split_critical_paths()
-            self.task_lock.release()
+        self.split_critical_paths()
