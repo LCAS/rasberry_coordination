@@ -256,8 +256,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             return {'success': 0, 'msg': 'no base stations available'}
 
         self.connect_robot(req.agent_id)
+
         if req.register:
             self.register_robot_ros_srv(req)
+
+        if self.task_pause and req.register:
+            self.system_paused_robots.extend([self.robot_manager[req.agent_id]])
+
+        if req.register and not self.task_pause:
             self.modify_robot_marker(req.agent_id, color='no_color')
         else:
             self.modify_robot_marker(req.agent_id, color='red')
@@ -354,6 +360,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """ Return fail, if robot is not connected or success, if robot is already unregistered """
         if not robot:
             return {'success': 0, 'msg': 'unregistration failed, robot is not connected'}
+        elif self.task_pause and robot.agent_id in self.system_paused_robots: #if robot was paused with the coordinator
+            self.system_paused_robots.remove(robot)
+            return {'success': 1, 'msg': 'coordinator is paused, will not unpause robot from with coordinator'}
         elif not robot.registered:
             return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
 
@@ -385,9 +394,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         logmsg(category="drm", id=req.agent_id, msg='unregistering from task allocation canceling any active tasks')
         robot = self.robot_manager[req.agent_id]
 
+        #TODO: if unregistred already, task will not be removed on this call but robot will be left paused once coordinator resumes
+
         """ Return fail, if robot is not connected or success, if robot is already unregistered """
         if not robot:
             return {'success': 0, 'msg': 'unregistration failed, robot is not connected'}
+        elif self.task_pause and robot.agent_id in self.system_paused_robots: #if robot was paused with the coordinator
+            self.system_paused_robots.remove(robot)
+            return {'success': 0, 'msg': 'coordinator is paused, will not unpause robot from with coordinator (retained task)'}
         elif not robot.registered:  # TODO: Add additional condition to cancel task if unregistered with 'pause_task'
             return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
         elif not robot.task_id:
@@ -420,6 +434,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """ Return fail, if robot is not connected or success, if robot is already unregistered """
         if not robot:
             return {'success':0, 'msg':'unregistration failed, robot is not connected'}
+        elif self.task_pause and robot.agent_id in self.system_paused_robots: #if robot was paused with the coordinator
+            self.system_paused_robots.remove(robot)
+            return {'success': 1, 'msg': 'coordinator is paused, will not unpause robot from with coordinator'}
         elif not robot.registered:
             return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
         elif not robot.task_id and robot.task_stage != "go_to_base":
@@ -484,7 +501,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.clear_robot_marker(robot_id)
 
         logmsg(category="drm", id=robot_id, msg="disconnection complete")
-
 
     def pause_coordinator_ros_srv(self, req):
         logmsg(category="drm", msg='request made to switch pause status of coordinator to pause=%s'%str(req.data))
