@@ -379,3 +379,4 @@ class StageDef(object):
             super(StageDef.Unloading, self)._end()
             self.agent.properties['load'] = 0
             print("agent: %s has load %s" % (self.agent.agent_id, self.agent.properties['load']))
+

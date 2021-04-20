@@ -43,8 +43,7 @@ from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, In
 # from rasberry_coordination.agent_managers.stores import StorageManager
 from rasberry_coordination.agent_managers.agents import AgentManager
 
-
-class RasberryCoordinator():
+class RasberryCoordinator(object):
     """RasberryCoordinator class definition
     """
     def __init__(self, agent_list, base_station_nodes_pool, wait_nodes_pool, planning_type, ns, special_nodes):
@@ -999,95 +998,7 @@ class RasberryCoordinator():
 
     """ Main loop for task progression """
     def run(self, planning_type='fragment_planner'):
-        self.run_minimalist()
-    def run_bulk(self, planning_type='fragment_planner'):
-        """ For details see: rasberry_coordination/src/CoordinatorStructure.md
-
-            Notation Worth Noting:
-                - Specific agents are represented by the variable A
-                - An active task is identified by __call__, e.g. A()
-                - Task details can be identified by __getitem__, e.g. A[key]
-                - Task details can be set using __setitem__, e.g. A[key]=val
-
-            Key Concepts:
-                - Approach requires no lock as task progression uses linear buffers
-        """
-
-        self.AllAgentsList = self.get_all_agents()
-        self.enable_task_logging = True
-        self.log_routes = False
-        self.task_progression_log = '/home/jheselden/task_progression.csv'
-        self.timestep = 0
-        self.iteration = 0
-        self.previous_log_iteration = ""
-        self.current_log_iteration = ""
-        self.log_data(['init'])
-
-        while not rospy.is_shutdown():
-
-            #TODO: add extra condition to only progress if there are any tasks which require updates?
-
-            """ Get list of all currently connected agents """
-            self.AllAgentsList = self.get_all_agents()
-
-            self.log_data(['linebreak','iteration'])
-            self.enable_task_logging = True
-
-
-            """ Default to IDLE if no task present """
-            # self.log_data(['task', 'stage'])
-            for A in self.AllAgentsList.values():
-                A.start_idle_task() if not A.task_stage_list else None
-            #self.log_data(['new_stage','stage','break'])
-            self.log_data(['task', 'stage', 'new_stage','break'])
-
-            """ Perform stage initialisation and communication """
-            self.log_data(['_start','_notify_start','break'])
-            # self.log_data(['_start','_notify_start'])
-            for A in self.AllAgentsList.values():
-                A()._start() if A().new_stage else None
-                A()._notify_start() if A().new_stage else None
-                A().new_stage = False
-            # self.log_data(['break'])
-
-            """ Perform agent-specific request """
-            # self.log_data(['coordinator_action_required','_action'])
-            for A in self.AllAgentsList.values():
-                if A['coordinator_action_required']:
-                    logmsg(category="action", id=A.agent_id, msg="%s : %s" % (A.agent_id, A.task_stage_list))
-                    print({a.agent_id:a['coordinator_action_required'] for a in self.AllAgentsList.values()})
-                self.offer_service(A) if A['coordinator_action_required'] else None
-            # self.log_data(['break'])
-            self.log_data(['_action','break'])
-
-            """ Perform multi-agent request """
-            self.log_data(['replan_required'])
-            if any([A['replan_required'] for A in self.AllAgentsList.values()]):
-                self.route_finder.find_routes()
-
-            """ Publish new routes """
-            for A in [A for A in self.AllAgentsList.values() if A['replan_required']]:
-                self.execute_policy_routes(A) #TODO: abstract this for generalisation #A.interface.set_execute_policy_routes()
-            self.log_data(['route','break'])
-
-            """ Query if stage completion criteria is met """
-            for A in self.AllAgentsList.values():
-                A()._query()
-            # self.log_data(['_query','stage_complete_flag','break'])
-            self.log_data(['_query','break'])
-
-            """ Complete stage where needed """
-            self.log_data(['_notify_end','_del'])
-            for A in self.AllAgentsList.values():
-                if A['stage_complete_flag']:
-                    A()._notify_end()
-                    A.end_stage()  # calls __del__
-
-            """ Publish log if any updates occured this round """
-            if self.enable_task_logging:
-                self.publish_log()
-    def run_minimalist(self):
-        #
+        # Remappings to simplify function
         offer_service  = self.offer_service
         l              = self.log_minimal
         find_routes    = self.route_finder.find_routes
@@ -1135,11 +1046,6 @@ class RasberryCoordinator():
             l(-2) #publish route
 
     def get_all_agents(self):
-        # managers = self.agent_managers.values()
-        # all_agents = managers[0].agent_details.copy()
-        # for manager in managers[1:]:
-        #     all_agents.update(manager.agent_details)
-        # return all_agents
         return self.agent_manager.agent_details.copy()
     def get_agents(self):
         self.AllAgentsList = self.get_all_agents()
