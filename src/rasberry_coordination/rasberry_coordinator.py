@@ -16,6 +16,8 @@ import threading
 
 import rospy
 
+import std_msgs.msg
+import std_srvs.srv
 import strands_executive_msgs.msg
 import strands_executive_msgs.srv
 import strands_navigation_msgs.msg
@@ -127,6 +129,10 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             robot.wait_node = wait_nodes[robot.robot_id]
             robot.max_task_priority = max_task_priorities[robot.robot_id]
 
+        self.task_pause_pub = rospy.Publisher('/rasberry_coordination/pause_state', std_msgs.msg.Bool, queue_size=5, latch=True)
+        self.task_pause = False
+        self.task_pause_pub.publish(self.task_pause)
+        self.system_paused_robots = []
         self.trigger_replan = False
 
         logmsg(msg='robots initialised: ' + ', '.join(self.robot_manager.agent_details.keys()))
@@ -253,8 +259,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             return {'success': 0, 'msg': 'no base stations available'}
 
         self.connect_robot(req.agent_id)
+
         if req.register:
             self.register_robot_ros_srv(req)
+
+        if self.task_pause and req.register:
+            self.system_paused_robots.extend([self.robot_manager[req.agent_id]])
+
+        if req.register and not self.task_pause:
             self.modify_robot_marker(req.agent_id, color='no_color')
         else:
             self.modify_robot_marker(req.agent_id, color='red')
@@ -351,6 +363,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """ Return fail, if robot is not connected or success, if robot is already unregistered """
         if not robot:
             return {'success': 0, 'msg': 'unregistration failed, robot is not connected'}
+        elif self.task_pause and robot in self.system_paused_robots: #if robot was paused with the coordinator
+            self.system_paused_robots.remove(robot)
+            return {'success': 1, 'msg': 'coordinator is paused, will not unpause robot with coordinator'}
         elif not robot.registered:
             return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
 
@@ -382,9 +397,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         logmsg(category="drm", id=req.agent_id, msg='unregistering from task allocation canceling any active tasks')
         robot = self.robot_manager[req.agent_id]
 
+        #TODO: if unregistred already, task will not be removed on this call but robot will be left paused once coordinator resumes
+
         """ Return fail, if robot is not connected or success, if robot is already unregistered """
         if not robot:
             return {'success': 0, 'msg': 'unregistration failed, robot is not connected'}
+        elif self.task_pause and robot in self.system_paused_robots: #if robot was paused with the coordinator
+            self.system_paused_robots.remove(robot)
+            return {'success': 0, 'msg': 'coordinator is paused, will not unpause robot with coordinator (retained task)'}
         elif not robot.registered:  # TODO: Add additional condition to cancel task if unregistered with 'pause_task'
             return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
         elif not robot.task_id:
@@ -417,6 +437,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """ Return fail, if robot is not connected or success, if robot is already unregistered """
         if not robot:
             return {'success':0, 'msg':'unregistration failed, robot is not connected'}
+        elif self.task_pause and robot in self.system_paused_robots: #if robot was paused with the coordinator
+            self.system_paused_robots.remove(robot)
+            return {'success': 1, 'msg': 'coordinator is paused, will not unpause robot with coordinator'}
         elif not robot.registered:
             return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
         elif not robot.task_id and robot.task_stage != "go_to_base":
@@ -481,6 +504,37 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.clear_robot_marker(robot_id)
 
         logmsg(category="drm", id=robot_id, msg="disconnection complete")
+
+    def pause_coordinator_ros_srv(self, req):
+        logmsg(category="drm", msg='request made to switch pause status of coordinator to pause=%s'%str(req.data))
+        AgentIDRequest = rasberry_coordination.srv.AgentIDRequest
+
+        if req.data and self.task_pause:
+            # already paused and new pause call -> pause any newly registered robots
+            extra_robots = [robot for robot in self.robot_manager.agent_details.values() if robot.registered]
+            [self.unregister_robot_pause_task_ros_srv(AgentIDRequest(r.agent_id)) for r in extra_robots]
+            self.system_paused_robots.extend(extra_robots)
+            logmsg(category="drm", msg='coordinator has been paused')
+            self.task_pause_pub.publish(self.task_pause)
+            return {'success': 1, 'message': 'coordinator paused'}
+        elif req.data:
+            # not paused now and new pause call -> pause all registered robots
+            self.system_paused_robots = [robot for robot in self.robot_manager.agent_details.values() if robot.registered]
+            [self.unregister_robot_pause_task_ros_srv(AgentIDRequest(r.agent_id)) for r in self.system_paused_robots]
+            self.task_pause = True
+            self.task_pause_pub.publish(self.task_pause)
+            logmsg(category="drm", msg='coordinator has been paused')
+            return {'success': 1, 'message': 'coordinator paused'}
+        else:
+            # new unpause call -> unpause all paused robots
+            [self.register_robot_ros_srv(AgentIDRequest(r.agent_id)) for r in self.system_paused_robots]
+            self.task_pause = False
+            self.task_pause_pub.publish(self.task_pause)
+            self.trigger_replan = True
+            logmsg(category="drm", msg='coordinator has been unpaused')
+            return {'success': 1, 'message': 'coordinator unpaused'}
+
+    pause_coordinator_ros_srv.type = std_srvs.srv.SetBool
 
     def modify_robot_marker(self, robot_id, color=''):
         """Add/modify marker to display in rviz"""
@@ -964,6 +1018,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         while not rospy.is_shutdown():
             rospy.sleep(0.01)  # TODO: look into methods to remove the artificial delay
+            if self.task_pause: continue
 
             """ update TOC with latest tasks states """
             iterations=iterations-1
