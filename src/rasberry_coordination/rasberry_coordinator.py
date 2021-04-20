@@ -16,6 +16,7 @@ import threading
 
 import rospy
 
+import std_msgs.msg
 import std_srvs.srv
 import strands_executive_msgs.msg
 import strands_executive_msgs.srv
