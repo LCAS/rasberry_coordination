@@ -128,8 +128,10 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             robot.wait_node = wait_nodes[robot.robot_id]
             robot.max_task_priority = max_task_priorities[robot.robot_id]
 
-        self.system_paused_robots = []
+        self.task_pause_pub = rospy.Publisher('/rasberry_coordination/pause_state', std_msgs.msg.Bool, queue_size=5, latch=True)
         self.task_pause = False
+        self.task_pause_pub.publish(self.task_pause)
+        self.system_paused_robots = []
         self.trigger_replan = False
 
         logmsg(msg='robots initialised: ' + ', '.join(self.robot_manager.agent_details.keys()))
@@ -512,18 +514,21 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             [self.unregister_robot_pause_task_ros_srv(AgentIDRequest(r.agent_id)) for r in extra_robots]
             self.system_paused_robots.extend(extra_robots)
             logmsg(category="drm", msg='coordinator has been paused')
+            self.task_pause_pub.publish(self.task_pause)
             return {'success': 1, 'message': 'coordinator paused'}
         elif req.data:
             # not paused now and new pause call -> pause all registered robots
             self.system_paused_robots = [robot for robot in self.robot_manager.agent_details.values() if robot.registered]
             [self.unregister_robot_pause_task_ros_srv(AgentIDRequest(r.agent_id)) for r in self.system_paused_robots]
             self.task_pause = True
+            self.task_pause_pub.publish(self.task_pause)
             logmsg(category="drm", msg='coordinator has been paused')
             return {'success': 1, 'message': 'coordinator paused'}
         else:
             # new unpause call -> unpause all paused robots
             [self.register_robot_ros_srv(AgentIDRequest(r.agent_id)) for r in self.system_paused_robots]
             self.task_pause = False
+            self.task_pause_pub.publish(self.task_pause)
             self.trigger_replan = True
             logmsg(category="drm", msg='coordinator has been unpaused')
             return {'success': 1, 'message': 'coordinator unpaused'}
