@@ -1076,11 +1076,12 @@ class RasberryCoordinator(object):
             logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
             agent().action_required = False
     def interrupt_task(self):
+        logmsg(category="ACTION", msg="interrupt_task")
         logmsg(category="task", msg="interrupt detected %s"%{a.agent_id:a.interruption for a in self.AllAgentsList.values() if a.interruption})
         interrupts = {'pause': self.pause_task,
                       'unpause': self.unpause_task,
                       'cancel': self.cancel_task,
-                      'toc_cancel': self.cancel_task}
+                      'toc_cancel': self.toc_cancel_task}
 
         # for a in self.AllAgentsList.values():
         #     if a.interruption and a.interruption[0] in interrupts:
@@ -1130,6 +1131,7 @@ class RasberryCoordinator(object):
         pass
 
     def toc_cancel_task(self, agent):
+        logmsg(category="ACTION", msg="toc_cancel_task")
         logmsg(category="task", id=agent.agent_id, msg="TOC Task cancellation request made")
 
         module = agent.interruption[1]

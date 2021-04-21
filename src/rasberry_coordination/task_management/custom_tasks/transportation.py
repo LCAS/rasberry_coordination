@@ -22,6 +22,7 @@ class InterfaceDef(object):
                 self.agent.interruption = ("cancel", "transportation")
 
         def on_cancel(self, task_id, contact_id):
+            # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel <%s>"%contact_id)
             # If the task is in the buffer, exclude it
             if task_id in [task.task_id for task in self.agent.task_buffer]:
                 self.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
@@ -29,12 +30,18 @@ class InterfaceDef(object):
 
             #If this is an active task, cancelation is either triggered by self, or by courier
             if self.agent['task_id'] == task_id:
+                # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel2 <%s>"%contact_id)
+                print("---%s---"%contact_id)
+
                 if contact_id == "self": #Cancelled by self
                     TDef.release_task(self.agent)
                 if contact_id.startswith("thorvald"): #Cancelled by courier
                     TDef.restart_task(self.agent)
                 if contact_id == "TOC":
                     TDef.release_task(self.agent)
+                    self.notify("INIT")
+                    # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel3 <%s>"%contact_id)
+
 
     class transportation_courier(IDef.AgentInterface):
         def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
@@ -50,12 +57,14 @@ class InterfaceDef(object):
         def release(self): self.agent.interruption = "cancel"
 
         def on_cancel(self, task_id, contact_id):
+            # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel <%s>"%contact_id)
             #If the task is in the buffer, remove it
             if task_id in [task.task_id for task in self.agent.task_buffer]:
                 self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
                 return
 
             if self.agent['task_id'] == task_id:
+                # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel2 <%s>"%contact_id)
                 if contact_id == "self": #If cancel comes from self
                     TDef.release_task(self.agent)
                     pass
@@ -81,6 +90,7 @@ class InterfaceDef(object):
                     pass
                 elif contact_id == "TOC":
                     TDef.release_task(self.agent)
+                    # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel3 <%s>"%contact_id)
 
                 self.agent.temp_interface.cancel_execpolicy_goal()
 
@@ -98,6 +108,7 @@ class InterfaceDef(object):
         def online(self): pass
 
         def on_cancel(self, task_id, contact_id):
+            # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel <%s>"%contact_id)
             # If the task is in the buffer, exclude it
             if task_id in [task.task_id for task in self.agent.task_buffer]:
                 self.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
@@ -105,12 +116,14 @@ class InterfaceDef(object):
 
             #If this is an active task, cancelation is either triggered by self, or by courier
             if self.agent['task_id'] == task_id:
+                # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel2 <%s>"%contact_id)
                 if contact_id == "self": #Cancelled by self
                     TDef.release_task(self.agent)
                 if contact_id.startswith("thorvald"): #Cancelled by courier #TODO: hardcoded is bad
                     TDef.restart_task(self.agent)
                 if contact_id == "TOC":
                     TDef.release_task(self.agent)
+                    # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel3 <%s>"%contact_id)
 
 class TaskDef(object):
 

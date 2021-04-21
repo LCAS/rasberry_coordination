@@ -301,6 +301,8 @@ class InterfaceDef(object):
                 return 'CALLED'
 
         def CancelTask(self, req):
+            logmsg(category="ACTION", msg="CancelTask")
+
             logmsg(category="TASK", msg="Cancel task: %s" % req)
 
             task_id = req.task_id
@@ -315,6 +317,7 @@ class InterfaceDef(object):
                 print(agent.task_module)
                 print(agent['task_id'])
 
+                logmsg(category="ACTION", id=agent.agent_id, msg="CancelTask")
                 agent.interruption = ("toc_cancel", agent.task_module, agent['task_id'])
 
             return True

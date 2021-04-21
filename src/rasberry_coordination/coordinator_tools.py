@@ -37,7 +37,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg
 
         """ Define id and/or category to highlight """
         color_id = ["thorvald_001", "thorvald_002"]
-        color_category = ["ROUTE", "ACTION", "STAGE", "TASK"]  # TODO move these out of this definition and into some config file
+        color_category = ["ROUTE1", "ACTION", "STAGE1", "TASK1"]  # TODO move these out of this definition and into some config file
         # (load from parameter server in launch file?)
 
         """ Format category portion of message """
