@@ -1,0 +1,15 @@
+# Name of the agent to add to the system.
+string agent_id
+# The task to begin once there is no active task
+string idle_task_default
+# List of task roles the agent is able to perform.
+rasberry_coordination/TaskRole[] tasks
+# Physical properties to load into the agent's dictionary
+rasberry_coordination/KeyValuePair[] properties
+# The initial starting location for the robot (optional)
+string initial_location
+---
+# State of result (0=fail,1=success)
+bool success
+# Success or failure details
+string msg

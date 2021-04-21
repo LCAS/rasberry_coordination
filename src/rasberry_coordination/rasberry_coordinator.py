@@ -38,10 +38,7 @@ from rasberry_coordination.route_planners.route_planners import RouteFinder
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
 #Agent Management
-# from rasberry_coordination.agent_managers.robots import RobotManager
-# from rasberry_coordination.agent_managers.humans import CrewManager#, StorageManager #(Since store managed by human)
-# from rasberry_coordination.agent_managers.stores import StorageManager
-from rasberry_coordination.agent_managers.agents import AgentManager
+from rasberry_coordination.agent_management.agent_manager import AgentManager
 
 class RasberryCoordinator(object):
     """RasberryCoordinator class definition
@@ -75,9 +72,9 @@ class RasberryCoordinator(object):
         """
 
         """ Initialise Agents: """
-        callbacks = {'update_topo_map': None, 'task_cancelled': self.task_cancelled} #This should not exist
+        callbacks = {'update_topo_map': None, 'task_cancelled': self.task_cancelled} #TODO: redesign for this to be gone
 
-        #Define Managers
+        #Define Agent Manager
         self.agent_manager = AgentManager(callbacks)
         self.agent_manager.add_agents(agent_list)
         self.AllAgentsList = self.get_all_agents()
@@ -99,8 +96,8 @@ class RasberryCoordinator(object):
         self.marker_remove_pub = rospy.Publisher('/rasberry_coordination/marker_remove', MarkerDetails, queue_size=5)
 
         """ TOC Communications """
-        self.active_tasks_pub = rospy.Publisher(self.ns + "active_tasks_details",
-                                                rasberry_coordination.msg.TasksDetails, latch=True, queue_size=5)
+        self.TOC_Interface = InterfaceDef.TOC_Interface(self)
+        # self.active_tasks_pub = rospy.Publisher(self.ns + "active_tasks_details", rasberry_coordination.msg.TasksDetails, latch=True, queue_size=5)
 
 
         logmsg(msg='coordinator initialised')
@@ -1005,6 +1002,7 @@ class RasberryCoordinator(object):
         publish_routes = self.execute_policy_routes
         get_agents     = self.get_agents
         interrupt_task = self.interrupt_task
+        TOC            = self.TOC_Interface
         def lognull(): logmsg(category="null")
 
         A = self.get_all_agents()
@@ -1023,10 +1021,12 @@ class RasberryCoordinator(object):
             interrupt_task()    if any([a.interruption for a in A]) else None;     """ Interrupt Task Execution """
 
             lognull() if any([not a.task_stage_list for a in A]) else None
+            [TOC.Ended(a) for a in A if not a.task_stage_list];                    """ Update TOC with Ended Tasks """  # TODO: Add better contitional
             [a.start_next_task() for a in A if not a.task_stage_list];             """ Start Buffered Task """
             l(0);
 
             lognull() if any([a().new_stage for a in A]) else None
+            TOC.Update() if any([a().new_stage for a in A]) else None;             """ Update TOC """ #TODO: Add better contitional
             [a.start_stage()    for a in A if a().new_stage];                      """ Start Stage """
             lognull() if any([a().action_required for a in A]) else None
             [offer_service(a)   for a in A if a().action_required];                """ Offer Service """
@@ -1034,7 +1034,6 @@ class RasberryCoordinator(object):
 
             lognull() if any([a().route_required for a in A]) else None
             find_routes()       if any([a().route_required for a in A]) else None; """ Find Routes """
-            # logmsg(category="action", msg=str([(a.agent_id,a().route_required) for a in A]), throttle=10)
             [publish_routes(a)  for a in A if a().route_required];                 """ Publish Routes """
             l(3)
 
@@ -1127,8 +1126,8 @@ class RasberryCoordinator(object):
 
     """ Action Category """
     def find_agent(self, agent):
-        action_style =      agent().action['action_style']
-        agent_type = agent().action['agent_type']
+        action_style = agent().action['action_style']
+        agent_type =   agent().action['agent_type']
 
         A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (agent_type in a.roles)}
 
@@ -1447,3 +1446,12 @@ class RasberryCoordinator(object):
             switch[idx]()
         else:
             self.log_data(switch[idx])
+
+    """ New Dynamic Agent Management """
+    # def add_agent_ros_srv(self, agent_dict):
+    #     self.agent_manager.add_agent(agent_dict)
+    #     return {'success': 1, 'msg': 'agent added'}
+    #
+    # def register_agent_ros_srv(self, requst): pass
+    # def unregister_agent_ros_srv(self, requst): pass
+    # def remove_agent_ros_srv(self, requst): pass

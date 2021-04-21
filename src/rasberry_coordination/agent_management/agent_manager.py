@@ -25,6 +25,7 @@ class AgentManager(object):
             self.add_agent(agent)
     def add_agent(self, agent_dict):
         self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
+        self.agent_details[agent_dict['agent_id']].int = len(self.agent_details)
 
     """ Conveniences """
     def __getitem__(self, key):
@@ -52,6 +53,7 @@ class AgentDetails(object):
     """ Initialisations """
     def __init__(self, agent_dict, callbacks):
         self.agent_id = agent_dict['agent_id']
+        self.int = -1
         self.cb = callbacks
 
         #Task Defaults
@@ -76,7 +78,7 @@ class AgentDetails(object):
         # Define Default Tasks
         setup = agent_dict['setup']
         if 'idle_task_default' in setup and hasattr(TaskDef, setup['idle_task_default']):
-            self.default_idle_task = setup['idle_task_default']
+            self.default_idle_task = setup['idle_task_default'] #TODO: remove & define idle task as $module_$role_idle
             # self.default_idle_task_definition = getattr(TaskDef, setup['idle_task_default'])
         # if 'new_task_default' in setup and hasattr(TaskDef, setup['new_task_default']):
         #     self.default_new_task_definition = getattr(TaskDef, setup['new_task_default'])
@@ -125,7 +127,6 @@ class AgentDetails(object):
 
         task = self.task_buffer.pop(idx)
         TaskDef.load_task(self, task)
-
 
     """ Localisation """
     def current_node_cb(self, msg):
@@ -180,4 +181,4 @@ class AgentDetails(object):
     def __repr__(self):
         return "%s(%s)" % (self.get_class(), self.agent_id)
     def get_class(self):
-        return str(self.__class__).replace("<class 'rasberry_coordination.agent_managers.agents.", "").replace("'>", "")
+        return str(self.__class__).replace("<class 'rasberry_coordination.agent_management.agent_manager.", "").replace("'>", "")

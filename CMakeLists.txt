@@ -69,6 +69,7 @@ add_message_files(
   TaskUpdates.msg
   TaskDetails.msg
   TasksDetails.msg
+  TaskRole.msg
   MarkerDetails.msg
   KeyValuePair.msg
 )
@@ -82,6 +83,7 @@ add_message_files(
 
 add_service_files(
   FILES
+  AddAgent.srv
   AgentID.srv
   AllTasksInfo.srv
   ConnectAgent.srv

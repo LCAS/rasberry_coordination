@@ -130,8 +130,13 @@ Notes:
 
 from copy import deepcopy
 from std_msgs.msg import String as Str
-from rospy import Time, Duration, Subscriber, Publisher, Time
+import std_msgs.msg
+import std_srvs.srv
+from rospy import Time, Duration, Subscriber, Publisher, Time, ServiceProxy
 from rasberry_coordination.coordinator_tools import logmsg
+import rasberry_coordination.msg
+import rasberry_coordination.srv
+from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails
 
 class InterfaceDef(object):
     class AgentInterface(object):
@@ -143,7 +148,7 @@ class InterfaceDef(object):
         def callback(self, msg, agent_id):  # Look into sub/feature
             print("callback reached for %s with %s" % (agent_id, msg))
             msg = eval(msg.data)
-            if "states" in msg: return # car callback sends two msgs, this filters second
+            if "states" in msg: return # car callback sends two msgs, this filters second #TODO: remove this
             if msg['user'] == agent_id:
                 if msg['state'] in self.responses:
                     self.responses[msg['state']]()
@@ -158,6 +163,119 @@ class InterfaceDef(object):
 
     class CAR_Device(AgentInterface):
         pass
+
+    class TOC_Interface(object):
+        def __init__(self, coordinator):
+            self.coordinator = coordinator
+            ns = "/rasberry_coordination"
+
+            """ TOC Publishers """
+
+            Tasks = rasberry_coordination.msg.TasksDetails
+            self.active_tasks_pub = Publisher('%s/active_tasks_details'%ns, Tasks, latch=True, queue_size=5)
+            self.previous_task_list = None
+
+            Bool = std_msgs.msg.Bool
+            self.task_pause_pub = Publisher('%s/pause_state'%ns, Bool, queue_size=5, latch=True)
+
+            """ TOC Service Responses """
+            # SetBool = std_srvs.srv.SetBool
+            # self.sub = Service('%s/pause_coordinator', Str, self.SetSystemPause)
+            #
+            # UnregisterAgent = rasberry_coordination.srv.UnregisterAgent
+            # self.sub = Service('%s/pause_agent', UnregisterAgent, self.SetAgentsPause)
+            #
+            # UnregisterAgent = rasberry_coordination.srv.UnregisterAgent
+            # self.sub = Service('%s/resume_agent', UnregisterAgent, self.SetAgentsPause)
+
+        def Update(self):
+            task_list = TasksDetailsList()
+            for agent in self.coordinator.get_agents():
+
+                # If a task exists
+                if agent['task_id']:
+
+                    # If task is already added, move on
+                    if agent['task_id'] in [T.task_id for T in task_list.tasks]: continue
+
+                    # Get task details
+                    task = SingleTaskDetails()
+                    task.task_id = agent['task_id']
+                    task.state = agent().get_class()
+
+                    # Assign initialiser and responder agent_ids to the task
+                    for aid, a in agent.task_contacts.items():
+                        task.picker_id = a.agent_id  # TODO: this needs to be refined toc shouldnt be task-specific
+                    task.robot_id = agent.agent_id
+
+                    # Add task to list
+                    task_list.tasks.append(task)
+
+            # If worth publishing
+            # if task_list == TasksDetailsList(): return
+            if task_list != self.previous_task_list:
+                self.previous_task_list = task_list
+
+                # Convert task state to a toc-recognised state
+                for T in task_list.tasks:
+                    T.state = self.toc_legacy_responses(T.state)  # TODO: TOC is visualisation tool, no need to restrict
+
+                # Publish task list
+                self.active_tasks_pub.publish(task_list)
+
+                print("-------------------")
+                print("BELOW IS THE UPDATE")
+                print(task_list)
+                print("-------------------")
+            pass
+
+        def Ended(self, agent):
+            task_list = TasksDetailsList()
+            if not agent['task_id']: return
+
+            # Get the task details
+            task = SingleTaskDetails()
+            task.task_id = agent['task_id']
+            task.state = "CANCELLED"
+
+            # Add task to list and publish
+            task_list.tasks.append(task)
+            self.active_tasks_pub.publish(task_list)
+
+            print("-------------------")
+            print("BELOW IS THE ENDED")
+            print(task_list)
+            print("-------------------")
+            pass
+
+        def toc_legacy_responses(self, state): #TODO: this should be removed
+            return "CALLED" #state
+
+            """ as not all stage identifiers are TOC-compatible, remap these here """
+            return {'CREATED': 'CALLED',
+                    'ASSIGNED': 'ACCEPT',
+                    'go_to_picker': 'ACCEPT',
+
+                    'ARRIVED': 'ARRIVED',
+
+                    'LOADED': 'LOADED',
+                    'wait_loading': 'LOADED',
+
+                    'go_to_storage': 'STORAGE',
+                    'wait_unloading': 'STORAGE',
+
+                    'task_completed': 'DELIVERED',
+
+                    'task_cancelled': 'CANCELLED',
+
+                    'paused': 'PAUSED',
+                    'go_to_base': 'None',
+                    'None': 'None'}[str(state)]
+
+        def SetSystemPause(self, msg): pass
+        def SetAgentsPause(self, msg): pass
+
+        def CancelTask(self, msg): pass
 
 class TaskDef(object):
     """ Definitions for Task Initialisation Criteria """
@@ -355,7 +473,8 @@ class StageDef(object):
         """
         def __init__(self, agent, task_id=None):
             super(StageDef.StartTask, self).__init__(agent)
-            self.task_id = task_id if task_id else "%s_%s" % (self.agent.agent_id, self.agent.total_tasks)
+            # self.task_id = task_id if task_id else "%s_%s" % (self.agent.agent_id, self.agent.total_tasks)
+            self.task_id = task_id if task_id else (self.agent.int*10)+self.agent.total_tasks #TODO: TOC needs updating
             self.agent.total_tasks += 1
         def _start(self):
             super(StageDef.StartTask, self)._start()

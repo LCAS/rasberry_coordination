@@ -78,6 +78,7 @@ class InterfaceDef(object):
                     # either way we just need to restart this task portion?
                     TDef.restart_task(self.agent)
                     pass
+
     class transportation_storage(IDef.AgentInterface):
         def __init__(self, agent, sub='/uar/get_states', pub='/uar/set_states'):
             responses={'UNLOADED': self.unloaded, 'OFFLINE': self.offline, 'ONLINE': self.online}
