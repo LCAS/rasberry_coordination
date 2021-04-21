@@ -138,6 +138,7 @@ import rasberry_coordination.msg
 import rasberry_coordination.srv
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails
 
+
 class InterfaceDef(object):
     class AgentInterface(object):
         def __init__(self, agent, responses, sub, pub):
@@ -146,7 +147,7 @@ class InterfaceDef(object):
             self.pub = Publisher(pub, Str, queue_size=5)
             self.sub = Subscriber(sub, Str, self.callback, agent.agent_id)
         def callback(self, msg, agent_id):  # Look into sub/feature
-            print("callback reached for %s with %s" % (agent_id, msg))
+            # print("callback recieved for %s with %s" % (agent_id, msg))
             msg = eval(msg.data)
             if "states" in msg: return # car callback sends two msgs, this filters second #TODO: remove this
             if msg['user'] == agent_id:
@@ -249,28 +250,34 @@ class InterfaceDef(object):
             pass
 
         def toc_legacy_responses(self, state): #TODO: this should be removed
-            return "CALLED" #state
+            print("$STATE = %s"%state)
+
+            st = state.split('.')[-1] #TODO: querying [0].[1] we could set a direct remapping reference
 
             """ as not all stage identifiers are TOC-compatible, remap these here """
-            return {'CREATED': 'CALLED',
-                    'ASSIGNED': 'ACCEPT',
+            lstt = {'CREATED': 'CALLED',
+                    'ASSIGNED': 'ACCEPT', #custom_tasks.transportation.AssignCourier
                     'go_to_picker': 'ACCEPT',
 
                     'ARRIVED': 'ARRIVED',
+                    'LoadCourier': 'LOADED',
 
-                    'LOADED': 'LOADED',
-                    'wait_loading': 'LOADED',
+                    'AcceptCourier': 'ACCEPT',
+                    'AwaitCourier':  'ACCEPT',
+                    'UnloadCourier': 'STORAGE',
 
-                    'go_to_storage': 'STORAGE',
-                    'wait_unloading': 'STORAGE',
+                    'Idle': 'DELIVERED',
 
-                    'task_completed': 'DELIVERED',
+                    #'task_cancelled': 'CANCELLED',
 
-                    'task_cancelled': 'CANCELLED',
-
-                    'paused': 'PAUSED',
-                    'go_to_base': 'None',
-                    'None': 'None'}[str(state)]
+                    #'paused': 'PAUSED',
+                    #'go_to_base': 'None',
+                    #'None': 'None'
+                    }
+            if st in lstt:
+                return lstt[st]
+            else:
+                return 'CALLED'
 
         def SetSystemPause(self, msg): pass
         def SetAgentsPause(self, msg): pass

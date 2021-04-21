@@ -1076,11 +1076,15 @@ class RasberryCoordinator(object):
             logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
             agent().action_required = False
     def interrupt_task(self):
-        print("interrupt detected")
+        logmsg(category="task", msg="interrupt detected %s"%{a.agent_id:a.interruption for a in self.AllAgentsList.values() if a.interruption})
         interrupts = {'pause': self.pause_task,
                       'unpause': self.unpause_task,
                       'cancel': self.cancel_task}
-        [interrupts[a.interruption](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption in interrupts]
+
+        # for a in self.AllAgentsList.values():
+        #     if a.interruption and a.interruption[0] in interrupts:
+        #         interrupts[a.interruption[0]]
+        [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption[0] in interrupts]
 
     def pause_task(self, agent):
         print("coordinator.pause_task")
@@ -1112,7 +1116,7 @@ class RasberryCoordinator(object):
     def cancel_task(self, agent):
         logmsg(category="task", id=agent.agent_id, msg="Task cancellation request made")
         logmsg(category="task", msg="Informing task_contacts:")
-        [logmsg(category="task", msg="    - %s"%contact) for contact in self.agent.task_contacts]
+        [logmsg(category="task", msg="    - %s"%contact) for contact in agent.task_contacts]
 
         module = agent.interruption[1]
         agent.interruption = None

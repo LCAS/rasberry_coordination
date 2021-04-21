@@ -268,12 +268,15 @@ class FragmentPlanner(BasePlanner):
         logmsg(category="route", id="ROUTING", msg="Finding routes for Active agents")
         actives =   [a for a in self.agent_details.values() if a.goal()]
         inactives = [a for a in self.agent_details.values() if not a.goal()]
-        logmsg(category="route", msg="actives: "+str([a.agent_id for a in actives]))
-        logmsg(category="route", msg="inactives: "+str([a.agent_id for a in inactives]))
+        logmsg(category="route", msg="actives ---"+str([a.agent_id for a in actives]))
+        logmsg(category="route", msg="inactives - "+str([a.agent_id for a in inactives]))
 
         need_route = [a for a in self.agent_details.values() if a().route_required]
-        logmsg(category="route", msg="requires: "+str([a.agent_id for a in need_route]))
-        logmsg(category="route", msg="stagae: "+str([a.task_stage_list for a in need_route]))
+        logmsg(category="route", msg="requires route:")
+        for a in need_route:
+            logmsg(category="route", msg="    - {%s: %s}" % (a.agent_id, a.task_stage_list))
+            # logmsg(category="route", msg="requires -- {}"+str([a.agent_id for a in need_route]))
+            # logmsg(category="route", msg="stage ----- "+str([a.task_stage_list for a in need_route]))
 
         """find unblocked routes for all agents which need one"""
         for agent in actives:

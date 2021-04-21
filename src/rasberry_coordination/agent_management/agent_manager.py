@@ -25,7 +25,7 @@ class AgentManager(object):
             self.add_agent(agent)
     def add_agent(self, agent_dict):
         self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
-        self.agent_details[agent_dict['agent_id']].int = len(self.agent_details)
+        self.agent_details[agent_dict['agent_id']].int = len(self.agent_details)*2
 
     """ Conveniences """
     def __getitem__(self, key):
