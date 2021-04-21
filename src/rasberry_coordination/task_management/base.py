@@ -465,8 +465,8 @@ class TaskDef(object):
     @classmethod
     def restart_task(cls, agent):
         logmsg(category="TASK", id=agent.agent_id, msg="Restarting task %s" % (agent.task_name))
-        task_name = TaskDef.ending_task(agent)
-        agent.add_task(task_name=task_name, index=0, agent=agent)#?
+        task_name = TaskDef.release_task(agent)
+        agent.add_task(task_name=task_name, index=0)
 
 class StageDef(object):
     class StageBase(object):

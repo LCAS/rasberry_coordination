@@ -79,6 +79,8 @@ class InterfaceDef(object):
                     # either way we just need to restart this task portion?
                     TDef.restart_task(self.agent)
                     pass
+                elif contact_id == "TOC":
+                    TDef.release_task(self.agent)
 
                 self.agent.temp_interface.cancel_execpolicy_goal()
 
@@ -94,6 +96,21 @@ class InterfaceDef(object):
         def unloaded(self): self.agent['has_tray'] = True
         def offline(self): pass
         def online(self): pass
+
+        def on_cancel(self, task_id, contact_id):
+            # If the task is in the buffer, exclude it
+            if task_id in [task.task_id for task in self.agent.task_buffer]:
+                self.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
+                return
+
+            #If this is an active task, cancelation is either triggered by self, or by courier
+            if self.agent['task_id'] == task_id:
+                if contact_id == "self": #Cancelled by self
+                    TDef.release_task(self.agent)
+                if contact_id.startswith("thorvald"): #Cancelled by courier #TODO: hardcoded is bad
+                    TDef.restart_task(self.agent)
+                if contact_id == "TOC":
+                    TDef.release_task(self.agent)
 
 class TaskDef(object):
 

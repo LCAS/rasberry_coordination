@@ -1137,7 +1137,7 @@ class RasberryCoordinator(object):
         agent.interruption = None
 
         agent.interfaces[module].on_cancel(task_id=task_id, contact_id="TOC")
-        #TODO: add conditions to ensure task still exists        
+        #TODO: add conditions to ensure task still exists
 
     """ Action Category """
     def find_agent(self, agent):
