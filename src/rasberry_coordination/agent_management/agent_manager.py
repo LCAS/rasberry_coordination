@@ -32,14 +32,6 @@ class AgentManager(object):
         return self.agent_details[key] if key in self.agent_details else None
 
 
-
-# class PickerAgent(AgentDetails):                  self.tags = {'type':'picker'}
-# class StorageDetails(AgentDetails):               self.tags = {'type':'storage'}
-# class Courier_RoboticAgent(AgentDetails):         self.tags = {'type':'robot'}
-# class UV_RoboticAgent(AgentDetails):              pass
-# class DataCollection_RoboticAgent(AgentDetails):  pass
-
-
 """ Agent Management """
 class AgentDetails(object):
     """ Fields:
@@ -58,6 +50,7 @@ class AgentDetails(object):
 
         #Task Defaults
         self.task_name = None
+        self.task_module = None
         self.task_details = {}
         self.task_contacts = {}
         self.task_stage_list = []
@@ -96,13 +89,7 @@ class AgentDetails(object):
 
 
     """ Task Starters """
-    # def start_idle_task(self, task=None, details={}):
-    #     if not task:
-    #         self.default_idle_task_definition(self, details)
-    #     else:
-    #         getattr(TaskDef, task)(self, details)
-    def add_idle_task(self):
-        self.add_task(self.default_idle_task)
+    def add_idle_task(self): self.add_task(self.default_idle_task)
 
     def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None):
         """ Called by task stages, used to buffer new tasks for the agent """
@@ -116,7 +103,9 @@ class AgentDetails(object):
         task_def = getattr(TaskDef, task_name)
         task = task_def(self, task_id=task_id, details=details, contacts=contacts)
         if not index: self.task_buffer += [task]
-        else: self.task_buffer.insert(0, [task])
+        else: self.task_buffer.insert(index, [task])
+
+        print(self.task_buffer)
 
         logmsg(category="TASK", id=self.agent_id, msg="Buffering %s, task stage list:" % task['name'])
         [logmsg(category="TASK", msg='    - %s'%t) for t in task['stage_list']]

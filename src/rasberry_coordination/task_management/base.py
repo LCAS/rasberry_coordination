@@ -130,13 +130,35 @@ Notes:
 
 from copy import deepcopy
 from std_msgs.msg import String as Str
+import strands_executive_msgs.msg
 import std_msgs.msg
 import std_srvs.srv
-from rospy import Time, Duration, Subscriber, Publisher, Time, ServiceProxy
+from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
 from rasberry_coordination.coordinator_tools import logmsg
 import rasberry_coordination.msg
 import rasberry_coordination.srv
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails
+
+"""
+python
+from rospy import Publisher, init_node
+init_node("temp")
+from rasberry_coordination.msg import \
+    TasksDetails as TasksDetailsList, \
+    TaskDetails as SingleTaskDetails
+ns = "/rasberry_coordination"
+topic = '%s/active_tasks_details' % ns
+active_tasks_pub = Publisher(topic, TasksDetailsList,
+                             latch=True, queue_size=5)
+task_list = TasksDetailsList()
+task = SingleTaskDetails()
+task.task_id = 6
+task.state = "CALLED"
+task.picker_id = 'picker01'
+task.robot_id = 'thorvald_002'
+task_list.tasks.append(task)
+active_tasks_pub.publish(task_list)
+# """
 
 
 class InterfaceDef(object):
@@ -180,14 +202,12 @@ class InterfaceDef(object):
             self.task_pause_pub = Publisher('%s/pause_state'%ns, Bool, queue_size=5, latch=True)
 
             """ TOC Service Responses """
-            # SetBool = std_srvs.srv.SetBool
-            # self.sub = Service('%s/pause_coordinator', Str, self.SetSystemPause)
-            #
-            # UnregisterAgent = rasberry_coordination.srv.UnregisterAgent
-            # self.sub = Service('%s/pause_agent', UnregisterAgent, self.SetAgentsPause)
-            #
-            # UnregisterAgent = rasberry_coordination.srv.UnregisterAgent
-            # self.sub = Service('%s/resume_agent', UnregisterAgent, self.SetAgentsPause)
+            #SetSystemPause
+            #SetAgentPause
+            #CancelTask
+
+            CancelTask = strands_executive_msgs.srv.CancelTask
+            self.cancel_task_srv = Service('%s/cancel_task'%ns, CancelTask, self.CancelTask)
 
         def Update(self):
             task_list = TasksDetailsList()
@@ -230,13 +250,14 @@ class InterfaceDef(object):
                 print("-------------------")
             pass
 
-        def Ended(self, agent):
+        def End(self, agent): self.Ended(agent['task_id'])
+        def Ended(self, task_id=None):
             task_list = TasksDetailsList()
-            if not agent['task_id']: return
+            if not task_id: return
 
             # Get the task details
             task = SingleTaskDetails()
-            task.task_id = agent['task_id']
+            task.task_id = task_id
             task.state = "CANCELLED"
 
             # Add task to list and publish
@@ -279,10 +300,24 @@ class InterfaceDef(object):
             else:
                 return 'CALLED'
 
-        def SetSystemPause(self, msg): pass
-        def SetAgentsPause(self, msg): pass
+        def CancelTask(self, req):
+            logmsg(category="TASK", msg="Cancel task: %s" % req)
 
-        def CancelTask(self, msg): pass
+            task_id = req.task_id
+
+            self.Ended(task_id=task_id)
+
+            task_id_agents = [agent for agent in self.coordinator.get_agents() if agent['task_id'] and agent['task_id'] == task_id]
+            for agent in task_id_agents:
+                if agent.task_module and agent.task_module == "base":
+                    logmsg(level="error", category="TASK", msg="Requires investigation")
+                    break
+                print(agent.task_module)
+                print(agent['task_id'])
+
+                agent.interruption = ("toc_cancel", agent.task_module, agent['task_id'])
+
+            return True
 
 class TaskDef(object):
     """ Definitions for Task Initialisation Criteria """
@@ -295,13 +330,14 @@ class TaskDef(object):
         return c
     @classmethod
     def load_task(cls, agent, task):
+        agent['task_id'] = task['id']
         agent.task_name = task['name']
         agent.task_details = deepcopy(task['details'])
-        agent['task_id'] = task['id']
         agent.task_contacts = task['contacts'].copy()
+        agent.task_module = task['task_module']
         agent.task_stage_list = task['stage_list']
 
-        logmsg(category="TASK", id=agent.agent_id, msg="Active task: %s" % task['name'])
+        logmsg(category="TASK", id=agent.agent_id, msg="Active task: %s(%s)" % (task['task_module'], task['name']))
         logmsg(category="TASK", msg="Task details:")
         for stage in task['stage_list']: logmsg(category="TASK", msg="    - %s" % stage)
 
@@ -312,6 +348,7 @@ class TaskDef(object):
         task_name = name
         task_details = cls.load_details(details)
         task_contacts = contacts.copy()
+        task_module = 'base'
         task_stage_list = []
 
         #Create dictionary for access to each stage defined in StageDef
@@ -336,12 +373,14 @@ class TaskDef(object):
         task_name = "init_courier"
         task_details = cls.load_details(details)
         task_contacts = contacts.copy()
+        task_module = 'base'
         task_stage_list = [StageDef.WaitForLocalisation(agent)]
 
         return({'id': task_id,
                 'name': task_name,
                 'details': task_details,
                 'contacts': task_contacts,
+                'task_module': task_module,
                 'stage_list': task_stage_list})
 
     @classmethod
@@ -349,6 +388,7 @@ class TaskDef(object):
         task_name = "idle"
         task_details = cls.load_details(details)
         task_contacts = contacts.copy()
+        task_module = 'base'
         task_stage_list = [
             StageDef.IdleTask(agent)
         ]
@@ -357,6 +397,7 @@ class TaskDef(object):
                 'name': task_name,
                 'details': task_details,
                 'contacts': task_contacts,
+                'task_module': task_module,
                 'stage_list': task_stage_list})
 
     @classmethod
@@ -364,6 +405,7 @@ class TaskDef(object):
         task_name = "wait_at_base"
         task_details = cls.load_details(details)
         task_contacts = contacts.copy()
+        task_module = 'base'
         task_stage_list = [
             StageDef.AssignBaseNode(agent),
             StageDef.NavigateToBaseNode(agent),
@@ -373,6 +415,7 @@ class TaskDef(object):
                 'name': task_name,
                 'details': task_details,
                 'contacts': task_contacts,
+                'task_module': task_module,
                 'stage_list': task_stage_list})
 
 
@@ -383,6 +426,7 @@ class TaskDef(object):
         task_name = "edge_task"
         task_details = cls.load_details(details)
         task_contacts = contacts.copy()
+        task_module = 'base'
         task_stage_list = [
             StageDef.Navigation(agent), #navigate to edge start
             StageDef.Navigation(agent)  #navigate to edge end
@@ -392,6 +436,7 @@ class TaskDef(object):
                 'name': task_name,
                 'details': task_details,
                 'contacts': task_contacts,
+                'task_module': task_module,
                 'stage_list': task_stage_list})
 
 
@@ -414,6 +459,7 @@ class TaskDef(object):
         agent.task_name = None
         agent.task_details = {}
         agent.task_contacts = {}
+        task_module = None
         agent.task_stage_list = []
         return task_name
     @classmethod
@@ -497,6 +543,7 @@ class StageDef(object):
         def __init__(self, agent):
             super(StageDef.EndTask, self).__init__(agent)
             self.agent.task_name = None
+            self.agent.task_module = None
             self.agent.task_details = {}
             self.agent.task_contacts = {}
             self.agent.task_stage_list = []

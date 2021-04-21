@@ -1021,7 +1021,7 @@ class RasberryCoordinator(object):
             interrupt_task()    if any([a.interruption for a in A]) else None;     """ Interrupt Task Execution """
 
             lognull() if any([not a.task_stage_list for a in A]) else None
-            [TOC.Ended(a) for a in A if not a.task_stage_list];                    """ Update TOC with Ended Tasks """  # TODO: Add better contitional
+            [TOC.End(a) for a in A if not a.task_stage_list];                      """ Update TOC with Ended Tasks """  # TODO: Add better contitional
             [a.start_next_task() for a in A if not a.task_stage_list];             """ Start Buffered Task """
             l(0);
 
@@ -1079,7 +1079,8 @@ class RasberryCoordinator(object):
         logmsg(category="task", msg="interrupt detected %s"%{a.agent_id:a.interruption for a in self.AllAgentsList.values() if a.interruption})
         interrupts = {'pause': self.pause_task,
                       'unpause': self.unpause_task,
-                      'cancel': self.cancel_task}
+                      'cancel': self.cancel_task,
+                      'toc_cancel': self.cancel_task}
 
         # for a in self.AllAgentsList.values():
         #     if a.interruption and a.interruption[0] in interrupts:
@@ -1127,6 +1128,16 @@ class RasberryCoordinator(object):
         agent.interfaces[module].on_cancel(agent['task_id'], "self")
 
         pass
+
+    def toc_cancel_task(self, agent):
+        logmsg(category="task", id=agent.agent_id, msg="TOC Task cancellation request made")
+
+        module = agent.interruption[1]
+        task_id = agent.interruption[2]
+        agent.interruption = None
+
+        agent.interfaces[module].on_cancel(task_id=task_id, contact_id="TOC")
+        #TODO: add conditions to ensure task still exists        
 
     """ Action Category """
     def find_agent(self, agent):

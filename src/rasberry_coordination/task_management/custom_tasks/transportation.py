@@ -33,6 +33,8 @@ class InterfaceDef(object):
                     TDef.release_task(self.agent)
                 if contact_id.startswith("thorvald"): #Cancelled by courier
                     TDef.restart_task(self.agent)
+                if contact_id == "TOC":
+                    TDef.release_task(self.agent)
 
     class transportation_courier(IDef.AgentInterface):
         def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
@@ -64,7 +66,6 @@ class InterfaceDef(object):
                     # 3. #StageDef.Loading()
                     # either way we just need to delete this task?
                     TDef.release_task(self.agent)
-                    self.agent.temp_interface.cancel_execpolicy_goal()
                     pass
                 elif contact_id.startswith("storage"): #If cancel comes from storage
                     # Cancelled by Storage
@@ -78,6 +79,8 @@ class InterfaceDef(object):
                     # either way we just need to restart this task portion?
                     TDef.restart_task(self.agent)
                     pass
+
+                self.agent.temp_interface.cancel_execpolicy_goal()
 
     class transportation_storage(IDef.AgentInterface):
         def __init__(self, agent, sub='/uar/get_states', pub='/uar/set_states'):
@@ -107,32 +110,29 @@ class TaskDef(object):
         else:
             go2base
         """
-        print(agent.properties)
         if agent.properties['load'] < agent.properties['max_load']:
             return TDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
-
     @classmethod
     def idle_storage(cls, agent, task_id=None, details={}, contacts={}):
         if len(agent.request_admittance) > 0:
-            # logmsg(category="TASK", msg="accepting new agent")
             return TaskDef.transportation_storage(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
-            # logmsg(category="TASK", msg="going idle")
             return TaskDef.idle_storage_def(agent=agent, task_id=task_id, details=details, contacts=contacts)
-
     @classmethod
     def idle_storage_def(cls, agent, task_id=None, details={}, contacts={}):
         task_name = "idle_storage"
         task_details = TDef.load_details(details)
         task_contacts = contacts.copy()
+        task_module = 'transportation'
         task_stage_list = [StageDef.IdleStorage(agent)]
-        return ({'id': task_id,
-                 'name': task_name,
-                 'details': task_details,
-                 'contacts': task_contacts,
-                 'stage_list': task_stage_list})
+        return({'id': task_id,
+                'name': task_name,
+                'details': task_details,
+                'contacts': task_contacts,
+                'task_module': task_module,
+                'stage_list': task_stage_list})
 
 
     """ Picker Logistics Transportation """
@@ -141,6 +141,7 @@ class TaskDef(object):
         task_name = "transportation_request_courier"
         task_details = TDef.load_details(details)
         task_contacts = contacts.copy()
+        task_module = 'transportation'
         task_stage_list = [
             SDef.StartTask(agent, task_id),    #picker cancels, no contact to cancel
             StageDef.AssignCourier(agent),    #picker cancels, no contact to cancel
@@ -155,12 +156,14 @@ class TaskDef(object):
                 'name': task_name,
                 'details': task_details,
                 'contacts': task_contacts,
+                'task_module': task_module,
                 'stage_list': task_stage_list})
     @classmethod
     def transportation_retrieve_load(cls, agent, task_id=None, details={}, contacts={}):
         task_name = "transportation_retrieve_load"
         task_details = TDef.load_details(details)
         task_contacts = contacts.copy()
+        task_module = 'transportation'
         task_stage_list = [
             SDef.StartTask(agent, task_id),
             StageDef.NavigateToPicker(agent),
@@ -170,12 +173,14 @@ class TaskDef(object):
                 'name': task_name,
                 'details': task_details,
                 'contacts': task_contacts,
+                'task_module': task_module,
                 'stage_list': task_stage_list})
     @classmethod
     def transportation_deliver_load(cls, agent, task_id=None, details={}, contacts={}):
         task_name = "transportation_deliver_load"
         task_details = TDef.load_details(details)
         task_contacts = contacts.copy()
+        task_module = 'transportation'
         task_stage_list = [
             StageDef.AssignStorage(agent),
             SDef.AssignWaitNode(agent),
@@ -187,12 +192,14 @@ class TaskDef(object):
                 'name': task_name,
                 'details': task_details,
                 'contacts': task_contacts,
+                'task_module': task_module,
                 'stage_list': task_stage_list})
     @classmethod
     def transportation_storage(cls, agent, task_id=None, details={}, contacts={}):
         task_name = "transportation_storage"
         task_details = TDef.load_details(details)
         task_contacts = contacts.copy()
+        task_module = 'transportation'
         task_stage_list = [
             # -> store.admit_plz > 0
             SDef.StartTask(agent, task_id),
@@ -210,6 +217,7 @@ class TaskDef(object):
                 'name': task_name,
                 'details': task_details,
                 'contacts': task_contacts,
+                'task_module': task_module,
                 'stage_list': task_stage_list})
 
 class StageDef(object):
