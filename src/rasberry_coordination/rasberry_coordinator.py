@@ -643,6 +643,11 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
             """ get list of unassigned tasks """
             tasks = self.picker_manager.get_unassigned_tasks_ordered()
+            if tasks:
+                logmsg(category="task", msg='Tasks to Assign:')
+                [logmsg(category="task", msg='    - %s' % task) for task in tasks]
+            else:
+                logmsg(level='warn', category="task", msg='No tasks found but called to assign_tasks')
 
             """ for each task, assign the most effective robot """
             for task_id in tasks:
