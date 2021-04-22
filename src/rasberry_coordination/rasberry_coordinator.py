@@ -505,6 +505,12 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         logmsg(category="drm", id=robot_id, msg="disconnection complete")
 
+    def add_picker_ros_srv(self, req):
+        self.picker_manager.add_agent(req.agent_id)
+        return {'success': 1, 'msg': 'new picker registered for task creation'}
+
+    add_picker_ros_srv.type = rasberry_coordination.srv.AgentID
+
     def pause_coordinator_ros_srv(self, req):
         logmsg(category="drm", msg='request made to switch pause status of coordinator to pause=%s'%str(req.data))
         AgentIDRequest = rasberry_coordination.srv.AgentIDRequest

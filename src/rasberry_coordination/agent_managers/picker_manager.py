@@ -170,7 +170,7 @@ class PickerManager(AgentManager):
         if picker_id not in self.agent_details:
             logmsg(level="error", category="task", id=picker_id, msg='picker object does not exist')
             return
-        
+
         picker = self.agent_details[picker_id]
 
         # Load new task id onto picker
