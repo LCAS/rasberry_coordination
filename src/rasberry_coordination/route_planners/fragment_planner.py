@@ -393,6 +393,7 @@ class FragmentPlanner(object):
                 route = None
                 if start_node and goal_node:
                     route = avail_route_search.search_route(start_node, goal_node)
+
                 route_nodes = []
                 route_edges = []
 
