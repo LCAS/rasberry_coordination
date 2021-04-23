@@ -6,6 +6,7 @@
 # ----------------------------------
 
 from rasberry_coordination.route_planners.fragment_planner import FragmentPlanner
+from rasberry_coordination.coordinator_tools import logmsg
 
 
 class RouteFinder(object):  # TODO: investigate use of static class (return planner obj from __init__ instead of self)
