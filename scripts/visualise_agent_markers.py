@@ -26,9 +26,9 @@ class MarkerPublisher:
             p = [] + self.config_get("picker_ids")
             vp = [] + self.config_get("virtual_picker_ids")
         else:
-            r = [agent['agent_id'] for agent in config['agent_list'] if agent['setup']['manager'] == "RobotManager"]
-            p = [agent['agent_id'] for agent in config['agent_list'] if agent['setup']['manager'] == "PickerManager" and agent['setup']['physical'] == "True"]
-            vp = [agent['agent_id'] for agent in config['agent_list'] if agent['setup']['manager'] == "PickerManager" and agent['setup']['physical'] == "False"]
+            r =  [agent['agent_id'] for agent in config['agent_list'] if agent['agent_id'].startswith("thorvald")]
+            p =  [agent['agent_id'] for agent in config['agent_list'] if agent['agent_id'].startswith("picker")]
+            vp = [agent['agent_id'] for agent in config['agent_list'] if agent['agent_id'].startswith("picker") and "virtual" in agent['setup']]
         self.robot_ids = r
         self.picker_ids = p
         self.virtual_picker_ids = vp

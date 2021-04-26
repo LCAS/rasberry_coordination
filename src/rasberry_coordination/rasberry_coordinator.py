@@ -1465,6 +1465,8 @@ class RasberryCoordinator(object):
             self.log_data(switch[idx])
 
     """ New Dynamic Agent Management """
+
+
     # def add_agent_ros_srv(self, agent_dict):
     #     self.agent_manager.add_agent(agent_dict)
     #     return {'success': 1, 'msg': 'agent added'}
@@ -1472,3 +1474,16 @@ class RasberryCoordinator(object):
     # def register_agent_ros_srv(self, requst): pass
     # def unregister_agent_ros_srv(self, requst): pass
     # def remove_agent_ros_srv(self, requst): pass
+
+
+
+
+
+
+
+
+
+
+
+
+

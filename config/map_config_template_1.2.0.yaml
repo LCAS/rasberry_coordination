@@ -1,5 +1,5 @@
 #If updated, ensure simple_task_executor_node.py/validate_types() is updated accordingly
-version: 1.2.0    # This is the latest version ID
+version: 1.2.0
 use_sim: BOOLEAN  # is this a simulated environment
 
 #TOPOLOGY (Node Descriptors)

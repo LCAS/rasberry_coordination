@@ -6,9 +6,10 @@
 # ----------------------------------
 
 # from abc import ABCMeta, abstractmethod
-from rospy import Subscriber, Publisher, Time
+from rospy import Subscriber, Publisher, Service, Time
 from std_msgs.msg import String as Str
 from rasberry_coordination.msg import KeyValuePair
+from rasberry_coordination.srv import AddAgent
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
@@ -20,12 +21,41 @@ class AgentManager(object):
     def __init__(self, callback_dict):
         self.agent_details = {}
         self.cb = callback_dict
+        Service('/rasberry_coordination/add_agent', AddAgent, self.add_agent_ros_srv)
+
     def add_agents(self, agent_list):
-        for agent in agent_list:
-            self.add_agent(agent)
+        for agent in agent_list: self.add_agent(agent)
     def add_agent(self, agent_dict):
         self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
         self.agent_details[agent_dict['agent_id']].int = len(self.agent_details)*2
+
+    def add_agent_ros_srv(self, agent_dict):
+        if validate_dict(agent_dict):
+            self.add_agent(self.format_dict(agent_dict))
+            return {'success': 1, 'msg': 'agent added'}
+        else:
+            return {'success': 0, 'msg': 'agent unable to be added'}
+
+    """ Agent Validation """
+    def validate_dict(self, agent_dict): return True
+    def format_dict(self, agent_dict): return agent_dict
+
+    """
+    - agent_id: thorvald_001
+    setup: *setup_01
+    
+      - setup: &setup_03
+          manager: StorageManager
+          tasks:
+          - module: transportation
+            role: storage
+          interface_type: car_app
+          idle_task_default: idle_storage
+          new_task_default: transportation_storage
+          properties:
+            presence: 0
+    """
+
 
     """ Conveniences """
     def __getitem__(self, key):
@@ -70,20 +100,16 @@ class AgentDetails(object):
 
         # Define Default Tasks
         setup = agent_dict['setup']
-        if 'idle_task_default' in setup and hasattr(TaskDef, setup['idle_task_default']):
-            self.default_idle_task = setup['idle_task_default'] #TODO: remove & define idle task as $module_$role_idle
-            # self.default_idle_task_definition = getattr(TaskDef, setup['idle_task_default'])
-        # if 'new_task_default' in setup and hasattr(TaskDef, setup['new_task_default']):
-        #     self.default_new_task_definition = getattr(TaskDef, setup['new_task_default'])
+        task = setup['tasks'][0]
+        self.default_idle_task = '%s_%s_idle' % (task['module'], task['role'])
 
         #Location and Callbacks
-        self.has_presence = True if self.properties['presence'] == 1 else False #used for routing
+        self.has_presence = True if setup['has_presence'] == 1 else False #used for routing
         self.subs = {}
         self.current_node = None
         self.previous_node = None
         self.closest_node = None
-        if 'initial_location' in agent_dict:
-            self.current_node = agent_dict['initial_location']
+        if 'initial_location' in agent_dict: self.current_node = agent_dict['initial_location']
         self.subs['current_node'] = Subscriber('/%s/current_node'%(self.agent_id), Str, self.current_node_cb)
         self.subs['closest_node'] = Subscriber('/%s/closest_node'%(self.agent_id), Str, self.closest_node_cb)
 

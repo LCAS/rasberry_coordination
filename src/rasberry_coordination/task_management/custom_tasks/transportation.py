@@ -129,7 +129,10 @@ class TaskDef(object):
 
     """ Initial Task Stages for Transportation Agents """
     @classmethod
-    def idle_courier(cls, agent, task_id=None, details={}, contacts={}):
+    def transportation_picker_idle(cls, agent, task_id=None, details={}, contacts={}):
+        return TDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
+    @classmethod
+    def transportation_courier_idle(cls, agent, task_id=None, details={}, contacts={}):
         """
         if load >= max_load:
             go2storage
@@ -145,11 +148,12 @@ class TaskDef(object):
         else:
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
-    def idle_storage(cls, agent, task_id=None, details={}, contacts={}):
+    def transportation_storage_idle(cls, agent, task_id=None, details={}, contacts={}):
         if len(agent.request_admittance) > 0:
             return TaskDef.transportation_storage(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
             return TaskDef.idle_storage_def(agent=agent, task_id=task_id, details=details, contacts=contacts)
+
     @classmethod
     def idle_storage_def(cls, agent, task_id=None, details={}, contacts={}):
         task_name = "idle_storage"

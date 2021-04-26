@@ -1,5 +1,5 @@
 #If updated, ensure simple_task_executor_node.py/validate_types() is updated accordingly
-version: 1.2.1
+version: 1.2.2    # This is the latest version ID
 use_sim: BOOLEAN  # is this a simulated environment
 
 #TOPOLOGY (Node Descriptors)
@@ -16,39 +16,14 @@ planning_type: STR # method used for coordinating routes
 #INITIALISATION
 agent_setups:
   - setup: &setup_00
-    manager: RobotManager                     #RobotManager, PickerManager, StorageManager
     tasks:
       - module: transportation                  #Task module
         role: courier                           #Agents role in task
       - module: uv
         role: phototherapist
-    interface_type: robot_interface           #Communication framework for agent
-    idle_task_default: idle_courier           #Default task to run (module.TaskDef.idle_task_default)
-    new_task_default: transportation_courier  #Default task to run (module.TaskDef.new_task_default)
-
-  - setup: &setup_01
-    manager: RobotManager
-    tasks:
-    - module: transportation
-      role: courier
-    interface_type: robot_interface
-    new_task_default: transportation_courier
-  - setup: &setup_02
-    manager: PickerManager
-    tasks:
-    - module: transportation
-      role: picker
-    interface_type: car_app
-    new_task_default: transportation_picker
-    physical: True #False to mean virtual picker (default true is excluded)
-
-  - setup: &setup_03
-    manager: StorageManager
-    tasks:
-    - module: transportation
-      role: storage
-    interface_type: car_app
-    new_task_default: transportation_storage
+    has_presence: true
+    proerties:
+        key: value
 
 agent_list:
   - agent_id: thorvald_001

@@ -23,7 +23,7 @@ def validate_field(file, config, key, datatype, mandatory=False):
 
 def validate_types(file, config):
     """
-    Validate the data type for each known field within the map config following the version 1.1.0 template
+    Validate the data type for each known field within the map config following the version 1.2.2 template
     """
 
     # Meta Fields
@@ -32,24 +32,21 @@ def validate_types(file, config):
 
     # Topology Fields
     for node in config['special_nodes']:
-        if 'default' in node:
-            continue
+        if 'default' in node: continue
         validate_field(file, node, mandatory=True,  key='id', datatype=[str])
         validate_field(file, node, mandatory=True,  key='descriptors', datatype=[list, str])
 
     # Routing Fields
     validate_field(file, config, mandatory=True, key='planning_type', datatype=[str])
 
-    # Agent Initialisation
-    for setup in config['agent_setups']:
-        validate_field(file, setup['setup'], mandatory=True,  key='manager', datatype=[str])
-        for task in setup['setup']['tasks']:
+    # Setup Definition
+    for setup in [s['setup'] for s in config['agent_setups']]:
+        validate_field(file, setup, mandatory=False,  key='tasks', datatype=[list])
+        for task in setup['tasks']:
             validate_field(file, task, mandatory=True,  key='module', datatype=[str])
             validate_field(file, task, mandatory=True,  key='role', datatype=[str])
-        validate_field(file, setup['setup'], mandatory=True,  key='interface_type', datatype=[str])
-        validate_field(file, setup['setup'], mandatory=True,  key='idle_task_default', datatype=[str])
-        validate_field(file, setup['setup'], mandatory=True,  key='new_task_default', datatype=[str])
-        validate_field(file, setup['setup'], mandatory=False,  key='properties', datatype=[dict])
+        validate_field(file, setup, mandatory=True,   key='has_presence', datatype=[bool])
+        validate_field(file, setup, mandatory=False,  key='properties', datatype=[dict])
 
     # Agent Initialisation
     for agent in config['agent_list']:
@@ -75,7 +72,7 @@ if __name__ == '__main__':
     config_keys = rasberry_des.config_utils.get_config_keys(config_file)
 
     """ Configuration File Validation """
-    VERSION = "1.2.1"
+    VERSION = "1.2.2"
     template_location = "raspberry_coordination/config/map_config_template_%s.yaml" % VERSION
     if "version" not in config_data:
         raise Exception('\033[92m'+"Config outdated, update following: %s\033[0m" % template_location)
@@ -110,17 +107,17 @@ if __name__ == '__main__':
         if 'default' in agent:
             continue
 
+        # if no active tasks given, inform user
+        if len(agent['setup']['tasks']) < 1:
+            print("Agent %s connected with 0 available tasks." % agent['agent_id'])
+
         # Default physical presence to True
-        if 'physical' not in agent['setup']:
-            agent['setup']['physical'] = True
+        if 'has_presence' not in agent['setup']:
+            agent['setup']['has_presence'] = True
 
         # Default properties to empty dict
         if 'properties' not in agent['setup']:
             agent['setup']['properties'] = dict().copy()
-
-        #
-        if len(agent['setup']['tasks']) < 1:
-            print("Agent %s connected with 0 available tasks." % agent['agent_id'])
 
         # if initial_location omitted default to None
         if "initial_location" not in agent:
