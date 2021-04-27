@@ -33,6 +33,10 @@ class MarkerPublisher:
         self.picker_ids = p
         self.virtual_picker_ids = vp
 
+        # self.robot_ids = []
+        # self.picker_ids = []
+        # self.virtual_picker_ids = []
+
         # Initialise publisher handlers
         self.thorvald_marker_publishers = {}
         self.picker_marker_publishers = {}
@@ -43,12 +47,15 @@ class MarkerPublisher:
         self.startup_markers()
 
         # Listen for additional markers to be added
-        self.marker_add_sub = rospy.Subscriber('/rasberry_coordination/marker_add',
-                                               rasberry_coordination.msg.MarkerDetails,
-                                               self.add_marker_cb)
-        self.marker_remove_sub = rospy.Subscriber('/rasberry_coordination/marker_remove',
+        # self.marker_add_sub = rospy.Subscriber('/rasberry_coordination/marker_add',
+        #                                        rasberry_coordination.msg.MarkerDetails,
+        #                                        self.add_marker_cb)
+        # self.marker_remove_sub = rospy.Subscriber('/rasberry_coordination/marker_remove',
+        #                                           rasberry_coordination.msg.MarkerDetails,
+        #                                           self.remove_marker_cb)
+        self.marker_set_sub = rospy.Subscriber('/rasberry_coordination/set_marker',
                                                   rasberry_coordination.msg.MarkerDetails,
-                                                  self.remove_marker_cb)
+                                                  self.set_marker_cb)
 
     # Return item from config if exists
     def config_get(self, item, config=None):
@@ -72,20 +79,32 @@ class MarkerPublisher:
             print("Adding virtual picker " + virtual_picker_id)
             self.add_virtual_picker(virtual_picker_id)
 
-    # Marker add callback
+    """ Main Callback """
+    def set_marker_cb(self, msg):
+        print("msg recieved")
+        if msg.agent_id.startswith("thorvald"): msg.type = "robot"
+        elif msg.agent_id.startswith("picker"): msg.type = "picker"
+        elif msg.agent_id.startswith("virtual_picker"): msg.type = "virtual_picker"
+
+        print("Setting %s %s(%s)"%(msg.type,msg.agent_id,msg.optional_color))
+        if msg.optional_color == 'remove': self.remove_marker_cb(msg)
+        else: self.add_marker_cb(msg)
+
+    """ Add Agent to RViz """
+
     def add_marker_cb(self, msg):
-        print("Adding " + msg.type + " " + msg.name)
+        print("Adding " + msg.type + " " + msg.agent_id)
         if msg.type == "robot":
-            self.robot_ids.append(msg.name)
-            self.add_robot(msg.name, msg.optional_color)
+            self.robot_ids.append(msg.agent_id)
+            self.add_robot(msg.agent_id, msg.optional_color)
             print(self.thorvald_marker_publishers.keys())
         elif msg.type == "picker":
-            self.picker_ids.append(msg.name)
-            self.add_picker(msg.name)
+            self.picker_ids.append(msg.agent_id)
+            self.add_picker(msg.agent_id)
             print(self.picker_marker_publishers.keys())
         elif msg.type == "virtual_picker":
-            self.virtual_picker_ids.append(msg.name)
-            self.add_virtual_picker(msg.name)
+            self.virtual_picker_ids.append(msg.agent_id)
+            self.add_virtual_picker(msg.agent_id)
             print(self.virtual_picker_marker_publishers.keys())
         return 0
 
@@ -114,22 +133,24 @@ class MarkerPublisher:
         pub = rasberry_coordination.base_frame_publisher.PoseStampedBaseFramePublisher(id, topic)
         self.base_frame_publishers[id] = pub
 
+    """ Remove Agent to RViz """
+
     # Marker remove callback
     def remove_marker_cb(self, msg):
-        print("Removing " + msg.type + " " + msg.name)
+        print("Removing " + msg.type + " " + msg.agent_id)
         if msg.type == "robot":
-            self.thorvald_marker_publishers.pop(msg.name, None)
-            self.robot_ids.remove(msg.name)
+            self.thorvald_marker_publishers.pop(msg.agent_id, None)
+            self.robot_ids.remove(msg.agent_id)
             print(self.thorvald_marker_publishers.keys())
         elif msg.type == "picker":
-            self.picker_marker_publishers.pop(msg.name, None)
-            self.picker_ids.remove(msg.name)
+            self.picker_marker_publishers.pop(msg.agent_id, None)
+            self.picker_ids.remove(msg.agent_id)
             print(self.picker_marker_publishers.keys())
         elif msg.type == "virtual_picker":
-            self.virtual_picker_marker_publishers.pop(msg.name, None)
-            self.virtual_picker_ids.remove(msg.name)
+            self.virtual_picker_marker_publishers.pop(msg.agent_id, None)
+            self.virtual_picker_ids.remove(msg.agent_id)
             print(self.virtual_picker_marker_publishers.keys())
-        self.base_frame_publishers.pop(msg.name, None)
+        self.base_frame_publishers.pop(msg.agent_id, None)
         return 0
 
     # Spawn markers in rviz

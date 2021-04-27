@@ -7,10 +7,9 @@
 
 import rospy
 
-def logmsgbreak():
-    logmsg(category="null")
-    logmsg(category="null")
-    logmsg(category="null")
+def logmsgbreak(breaks=3):
+    for i in range(breaks):
+        logmsg(category="null")
 
 def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg_color=default
     quick_print = False
@@ -26,7 +25,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg
     # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
     # TODO: include padding at end of msg
 
-    reject_tags = ["ROBNAV", "LIST", "ROUTE", "OTHER"]
+    reject_tags = ["ROBNAV1", "LIST1", "ROUTE1", "OTHER1"]
     if category.upper() in reject_tags: return
 
     if use_custom_formatting:
@@ -41,7 +40,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg
         # (load from parameter server in launch file?)
 
         """ Format category portion of message """
-        valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "ROB_PY", "ROUTE", "ACTION", "LOG", "STAGE"]
+        valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "ROB_PY", "ROUTE", "ACTION", "LOG", "STAGE", "SETUP", "RVIZ"]
         total_pad_space = max([len(_category) + 1 for _category in valid_categories])
         if category.upper() in valid_categories:
             category_padding = total_pad_space - len(category)

@@ -8,7 +8,7 @@
 # from abc import ABCMeta, abstractmethod
 from rospy import Subscriber, Publisher, Service, Time
 from std_msgs.msg import String as Str
-from rasberry_coordination.msg import KeyValuePair
+from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.srv import AddAgent
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
@@ -23,44 +23,68 @@ class AgentManager(object):
         self.cb = callback_dict
         Service('/rasberry_coordination/add_agent', AddAgent, self.add_agent_ros_srv)
 
+        self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
+
     def add_agents(self, agent_list):
         for agent in agent_list: self.add_agent(agent)
     def add_agent(self, agent_dict):
         self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
-        self.agent_details[agent_dict['agent_id']].int = len(self.agent_details)*2
+        self.agent_details[agent_dict['agent_id']].int = len(self.agent_details)*2 #TODO: remove this once TOC accepts string tasks
 
-    def add_agent_ros_srv(self, agent_dict):
-        if validate_dict(agent_dict):
+    def add_agent_ros_srv(self, agent_obj):
+
+        agent_dict = self.agent_dict(agent_obj)
+        if self.validate_dict(agent_dict):
             self.add_agent(self.format_dict(agent_dict))
+            self.format_agent_marker(agent_dict['agent_id'], "")
             return {'success': 1, 'msg': 'agent added'}
         else:
             return {'success': 0, 'msg': 'agent unable to be added'}
 
     """ Agent Validation """
-    def validate_dict(self, agent_dict): return True
-    def format_dict(self, agent_dict): return agent_dict
-
-    """
-    - agent_id: thorvald_001
-    setup: *setup_01
-    
-      - setup: &setup_03
-          manager: StorageManager
-          tasks:
-          - module: transportation
-            role: storage
-          interface_type: car_app
-          idle_task_default: idle_storage
-          new_task_default: transportation_storage
-          properties:
-            presence: 0
-    """
+    def validate_dict(self, agent_dict): return True #TODO: setup validation system
+    def format_dict(self, agent_dict):
+        if  agent_dict['initial_location'] == '':
+            agent_dict['initial_location'] = None
+        return agent_dict
+    def agent_dict(self, agent_obj):
+        agent_dict = dict().copy()
+        agent_dict['agent_id'] = agent_obj.agent_id
+        agent_dict['setup'] = dict().copy()
+        agent_dict['setup']['tasks'] = [{'module': task.module, 'role': task.role} for task in agent_obj.tasks]
+        agent_dict['setup']['properties'] = {prop.key:prop.value for prop in agent_obj.properties}
+        agent_dict['setup']['has_presence'] = agent_obj.has_presence
+        agent_dict['initial_location'] = agent_obj.initial_location
+        return agent_dict
 
 
     """ Conveniences """
     def __getitem__(self, key):
         return self.agent_details[key] if key in self.agent_details else None
 
+    """ Visuals """
+
+    def format_agent_marker(self, agent_id, style):
+        """ Add/modify marker to display in rviz """
+        """
+           Add Marker: call self.format_agent_marker(agent_id, "")
+        Modify Marker: call self.format_agent_marker(agent_id, "red")
+        Remove Marker: call self.format_agent_marker(agent_id, "remove")
+        """
+        marker = MarkerDetails()
+        marker.agent_id = agent_id
+
+        #Define marker type
+        if agent_id.startswith("thorvald"): marker.type = "robot"
+        elif agent_id.startswith("picker"): marker.type = "picker"
+        elif agent_id.startswith("storage"): marker.type = "storage"
+
+        #Define marker color ["remove", "red", "green", "blue", "black", "white", ""]
+        marker.optional_color = style
+
+        logmsg(category="rviz", msg="Setting %s %s(%s)"%(marker.type,marker.agent_id,marker.optional_color))
+
+        self.set_marker_pub.publish(marker)
 
 """ Agent Management """
 class AgentDetails(object):
@@ -77,6 +101,7 @@ class AgentDetails(object):
         self.agent_id = agent_dict['agent_id']
         self.int = -1
         self.cb = callbacks
+        setup = agent_dict['setup']
 
         #Task Defaults
         self.task_name = None
@@ -87,21 +112,16 @@ class AgentDetails(object):
         self.task_buffer = []
         self.total_tasks = 0
         self.interruption = None
-        self.properties = agent_dict['setup']['properties']
+        self.properties = setup['properties']
 
         # Define interface for each role given #TODO: what about differentiating between Device and App?
         self.roles = []
         self.interfaces = dict()
-        for task in agent_dict['setup']['tasks']:
+        for task in setup['tasks']:
             self.roles += [task['role']]
             interface_name = '%s_%s' % (task['module'], task['role'])
             definition = getattr(InterfaceDef, interface_name)
             self.interfaces[task['module']] = definition(agent=self)
-
-        # Define Default Tasks
-        setup = agent_dict['setup']
-        task = setup['tasks'][0]
-        self.default_idle_task = '%s_%s_idle' % (task['module'], task['role'])
 
         #Location and Callbacks
         self.has_presence = True if setup['has_presence'] == 1 else False #used for routing
@@ -113,13 +133,21 @@ class AgentDetails(object):
         self.subs['current_node'] = Subscriber('/%s/current_node'%(self.agent_id), Str, self.current_node_cb)
         self.subs['closest_node'] = Subscriber('/%s/closest_node'%(self.agent_id), Str, self.closest_node_cb)
 
+        # Define Default Tasks
+        task = setup['tasks'][0]
+        self.task_identifier = '%s_%s' % (task['module'], task['role'])
+        self.add_init_task()
 
     """ Task Starters """
-    def add_idle_task(self): self.add_task(self.default_idle_task)
+    def add_init_task(self): self.add_task(task_name="%s_init"%self.task_identifier)
+    def add_idle_task(self): self.add_task(task_name="%s_idle"%self.task_identifier)
 
     def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None):
+
         """ Called by task stages, used to buffer new tasks for the agent """
-        if task_name not in dir(TaskDef): return
+        if task_name not in dir(TaskDef):
+            logmsg(level="warn", category="TASK", id=self.agent_id, msg="Task %s not found." % task_name)
+            return
 
         #picker.interface.called(): self.agent.add_task('transportation_request_courier')
         1. #find TaskDef
@@ -131,9 +159,8 @@ class AgentDetails(object):
         if not index: self.task_buffer += [task]
         else: self.task_buffer.insert(index, [task])
 
-        print(self.task_buffer)
-
-        logmsg(category="TASK", id=self.agent_id, msg="Buffering %s, task stage list:" % task['name'])
+        logmsg(category="null")
+        logmsg(category="TASK", id=self.agent_id, msg="Buffering %s to position %i of task_buffer, task stage list:" % (task['name'], index or len(self.task_buffer)))
         [logmsg(category="TASK", msg='    - %s'%t) for t in task['stage_list']]
 
     def start_next_task(self, idx=0):

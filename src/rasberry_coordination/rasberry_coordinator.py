@@ -45,6 +45,12 @@ class RasberryCoordinator(object):
     """
     def __init__(self, agent_list, base_station_nodes_pool, wait_nodes_pool, planning_type, ns, special_nodes):
 
+
+        logmsgbreak(breaks=1)
+        print("------------------------------------------")
+        logmsg(category="setup", msg='Coordinator initialisation begun')
+        logmsgbreak(breaks=1)
+
         """ Meta Fields """
         self.ns = ns.strip("/") + "/"
         self.is_parent = True
@@ -84,7 +90,7 @@ class RasberryCoordinator(object):
         routing_cb = {'publish_task_state': self.publish_task_state,
                       'send_robot_to_base': self.send_robot_to_base}  # These need to be eventually managed better
         self.route_finder = RouteFinder(planning_type=planning_type,
-                                        agents=self.AllAgentsList,
+                                        agents=self.agent_manager,
                                         callbacks=routing_cb)
 
 
@@ -100,7 +106,9 @@ class RasberryCoordinator(object):
         # self.active_tasks_pub = rospy.Publisher(self.ns + "active_tasks_details", rasberry_coordination.msg.TasksDetails, latch=True, queue_size=5)
 
 
-        logmsg(msg='coordinator initialised')
+        logmsg(category="setup", msg='Coordinator initialisation complete')
+        print("------------------------------------------")
+        logmsgbreak(breaks=1)
         return
 
     def advertise_services(self):
@@ -109,6 +117,8 @@ class RasberryCoordinator(object):
         If this is a parent class, call from child class
         """
         # advertise ros services
+        logmsg(category="null")
+        logmsg(category="setup", msg="Advertising services:")
         for attr in dir(self):
             if attr.endswith("_ros_srv"):
                 service = getattr(self, attr)
@@ -117,7 +127,7 @@ class RasberryCoordinator(object):
                     service.type,
                     service
                 )
-                logmsg(msg='service advertised: %s' % (attr[:-8]))
+                logmsg(category="setup", msg="    - %s%s" % (self.ns, attr[:-8]))
 
     def tray_loaded_ros_srv(self, req):
         """tray_loaded service

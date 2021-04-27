@@ -340,6 +340,7 @@ class TaskDef(object):
         agent.task_module = task['task_module']
         agent.task_stage_list = task['stage_list']
 
+        logmsg(category="null")
         logmsg(category="TASK", id=agent.agent_id, msg="Active task: %s(%s)" % (task['task_module'], task['name']))
         logmsg(category="TASK", msg="Task details:")
         for stage in task['stage_list']: logmsg(category="TASK", msg="    - %s" % stage)
@@ -368,23 +369,6 @@ class TaskDef(object):
 
         agent.task_buffer.append([task_name, task_id, task_stage_list, task_details, task_contacts])
         logmsg(category="TASK", id=agent.agent_id, msg="Buffering %s: %s" % (task_name, task_stage_list))
-
-
-    """ Robot Initialisation Check """
-    @classmethod
-    def init_courier(cls, agent, task_id=None, details={}, contacts={}):
-        task_name = "init_courier"
-        task_details = cls.load_details(details)
-        task_contacts = contacts.copy()
-        task_module = 'base'
-        task_stage_list = [StageDef.WaitForLocalisation(agent)]
-
-        return({'id': task_id,
-                'name': task_name,
-                'details': task_details,
-                'contacts': task_contacts,
-                'task_module': task_module,
-                'stage_list': task_stage_list})
 
     @classmethod
     def idle(cls, agent, task_id=None, details={}, contacts={}):

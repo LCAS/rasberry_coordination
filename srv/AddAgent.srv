@@ -1,11 +1,11 @@
 # Name of the agent to add to the system.
 string agent_id
-# The task to begin once there is no active task
-string idle_task_default
 # List of task roles the agent is able to perform.
 rasberry_coordination/TaskRole[] tasks
-# Physical properties to load into the agent's dictionary
+# Physical properties to load into the agent's dictionary (optional)
 rasberry_coordination/KeyValuePair[] properties
+# Whether the agent occupying a node will prevent a robot from navigating across it
+bool has_presence
 # The initial starting location for the robot (optional)
 string initial_location
 ---

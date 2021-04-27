@@ -13,7 +13,7 @@ import strands_navigation_msgs.msg
 import topological_navigation.route_search
 import topological_navigation.tmap_utils
 
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
 from abc import ABCMeta, abstractmethod
 
 class BasePlanner(object):
@@ -98,21 +98,29 @@ class BasePlanner(object):
 
         return sorted(dists.items(), key=operator.itemgetter(1))[0][0]
 
+    def get_agents(self):
+        # Filter out agents with no physical presence
+        self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.has_presence}
+
     @abstractmethod
-    def __init__(self, all_agent_details_pointer, callbacks):
+    def __init__(self, agent_manager, callbacks):
         """ Copy parameters to properties, set update_map callback for agents and initialise map
 
         Args:
-            all_agent_details_pointer - pointer to coordinator.all_agents_list a dictionary of all agent_details objects
+            agent_manager - pointer to coordinator.agent_manager a dictionary of all agent_details objects
             callbacks -
         """
+
         # Filter out agents with no physical presence
-        self.agent_details = {a.agent_id:a for a in all_agent_details_pointer.values() if a.has_presence}
+        self.agent_manager = agent_manager
+        self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.has_presence}
         self.callbacks = callbacks
 
         """ Download Topological Map """
         self.rec_topo_map = False
         rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
+
+        logmsgbreak(breaks=1)
         logmsg(category="route", msg='Route Planner waiting for Topological map ...')
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
@@ -125,9 +133,12 @@ class BasePlanner(object):
 
         """ Setup object to perform route_searching in empty map """
         self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
+
     @abstractmethod
     def find_routes(self):
+        self.get_agents()
         pass
+
     @abstractmethod
     def update_available_topo_map(self, ):
         pass

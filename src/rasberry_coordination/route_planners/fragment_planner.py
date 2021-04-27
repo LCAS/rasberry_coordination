@@ -265,10 +265,13 @@ class FragmentPlanner(BasePlanner):
         """find_routes - find indiviual paths, find critical points in these paths, and fragment the
         paths at critical points - whenever triggered
         """
+        super(FragmentPlanner, self).find_routes()
+
         logmsg(category="route", id="ROUTING", msg="Finding routes for Active agents")
+        [logmsg(msg="    - %s:%s"%(a.agent_id, a.goal())) for a in self.agent_details.values()]
         actives =   [a for a in self.agent_details.values() if a.goal()]
         inactives = [a for a in self.agent_details.values() if not a.goal()]
-        logmsg(category="route", msg="actives ---"+str([a.agent_id for a in actives]))
+        logmsg(category="route", msg="actives --- "+str([a.agent_id for a in actives]))
         logmsg(category="route", msg="inactives - "+str([a.agent_id for a in inactives]))
 
         need_route = [a for a in self.agent_details.values() if a().route_required]

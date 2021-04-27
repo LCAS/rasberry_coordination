@@ -48,9 +48,8 @@ class InterfaceDef(object):
             responses={'PAUSE':self.pause, 'UNPAUSE':self.unpause, 'RELEASE':self.release}
             super(InterfaceDef.transportation_courier, self).__init__(agent, responses, sub=sub, pub=pub)
 
-            #These need a new home
+            #TODO: These need a new home
             self.agent.temp_interface = RobotInterface_Old(self.agent.agent_id)
-            self.agent.add_task('init_courier')
 
         def pause(self): self.agent.interruption = "pause"; print("agent paused")
         def unpause(self): self.agent.interruption = "unpause"; print("agent unpaused")
@@ -127,6 +126,23 @@ class InterfaceDef(object):
 
 class TaskDef(object):
 
+
+    """ Initialisation Verification """
+    @classmethod
+    def transportation_courier_init(cls, agent, task_id=None, details={}, contacts={}):
+        task_name = "transportation_courier_init"
+        task_details = cls.load_details(details)
+        task_contacts = contacts.copy()
+        task_module = 'base'
+        task_stage_list = [SDef.WaitForLocalisation(agent)]
+
+        return({'id': task_id,
+                'name': task_name,
+                'details': task_details,
+                'contacts': task_contacts,
+                'task_module': task_module,
+                'stage_list': task_stage_list})
+
     """ Initial Task Stages for Transportation Agents """
     @classmethod
     def transportation_picker_idle(cls, agent, task_id=None, details={}, contacts={}):
@@ -143,7 +159,8 @@ class TaskDef(object):
         else:
             go2base
         """
-        if agent.properties['load'] < agent.properties['max_load']:
+        agent.properties['load'] = int(agent.properties['load'])
+        if agent.properties['load'] < int(agent.properties['max_load']):
             return TDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
