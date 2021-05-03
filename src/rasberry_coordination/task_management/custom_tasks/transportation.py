@@ -10,6 +10,9 @@ class InterfaceDef(object):
 
     class transportation_picker(IDef.AgentInterface):
         def __init__(self, agent, sub='/car_client/get_states', pub='/car_client/set_states'):
+            self.release_options = ['self', 'toc']
+            self.restart_options = ['thorvald']
+
             responses = {'CALLED': self.called, 'LOADED': self.loaded, 'INIT': self.reset}
             super(InterfaceDef.transportation_picker, self).__init__(agent, responses, sub=sub, pub=pub)
 
@@ -22,29 +25,14 @@ class InterfaceDef(object):
                 self.agent.interruption = ("cancel", "transportation")
 
         def on_cancel(self, task_id, contact_id):
-            # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel <%s>"%contact_id)
-            # If the task is in the buffer, exclude it
-            if task_id in [task.task_id for task in self.agent.task_buffer]:
-                self.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
-                return
-
-            #If this is an active task, cancelation is either triggered by self, or by courier
-            if self.agent['task_id'] == task_id:
-                # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel2 <%s>"%contact_id)
-                print("---%s---"%contact_id)
-
-                if contact_id == "self": #Cancelled by self
-                    TDef.release_task(self.agent)
-                if contact_id.startswith("thorvald"): #Cancelled by courier
-                    TDef.restart_task(self.agent)
-                if contact_id == "TOC":
-                    TDef.release_task(self.agent)
-                    self.notify("INIT")
-                    # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel3 <%s>"%contact_id)
-
+            old_id = super(InterfaceDef.transportation_storage, self).on_cancel(task_id=task_id, contact_id=contact_id)
+            if old_id == task_id and contact_id == "toc": self.notify("INIT")
 
     class transportation_courier(IDef.AgentInterface):
         def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
+            self.release_options = ['self', 'picker', 'toc']
+            self.restart_options = ['storage']
+
             responses={'PAUSE':self.pause, 'UNPAUSE':self.unpause, 'RELEASE':self.release}
             super(InterfaceDef.transportation_courier, self).__init__(agent, responses, sub=sub, pub=pub)
 
@@ -56,45 +44,14 @@ class InterfaceDef(object):
         def release(self): self.agent.interruption = "cancel"
 
         def on_cancel(self, task_id, contact_id):
-            # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel <%s>"%contact_id)
-            #If the task is in the buffer, remove it
-            if task_id in [task.task_id for task in self.agent.task_buffer]:
-                self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
-                return
-
-            if self.agent['task_id'] == task_id:
-                # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel2 <%s>"%contact_id)
-                if contact_id == "self": #If cancel comes from self
-                    TDef.release_task(self.agent)
-                    pass
-                elif contact_id.startswith("picker"): #If cancel comes from picker
-                    # Cancelled by Picker
-                    # 1. #RootDef.StartTask()
-                    # 2. #StageDef.NavigateToPicker()
-                    # 3. #StageDef.Loading()
-                    # either way we just need to delete this task?
-                    TDef.release_task(self.agent)
-                    pass
-                elif contact_id.startswith("storage"): #If cancel comes from storage
-                    # Cancelled by Storage
-                    # 1. #StageDef.AssignStorage(agent), #restart
-                    # 2. #RootDef.AssignWaitNode(agent), #restart
-                    #
-                    # 3. #StageDef.AwaitStoreAccess(agent), #restart
-                    # 4. #StageDef.NavigateToStorage(agent), #restart
-                    # 5. #StageDef.Unloading(agent) #restart
-                    #
-                    # either way we just need to restart this task portion?
-                    TDef.restart_task(self.agent)
-                    pass
-                elif contact_id == "TOC":
-                    TDef.release_task(self.agent)
-                    # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel3 <%s>"%contact_id)
-
-                self.agent.temp_interface.cancel_execpolicy_goal()
+            old_id = super(InterfaceDef.transportation_storage, self).on_cancel(task_id=task_id, contact_id=contact_id)
+            if old_id == task_id: self.agent.temp_interface.cancel_execpolicy_goal()
 
     class transportation_storage(IDef.AgentInterface):
         def __init__(self, agent, sub='/uar/get_states', pub='/uar/set_states'):
+            self.release_options = ['self', 'toc']
+            self.restart_options = ['thorvald']
+
             responses={'UNLOADED': self.unloaded, 'OFFLINE': self.offline, 'ONLINE': self.online}
             super(InterfaceDef.transportation_storage, self).__init__(agent, responses, sub=sub, pub=pub)
 
@@ -106,23 +63,9 @@ class InterfaceDef(object):
         def offline(self): pass
         def online(self): pass
 
-        def on_cancel(self, task_id, contact_id):
-            # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel <%s>"%contact_id)
-            # If the task is in the buffer, exclude it
-            if task_id in [task.task_id for task in self.agent.task_buffer]:
-                self.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
-                return
+        # def on_cancel(self, task_id, contact_id):
+        #     super(InterfaceDef.transportation_storage, self).on_cancel(task_id=task_id, contact_id=contact_id)
 
-            #If this is an active task, cancelation is either triggered by self, or by courier
-            if self.agent['task_id'] == task_id:
-                # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel2 <%s>"%contact_id)
-                if contact_id == "self": #Cancelled by self
-                    TDef.release_task(self.agent)
-                if contact_id.startswith("thorvald"): #Cancelled by courier #TODO: hardcoded is bad
-                    TDef.restart_task(self.agent)
-                if contact_id == "TOC":
-                    TDef.release_task(self.agent)
-                    # logmsg(category="ACTION", id=self.agent.agent_id, msg="on_cancel3 <%s>"%contact_id)
 
 class TaskDef(object):
 

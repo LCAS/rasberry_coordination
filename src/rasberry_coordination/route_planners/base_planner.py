@@ -103,18 +103,16 @@ class BasePlanner(object):
         self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.has_presence}
 
     @abstractmethod
-    def __init__(self, agent_manager, callbacks):
+    def __init__(self, agent_manager):
         """ Copy parameters to properties, set update_map callback for agents and initialise map
 
         Args:
             agent_manager - pointer to coordinator.agent_manager a dictionary of all agent_details objects
-            callbacks -
         """
 
         # Filter out agents with no physical presence
         self.agent_manager = agent_manager
         self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.has_presence}
-        self.callbacks = callbacks
 
         """ Download Topological Map """
         self.rec_topo_map = False

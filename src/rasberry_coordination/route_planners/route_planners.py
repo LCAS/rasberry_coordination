@@ -9,10 +9,9 @@ from rasberry_coordination.route_planners.fragment_planner import FragmentPlanne
 
 
 class RouteFinder(object):  # TODO: investigate use of static class (return planner obj from __init__ instead of self)
-    def __init__(self, planning_type, agents, callbacks):
+    def __init__(self, planning_type, agent_manager):
         self.planning_type = planning_type
-        self.agents = agents
-        self.callbacks = callbacks
+        self.agent_manager = agent_manager
 
         planning_types = {'fragment_planner': self.fragment_planner,
                           'alternative_planner': self.alternative_planner}
@@ -23,7 +22,7 @@ class RouteFinder(object):  # TODO: investigate use of static class (return plan
         self.planner.find_routes()
 
     def fragment_planner(self):  # TODO: add direct object creation in __init__
-        return FragmentPlanner(self.agents, self.callbacks)
+        return FragmentPlanner(self.agent_manager)
 
     def alternative_planner(self):
         print('placeholder in ' + str(self.__class__))

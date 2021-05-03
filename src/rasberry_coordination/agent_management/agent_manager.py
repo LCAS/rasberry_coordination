@@ -8,7 +8,7 @@
 # from abc import ABCMeta, abstractmethod
 from rospy import Subscriber, Publisher, Service, Time
 from std_msgs.msg import String as Str
-from rasberry_coordination.msg import MarkerDetails, KeyValuePair
+from rasberry_coordination.msg import MarkerDetails, KeyValuePair, AgentID
 from rasberry_coordination.srv import AddAgent
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
@@ -17,11 +17,20 @@ from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, In
 """ Agent Details """
 class AgentManager(object):
 
+
     """ Initialisation """
     def __init__(self, callback_dict):
         self.agent_details = {}
         self.cb = callback_dict
-        Service('/rasberry_coordination/add_agent', AddAgent, self.add_agent_ros_srv)
+        self.pause_all = False
+
+        # Setup Services for Dynamic Fleet Management
+        Service('/rasberry_coordination/dfm/add_agent',    AddAgent, self.add_agent_ros_srv)
+        Service('/rasberry_coordination/dfm/remove_agent', AgentID, self.remove_agent_ros_srv)
+
+        # Setup Services for Dynamic Task Management
+        Service('/rasberry_coordination/dtm/cancel_task', AgentID, self.cancel_task_ros_srv)
+        Service('/rasberry_coordination/dtm/pause_agent', AgentID, self.pause_task_ros_srv)
 
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
 
@@ -31,8 +40,9 @@ class AgentManager(object):
         self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
         self.agent_details[agent_dict['agent_id']].int = len(self.agent_details)*2 #TODO: remove this once TOC accepts string tasks
 
-    def add_agent_ros_srv(self, agent_obj):
 
+    """ Dynnamic Fleet Management """
+    def add_agent_ros_srv(self, agent_obj):
         agent_dict = self.agent_dict(agent_obj)
         if self.validate_dict(agent_dict):
             self.add_agent(self.format_dict(agent_dict))
@@ -40,8 +50,23 @@ class AgentManager(object):
             return {'success': 1, 'msg': 'agent added'}
         else:
             return {'success': 0, 'msg': 'agent unable to be added'}
+    #TODO: Complete this
+    def remove_agent_ros_srv(self, srv):
+        # self[srv.agent_id].disconnect()
+        # self.format_agent_marker(agent_dict['agent_id'], "")
+        return {'success': 1, 'msg': 'agent removed'}
 
-    """ Agent Validation """
+
+    """ Dynamic Task Management """
+    #TODO: Complete this
+    def cancel_task_ros_srv(self, srv): self[srv.agent_id].interruption = "cancel"
+
+    #TODO: Complete this
+    def pause_task_ros_srv(self, srv): self[srv.agent_id].interruption = "pause"
+
+
+
+    """ New Agent Validation """
     def validate_dict(self, agent_dict): return True #TODO: setup validation system
     def format_dict(self, agent_dict):
         if  agent_dict['initial_location'] == '':
@@ -62,8 +87,8 @@ class AgentManager(object):
     def __getitem__(self, key):
         return self.agent_details[key] if key in self.agent_details else None
 
-    """ Visuals """
 
+    """ Visuals """
     def format_agent_marker(self, agent_id, style):
         """ Add/modify marker to display in rviz """
         """
@@ -141,7 +166,6 @@ class AgentDetails(object):
     """ Task Starters """
     def add_init_task(self): self.add_task(task_name="%s_init"%self.task_identifier)
     def add_idle_task(self): self.add_task(task_name="%s_idle"%self.task_identifier)
-
     def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None):
 
         """ Called by task stages, used to buffer new tasks for the agent """
@@ -162,7 +186,6 @@ class AgentDetails(object):
         logmsg(category="null")
         logmsg(category="TASK", id=self.agent_id, msg="Buffering %s to position %i of task_buffer, task stage list:" % (task['name'], index or len(self.task_buffer)))
         [logmsg(category="TASK", msg='    - %s'%t) for t in task['stage_list']]
-
     def start_next_task(self, idx=0):
         if len(self.task_buffer) < 1: self.add_idle_task()
         if len(self.task_buffer) <= idx: return

@@ -132,6 +132,7 @@ from copy import deepcopy
 from std_msgs.msg import String as Str
 import strands_executive_msgs.msg
 import std_msgs.msg
+from std_msgs.msg import Bool
 import std_srvs.srv
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
 from rasberry_coordination.coordinator_tools import logmsg
@@ -162,30 +163,6 @@ active_tasks_pub.publish(task_list)
 
 
 class InterfaceDef(object):
-    class AgentInterface(object):
-        def __init__(self, agent, responses, sub, pub):
-            self.agent = agent
-            self.responses = responses
-            self.pub = Publisher(pub, Str, queue_size=5)
-            self.sub = Subscriber(sub, Str, self.callback, agent.agent_id)
-        def callback(self, msg, agent_id):  # Look into sub/feature
-            # print("callback recieved for %s with %s" % (agent_id, msg))
-            msg = eval(msg.data)
-            if "states" in msg: return # car callback sends two msgs, this filters second #TODO: remove this
-            if msg['user'] == agent_id:
-                if msg['state'] in self.responses:
-                    self.responses[msg['state']]()
-        def notify(self, state):
-            msg = Str('{\"user\":\"%s\", \"state\": \"%s\"}' % (self.agent.agent_id, state))
-            logmsg(msg="PUBLISHING \"%s\"" % msg)
-            self.pub.publish(msg)
-
-    class CAR_App(AgentInterface):
-        def __init__(self, agent_id, responses, sub_topic='/car_client/get_states', pub_topic='/car_client/set_states'):
-            super(InterfaceDef.CAR_App, self).__init__(agent_id, responses, sub_topic, pub_topic)
-
-    class CAR_Device(AgentInterface):
-        pass
 
     class TOC_Interface(object):
         def __init__(self, coordinator):
@@ -193,23 +170,23 @@ class InterfaceDef(object):
             ns = "/rasberry_coordination"
 
             """ TOC Publishers """
-
-            Tasks = rasberry_coordination.msg.TasksDetails
-            self.active_tasks_pub = Publisher('%s/active_tasks_details'%ns, Tasks, latch=True, queue_size=5)
             self.previous_task_list = None
-
-            Bool = std_msgs.msg.Bool
+            self.active_tasks_pub = Publisher('%s/active_tasks_details'%ns, TasksDetailsList, latch=True, queue_size=5)
             self.task_pause_pub = Publisher('%s/pause_state'%ns, Bool, queue_size=5, latch=True)
 
-            """ TOC Service Responses """
-            #SetSystemPause
-            #SetAgentPause
-            #CancelTask
+            """ TOC Dynamic Task Management """
+            Service('/rasberry_coordination/dtm/cancel_task', TaskID, self.CancelTask)
+            Service('/rasberry_coordination/dtm/pause_agent', TaskID, self.PauseTask)
+            Service('/rasberry_coordination/dtm/unpause_agent', TaskID, self.UnpauseTask)
 
-            CancelTask = strands_executive_msgs.srv.CancelTask
-            self.cancel_task_srv = Service('%s/cancel_task'%ns, CancelTask, self.CancelTask)
 
-        def Update(self):
+        """ Short-Definition Convenience Functions """
+        def Update(self): self.update_active_tasks_list(); self.update_interruption_state()
+        def End(self, agent): self.update_completed_task(agent['task_id'])
+
+        """ Active Task List Modifers """
+        def update_active_tasks_list(self):
+            """ Publish updated list of Active Tasks to TOC """
             task_list = TasksDetailsList()
             for agent in self.coordinator.get_agents():
 
@@ -249,9 +226,8 @@ class InterfaceDef(object):
                 print(task_list)
                 print("-------------------")
             pass
-
-        def End(self, agent): self.Ended(agent['task_id'])
-        def Ended(self, task_id=None):
+        def update_completed_task(self, task_id=None):
+            """ Publish task_complete state to Active Tasks list """
             task_list = TasksDetailsList()
             if not task_id: return
 
@@ -263,13 +239,7 @@ class InterfaceDef(object):
             # Add task to list and publish
             task_list.tasks.append(task)
             self.active_tasks_pub.publish(task_list)
-
-            print("-------------------")
-            print("BELOW IS THE ENDED")
-            print(task_list)
-            print("-------------------")
             pass
-
         def toc_legacy_responses(self, state): #TODO: this should be removed
             print("$STATE = %s"%state)
 
@@ -300,27 +270,95 @@ class InterfaceDef(object):
             else:
                 return 'CALLED'
 
-        def CancelTask(self, req):
-            logmsg(category="ACTION", msg="CancelTask")
+        """ Dynamic Task Management """ #For agents with task_id, set interruption to [toc_cancel|toc_pause|toc_unpause]
+        #TOC-Interface
+        #    > Service(dtm/cancel): [id]
+        #    > Service(dtm/pause): [id]
+        #    > Service(dtm/unpause): [id]
+        #
+        #    Use-Case:
+        #    >  cancel all of coordinator (dtm/cancel)[]
+        #    >   pause all of coordinator (dtm/pause)[]
+        #    > unpause all of coordinator (dtm/unpause)[]
+        #
+        #    >  cancel all of task (dtm/cancel)[task_id]
+        #    >   pause all of task (dtm/pause)[task_id]
+        #    > unpause all of task (dtm/unpause)[task_id]
+        #
+        #    >  cancel agent on task (dtm/cancel)[agent_id]
+        #    >   pause agent on task (dtm/pause)[agent_id]
+        #    > unpause agent on task (dtm/unpause)[agent_id]
+        #
+        #    # agent_id and task_id can share the same msg property
 
-            logmsg(category="TASK", msg="Cancel task: %s" % req)
+        def CancelTask(self, req):  self.InterruptTask(req, interrupt="toc_cancel"); self.update_completed_task(task_id=req.task_id) #TODO: needed?
+        def PauseTask(self, req):   self.InterruptTask(req, interrupt="toc_pause")
+        def UnpauseTask(self, req): self.InterruptTask(req, interrupt="toc_unpause")
 
-            task_id = req.task_id
+        def InterruptTask(self, req, interrupt):
+            """ For each agent with the associated task_id, set an interrupt """
+            if str(req.id) == "None":
+                logmsg(category="TASK", msg="Interrupt Coordinator: %s" % interrupt)
+                self.InterruptCoordinator(interrupt)
+            elif req.id in [self.coordinator.get_agents()]:
+                logmsg(category="TASK", msg="Interrupt Agent: %s" % interrupt)
+                self.InterruptAgent(interrupt, req.id)
+            else:
+                logmsg(category="TASK", msg="Interrupt Task: %s" % interrupt)
+                self.InterruptTask(interrupt, req.id)
 
-            self.Ended(task_id=task_id)
+            # # Get agents associated to the task_id
+            # task_id_agents = [agent for agent in self.coordinator.get_agents()
+            #                   if agent['task_id'] and agent['task_id'] == req.task_id]
+            #
+            # # For each contact, set the interrupt
+            # for agent in task_id_agents:
+            #     if agent.task_module and agent.task_module == "base":
+            #         logmsg(level="error", category="TASK", msg="Requires investigation")
+            #         break
+            #     logmsg(category="ACTION", id=agent.agent_id, msg="InterruptTask: %s"%interrupt)
+            #     agent.interruption = (interrupt, agent.task_module, agent['task_id'])
+            # return True
 
-            task_id_agents = [agent for agent in self.coordinator.get_agents() if agent['task_id'] and agent['task_id'] == task_id]
-            for agent in task_id_agents:
-                if agent.task_module and agent.task_module == "base":
-                    logmsg(level="error", category="TASK", msg="Requires investigation")
-                    break
-                print(agent.task_module)
-                print(agent['task_id'])
+        def InterruptCoordinator(self, interrupt): pass
+        def InterruptTask(self, interrupt, task_id): pass
+        def InterruptAgent(self, interrupt, agent_id): pass
 
-                logmsg(category="ACTION", id=agent.agent_id, msg="CancelTask")
-                agent.interruption = ("toc_cancel", agent.task_module, agent['task_id'])
 
-            return True
+
+    class AgentInterface(object):
+        def __init__(self, agent, responses, sub, pub):
+            self.agent = agent
+            self.responses = responses
+            self.pub = Publisher(pub, Str, queue_size=5)
+            self.sub = Subscriber(sub, Str, self.callback, agent.agent_id)
+        def callback(self, msg, agent_id):  # Look into sub/feature
+            # print("callback recieved for %s with %s" % (agent_id, msg))
+            msg = eval(msg.data)
+            if "states" in msg: return # car callback sends two msgs, this filters second #TODO: remove this
+            if msg['user'] == agent_id:
+                if msg['state'] in self.responses:
+                    self.responses[msg['state']]()
+        def notify(self, state):
+            msg = Str('{\"user\":\"%s\", \"state\": \"%s\"}' % (self.agent.agent_id, state))
+            logmsg(msg="PUBLISHING \"%s\"" % msg)
+            self.pub.publish(msg)
+
+        def on_cancel(self, task_id, contact_id):
+            # If the task is in the buffer, remove it
+            if task_id in [task.task_id for task in self.agent.task_buffer]:
+                self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
+                return None
+
+            old_id = self.agent['task_id']
+            if self.agent['task_id'] == task_id:
+                if any([contact_id.startswith(option) for option in self.release_option]): TDef.release_task(self.agent)
+                if any([contact_id.startswith(option) for option in self.restart_option]): TDef.restart_task(self.agent)
+            return old_id
+    class CAR_App(AgentInterface):
+        def __init__(self, agent_id, responses, sub_topic='/car_client/get_states', pub_topic='/car_client/set_states'):
+            super(InterfaceDef.CAR_App, self).__init__(agent_id, responses, sub_topic, pub_topic)
+    class CAR_Device(AgentInterface): pass
 
 class TaskDef(object):
     """ Definitions for Task Initialisation Criteria """
@@ -427,7 +465,7 @@ class TaskDef(object):
                 'stage_list': task_stage_list})
 
 
-    """ Task Management """
+    """ Dynamic Task Management """
     # @classmethod
     # def pause_task(cls, agent, task_id=None, details={}, contacts={}):
     #     task_name = "pause_task"
@@ -765,3 +803,28 @@ class StageDef(object):
                 self.agent.storage = closest_storage_location()
                 self.agent.storage.new_task('store', {'robot': self.agent})
     """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

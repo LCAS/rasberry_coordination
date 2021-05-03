@@ -15,13 +15,13 @@ from rasberry_coordination.route_planners.base_planner import BasePlanner
 from rasberry_coordination.coordinator_tools import logmsg
 
 class FragmentPlanner(BasePlanner):
-    def __init__(self, all_agent_details_pointer, callbacks):
+    def __init__(self, all_agent_details_pointer):
         """ Copy parameters to properties
 
         Args:
             all_agent_details_pointer - pointer to coordinator.all_agents_list a dictionary of all agent_details objects
         """
-        super(FragmentPlanner, self).__init__(all_agent_details_pointer, callbacks)
+        super(FragmentPlanner, self).__init__(all_agent_details_pointer)
         self.task_lock = threading.Lock()
 
     def update_available_topo_map(self, ):
@@ -305,7 +305,7 @@ class FragmentPlanner(BasePlanner):
             # """if current node is goal node, generate empty route and set task as finished"""
             if start_node == goal_node: #should _query should have handled this by this point?
                 # this is a moving robot, so must be in a go_to_task stage (picker, storage or base)
-                # task_stage = agent.task_stage
+                # task_stage = agent.task_stagecallback
                 # agent._finish_task_stage(agent.task_stage)
                 #
                 # if task_stage == "go_to_picker":
