@@ -66,6 +66,7 @@ catkin_python_setup()
 
 add_message_files(
   FILES
+  Interruption.msg
   TaskUpdates.msg
   TaskDetails.msg
   TasksDetails.msg

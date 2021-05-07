@@ -25,12 +25,12 @@ class InterfaceDef(object):
                 self.agent.interruption = ("cancel", "transportation")
 
         def on_cancel(self, task_id, contact_id):
-            old_id = super(InterfaceDef.transportation_storage, self).on_cancel(task_id=task_id, contact_id=contact_id)
+            old_id = super(InterfaceDef.transportation_picker, self).on_cancel(task_id=task_id, contact_id=contact_id)
             if old_id == task_id and contact_id == "toc": self.notify("INIT")
 
     class transportation_courier(IDef.AgentInterface):
         def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
-            self.release_options = ['self', 'picker', 'toc']
+            self.release_options = ['self', 'picker', 'toc']  # TODO: change *_options to *_triggers
             self.restart_options = ['storage']
 
             responses={'PAUSE':self.pause, 'UNPAUSE':self.unpause, 'RELEASE':self.release}
@@ -44,7 +44,7 @@ class InterfaceDef(object):
         def release(self): self.agent.interruption = "cancel"
 
         def on_cancel(self, task_id, contact_id):
-            old_id = super(InterfaceDef.transportation_storage, self).on_cancel(task_id=task_id, contact_id=contact_id)
+            old_id = super(InterfaceDef.transportation_courier, self).on_cancel(task_id=task_id, contact_id=contact_id)
             if old_id == task_id: self.agent.temp_interface.cancel_execpolicy_goal()
 
     class transportation_storage(IDef.AgentInterface):
@@ -176,6 +176,7 @@ class TaskDef(object):
         task_contacts = contacts.copy()
         task_module = 'transportation'
         task_stage_list = [
+            SDef.StartTask(agent, task_id),
             StageDef.AssignStorage(agent),
             SDef.AssignWaitNode(agent),
             StageDef.AwaitStoreAccess(agent),
@@ -194,16 +195,11 @@ class TaskDef(object):
         task_details = TDef.load_details(details)
         task_contacts = contacts.copy()
         task_module = 'transportation'
-        task_stage_list = [
-            # -> store.admit_plz > 0
-            SDef.StartTask(agent, task_id),
-            # -> True
-            StageDef.AcceptCourier(agent),
-            # -> store.admitance != None
-            StageDef.AwaitCourier(agent),
-            # -> courier.location == store.location
-            StageDef.UnloadCourier(agent),
-            # -> store.has_tray = False
+        task_stage_list = [                 # -> store.admit_plz > 0
+            # SDef.StartTask(agent, task_id), # -> True
+            StageDef.AcceptCourier(agent),  # -> store.admitance != None
+            StageDef.AwaitCourier(agent),   # -> courier.location == store.location
+            StageDef.UnloadCourier(agent),  # -> store.has_tray = False
             # StageDef.AwaitCourierExit(agent)
         ]
 
@@ -222,7 +218,7 @@ class StageDef(object):
             self.agent.flag(any(success_conditions))
             if any(success_conditions): print("admittance required: %s"%self.agent.request_admittance)
         def _end(self):
-            self.agent.add_task('transportation_storage')
+            self.agent.add_task('transportation_storage_idle')
         def _summary(self):
             super(StageDef.IdleStorage, self)._summary()
             self.summary['_query'] = 'len(store.request_admittance) > 0'
@@ -326,9 +322,7 @@ class StageDef(object):
         def _query(self):
             """ If a courier is assigned as the contact to the storage contact, check if it is this stage's owner """
             storage = self.agent.task_contacts['storage']
-            if 'courier' not in storage.task_contacts:
-                print("no courier found wewoweo: %s" % storage.task_contacts);
-                return
+            if 'courier' not in storage.task_contacts: return
             courier = storage.task_contacts['courier']
             success_conditions = [courier.agent_id == self.agent.agent_id]
             self.agent.flag(any(success_conditions))

@@ -268,7 +268,7 @@ class FragmentPlanner(BasePlanner):
         super(FragmentPlanner, self).find_routes()
 
         logmsg(category="route", id="ROUTING", msg="Finding routes for Active agents")
-        [logmsg(msg="    - %s:%s"%(a.agent_id, a.goal())) for a in self.agent_details.values()]
+        [logmsg(category="route", msg="    - %s:%s"%(a.agent_id, a.goal())) for a in self.agent_details.values()]
         actives =   [a for a in self.agent_details.values() if a.goal()]
         inactives = [a for a in self.agent_details.values() if not a.goal()]
         logmsg(category="route", msg="actives --- "+str([a.agent_id for a in actives]))
@@ -363,7 +363,7 @@ class FragmentPlanner(BasePlanner):
                 #else add to inactives
 
                 agent().route_failed = True
-                print("agent %s failed to find route"%agent.agent_id)
+                logmsg(category="route", id=agent.agent_id, msg="failed to find route")
                 inactives += [agent]
                 continue
 

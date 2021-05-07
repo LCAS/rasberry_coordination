@@ -8,7 +8,7 @@
 # from abc import ABCMeta, abstractmethod
 from rospy import Subscriber, Publisher, Service, Time
 from std_msgs.msg import String as Str
-from rasberry_coordination.msg import MarkerDetails, KeyValuePair, AgentID
+from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.srv import AddAgent
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
@@ -26,11 +26,7 @@ class AgentManager(object):
 
         # Setup Services for Dynamic Fleet Management
         Service('/rasberry_coordination/dfm/add_agent',    AddAgent, self.add_agent_ros_srv)
-        Service('/rasberry_coordination/dfm/remove_agent', AgentID, self.remove_agent_ros_srv)
-
-        # Setup Services for Dynamic Task Management
-        Service('/rasberry_coordination/dtm/cancel_task', AgentID, self.cancel_task_ros_srv)
-        Service('/rasberry_coordination/dtm/pause_agent', AgentID, self.pause_task_ros_srv)
+        Service('/rasberry_coordination/dfm/remove_agent', AddAgent, self.remove_agent_ros_srv)
 
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
 
@@ -55,15 +51,6 @@ class AgentManager(object):
         # self[srv.agent_id].disconnect()
         # self.format_agent_marker(agent_dict['agent_id'], "")
         return {'success': 1, 'msg': 'agent removed'}
-
-
-    """ Dynamic Task Management """
-    #TODO: Complete this
-    def cancel_task_ros_srv(self, srv): self[srv.agent_id].interruption = "cancel"
-
-    #TODO: Complete this
-    def pause_task_ros_srv(self, srv): self[srv.agent_id].interruption = "pause"
-
 
 
     """ New Agent Validation """
@@ -241,6 +228,11 @@ class AgentDetails(object):
         self()._notify_end()
         self()._end()
         self.task_stage_list.pop(0)
+
+    """ Task Interruption """
+    def set_interrupt(self, type, module, task_id):
+        logmsg(category="DTM", msg="Interrupt attached of type: %s/%s/%s." % (type, module, task_id))
+        self.interruption = (type, module, task_id)
 
     """ Logging """
     def __repr__(self):

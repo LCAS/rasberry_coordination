@@ -1012,7 +1012,7 @@ class RasberryCoordinator(object):
         interrupt_task = self.interrupt_task
         TOC            = self.TOC_Interface
         def lognull(): logmsg(category="null")
-        def interrupt_all(): return self.agent_manager.pause_all
+        # def interrupt_all(): return self.agent_manager.pause_all
 
         A = self.get_all_agents()
         self.enable_task_logging = True
@@ -1027,7 +1027,7 @@ class RasberryCoordinator(object):
         while not rospy.is_shutdown():
             A = get_agents()
 
-            if interrupt_all(): continue
+            # if interrupt_all(): continue
             interrupt_task()    if any([a.interruption for a in A]) else None;     """ Interrupt Task Execution """
 
             lognull() if any([not a.task_stage_list for a in A]) else None
@@ -1036,7 +1036,7 @@ class RasberryCoordinator(object):
             l(0);
 
             lognull() if any([a().new_stage for a in A]) else None
-            TOC.Update() if any([a().new_stage for a in A]) else None;             """ Update TOC """ #TODO: Add better contitional
+            TOC.Update() if any([a().new_stage for a in A]) else None;             """ Update TOC """ #TODO: Add better conditional
             [a.start_stage()    for a in A if a().new_stage];                      """ Start Stage """
             lognull() if any([a().action_required for a in A]) else None
             [offer_service(a)   for a in A if a().action_required];                """ Offer Service """
@@ -1087,59 +1087,45 @@ class RasberryCoordinator(object):
             agent().action_required = False
     def interrupt_task(self):
         logmsg(category="ACTION", msg="interrupt_task")
-        logmsg(category="task", msg="interrupt detected %s"%{a.agent_id:a.interruption for a in self.AllAgentsList.values() if a.interruption})
-        interrupts = {'pause': self.pause_task,
-                      'unpause': self.unpause_task,
-                      'cancel': self.cancel_task,
-                      'toc_cancel': self.toc_cancel_task}
-
-        # for a in self.AllAgentsList.values():
-        #     if a.interruption and a.interruption[0] in interrupts:
-        #         interrupts[a.interruption[0]]
+        logmsg(category="DTM", msg="interrupt detected %s"%{a.agent_id:a.interruption for a in self.AllAgentsList.values() if a.interruption})
+        interrupts = {'pause': self.pause_task
+                     ,'unpause': self.unpause_task
+                     ,'cancel': self.cancel_task
+                     ,'toc_pause': self.toc_unpause_task
+                     ,'toc_unpause': self.toc_unpause_task
+                     ,'toc_cancel': self.toc_unpause_task
+                     }
         [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption[0] in interrupts]
 
     def pause_task(self, agent):
-        print("coordinator.pause_task")
-        agent().new_stage = True #This will re-enable the _start() call for once unpaused
+        logmsg(category="DTM", id=agent.agent_id, msg="Task advancement paused.")
+        agent().new_stage = True #re-enable the _start() call for once unpaused
         agent.task_stage_list.insert(0, StageDef.Pause(agent))
-        agent.registration = False #This state is queried for query success
-        # agent.temp_interface.cancel_exec_policy_goal()
-        agent.interruption = None #This state is queried for entry to this function
+        agent.registration = False #disable generic query success condition
+        # agent.temp_interface.cancel_exec_policy_goal()  # TODO: how to handle this?
+        agent.interruption = None #reset interruption trigger
 
         self.modify_robot_marker(agent.agent_id, color='red')
-
-        #Options:
-        # 1. #add whole task to buffer and start new active task of TaskDef.pause_task
-        # 2. #add StageDef.pause_task to the head of the stage list
-        # 3. #prevent query from completing until pause completes
-        # 4. #prevent flag from being set until unpaused
-
-        #Reccomendation:
-        # 4. # (simple execution, reliable)
-        # 4. # {feels hard-coded, shouldnt we treat pausing like a stage?}
-        # 4. # [how should we handle unpausing? should we set unpause to trigger start_task?]
-        pass
     def unpause_task(self, agent):
-        agent.registration = True #This state is queried for query success
-        agent.interruption = None #This state is queried for entry to this function
+        logmsg(category="DTM", id=agent.agent_id, msg="Task advancement resumed.")
+        agent.registration = True #enable generic query success condition
+        agent.interruption = None #reset interruption trigger
         self.modify_robot_marker(agent.agent_id, color='no_color')
-        pass
-
     def cancel_task(self, agent):
-        logmsg(category="task", id=agent.agent_id, msg="Task cancellation request made")
-        logmsg(category="task", msg="Informing task_contacts:")
-        [logmsg(category="task", msg="    - %s"%contact) for contact in agent.task_contacts]
+        logmsg(category="DTM", id=agent.agent_id, msg="Task cancellation request made for task:%s." % agent['task_id'])
+        logmsg(category="DTM", msg="Informing task_contacts:")
+        [logmsg(category="DTM", msg="    - %s"%contact) for contact in agent.task_contacts]
 
         module = agent.interruption[1]
         agent.interruption = None
 
+        # Call the on_cancel response function for each agent actively conected to this task
         for aid, a in agent.task_contacts.items(): #contacts:
             a.interfaces[module].on_cancel(task_id=a['task_id'], contact_id=agent.agent_id)
 
         agent.interfaces[module].on_cancel(agent['task_id'], "self")
-
-        pass
-
+    def toc_pause_task(self, agent): self.pause_task(agent)
+    def toc_unpause_task(self, agent): self.unpause_task(agent)
     def toc_cancel_task(self, agent):
         logmsg(category="ACTION", msg="toc_cancel_task")
         logmsg(category="task", id=agent.agent_id, msg="TOC Task cancellation request made")
@@ -1148,8 +1134,12 @@ class RasberryCoordinator(object):
         task_id = agent.interruption[2]
         agent.interruption = None
 
-        agent.interfaces[module].on_cancel(task_id=task_id, contact_id="TOC")
-        #TODO: add conditions to ensure task still exists
+        agent.interfaces[module].on_cancel(task_id=task_id, contact_id="toc")
+
+
+
+
+
 
     """ Action Category """
     def find_agent(self, agent):

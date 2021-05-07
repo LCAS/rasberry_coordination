@@ -136,9 +136,9 @@ from std_msgs.msg import Bool
 import std_srvs.srv
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
 from rasberry_coordination.coordinator_tools import logmsg
-import rasberry_coordination.msg
 import rasberry_coordination.srv
-from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails
+import rasberry_coordination.msg
+from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 
 """
 python
@@ -171,22 +171,78 @@ class InterfaceDef(object):
 
             """ TOC Publishers """
             self.previous_task_list = None
+            self.previous_task_list_2 = None
             self.active_tasks_pub = Publisher('%s/active_tasks_details'%ns, TasksDetailsList, latch=True, queue_size=5)
             self.task_pause_pub = Publisher('%s/pause_state'%ns, Bool, queue_size=5, latch=True)
 
             """ TOC Dynamic Task Management """
-            Service('/rasberry_coordination/dtm/cancel_task', TaskID, self.CancelTask)
-            Service('/rasberry_coordination/dtm/pause_agent', TaskID, self.PauseTask)
-            Service('/rasberry_coordination/dtm/unpause_agent', TaskID, self.UnpauseTask)
+            Subscriber('/rasberry_coordination/dtm', Interruption, self.InterruptTask)
 
 
         """ Short-Definition Convenience Functions """
-        def Update(self): self.update_active_tasks_list(); self.update_interruption_state()
-        def End(self, agent): self.update_completed_task(agent['task_id'])
+        def Update(self):
+            self.update_active_tasks_list();
+            self.update_active_tasks_list_2();
+        def End(self, agent):
+            self.update_completed_task(agent['task_id'])
 
         """ Active Task List Modifers """
+        def update_active_tasks_list_2(self):
+            # logmsg(level='warn', category="TOC", msg="2Logging active tasks to TOC.")
+
+            progression = ['','CALLED', 'ACCEPT', 'ARRIVED', 'LOADED', 'STORAGE', 'UNLOADED', 'DELIVERED', 'CANCELLED']
+
+            # lst = {
+            #     task_id: [{agent_id: state}, {agent_id: state}],
+            #     task_id: [{agent_id: state}, {agent_id: state}],
+            #     task_id: [{agent_id: state}, {agent_id: state}]
+            # }
+            T = TasksDetailsList()
+            A = self.coordinator.get_agents()
+            lst = {a['task_id']:[] for a in A if a['task_id']}
+
+            # lst = {
+            #     80: [''],
+            #     60: ['']
+            # }
+            # print(lst)
+
+            for l in lst:
+                lst[l] = ['',{a.agent_id:self.toc_legacy_responses(a().get_class()) for a in A if a['task_id'] == l}]
+                # lst = {
+                #     80: ['',{thorvald_001: CALLED, picker01: ACCEPT}),
+                #     60: ['',{thorvald_002: ARRIVED, picker02: ARRIVED})
+                # }
+                # print({a:a['task_id'] for a in A})
+                # print(lst)
+
+                lst[l][0]=progression[max([progression.index(a) for a in lst[l][1].values()])]
+                # lst = {
+                #     80: ['ACCEPT', {'thorvald_001': 'CALLED', 'picker01': 'ACCEPT'}],
+                #     60: ['ARRIVED', {'thorvald_002': 'ARRIVED', 'picker02': 'ARRIVED'}]
+                # }
+                # print(lst)
+
+                picker_id = lst[l][1].keys()[1] if len(lst[l][1].keys()) > 1 else ''
+                T.tasks.append(SingleTaskDetails(task_id=l, state=lst[l][0], robot_id=lst[l][1].keys()[0], picker_id=picker_id))
+
+            from pprint import pprint
+            if T != self.previous_task_list_2:
+                self.previous_task_list_2 = T
+                # self.active_tasks_pub.publish(T)
+                # logmsg(level='warn', category="TOC", msg="2publishing:")
+
+                logmsg(level='warn', category="TOC", msg="Active Tasks:")
+                [logmsg(level='warn', category="TOC", msg="    - %s | %s [%s,%s]" % (t.task_id, t.state, t.robot_id, t.picker_id)) for t in T.tasks]
+                pprint(lst)
+                # print(T)
+            else:
+                logmsg(level='warn', category="TOC", msg="DOUPLICATE:")
+                [logmsg(level='warn', category="TOC", msg="----- %s | %s [%s,%s]" % (t.task_id, t.state, t.robot_id, t.picker_id)) for t in T.tasks]
+
         def update_active_tasks_list(self):
             """ Publish updated list of Active Tasks to TOC """
+            # logmsg(category="TOC", msg="1Logging active tasks to TOC.")
             task_list = TasksDetailsList()
             for agent in self.coordinator.get_agents():
 
@@ -202,8 +258,11 @@ class InterfaceDef(object):
                     task.state = agent().get_class()
 
                     # Assign initialiser and responder agent_ids to the task
-                    for aid, a in agent.task_contacts.items():
-                        task.picker_id = a.agent_id  # TODO: this needs to be refined toc shouldnt be task-specific
+                    print(agent.task_contacts)
+                    for a in agent.task_contacts.values():
+                        if a.__class__ != str:
+                            task.picker_id = a.agent_id
+                            # TODO: this needs to be refined toc shouldnt be task-specific
                     task.robot_id = agent.agent_id
 
                     # Add task to list
@@ -217,15 +276,17 @@ class InterfaceDef(object):
                 # Convert task state to a toc-recognised state
                 for T in task_list.tasks:
                     T.state = self.toc_legacy_responses(T.state)  # TODO: TOC is visualisation tool, no need to restrict
+                    #TODO: add check against defined "list of progress", whichever has highest progression value wins
 
                 # Publish task list
                 self.active_tasks_pub.publish(task_list)
-
-                print("-------------------")
-                print("BELOW IS THE UPDATE")
+                logmsg(category="TOC", msg="Active Tasks:")
+                [logmsg(category="TOC",msg="    - %s | %s [%s,%s]" % (t.task_id, t.state, t.robot_id, t.picker_id)) for t in task_list.tasks]
                 print(task_list)
-                print("-------------------")
-            pass
+            else:
+                logmsg(category="TOC", msg="DOUPLICATE:")
+                [logmsg(category="TOC", msg="----- %s | %s [%s,%s]" % (t.task_id, t.state, t.robot_id, t.picker_id)) for t in task_list.tasks]
+
         def update_completed_task(self, task_id=None):
             """ Publish task_complete state to Active Tasks list """
             task_list = TasksDetailsList()
@@ -241,8 +302,6 @@ class InterfaceDef(object):
             self.active_tasks_pub.publish(task_list)
             pass
         def toc_legacy_responses(self, state): #TODO: this should be removed
-            print("$STATE = %s"%state)
-
             st = state.split('.')[-1] #TODO: querying [0].[1] we could set a direct remapping reference
 
             """ as not all stage identifiers are TOC-compatible, remap these here """
@@ -266,64 +325,31 @@ class InterfaceDef(object):
                     #'None': 'None'
                     }
             if st in lstt:
+                logmsg(category="TOC", msg="    - stage:%s = TOC:%s" % (st,lstt[st]))
                 return lstt[st]
             else:
                 return 'CALLED'
 
-        """ Dynamic Task Management """ #For agents with task_id, set interruption to [toc_cancel|toc_pause|toc_unpause]
-        #TOC-Interface
-        #    > Service(dtm/cancel): [id]
-        #    > Service(dtm/pause): [id]
-        #    > Service(dtm/unpause): [id]
-        #
-        #    Use-Case:
-        #    >  cancel all of coordinator (dtm/cancel)[]
-        #    >   pause all of coordinator (dtm/pause)[]
-        #    > unpause all of coordinator (dtm/unpause)[]
-        #
-        #    >  cancel all of task (dtm/cancel)[task_id]
-        #    >   pause all of task (dtm/pause)[task_id]
-        #    > unpause all of task (dtm/unpause)[task_id]
-        #
-        #    >  cancel agent on task (dtm/cancel)[agent_id]
-        #    >   pause agent on task (dtm/pause)[agent_id]
-        #    > unpause agent on task (dtm/unpause)[agent_id]
-        #
-        #    # agent_id and task_id can share the same msg property
+        """ Dynamic Task Management """
+        def InterruptTask(self, m):
+            #For targets, set interruption to [toc_cancel|toc_pause|toc_unpause]
+            A = self.coordinator.get_agents()
+            logmsg(category="DTM", id="toc", msg="Interruption made on TOC channels of type: %s" % m.interrupt)
 
-        def CancelTask(self, req):  self.InterruptTask(req, interrupt="toc_cancel"); self.update_completed_task(task_id=req.task_id) #TODO: needed?
-        def PauseTask(self, req):   self.InterruptTask(req, interrupt="toc_pause")
-        def UnpauseTask(self, req): self.InterruptTask(req, interrupt="toc_unpause")
+            if m.target == "":
+                # Modify all tasks
+                logmsg(category="DTM", msg="Interrupt to effect all agents.")
+                [a.set_interrupt(m.interrupt, a.task_module, a['task_id']) for a in A if a['task_id']]
 
-        def InterruptTask(self, req, interrupt):
-            """ For each agent with the associated task_id, set an interrupt """
-            if str(req.id) == "None":
-                logmsg(category="TASK", msg="Interrupt Coordinator: %s" % interrupt)
-                self.InterruptCoordinator(interrupt)
-            elif req.id in [self.coordinator.get_agents()]:
-                logmsg(category="TASK", msg="Interrupt Agent: %s" % interrupt)
-                self.InterruptAgent(interrupt, req.id)
+            elif m.target in A:
+                # Modify specific agent's task
+                logmsg(category="DTM", msg="Interrupt to effect agent: %s." % m.target)
+                A[m.target].set_interrupt(m.interrupt, A[m.target].task_module, A[m.target]['task_id'])
+
             else:
-                logmsg(category="TASK", msg="Interrupt Task: %s" % interrupt)
-                self.InterruptTask(interrupt, req.id)
-
-            # # Get agents associated to the task_id
-            # task_id_agents = [agent for agent in self.coordinator.get_agents()
-            #                   if agent['task_id'] and agent['task_id'] == req.task_id]
-            #
-            # # For each contact, set the interrupt
-            # for agent in task_id_agents:
-            #     if agent.task_module and agent.task_module == "base":
-            #         logmsg(level="error", category="TASK", msg="Requires investigation")
-            #         break
-            #     logmsg(category="ACTION", id=agent.agent_id, msg="InterruptTask: %s"%interrupt)
-            #     agent.interruption = (interrupt, agent.task_module, agent['task_id'])
-            # return True
-
-        def InterruptCoordinator(self, interrupt): pass
-        def InterruptTask(self, interrupt, task_id): pass
-        def InterruptAgent(self, interrupt, agent_id): pass
-
+                # Modify all agents on specific task
+                logmsg(category="DTM", msg="Interrupt to effect task: %s." % m.target)
+                [a.set_interrupt(m.interrupt, a.task_module, a['task_id']) for a in A if a['task_id'] and a['task_id'] == m.target]
 
 
     class AgentInterface(object):
@@ -352,9 +378,10 @@ class InterfaceDef(object):
 
             old_id = self.agent['task_id']
             if self.agent['task_id'] == task_id:
-                if any([contact_id.startswith(option) for option in self.release_option]): TDef.release_task(self.agent)
-                if any([contact_id.startswith(option) for option in self.restart_option]): TDef.restart_task(self.agent)
+                if any([contact_id.startswith(option) for option in self.release_options]): TaskDef.release_task(self.agent)
+                if any([contact_id.startswith(option) for option in self.restart_options]): TaskDef.restart_task(self.agent)
             return old_id
+
     class CAR_App(AgentInterface):
         def __init__(self, agent_id, responses, sub_topic='/car_client/get_states', pub_topic='/car_client/set_states'):
             super(InterfaceDef.CAR_App, self).__init__(agent_id, responses, sub_topic, pub_topic)
