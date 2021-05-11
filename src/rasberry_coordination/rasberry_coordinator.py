@@ -1091,9 +1091,9 @@ class RasberryCoordinator(object):
         interrupts = {'pause': self.pause_task
                      ,'unpause': self.unpause_task
                      ,'cancel': self.cancel_task
-                     ,'toc_pause': self.toc_unpause_task
+                     ,'toc_pause': self.toc_pause_task
                      ,'toc_unpause': self.toc_unpause_task
-                     ,'toc_cancel': self.toc_unpause_task
+                     ,'toc_cancel': self.toc_cancel_task
                      }
         [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption[0] in interrupts]
 
@@ -1102,15 +1102,16 @@ class RasberryCoordinator(object):
         agent().new_stage = True #re-enable the _start() call for once unpaused
         agent.task_stage_list.insert(0, StageDef.Pause(agent))
         agent.registration = False #disable generic query success condition
-        # agent.temp_interface.cancel_exec_policy_goal()  # TODO: how to handle this?
+        if hasattr(agent, 'temp_interface'):
+            agent.temp_interface.cancel_execpolicy_goal()  # TODO: how to handle this?
+            #TODO: setup an onPause cfunctin similar to oncancel, add all this in there?
         agent.interruption = None #reset interruption trigger
-
-        self.modify_robot_marker(agent.agent_id, color='red')
+        self.agent_manager.format_agent_marker(agent.agent_id, style='red')
     def unpause_task(self, agent):
         logmsg(category="DTM", id=agent.agent_id, msg="Task advancement resumed.")
         agent.registration = True #enable generic query success condition
         agent.interruption = None #reset interruption trigger
-        self.modify_robot_marker(agent.agent_id, color='no_color')
+        self.agent_manager.format_agent_marker(agent.agent_id, style='')
     def cancel_task(self, agent):
         logmsg(category="DTM", id=agent.agent_id, msg="Task cancellation request made for task:%s." % agent['task_id'])
         logmsg(category="DTM", msg="Informing task_contacts:")
@@ -1190,7 +1191,7 @@ class RasberryCoordinator(object):
         :param agent_list: The list of agents to query.
         :return: The agent_details object closest to the agent querying against.
         """
-        dist_list = {a.agent_id:self.dist(agent.location(),a.location()) for a in agent_list.values()}
+        dist_list = {a.agent_id:self.dist(agent.location(),a.location()) for a in agent_list.values() if agent.registration}
         logmsg(category="action", msg="Finding closest in: %s" % dist_list)
         return agent_list[min(dist_list, key=dist_list.get)]
     def find_closest_node(self, agent, node_list):

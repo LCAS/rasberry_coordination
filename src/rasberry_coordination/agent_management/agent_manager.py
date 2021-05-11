@@ -124,6 +124,7 @@ class AgentDetails(object):
         self.task_buffer = []
         self.total_tasks = 0
         self.interruption = None
+        self.registration = True
         self.properties = setup['properties']
 
         # Define interface for each role given #TODO: what about differentiating between Device and App?
@@ -231,7 +232,7 @@ class AgentDetails(object):
 
     """ Task Interruption """
     def set_interrupt(self, type, module, task_id):
-        logmsg(category="DTM", msg="Interrupt attached of type: %s/%s/%s." % (type, module, task_id))
+        logmsg(category="DTM", msg="Interrupt attached of type: (%s,%s,%s)." % (type, module, task_id))
         self.interruption = (type, module, task_id)
 
     """ Logging """

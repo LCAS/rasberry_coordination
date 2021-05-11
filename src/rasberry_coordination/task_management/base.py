@@ -166,6 +166,7 @@ class InterfaceDef(object):
 
     class TOC_Interface(object):
         def __init__(self, coordinator):
+            logmsg(id="TOC", msg="Initialised")
             self.coordinator = coordinator
             ns = "/rasberry_coordination"
 
@@ -239,7 +240,6 @@ class InterfaceDef(object):
             else:
                 logmsg(level='warn', category="TOC", msg="DOUPLICATE:")
                 [logmsg(level='warn', category="TOC", msg="----- %s | %s [%s,%s]" % (t.task_id, t.state, t.robot_id, t.picker_id)) for t in T.tasks]
-
         def update_active_tasks_list(self):
             """ Publish updated list of Active Tasks to TOC """
             # logmsg(category="TOC", msg="1Logging active tasks to TOC.")
@@ -333,22 +333,22 @@ class InterfaceDef(object):
         """ Dynamic Task Management """
         def InterruptTask(self, m):
             #For targets, set interruption to [toc_cancel|toc_pause|toc_unpause]
-            A = self.coordinator.get_agents()
             logmsg(category="DTM", id="toc", msg="Interruption made on TOC channels of type: %s" % m.interrupt)
-
+            A = {a.agent_id:a for a in self.coordinator.get_agents()}
+            print(A)
             if m.target == "":
                 # Modify all tasks
-                logmsg(category="DTM", msg="Interrupt to effect all agents.")
+                logmsg(category="DTM", msg="Interrupt to affect all agents.")
                 [a.set_interrupt(m.interrupt, a.task_module, a['task_id']) for a in A if a['task_id']]
 
             elif m.target in A:
                 # Modify specific agent's task
-                logmsg(category="DTM", msg="Interrupt to effect agent: %s." % m.target)
+                logmsg(category="DTM", msg="Interrupt to affect agent: %s." % m.target)
                 A[m.target].set_interrupt(m.interrupt, A[m.target].task_module, A[m.target]['task_id'])
 
             else:
                 # Modify all agents on specific task
-                logmsg(category="DTM", msg="Interrupt to effect task: %s." % m.target)
+                logmsg(category="DTM", msg="Interrupt to affect task: %s." % m.target)
                 [a.set_interrupt(m.interrupt, a.task_module, a['task_id']) for a in A if a['task_id'] and a['task_id'] == m.target]
 
 
