@@ -63,7 +63,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
     # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
     # TODO: include padding at end of msg
 
-    reject_tags = ["ROBNAV", "LIST"]
+    reject_tags = ["ROBNAV"]
     if category.upper() in reject_tags:
         return
 
@@ -90,7 +90,6 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
         else:
             rospy.logerr("category "+category.upper()+" not registered")
             return
-
 
         """ Format ID with conditions for when category or id is empty """
         ids = " " * (13 - len(str(id))) + str(id) + ":"
