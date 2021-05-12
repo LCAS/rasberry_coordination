@@ -233,7 +233,7 @@ class AgentDetails(object):
 
     """ Task Interruption """
     def set_interrupt(self, type, module, task_id):
-        logmsg(category="DTM", msg="Interrupt attached of type: (%s,%s,%s)." % (type, module, task_id))
+        logmsg(category="DTM", msg="Interrupt attached to %s of type: (%s,%s,%s)." % (self.agent_id, type, module, task_id))
         self.interruption = (type, module, task_id)
 
     """ Logging """

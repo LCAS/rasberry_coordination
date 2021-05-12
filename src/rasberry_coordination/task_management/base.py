@@ -258,7 +258,7 @@ class InterfaceDef(object):
                     task.state = agent().get_class()
 
                     # Assign initialiser and responder agent_ids to the task
-                    print(agent.task_contacts)
+                    # print(agent.task_contacts)
                     for a in agent.task_contacts.values():
                         if a.__class__ != str:
                             task.picker_id = a.agent_id
@@ -349,7 +349,12 @@ class InterfaceDef(object):
             else:
                 # Modify all agents on specific task
                 logmsg(category="DTM", msg="Interrupt to affect task: %s." % m.target)
-                [a.set_interrupt(m.interrupt, a.task_module, a['task_id']) for a in A if a['task_id'] and a['task_id'] == m.target]
+                try:
+                    m.target = int(m.target) #TODO: this is wrong....
+                except:
+                    logmsg(level="error", category="DTM", msg="Given target identified as task, target could not cast to int.")
+                    logmsg(level="error", category="DTM", msg="After TOC task conversion to string, this is no issue.")
+                [a.set_interrupt(m.interrupt, a.task_module, a['task_id']) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
 
 
     class AgentInterface(object):
@@ -371,36 +376,25 @@ class InterfaceDef(object):
             self.pub.publish(msg)
 
         def on_cancel(self, task_id, contact_id):
+            logmsg(category='DTM', id=self.agent.agent_id, msg="Request made by %s to cancel task: %s" % (contact_id,task_id))
+
             # If the task is in the buffer, remove it
-            if task_id in [task.task_id for task in self.agent.task_buffer]:
-                self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
-                return None
+            try:
+                if task_id in [task.task_id for task in self.agent.task_buffer]:
+                    logmsg(category='DTM', msg="    - removing task from task_buffer")
+                    self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
+                    return None
+            except:
+                logmsg(level="error", category='DTM', msg="    - task_id not attribute in item in task_buffer?")
+                print(self.agent.task_buffer)
 
             # If task is active, perform appropriate cancellations for contacts
             old_id = self.agent['task_id']
             if self.agent['task_id'] == task_id:
-                logmsg(category='DTM', id=self.agent.agent_id, msg="Release Options: %s" % str(self.release_options))
-                logmsg(category='DTM', id=self.agent.agent_id, msg="Restart Options: %s" % str(self.restart_options))
+                logmsg(category='DTM', msg="    - release triggers: %s" % str(self.release_options))
                 if any([contact_id.startswith(option) for option in self.release_options]): TaskDef.release_task(self.agent)
+                logmsg(category='DTM', msg="    - restart triggers: %s" % str(self.restart_options))
                 if any([contact_id.startswith(option) for option in self.restart_options]): TaskDef.restart_task(self.agent)
-
-                """
-                So right now, if thorvald is cancelled in toc, 
-                it will come here and it will release the task 
-                because the request was made by toc.
-                
-                This means however that it will not acknowledge 
-                the contacts it has.
-                
-                If a robot cancels its own task, we would recieve this in main, then go to robot.cancel()
-                robot.cancel will call this function, what we need here is:
-                
-                ```
-                
-                ```
-                
-                """
-
             return old_id
 
     class CAR_App(AgentInterface):
@@ -527,8 +521,7 @@ class TaskDef(object):
     #     #either way, this becomed first, so do we move or remove the current task?
     @classmethod
     def release_task(cls, agent):
-        logmsg(category="TASK", id=agent.agent_id, msg="Ending task %s" % (agent.task_name))
-        print("Agent: %s agent.action deleted, agent.task_contacts deleted"%agent.agent_id)
+        logmsg(category="DTM", msg="    - releasing task %s" % (agent.task_name))
         task_name = agent.task_name
         agent.task_name = None
         agent.action = dict()
@@ -539,8 +532,8 @@ class TaskDef(object):
         return task_name
     @classmethod
     def restart_task(cls, agent):
-        logmsg(category="TASK", id=agent.agent_id, msg="Restarting task %s" % (agent.task_name))
         task_name = TaskDef.release_task(agent)
+        logmsg(category="DTM", msg="    - restarting task %s" % (agent.task_name))
         agent.add_task(task_name=task_name, index=0)
 
 class StageDef(object):
@@ -765,8 +758,8 @@ class StageDef(object):
     class Pause(StageBase):
         def _start(self):
             self.agent.registration=False
-            # self.agent.task_stage_list[1]._pause()
-            self.agent.temp_interface.cancel_execpolicy_goal()
+            if hasattr(self.agent, 'temp_interface'):
+                self.agent.temp_interface.cancel_execpolicy_goal()
             pass
         def _query(self):
             success_conditions = [self.agent.registration]
