@@ -116,6 +116,7 @@ class AgentDetails(object):
         setup = agent_dict['setup']
 
         #Task Defaults
+        self.action = dict()
         self.task_name = None
         self.task_module = None
         self.task_details = {}

@@ -235,7 +235,7 @@ class InterfaceDef(object):
 
                 logmsg(level='warn', category="TOC", msg="Active Tasks:")
                 [logmsg(level='warn', category="TOC", msg="    - %s | %s [%s,%s]" % (t.task_id, t.state, t.robot_id, t.picker_id)) for t in T.tasks]
-                pprint(lst)
+                # pprint(lst)
                 # print(T)
             else:
                 logmsg(level='warn', category="TOC", msg="DOUPLICATE:")
@@ -282,7 +282,7 @@ class InterfaceDef(object):
                 self.active_tasks_pub.publish(task_list)
                 logmsg(category="TOC", msg="Active Tasks:")
                 [logmsg(category="TOC",msg="    - %s | %s [%s,%s]" % (t.task_id, t.state, t.robot_id, t.picker_id)) for t in task_list.tasks]
-                print(task_list)
+                # print(task_list)
             else:
                 logmsg(category="TOC", msg="DOUPLICATE:")
                 [logmsg(category="TOC", msg="----- %s | %s [%s,%s]" % (t.task_id, t.state, t.robot_id, t.picker_id)) for t in task_list.tasks]
@@ -335,7 +335,7 @@ class InterfaceDef(object):
             #For targets, set interruption to [toc_cancel|toc_pause|toc_unpause]
             logmsg(category="DTM", id="toc", msg="Interruption made on TOC channels of type: %s" % m.interrupt)
             A = {a.agent_id:a for a in self.coordinator.get_agents()}
-            print(A)
+            # print(A)
             if m.target == "":
                 # Modify all tasks
                 logmsg(category="DTM", msg="Interrupt to affect all agents.")
@@ -376,10 +376,31 @@ class InterfaceDef(object):
                 self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
                 return None
 
+            # If task is active, perform appropriate cancellations for contacts
             old_id = self.agent['task_id']
             if self.agent['task_id'] == task_id:
+                logmsg(category='DTM', id=self.agent.agent_id, msg="Release Options: %s" % str(self.release_options))
+                logmsg(category='DTM', id=self.agent.agent_id, msg="Restart Options: %s" % str(self.restart_options))
                 if any([contact_id.startswith(option) for option in self.release_options]): TaskDef.release_task(self.agent)
                 if any([contact_id.startswith(option) for option in self.restart_options]): TaskDef.restart_task(self.agent)
+
+                """
+                So right now, if thorvald is cancelled in toc, 
+                it will come here and it will release the task 
+                because the request was made by toc.
+                
+                This means however that it will not acknowledge 
+                the contacts it has.
+                
+                If a robot cancels its own task, we would recieve this in main, then go to robot.cancel()
+                robot.cancel will call this function, what we need here is:
+                
+                ```
+                
+                ```
+                
+                """
+
             return old_id
 
     class CAR_App(AgentInterface):
@@ -457,7 +478,7 @@ class TaskDef(object):
         task_name = "wait_at_base"
         task_details = cls.load_details(details)
         task_contacts = contacts.copy()
-        task_module = 'base'
+        task_module = 'base'  # TODO: setup common task to replace this
         task_stage_list = [
             StageDef.AssignBaseNode(agent),
             StageDef.NavigateToBaseNode(agent),
@@ -507,8 +528,10 @@ class TaskDef(object):
     @classmethod
     def release_task(cls, agent):
         logmsg(category="TASK", id=agent.agent_id, msg="Ending task %s" % (agent.task_name))
+        print("Agent: %s agent.action deleted, agent.task_contacts deleted"%agent.agent_id)
         task_name = agent.task_name
         agent.task_name = None
+        agent.action = dict()
         agent.task_details = {}
         agent.task_contacts = {}
         task_module = None

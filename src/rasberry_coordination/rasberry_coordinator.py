@@ -1112,33 +1112,34 @@ class RasberryCoordinator(object):
         agent.registration = True #enable generic query success condition
         agent.interruption = None #reset interruption trigger
         self.agent_manager.format_agent_marker(agent.agent_id, style='')
-    def cancel_task(self, agent):
-        logmsg(category="DTM", id=agent.agent_id, msg="Task cancellation request made for task:%s." % agent['task_id'])
+    def cancel_task(self, agent, trigger_agent="self"):
+        logmsg(category="DTM", id=agent.agent_id, msg="Cancellation request made for {task:%s} by %s." % (agent['task_id'], trigger_agent))
         logmsg(category="DTM", msg="Informing task_contacts:")
         [logmsg(category="DTM", msg="    - %s"%contact) for contact in agent.task_contacts]
 
-        module = agent.interruption[1]
-        agent.interruption = None
-
-        # Call the on_cancel response function for each agent actively conected to this task
-        for aid, a in agent.task_contacts.items(): #contacts:
-            a.interfaces[module].on_cancel(task_id=a['task_id'], contact_id=agent.agent_id)
-
-        agent.interfaces[module].on_cancel(agent['task_id'], "self")
-    def toc_pause_task(self, agent): self.pause_task(agent)
-    def toc_unpause_task(self, agent): self.unpause_task(agent)
-    def toc_cancel_task(self, agent):
-        logmsg(category="ACTION", msg="toc_cancel_task")
-        logmsg(category="task", id=agent.agent_id, msg="TOC Task cancellation request made")
-
+        # Reset agent.interruption so this section is not called again
         module = agent.interruption[1]
         task_id = agent.interruption[2]
         agent.interruption = None
 
-        agent.interfaces[module].on_cancel(task_id=task_id, contact_id="toc")
+        # Mark robot as inactive to task assignment
+        agent.registration = False #disable generic query success condition
+        self.agent_manager.format_agent_marker(agent.agent_id, style='red')
 
+        # Call the on_cancel response function for each agent actively conected to this task
+        if module in agent.interfaces: # TODO: THIS IS BAD, we need to manage base module properly
+            for aid, a in [[aid, a] for aid, a in agent.task_contacts.items() if module in a.interfaces]: #contacts:
+                a.interfaces[module].on_cancel(task_id=task_id, contact_id=agent.agent_id)
+            agent.interfaces[module].on_cancel(task_id=task_id, contact_id=trigger_agent)
+            # agent.task_contacts = {}
+        else:
+            logmsg(level="error", category='DTM', msg="Attempt to cancel base task. Functionality not yet included.")
 
-
+        print(agent.task_stage_list)
+        pass
+    def toc_pause_task(self, agent): self.pause_task(agent)
+    def toc_unpause_task(self, agent): self.unpause_task(agent)
+    def toc_cancel_task(self, agent): self.cancel_task(agent, trigger_agent="toc")
 
 
 
@@ -1149,7 +1150,7 @@ class RasberryCoordinator(object):
 
         A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (agent_type in a.roles)}
 
-        responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
+        responses = {"closest": self.find_closest_agent}  # TODO: ROOM TO EXPAND
         return responses[action_style](agent, A)
 
     def find_node(self, agent):
@@ -1191,7 +1192,7 @@ class RasberryCoordinator(object):
         :param agent_list: The list of agents to query.
         :return: The agent_details object closest to the agent querying against.
         """
-        dist_list = {a.agent_id:self.dist(agent.location(),a.location()) for a in agent_list.values() if agent.registration}
+        dist_list = {a.agent_id:self.dist(agent.location(),a.location()) for a in agent_list.values() if a.registration}
         logmsg(category="action", msg="Finding closest in: %s" % dist_list)
         return agent_list[min(dist_list, key=dist_list.get)]
     def find_closest_node(self, agent, node_list):

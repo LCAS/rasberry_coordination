@@ -22,7 +22,7 @@ class InterfaceDef(object):
         def loaded(self): self.agent['has_tray'] = False #picker no longer has the tray
         def reset(self):
             if self.agent['task_id']:
-                self.agent.interruption = ("cancel", "transportation")
+                self.agent.set_interrupt('cancel', 'transportation', self.agent['task_id'])
 
         def on_cancel(self, task_id, contact_id):
             old_id = super(InterfaceDef.transportation_picker, self).on_cancel(task_id=task_id, contact_id=contact_id)
@@ -30,6 +30,8 @@ class InterfaceDef(object):
 
     class transportation_courier(IDef.AgentInterface):
         def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
+            #E.g. If a cancellation request is triggered by picker, we much release
+            #E.g. If a cancellation request is triggered by storage, we much restart
             self.release_options = ['self', 'picker', 'toc']  # TODO: change *_options to *_triggers
             self.restart_options = ['storage']
 
@@ -39,9 +41,9 @@ class InterfaceDef(object):
             #TODO: These need a new home
             self.agent.temp_interface = RobotInterface_Old(self.agent.agent_id)
 
-        def pause(self): self.agent.interruption = "pause"; print("agent paused")
-        def unpause(self): self.agent.interruption = "unpause"; print("agent unpaused")
-        def release(self): self.agent.interruption = "cancel"
+        def pause(self): self.agent.set_interrupt('pause', 'transportation', self.agent['task_id'])
+        def unpause(self): self.agent.set_interrupt('unpause', 'transportation', self.agent['task_id'])
+        def release(self): self.agent.set_interrupt('cancel', 'transportation', self.agent['task_id'])
 
         def on_cancel(self, task_id, contact_id):
             old_id = super(InterfaceDef.transportation_courier, self).on_cancel(task_id=task_id, contact_id=contact_id)
