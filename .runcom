@@ -1,12 +1,9 @@
 echo "    - Iranaphor_RAS rasberry_coordination/.runcom" | awk '{ gsub("Iranaphor_RAS",  "\033[1;31m&\033[0m"); print }' ;
 
-
 #Dynamic Task Interruption
 function can ()  { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_cancel',  target: '$1'}" -1 ; }
 function pau ()  { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_pause',   target: '$1'}" -1 ; }
 function upau () { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_unpause', target: '$1'}" -1 ; }
-
-
 
 
 

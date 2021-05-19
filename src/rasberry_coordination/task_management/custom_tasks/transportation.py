@@ -24,9 +24,10 @@ class InterfaceDef(object):
             if self.agent['task_id']:
                 self.agent.set_interrupt('cancel', 'transportation', self.agent['task_id'])
 
-        def on_cancel(self, task_id, contact_id):
-            old_id = super(InterfaceDef.transportation_picker, self).on_cancel(task_id=task_id, contact_id=contact_id)
-            if old_id == task_id and contact_id == "toc": self.notify("INIT")
+        def on_cancel(self, task_id, contact_id, force_release=False):
+            old_id = super(InterfaceDef.transportation_picker, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
+            # if old_id == task_id and contact_id == "toc": self.notify("INIT") #TODO: find why we added "&contact==toc"
+            if old_id == task_id: self.notify("INIT")
 
     class transportation_courier(IDef.AgentInterface):
         def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
@@ -45,8 +46,8 @@ class InterfaceDef(object):
         def unpause(self): self.agent.set_interrupt('unpause', 'transportation', self.agent['task_id'])
         def release(self): self.agent.set_interrupt('cancel', 'transportation', self.agent['task_id'])
 
-        def on_cancel(self, task_id, contact_id):
-            old_id = super(InterfaceDef.transportation_courier, self).on_cancel(task_id=task_id, contact_id=contact_id)
+        def on_cancel(self, task_id, contact_id, force_release=False):
+            old_id = super(InterfaceDef.transportation_courier, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
             if old_id == task_id: self.agent.temp_interface.cancel_execpolicy_goal()
 
     class transportation_storage(IDef.AgentInterface):
@@ -65,9 +66,8 @@ class InterfaceDef(object):
         def offline(self): pass
         def online(self): pass
 
-        # def on_cancel(self, task_id, contact_id):
-        #     super(InterfaceDef.transportation_storage, self).on_cancel(task_id=task_id, contact_id=contact_id)
-
+        # def on_cancel(self, task_id, contact_id, force_release=False):
+        #     super(InterfaceDef.transportation_storage, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
 
 class TaskDef(object):
 

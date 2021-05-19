@@ -35,7 +35,7 @@ class AgentManager(object):
     def add_agent(self, agent_dict):
         self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
         self.agent_details[agent_dict['agent_id']].int = len(self.agent_details)*2 #TODO: remove this once TOC accepts string tasks
-
+        self.format_agent_marker(agent_dict['agent_id'], style='')
 
     """ Dynnamic Fleet Management """
     def add_agent_ros_srv(self, agent_obj):
@@ -155,7 +155,7 @@ class AgentDetails(object):
     """ Task Starters """
     def add_init_task(self): self.add_task(task_name="%s_init"%self.task_identifier)
     def add_idle_task(self): self.add_task(task_name="%s_idle"%self.task_identifier)
-    def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None):
+    def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None, quiet=False):
 
         """ Called by task stages, used to buffer new tasks for the agent """
         if task_name not in dir(TaskDef):
@@ -172,9 +172,12 @@ class AgentDetails(object):
         if not index: self.task_buffer += [task]
         else: self.task_buffer.insert(index, [task])
 
-        logmsg(category="null")
-        logmsg(category="TASK", id=self.agent_id, msg="Buffering %s to position %i of task_buffer, task stage list:" % (task['name'], index or len(self.task_buffer)))
-        [logmsg(category="TASK", msg='    - %s'%t) for t in task['stage_list']]
+        if quiet:
+            logmsg(category="DTM", msg="    :    - buffering %s to task_buffer[%i]" % (task['name'], index or len(self.task_buffer)))
+        else:
+            logmsg(category="null")
+            logmsg(category="TASK", id=self.agent_id, msg="Buffering %s to position %i of task_buffer, task stage list:" % (task['name'], index or len(self.task_buffer)))
+            [logmsg(category="TASK", msg='    - %s'%t) for t in task['stage_list']]
     def start_next_task(self, idx=0):
         if len(self.task_buffer) < 1: self.add_idle_task()
         if len(self.task_buffer) <= idx: return
@@ -232,9 +235,12 @@ class AgentDetails(object):
         self.task_stage_list.pop(0)
 
     """ Task Interruption """
-    def set_interrupt(self, type, module, task_id):
-        logmsg(category="DTM", msg="Interrupt attached to %s of type: (%s,%s,%s)." % (self.agent_id, type, module, task_id))
+    def set_interrupt(self, type, module, task_id, quiet=False):
         self.interruption = (type, module, task_id)
+        if quiet:
+            logmsg(category="DTM", msg="    - interrupt attached to %s of type: (%s,%s,%s)." % (self.agent_id, type, module, task_id))
+        else:
+            logmsg(category="DTM", msg="Interrupt attached to %s of type: (%s,%s,%s)." % (self.agent_id, type, module, task_id))
 
     """ Logging """
     def __repr__(self):
