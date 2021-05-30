@@ -25,7 +25,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg
     # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
     # TODO: include padding at end of msg
 
-    reject_tags = ["ROBNAV", "LIST1", "ROUTE", "ACTION", "ROB_PY"]
+    reject_tags = ["ROBNAV1", "LIST1", "ROUTE1", "ACTION1", "ROB_PY1"]
     if category.upper() in reject_tags: return
 
     if use_custom_formatting:
@@ -35,8 +35,8 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg
             ros_time = '\b' * 21
 
         """ Define id and/or category to highlight """
-        color_id = ["thorvald_001", "thorvald_002"]
-        color_category = ["DTM", "DRM"]  # TODO move these out of this definition and into some config file  # TODO: moving them outside the funciton will set on import logmsg? if so, we can grab from param server?
+        color_id = ["thorvald_001"]
+        color_category = ["DTM", "DRM", "RVIZ"]  # TODO move these out of this definition and into some config file  # TODO: moving them outside the funciton will set on import logmsg? if so, we can grab from param server?
         # (load from parameter server in launch file?)
 
         """ Format category portion of message """

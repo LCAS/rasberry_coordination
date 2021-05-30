@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-from rospy import init_node as Init, ServiceProxy, wait_for_service as WaitService
+import rospy
+from rospy import ServiceProxy, wait_for_service as WaitService
 from rasberry_coordination.msg import KeyValuePair, TaskRole, KeyValuePair
 from rasberry_coordination.srv import AddAgent
 
 if __name__ == '__main__':
-
-    Init("AddAgent_Interface", anonymous=False)
-    add_agent = ServiceProxy("/rasberry_coordination/add_agent", AddAgent)
+    rospy.init_node("AddAgent_Interface", anonymous=False)
+    add_agent = ServiceProxy("/rasberry_coordination/dfm/add_agent", AddAgent)
 
     choice0 = int(raw_input("Load default thorvald_002 [0,1]:"))
     if choice0 == 0:

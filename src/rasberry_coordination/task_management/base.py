@@ -128,6 +128,7 @@ Notes:
 -> `python -c "import this"`
 """
 
+from pprint import pprint
 from copy import deepcopy
 from std_msgs.msg import String as Str
 import strands_executive_msgs.msg
@@ -356,7 +357,6 @@ class InterfaceDef(object):
                     logmsg(level="error", category="DTM", msg="After TOC task conversion to string, this is no issue.")
                 [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
 
-
     class AgentInterface(object):
         def __init__(self, agent, responses, sub, pub):
             self.agent = agent
@@ -393,7 +393,7 @@ class InterfaceDef(object):
             old_id = self.agent['task_id']
             if self.agent['task_id'] == task_id:
                 if force_release:
-                    if any([contact_id.startswith(option) for option in self.release_options + self.restart_options]): TaskDef.release_task(self.agent)
+                   TaskDef.release_task(self.agent)
                 else:
                     if any([contact_id.startswith(option) for option in self.release_options]): TaskDef.release_task(self.agent)
                     if any([contact_id.startswith(option) for option in self.restart_options]): TaskDef.restart_task(self.agent)
@@ -479,6 +479,23 @@ class TaskDef(object):
             StageDef.AssignBaseNode(agent),
             StageDef.NavigateToBaseNode(agent),
             StageDef.IdleTask(agent)
+        ]
+        return ({'id': task_id,
+                 'name': task_name,
+                 'details': task_details,
+                 'contacts': task_contacts,
+                 'task_module': task_module,
+                 'stage_list': task_stage_list})
+
+    @classmethod
+    def exit_at_node(cls, agent, task_id=None, details={}, contacts={}):
+        task_name = "exit_at_node"
+        task_details = cls.load_details(details)
+        task_contacts = contacts.copy()
+        task_module = 'base'
+        task_stage_list = [
+            StageDef.NavigateToExitNode(agent),
+            StageDef.Exit(agent)
         ]
         return({'id': task_id,
                 'name': task_name,
@@ -719,6 +736,12 @@ class StageDef(object):
     class NavigateToWaitNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToWaitNode, self).__init__(agent, association='wait_node')
 
+    class NavigateToExitNode(NavigateToNode):
+        def __init__(self, agent): super(StageDef.NavigateToExitNode, self).__init__(agent, association='exit_node')
+        def _query(self):
+            success_conditions = [self.agent.location(accurate=True) == self.target]
+            self.agent.flag(any(success_conditions))
+
     """ Active Navigation """
     class FollowAgent(StageBase):
         def _update(self):
@@ -767,6 +790,23 @@ class StageDef(object):
             success_conditions = [self.agent.registration]
             self.agent.flag(any(success_conditions))
     class Unregister(StageBase): pass
+
+    class Exit(StageBase):
+        def _start(self):
+            super(StageDef.Exit, self)._start()
+            self.agent.registered = False
+            for task in self.agent.task_buffer:
+                self.agent.set_interrupt('force_cancel_task', task['task_module'], task['id'])
+
+
+        def _query(self):
+            success_conditions = [len(self.agent.task_buffer) == 0];
+            self.agent.flag(any(success_conditions))
+
+        def _end(self):
+            super(StageDef.Exit, self)._end()
+            self.agent.cb['format_agent_marker'](self.agent.agent_id, 'black')
+            self.agent.set_interrupt('delete_agent', '', '')
 
     """
     if True:
@@ -848,28 +888,4 @@ class StageDef(object):
                 self.agent.storage = closest_storage_location()
                 self.agent.storage.new_task('store', {'robot': self.agent})
     """
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

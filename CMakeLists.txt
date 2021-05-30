@@ -67,12 +67,12 @@ catkin_python_setup()
 add_message_files(
   FILES
   Interruption.msg
+  KeyValuePair.msg
+  MarkerDetails.msg
   TaskUpdates.msg
   TaskDetails.msg
   TasksDetails.msg
   TaskRole.msg
-  MarkerDetails.msg
-  KeyValuePair.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -86,6 +86,7 @@ add_service_files(
   FILES
   AddAgent.srv
   AgentID.srv
+  AgentNodePair.srv
   AllTasksInfo.srv
   ConnectAgent.srv
   RobotState.srv

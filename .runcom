@@ -5,5 +5,9 @@ function can ()  { rostopic pub /rasberry_coordination/dtm rasberry_coordination
 function pau ()  { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_pause',   target: '$1'}" -1 ; }
 function upau () { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_unpause', target: '$1'}" -1 ; }
 
+#Dynamic Fleet Management
+echo "        - dont forget to add second arg to rem"
+function rem () { rosservice call /rasberry_coordination/dfm/remove_agent "{agent_id: 'thorvald_002', node_id: '$1'}" ; }
+function add () { rosrun rasberry_coordination add_agent.py ; }
 
 

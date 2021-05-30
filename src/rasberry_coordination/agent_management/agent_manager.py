@@ -9,7 +9,7 @@
 from rospy import Subscriber, Publisher, Service, Time
 from std_msgs.msg import String as Str
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
-from rasberry_coordination.srv import AddAgent
+from rasberry_coordination.srv import AddAgent, AgentNodePair
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
@@ -22,11 +22,12 @@ class AgentManager(object):
     def __init__(self, callback_dict):
         self.agent_details = {}
         self.cb = callback_dict
+        self.cb['format_agent_marker'] = self.format_agent_marker
         self.pause_all = False
 
         # Setup Services for Dynamic Fleet Management
         Service('/rasberry_coordination/dfm/add_agent',    AddAgent, self.add_agent_ros_srv)
-        Service('/rasberry_coordination/dfm/remove_agent', AddAgent, self.remove_agent_ros_srv)
+        Service('/rasberry_coordination/dfm/remove_agent', AgentNodePair, self.remove_agent_ros_srv)
 
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
 
@@ -46,11 +47,22 @@ class AgentManager(object):
             return {'success': 1, 'msg': 'agent added'}
         else:
             return {'success': 0, 'msg': 'agent unable to be added'}
-    #TODO: Complete this
     def remove_agent_ros_srv(self, srv):
-        # self[srv.agent_id].disconnect()
-        # self.format_agent_marker(agent_dict['agent_id'], "")
-        return {'success': 1, 'msg': 'agent removed'}
+        ### option 1. we create a disconnect task
+        ### option 2. we create a callback called in task assignment
+        # optino 3. we add a condition in start_next_task against a flag
+        #    - how do we delete agent though?
+        # optino 4. we add a condition in start_next_task to add a disconnect interrupt
+        # option 5. we add check in run against task empty and disconnect flag
+        # option 6. we attach a new base task called exit_at_node Navigation, Exit
+        #    - if passed an invalid waypoint it will stop here it starts or go to base node
+
+        if srv.agent_id in self.agent_details:
+            task_location = ""  # TODO: find a persistant reference for this?
+            srv.node_id = srv.node_id or task_location or self[srv.agent_id].location(accurate=True)
+            self[srv.agent_id].add_task('exit_at_node', contacts={'exit_node':srv.node_id})
+            return {'success': 1, 'msg': 'exit_at_node task added for %s'%srv.node_id}
+        return {'success': 0, 'msg': 'agent not found'}
 
 
     """ New Agent Validation """
@@ -179,6 +191,7 @@ class AgentDetails(object):
             logmsg(category="TASK", id=self.agent_id, msg="Buffering %s to position %i of task_buffer, task stage list:" % (task['name'], index or len(self.task_buffer)))
             [logmsg(category="TASK", msg='    - %s'%t) for t in task['stage_list']]
     def start_next_task(self, idx=0):
+        # if self.disconnect_on_task_completion: return #TODO: this condition not nescessary anymore
         if len(self.task_buffer) < 1: self.add_idle_task()
         if len(self.task_buffer) <= idx: return
 
@@ -247,3 +260,8 @@ class AgentDetails(object):
         return "%s(%s)" % (self.get_class(), self.agent_id)
     def get_class(self):
         return str(self.__class__).replace("<class 'rasberry_coordination.agent_management.agent_manager.", "").replace("'>", "")
+
+    """ Disconnection """
+    def __del__(self):
+        for i in range(10):
+            print("IM DYINNGNNGNGN")

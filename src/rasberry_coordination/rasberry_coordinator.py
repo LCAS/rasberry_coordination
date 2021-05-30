@@ -13,7 +13,7 @@ import csv
 import time
 import datetime
 import threading
-
+from pprint import pprint
 import rospy
 
 import strands_executive_msgs.msg
@@ -25,9 +25,7 @@ import topological_navigation.route_search
 import topological_navigation.tmap_utils
 
 import rasberry_coordination.robot
-import rasberry_coordination.msg
 import rasberry_coordination.srv
-# import rasberry_coordination.coordinator
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, remove, add, move
 
@@ -104,7 +102,6 @@ class RasberryCoordinator(object):
 
         """ TOC Communications """
         self.TOC_Interface = InterfaceDef.TOC_Interface(self)
-        # self.active_tasks_pub = rospy.Publisher(self.ns + "active_tasks_details", rasberry_coordination.msg.TasksDetails, latch=True, queue_size=5)
 
 
         logmsg(category="setup", msg='Coordinator initialisation complete')
@@ -1014,7 +1011,7 @@ class RasberryCoordinator(object):
         def lognull(): logmsg(category="null")
         # def interrupt_all(): return self.agent_manager.pause_all
 
-        A = self.get_all_agents()
+        A = get_agents()
         self.enable_task_logging = True
         self.task_progression_log = '/home/jheselden/task_progression.csv'
         self.log_routes = False
@@ -1025,10 +1022,8 @@ class RasberryCoordinator(object):
 
         l(-1)
         while not rospy.is_shutdown():
-            A = get_agents()
-
-            # if interrupt_all(): continue
             interrupt_task()    if any([a.interruption for a in A]) else None;     """ Interrupt Task Execution """
+            A = get_agents()
 
             lognull() if any([not a.task_stage_list for a in A]) else None
             [TOC.End(a) for a in A if not a.task_stage_list];                      """ Update TOC with Ended Tasks """  # TODO: Use better condition
@@ -1055,7 +1050,7 @@ class RasberryCoordinator(object):
             l(-2) #publish route
 
     def get_all_agents(self):
-        return self.agent_manager.agent_details.copy()
+        return self.agent_manager.agent_details.copy() #TODO: is copy needed?
     def get_agents(self):
         self.AllAgentsList = self.get_all_agents()
         return self.AllAgentsList.values()
@@ -1068,8 +1063,6 @@ class RasberryCoordinator(object):
         responses = {'find_agent':self.find_agent,
                      'find_node': self.find_node,
                      'find_agent_from_list': self.find_agent_from_list}  # ROOM TO EXPAND
-
-        # logmsg(category="action", id=agent.agent_id, msg="Action: %s" % str(agent().action))
 
         action_deets = agent().action.copy()
         del action_deets['action_type']
@@ -1085,30 +1078,24 @@ class RasberryCoordinator(object):
         if agent().action['response_location']:
             logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
             agent().action_required = False
-    def interrupt_task(self):
-        rospy.sleep(0.5) #TODO: find a way to remove this
-        logmsg(category="DTM", msg="Interruption detected!");
-        [logmsg(category="DTM", msg="    - %s : %s" % (a.agent_id, a.interruption[0])) for a in self.AllAgentsList.values() if a.interruption]
-        logmsgbreak(1)
 
+    def interrupt_task(self):
         interrupts = {'pause': self.pause_task
                      ,'unpause': self.unpause_task
                      ,'cancel': self.cancel_task
                      ,'toc_pause': self.toc_pause_task
                      ,'toc_unpause': self.toc_unpause_task
                      ,'toc_cancel': self.toc_cancel_task
+                     ,'force_cancel_task': self.force_cancel_task
+                     ,'delete_agent': self.delete_agent
                      }
-        [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption[0] in interrupts]
 
-        """
-        when we have multiple agents, 
-        if one depends on the other and has a task restarted, 
-        the details dont exist to cancel it again
-        
-        this is fine if we just force the cancle rather then restart
-        
-        this is fine if we reference predefined information about the task rather then local information on the agent
-        """
+        rospy.sleep(0.5) #TODO: find a way to remove this (added for toc_cancel all to process)
+        logmsg(category="DTM", msg="Interruption detected!");
+        [logmsg(category="DTM", msg="    - %s : %s" % (a.agent_id, a.interruption[0])) for a in self.AllAgentsList.values() if a.interruption]
+        logmsgbreak(1)
+
+        [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption[0] in interrupts]
 
     def pause_task(self, agent):
         logmsg(category="DTM", id=agent.agent_id, msg="Task advancement paused.")
@@ -1151,11 +1138,20 @@ class RasberryCoordinator(object):
 
         # print(agent.task_stage_list)
         pass
+    def force_cancel_task(self, agent): self.cancel_task(agent, trigger_agent="dfm", force_release=True)
+
+    def delete_agent(self, agent):
+        logmsg(level="error", category="DRM", id=agent.agent_id, msg="Agent has been removed from the scope of the coordinator.")
+        logmsg(level="error", category="DRM", msg="    - Coordinator is no longer recieving location data")
+        logmsg(level="error", category="DRM", msg="    - Agent is no longer reserving a node in the network")
+        logmsg(level="error", category="DRM", msg="    - Ensure agent is moved away")
+        self.agent_manager.agent_details.pop(agent.agent_id)
+
+
+
     def toc_pause_task(self, agent): self.pause_task(agent)
     def toc_unpause_task(self, agent): self.unpause_task(agent)
     def toc_cancel_task(self, agent): self.cancel_task(agent, trigger_agent="toc", force_release=True)
-
-
 
     """ Action Category """
     def find_agent(self, agent):
