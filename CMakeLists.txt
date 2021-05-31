@@ -208,6 +208,7 @@ include_directories(
 install(PROGRAMS
   scripts/simple_task_executor_node.py
   scripts/visualise_agent_markers.py
+  scripts/agent_monitor.py
   scripts/add_agent.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

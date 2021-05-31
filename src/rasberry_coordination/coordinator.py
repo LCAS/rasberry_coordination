@@ -72,15 +72,15 @@ class Coordinator(object):
 
         self.last_id = 0
 
-        self.all_task_ids = [] # list of all task_ids
-        self.completed_tasks = {} # {task_id:Task_definition}
-        self.cancelled_tasks = {} # {task_id:Task_definition}
-        self.failed_tasks = {} # {task_id:Task_definition}
+        self.all_task_ids = [] # lists of all task_ids
+        self.completed_tasks = []
+        self.cancelled_tasks = []
+        self.failed_tasks = []
 
         self.task_robot_id = {} # {task_id:robot_id} to track which robot is assigned to a task
 
         """Robot Detail Manage Initialisation"""
-        cb_dict = {'update_topo_map': None, 'task_cancelled': self.task_cancelled}
+        cb_dict = {'update_topo_map': None, 'task_cancelled': self.task_cancelled, 'task_update': self.task_update}
         self.robot_manager = RobotManager(cb_dict)
         self.robot_manager.add_agents(robot_ids)
         self.picker_manager = PickerManager(cb_dict)
@@ -118,13 +118,17 @@ class Coordinator(object):
             robot._release_task()
             robot._set_target_base()
 
+        # if task is not active for any picker or robot, it is invalid
+        if picker is None and robot is None:
+            return False
+
         self.inform_toc_task_ended(task_id=task_id, reason="task_cancelled")
         return True
 
     cancel_task_ros_srv.type = strands_executive_msgs.srv.CancelTask
 
     def inform_toc_active_tasks(self):
-
+        """ publish TasksDetailsList to inform TOC of the current state of all pickers and robots """
         task_list = TasksDetailsList()
 
         """ loop through tasks owned by pickers """
@@ -136,7 +140,7 @@ class Coordinator(object):
             task.state = picker.task_stage
 
             """ identify connected robot """
-            assigned_robot = self.robot_manager[picker.task_id]
+            assigned_robot = self.robot_manager.get_task_handler(picker.task_id)
             if assigned_robot:
                 task.robot_id = assigned_robot.agent_id
             task.picker_id = picker.agent_id
@@ -169,6 +173,7 @@ class Coordinator(object):
         self.active_tasks_pub.publish(task_list)
 
     def inform_toc_task_ended(self, task_id, reason, robot_id=None, picker_id=None):
+        """ build a TasksDetailsList object to send to TOC to inform of task end """
         task_list = TasksDetailsList()
 
         """ get the task details """
@@ -183,7 +188,8 @@ class Coordinator(object):
         self.active_tasks_pub.publish(task_list)
 
     def toc_legacy_responses(self, state):
-        return {'CREATED': None,
+        """ as not all task_stage identifiers are TOC-compatible, remap these here """
+        return {'CREATED':        'CALLED',
                 'ASSIGNED':       'ACCEPT',
                 'go_to_picker':   'ACCEPT',
 
@@ -199,9 +205,9 @@ class Coordinator(object):
 
                 'task_cancelled': 'CANCELLED',
 
-                'paused': 'PAUSED',
-                'go_to_base': None,
-                'None': None}[str(state)]
+                'paused':         'PAUSED',
+                'go_to_base':     'None',
+                'None':           'None'}[str(state)]
 
         # picker task stages:
         # "CREATED", "ASSIGNED", "ARRIVED", "LOADED", None
@@ -216,19 +222,25 @@ class Coordinator(object):
         """Get all tasks grouped into processing, failed, cancelled, unassigned and completed tasks.
         """
         resp = rasberry_coordination.srv.AllTasksInfoResponse()
-        for task_id in self.processing_tasks:
-            resp.processing_tasks.append(self.picker_manager.format_task_obj(task_id=T))
-        for task_id in self.failed_tasks:
-            resp.failed_tasks.append(self.failed_tasks[task_id])
-        for task_id in self.cancelled_tasks:
-            resp.cancelled_tasks.append(self.cancelled_tasks[task_id])
-        for task_id in self.completed_tasks:
-            resp.completed_tasks.append(self.completed_tasks[task_id])
-        for P in self.picker_manager.unassigned_tasks():
+        for task_id in self.failed_tasks: #added in coordinator.set_task_failed
+            resp.failed_tasks.append(self.format_task_obj(task_id))
+        for task_id in self.cancelled_tasks: #added in coordinator.task_cancelled
+            resp.cancelled_tasks.append(self.format_task_obj(task_id))
+        for task_id in self.completed_tasks: #added in [rasberry_]coordinator.finish_task
+            resp.completed_tasks.append(self.format_task_obj(task_id))
+        for P in self.picker_manager.unassigned_tasks(): #queries (picker.task_id and picker.task_stage is "CREATED")
             resp.unassigned_tasks.append(self.picker_manager.format_task_obj(picker_id=P))
+        for P in self.picker_manager.assigned_tasks(): #queries (picker.task_id and picker.task_stage is not "CREATED")
+            resp.processing_tasks.append(self.picker_manager.format_task_obj(picker_id=P))
         return resp
 
     all_tasks_info_ros_srv.type = rasberry_coordination.srv.AllTasksInfo
+
+    def format_task_obj(self, task_id):
+        """ format strands_executive_msgs.msg.Task object with the given task_id """
+        task = strands_executive_msgs.msg.Task
+        task.task_id = task_id
+        return task
 
     def advertise_services(self):
         """Adverstise ROS services.
@@ -302,7 +314,7 @@ class Coordinator(object):
         robot = self.robot_manager[robot_id]
         task_id = robot.task_id
         robot.task_id = None
-        self.completed_tasks.add(task_id)
+        self.completed_tasks.append(task_id)
 
         # move robot from active to idle robots
         robot.idle = True
@@ -312,7 +324,7 @@ class Coordinator(object):
         """Template method to set task state as failed.
         Extend as needed in a child class
         """
-        self.failed_tasks.add(task_id)
+        self.failed_tasks.append(task_id)
 
     def task_cancelled(self, task_id):
         """ Callback from picker_manager, on CAR call to cancel task """
@@ -326,6 +338,13 @@ class Coordinator(object):
         """ Inform TOC """
         self.set_task_failed(task_id)
         self.inform_toc_task_ended(task_id=task_id, reason="task_cancelled")
+        self.cancelled_tasks.append(task_id)
+
+    def task_update(self, update, task_id, details):
+        """ Abstract base function as placeholder
+        till rasberry_coordinator is defined
+        """
+        pass
 
     def run(self):
         """Template main loop of the coordinator.
