@@ -211,6 +211,17 @@ class RobotDetails(AgentDetails):
         robot.disconnect_when_idle = False
         robot.paused = False
 
+        """charging"""
+        robot.charging = False
+        robot.charging_node = None
+        robot.battery_data = Battery()
+        robot.battery_data_sub = rospy.Subscriber("/%s/battery_data"%(robot.agent_id), Battery, robot._battery_data_cb)
+
+    def _battery_data_cb(robot, msg):
+        """
+        """
+        robot.battery_data = msg
+
     # """On Shutdown"""
     # def _remove(robot): #This shouldnt be required.
     #     super(RobotDetails, robot)._remove()
@@ -227,6 +238,8 @@ class RobotDetails(AgentDetails):
             return robot.current_storage
         elif robot.task_stage == "go_to_base":
             return robot.base_station
+        elif robot.charging:
+            return robot.charging_node
 
     """State Changes"""
     def _set_as_idle(robot):
@@ -236,6 +249,18 @@ class RobotDetails(AgentDetails):
         robot.idle = True
         robot.moving = robot.active = False
         robot.interruptable = False  # not needed
+    def _set_as_charging(robot, charging_node):
+        """
+        """
+        robot._set_as_idle()
+        robot.charging = True
+        robot.charging_node = charging_node
+    def _set_as_not_charging(robot):
+        """
+        """
+        robot._set_as_idle()
+        robot.charging = False
+        robot.charging_node = None
     def _begin_task(robot, task_id):
         """ Set attributes for when courier task is begun
 

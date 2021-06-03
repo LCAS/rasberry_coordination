@@ -294,7 +294,12 @@ class FragmentPlanner(object):
         res_edges = {}
         # split the edges as per the route_fragmentsf
         """ for each active robot """
-        for robot_id in self.robot_manager.active_list():
+        charging_robots = []
+        for robot in self.robot_manager.agent_details.values():
+            if robot.charging:
+                charging_robots.append(robot.agent_id)
+
+        for robot_id in self.robot_manager.active_list()+charging_robots:
             robot = self.robot_manager.agent_details[robot_id]
 
             """ if the robot has route fragments """
@@ -419,6 +424,7 @@ class FragmentPlanner(object):
                         robot._dump(filename='no route found from none')
 
                     #TODO: see how we could improve this by generating wait_node dynamically based on map activity
+
                 else:
                     route_nodes = route.source
                     route_edges = route.edge_id
@@ -431,6 +437,69 @@ class FragmentPlanner(object):
                 robot.route_edges = route_edges
 
                 self.get_edge_distances(robot_id)
+
+            # charging robots
+            elif robot.charging:
+                if robot.current_node is not robot.charging_node:
+                    start_node = robot._get_start_node(accuracy=True)
+                    goal_node = robot._get_goal_node() #TODO: improve this function
+                    if start_node == goal_node:
+                        rospy.loginfo("%s is charging now" %(robot.agent_id))
+                    else:
+                        """take copy of empty map"""
+                        avail_topo_map = copy.deepcopy(self.available_topo_map)
+
+                        """unblock means to add an additional edge into and out of any potentially conjected nodes"""
+                        """unblock nodes for robot starting point"""
+                        avail_topo_map = self.unblock_node(avail_topo_map, start_node)
+
+                        """generate route from start node to goal node"""
+                        avail_route_search = topological_navigation.route_search.TopologicalRouteSearch(avail_topo_map)
+                        route = None
+                        if start_node and goal_node:
+                            logmsg(category="robot", id=robot_id, msg='finding route for [start_node: %s | goal_node: %s]' % (start_node, goal_node))
+                            route = avail_route_search.search_route(start_node, goal_node)
+                            rospy.loginfo(route)
+
+                        route_nodes = []
+                        route_edges = []
+
+                        """if route is not available, replan route to wait node"""
+                        if (route is None and
+                            robot.wait_node is not None and
+                            robot.wait_node != robot.current_node):
+                            logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
+                            goal_node = robot.wait_node
+                            avail_route_search = topological_navigation.route_search.TopologicalRouteSearch(avail_topo_map)
+                            route = avail_route_search.search_route(start_node, goal_node)
+                            rospy.loginfo(route)
+
+                        """if still no route to wait node or goal node"""
+                        if route is None:
+                            if robot.no_route_found_notification:
+                                logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
+                                robot.no_route_found_notification = False
+                            if start_node is None:
+                                robot._dump(filename='no route found from None')
+                            if start_node == "none":
+                                robot._dump(filename='no route found from none')
+
+                            #TODO: see how we could improve this by generating wait_node dynamically based on map activity
+
+                        else:
+                            route_nodes = route.source
+                            route_edges = route.edge_id
+                            # add goal_node to route_nodes as it could be a critical point
+                            route_nodes.append(goal_node)
+                            robot.no_route_found_notification = True
+
+                        """save route details"""
+                        robot.route = route_nodes
+                        robot.route_edges = route_edges
+                        rospy.loginfo(robot.route_edges)
+
+                        self.get_edge_distances(robot_id)
+                pass
 
             else:
                 """if robot is inactive, mark current node as route so as to not interfere with robot"""
