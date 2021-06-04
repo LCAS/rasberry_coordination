@@ -333,5 +333,6 @@ class FragmentPlanner(BasePlanner):
         #     # ---> does this still stand up with out linear progression?
         #     self.split_critical_paths()
         #     self.task_lock.release()
+
         # find critical points and fragment routes to avoid critical point collistions
         self.split_critical_paths()

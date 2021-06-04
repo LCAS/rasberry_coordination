@@ -44,10 +44,10 @@ class RasberryCoordinator(object):
     def __init__(self, agent_list, base_station_nodes_pool, wait_nodes_pool, planning_type, ns, special_nodes):
 
 
-        logmsgbreak(breaks=1)
+        logmsgbreak(total=1)
         print("------------------------------------------")
         logmsg(category="setup", msg='Coordinator initialisation begun')
-        logmsgbreak(breaks=1)
+        logmsgbreak(total=1)
 
         """ Meta Fields """
         self.ns = ns.strip("/") + "/"
@@ -106,9 +106,8 @@ class RasberryCoordinator(object):
 
         logmsg(category="setup", msg='Coordinator initialisation complete')
         print("------------------------------------------")
-        logmsgbreak(breaks=1)
+        logmsgbreak(total=1)
         return
-
     def advertise_services(self):
         """Adverstise ROS services.
         Only call at the end of constructor to avoid calls during construction.
@@ -126,7 +125,6 @@ class RasberryCoordinator(object):
                     service
                 )
                 logmsg(category="setup", msg="    - %s%s" % (self.ns, attr[:-8]))
-
     def on_shutdown(self, ):
         """on shutdown cancel all goals
         """
@@ -153,7 +151,7 @@ class RasberryCoordinator(object):
         A = get_agents()
         self.enable_task_logging = True
         self.task_progression_log = '/home/jheselden/task_progression.csv'
-        self.log_routes = False
+        self.log_routes = True
         self.timestep = 0
         self.iteration = 0
         self.previous_log_iteration = ""
@@ -356,6 +354,7 @@ class RasberryCoordinator(object):
 
     """ Publish route if different from current """
     def execute_policy_routes(self, agent):
+        # logmsg(category="route", id=agent.agent_id, msg="Attempting to publish route.")
 
         """ Publish ExecutePolicyModeGoal if different from current policy """
         policy = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
@@ -373,6 +372,7 @@ class RasberryCoordinator(object):
         old_edge = agent.temp_interface.execpolicy_goal.route.edge_id
         new_node = policy.route.source
         new_edge = policy.route.edge_id
+        # logmsg(category="ROB_PY", id=agent.agent_id, msg="    - route to join {0} and {1}"%(old_node, new_node))
 
         """ If no new route is generated, dont do anything. """
         if (not new_node) or (not new_edge):
@@ -427,12 +427,10 @@ class RasberryCoordinator(object):
         """ If check_route is false, routes are different """
         if check_route:
             if self.log_routes:
-                print(policy)
+                logmsg(category="rob_py", id=agent.agent_id, msg='New route generated:\n%s' % policy)
+                logmsg(category="rob_py", msg='Previous route:\n%s' % agent.temp_interface.execpolicy_goal)
             agent.temp_interface.set_execpolicy_goal(policy)
             agent().route_required = False
-            if self.log_routes:
-                logmsg(category="route", id=agent.agent_id,
-                       msg='new route %s, previous route was %s' % (policy, agent.temp_interface.execpolicy_goal))
 
     def get_path_details(self, start_node, goal_node):
         """get route_nodes, route_edges and route_distance from start_node to goal_node

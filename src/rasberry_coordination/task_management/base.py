@@ -167,7 +167,7 @@ class InterfaceDef(object):
 
     class TOC_Interface(object):
         def __init__(self, coordinator):
-            logmsg(id="TOC", msg="Initialised")
+            logmsg(category="SETUP", msg="TOC Initialised")
             self.coordinator = coordinator
             ns = "/rasberry_coordination"
 
@@ -712,10 +712,12 @@ class StageDef(object):
         def _start(self):
             super(StageDef.Navigation, self)._start()
             self.route_required = True
+            print("agent navigating from %s to %s" % (self.agent.location(accurate=True), self.target))
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
             self.agent.flag(any(success_conditions))
         def _end(self):
+            print("agent navigated from %s to %s" % (self.agent.location(accurate=True), self.target))
             self.agent.temp_interface.cancel_execpolicy_goal()
     class NavigateToAgent(Navigation):
         def _start(self):
@@ -730,8 +732,7 @@ class StageDef(object):
     class NavigateToBaseNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToBaseNode, self).__init__(agent, association='base_node')
         def _query(self):
-            success_conditions = [self.agent.location(accurate=True) == self.target]
-                                  #, len(self.task_stage_list) > 2]
+            success_conditions = [self.agent.location(accurate=True) == self.target]                                  #, len(self.task_stage_list) > 2]
             self.agent.flag(any(success_conditions))
     class NavigateToWaitNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToWaitNode, self).__init__(agent, association='wait_node')

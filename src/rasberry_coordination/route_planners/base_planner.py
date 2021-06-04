@@ -118,7 +118,7 @@ class BasePlanner(object):
         self.rec_topo_map = False
         rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
 
-        logmsgbreak(breaks=1)
+        logmsgbreak(total=1)
         logmsg(category="route", msg='Route Planner waiting for Topological map ...')
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
