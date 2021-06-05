@@ -138,6 +138,10 @@ class RobotManager(AgentManager):
         :return: [agent_id] for each robot if registered and idle/interruptable
         """
         return [R.agent_id for R in self.agent_details.values() if (R.idle or R.interruptable) and R.registered]
+    def charging_robots(self):
+        """
+        """
+        return [R.agent_id for R in self.agent_details.values() if R.charging]
 
 """Centralised container for all details pertaining to the robot"""
 class RobotDetails(AgentDetails):
@@ -214,6 +218,8 @@ class RobotDetails(AgentDetails):
         """charging"""
         robot.charging = False
         robot.charging_node = None
+        robot.min_voltage = 45 # 45v
+        robot.max_voltage = 48 # 48v
         robot.battery_data = Battery()
         robot.battery_data_sub = rospy.Subscriber("/%s/battery_data"%(robot.agent_id), Battery, robot._battery_data_cb)
 
@@ -255,6 +261,7 @@ class RobotDetails(AgentDetails):
         robot._set_as_idle()
         robot.charging = True
         robot.charging_node = charging_node
+        robot.task_stage = None
     def _set_as_not_charging(robot):
         """
         """

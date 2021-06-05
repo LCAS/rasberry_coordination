@@ -341,7 +341,6 @@ class FragmentPlanner(object):
             """for each active robot"""
             if robot.active:
 
-
                 """if waiting set goal as current node, generate route, and exit"""
                 if robot.task_stage in ["wait_loading", "wait_unloading"]:
                     # loading and unloading robots should finish those stages first
@@ -350,7 +349,6 @@ class FragmentPlanner(object):
                     robot.route_edges = []
                     self.get_edge_distances(robot_id)
                     continue
-
 
                 """get start node and goal node"""
                 start_node = robot._get_start_node(accuracy=True)
@@ -445,6 +443,9 @@ class FragmentPlanner(object):
                     goal_node = robot._get_goal_node() #TODO: improve this function
                     if start_node == goal_node:
                         rospy.loginfo("%s is charging now" %(robot.agent_id))
+                        robot.route = [start_node]
+                        robot.route_edges = []
+                        self.get_edge_distances(robot_id)
                     else:
                         """take copy of empty map"""
                         avail_topo_map = copy.deepcopy(self.available_topo_map)

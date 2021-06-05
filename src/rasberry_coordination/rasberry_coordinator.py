@@ -139,10 +139,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         self.free_charging_nodes = set(["dock_1"])
         self.occupied_charging_nodes = set()
-        self.robot_charging_info = {} # robot_id:charging_node
         self.charging_queue = set()
-        self.charging_robots = set()
-        self.max_voltage = 48 # 48v
 
         # calling from the child class
         self.advertise_services()
@@ -178,24 +175,29 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """
         resp = rasberry_coordination.srv.AgentIDResponse()
 
-        if req.agent_id in self.robot_charging_info:
+        charging_robots = self.robot_manager.charging_robots()
+
+        if req.agent_id in charging_robots:
             # make sure the robot has charged enough
             pass
             # release the charging_node
-            charging_node = self.robot_charging_info.pop(req.agent_id)
+            robot = self.robot_manager.agent_details[req.agent_id]
+            charging_node = robot.charging_node
             self.occupied_charging_nodes.remove(charging_node)
             self.free_charging_nodes.add(charging_node)
+            # set robot as not charging
+            robot._set_as_not_charging()
             # register robot
             self.register_robot_ros_srv(req) # TODO: check the response
             # send robot to base
             self.send_robot_to_base(req.agent_id)
             # set response
             resp.success = 1
-            resp.msg = "%s is finished charging and sent to its base"
+            resp.msg = "%s is finished charging and sent to its base" %(req.agent_id)
             rospy.loginfo(resp.msg)
         else:
             resp.success = 0
-            resp.msg = "%s is not finished charging"
+            resp.msg = "%s is not finished charging" %(req.agent_id)
             rospy.logwarn(resp.msg)
         return resp
 
@@ -647,7 +649,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         logmsg(category="robot", id=robot_id, msg='attempting to send to charging station')
 
         robot = self.robot_manager[robot_id]
-        if robot._get_start_node(accuracy=True) == robot._get_goal_node():
+        if robot._get_start_node(accuracy=True) == robot.charging_node:
             logmsg(category="robot", id=robot_id, msg='already at charging station')
             # already at charging station. set as charging
             robot.robot_interface.cancel_execpolicy_goal()
@@ -1020,14 +1022,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """find connecting edges for each fragment in route_fragments and set
         the corresponding route object (with source and edge_id)
         """
-        charging_robots = []
-        for robot in self.robot_manager.agent_details.values():
-            if robot.charging:
-                charging_robots.append(robot.agent_id)
-
-        rospy.loginfo(self.robot_manager.active_list())
-        all_moving_robots = self.robot_manager.active_list()+charging_robots
-        rospy.loginfo(all_moving_robots)
+        charging_robots = self.robot_manager.charging_robots()
+        all_moving_robots = set(self.robot_manager.active_list() + charging_robots)
 
 #        for robot_id in self.robot_manager.active_list():
         for robot_id in all_moving_robots:
@@ -1099,27 +1095,27 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         trigger_replan = False
         # if there is an occupied charging_node, check the battery voltage of the robot
         # if battery is > a threshold, finish_charging
+        charging_robots = self.robot_manager.charging_robots()
         if self.occupied_charging_nodes:
-            for robot_id in self.robot_charging_info:
+            for robot_id in charging_robots:
                 robot = self.robot_manager.agent_details[robot_id]
                 if not robot.battery_data.battery_data:
                     continue
-                if robot.battery_data.battery_data[0].battery_voltage > self.max_voltage:
+                if robot.battery_data.battery_data[0].battery_voltage > robot.max_voltage:
                     req = rasberry_coordination.srv.AgentIDRequest()
                     req.agent_id = robot_id
                     self.finish_charging_ros_srv(req) # TODO: check response
                     robot._set_as_not_charging()
                     trigger_replan = True
         # if there is a robot in the queue, send it for charging
+        to_remove = [] # track processed robots from the queue
         if self.charging_queue and self.free_charging_nodes:
             # max number of possible charging allocations
             max_robots = min(len(self.charging_queue), len(self.free_charging_nodes))
-            to_remove = []
             for robot_id in self.charging_queue:
                 to_remove.append(robot_id)
                 robot = self.robot_manager.agent_details[robot_id]
                 charging_node = self.free_charging_nodes.pop()
-                self.robot_charging_info[robot_id] = charging_node
                 self.occupied_charging_nodes.add(charging_node)
                 # send robot to charging node
                 robot._set_as_charging(charging_node)
@@ -1127,6 +1123,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 trigger_replan = True
                 max_robots -= 1
                 if max_robots == 0: break
+        # remove robots sent to charging from the charging queue
+        for robot_id in to_remove:
+            self.charging_queue.remove(robot_id)
 
         self.trigger_replan = self.trigger_replan or trigger_replan
 
