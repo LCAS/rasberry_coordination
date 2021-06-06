@@ -294,12 +294,9 @@ class FragmentPlanner(object):
         res_edges = {}
         # split the edges as per the route_fragmentsf
         """ for each active robot """
-        charging_robots = []
-        for robot in self.robot_manager.agent_details.values():
-            if robot.charging:
-                charging_robots.append(robot.agent_id)
+        charging_robots = self.robot_manager.charging_robots()
 
-        for robot_id in self.robot_manager.active_list()+charging_robots:
+        for robot_id in set(self.robot_manager.active_list()+charging_robots):
             robot = self.robot_manager.agent_details[robot_id]
 
             """ if the robot has route fragments """
