@@ -62,7 +62,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg
     # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
     # TODO: include padding at end of msg
 
-    reject_tags = ["ROBNAV1", "LIST1", "ROUTE", "ACTION", "ROB_PY1", "TOC", "RVIZ", "LOG"]
+    reject_tags = ["ROBNAV1", "LIST", "ROUTE", "ACTION", "ROB_PY", "TOC", "RVIZ", "LOG"]
     if category.upper() in reject_tags: return
 
     if use_custom_formatting:
@@ -72,12 +72,12 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg
             ros_time = '\b' * 21
 
         """ Define id and/or category to highlight """
-        color_id = ["thorvald_002"]
+        color_id = ["thorvald_001", "thorvald_002"]
         color_category = ["DTM1", "DRM1", "RVIZ1"]  # TODO move these out of this definition and into some config file  # TODO: moving them outside the funciton will set on import logmsg? if so, we can grab from param server?
         # (load from parameter server in launch file?)
 
         """ Format category portion of message """
-        valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "ROB_PY", "ROUTE", "ACTION", "LOG", "STAGE", "SETUP", "RVIZ", "ROBNAV", "DRM", "DTM", "TOC"]
+        valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "ROB_PY", "ROUTE", "ACTION1", "LOG", "STAGE", "SETUP", "RVIZ", "ROBNAV", "DRM", "DTM", "TOC"]
         total_pad_space = max([len(_category) + 1 for _category in valid_categories])
         if category.upper() in valid_categories:
             category_padding = total_pad_space - len(category)

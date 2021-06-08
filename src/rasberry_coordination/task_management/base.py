@@ -504,6 +504,25 @@ class TaskDef(object):
                 'task_module': task_module,
                 'stage_list': task_stage_list})
 
+    @classmethod
+    def charge_at_charging_station(cls, agent, task_id=None, details={}, contacts={}):
+        task_name = "charge_at_charging_station"
+        task_details = cls.load_details(details)
+        task_contacts = contacts.copy()
+        task_module = 'base'
+        task_stage_list = [
+            StageDef.StartChargeTask(agent),
+            StageDef.AssignChargeNode(agent),
+            StageDef.NavigateToChargeNode(agent),
+            StageDef.Charge(agent)
+        ]
+        return({'id': task_id,
+                'name': task_name,
+                'details': task_details,
+                'contacts': task_contacts,
+                'task_module': task_module,
+                'stage_list': task_stage_list})
+
 
 
     """ Edge Task Template """
@@ -652,7 +671,8 @@ class StageDef(object):
             self.agent.task_details = {}
             super(StageDef.IdleTask, self)._start()
         def _query(self):
-            success_conditions = [len(self.agent.task_buffer) > 0]
+            success_conditions = [len(self.agent.task_buffer) > 0,
+                                  self.agent.battery_low()]
             self.agent.flag(any(success_conditions))
         def _summary(self):
             super(StageDef.IdleTask, self)._summary()
@@ -684,6 +704,7 @@ class StageDef(object):
             self.action['response_location'] = None
         def _end(self):
             self.agent.task_contacts['wait_node'] = self.action['response_location']
+
     class AssignBaseNode(AssignNode):
         def _start(self):
             super(StageDef.AssignBaseNode, self)._start()
@@ -691,8 +712,18 @@ class StageDef(object):
             self.action['action_style'] = 'closest'
             self.action['descriptor'] = 'base_node'
             self.action['response_location'] = None
+
         def _end(self):
             self.agent.task_contacts['base_node'] = self.action['response_location']
+    class AssignChargeNode(AssignNode):
+        def _start(self):
+            super(StageDef.AssignChargeNode, self)._start()
+            self.action['action_type'] = 'find_node'
+            self.action['action_style'] = 'closest'
+            self.action['descriptor'] = 'charging_station'
+            self.action['response_location'] = None
+        def _end(self):
+            self.agent.task_contacts['charging_station'] = self.action['response_location']
 
     """ Idle Actions for Pending Actions """
     class Idle(StageBase):
@@ -712,12 +743,12 @@ class StageDef(object):
         def _start(self):
             super(StageDef.Navigation, self)._start()
             self.route_required = True
-            print("agent navigating from %s to %s" % (self.agent.location(accurate=True), self.target))
+            logmsg(category="stage", id=self.agent.agent_id, msg="Naivgation from %s to %s is begun." % (self.agent.location(accurate=True), self.target))
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
             self.agent.flag(any(success_conditions))
         def _end(self):
-            print("agent navigated from %s to %s" % (self.agent.location(accurate=True), self.target))
+            logmsg(category="stage", id=self.agent.agent_id, msg="Naivgation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
             self.agent.temp_interface.cancel_execpolicy_goal()
     class NavigateToAgent(Navigation):
         def _start(self):
@@ -732,13 +763,17 @@ class StageDef(object):
     class NavigateToBaseNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToBaseNode, self).__init__(agent, association='base_node')
         def _query(self):
-            success_conditions = [self.agent.location(accurate=True) == self.target]                                  #, len(self.task_stage_list) > 2]
+            success_conditions = [self.agent.location(accurate=True) == self.target]
             self.agent.flag(any(success_conditions))
     class NavigateToWaitNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToWaitNode, self).__init__(agent, association='wait_node')
-
     class NavigateToExitNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToExitNode, self).__init__(agent, association='exit_node')
+        def _query(self):
+            success_conditions = [self.agent.location(accurate=True) == self.target]
+            self.agent.flag(any(success_conditions))
+    class NavigateToChargeNode(NavigateToNode):
+        def __init__(self, agent): super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
             self.agent.flag(any(success_conditions))
@@ -795,19 +830,28 @@ class StageDef(object):
     class Exit(StageBase):
         def _start(self):
             super(StageDef.Exit, self)._start()
-            self.agent.registered = False
+            self.agent.registration = False
             for task in self.agent.task_buffer:
                 self.agent.set_interrupt('force_cancel_task', task['task_module'], task['id'])
-
-
         def _query(self):
             success_conditions = [len(self.agent.task_buffer) == 0];
             self.agent.flag(any(success_conditions))
-
         def _end(self):
             super(StageDef.Exit, self)._end()
             self.agent.cb['format_agent_marker'](self.agent.agent_id, 'black')
             self.agent.set_interrupt('delete_agent', '', '')
+
+    class StartChargeTask(StartTask):
+        def _start(self):
+            super(StageDef.StartChargeTask, self)._start()
+            self.agent.registration = False
+    class Charge(StageBase):
+        def _query(self):
+            success_conditions = [self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']];
+            self.agent.flag(any(success_conditions))
+        def _end(self):
+            self.agent.registration = True
+
 
     """
     if True:

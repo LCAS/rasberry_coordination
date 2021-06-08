@@ -71,7 +71,6 @@ class InterfaceDef(object):
 
 class TaskDef(object):
 
-
     """ Initialisation Verification """
     @classmethod
     def transportation_courier_init(cls, agent, task_id=None, details={}, contacts={}):
@@ -104,8 +103,12 @@ class TaskDef(object):
         else:
             go2base
         """
+        AP = agent.properties
+        if 'battery_level' in AP and AP['critical_battery_limit'] <= AP['battery_level'] <= AP['min_battery_limit']:
+            return TDef.charge_at_charging_station(agent=agent, task_id=task_id, details=details, contacts=contacts)
+
         agent.properties['load'] = int(agent.properties['load'])
-        if agent.properties['load'] < int(agent.properties['max_load']):
+        if AP['load'] < int(AP['max_load']):
             return TDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)

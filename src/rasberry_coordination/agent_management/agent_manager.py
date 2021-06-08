@@ -8,6 +8,7 @@
 # from abc import ABCMeta, abstractmethod
 from rospy import Subscriber, Publisher, Service, Time
 from std_msgs.msg import String as Str
+from thorvald_base.msg import BatteryArray as Battery
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.srv import AddAgent, AgentNodePair
 from rasberry_coordination.coordinator_tools import logmsg
@@ -158,7 +159,7 @@ class AgentDetails(object):
         if 'initial_location' in agent_dict: self.current_node = agent_dict['initial_location']
         self.subs['current_node'] = Subscriber('/%s/current_node'%(self.agent_id), Str, self.current_node_cb)
         self.subs['closest_node'] = Subscriber('/%s/closest_node'%(self.agent_id), Str, self.closest_node_cb)
-
+        self.subs['battery_data_sub'] = Subscriber("/%s/dummy_battery_data"%(self.agent_id), Battery, self._battery_data_cb) #TODO: point this to the correct location
         # Define Default Tasks
         task = setup['tasks'][0]
         self.task_identifier = '%s_%s' % (task['module'], task['role'])
@@ -218,6 +219,22 @@ class AgentDetails(object):
         return self.current_node or self.closest_node or self.previous_node
     def goal(self):
         return self().target
+
+    """ Battery Monitoring """
+    def _battery_data_cb(self, msg): #TODO: this is robot-specific and should be moved to robot interface
+        total_voltage = sum(battery.battery_voltage for battery in msg.battery_data)
+        self.properties['battery_level'] = total_voltage
+        if self.battery_critical(): self.add_task(task_name="charge_at_charging_station", index=0) #if battery is critical, set next task
+
+    def battery_critical(self):
+        AP = self.properties
+        if 'battery_level' in AP and AP['battery_level'] <= AP['critical_battery_limit']:
+            return True
+    def battery_low(self):
+        AP = self.properties
+        if 'battery_level' in AP and AP['critical_battery_limit'] < AP['battery_level'] <= AP['min_battery_limit']:
+            return True
+
 
     """ Conveniences """
     def __call__(A, index=0):

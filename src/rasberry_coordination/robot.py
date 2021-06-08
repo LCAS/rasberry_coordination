@@ -169,7 +169,7 @@ class Robot(object):
         self.execpolicy_result = None
         self.execpolicy_status = None
         self._exec_policy.send_goal(goal, done_cb=done_cb, active_cb=active_cb, feedback_cb=feedback_cb)
-        print("\n\n\nGOAL ASSIGNED self._exec_policy.send_goal(goal...\n\n\n")
+        # print("\n\n\nGOAL ASSIGNED self._exec_policy.send_goal(goal...\n\n\n")
 #        self._exec_policy.wait_for_result()
 
     def _fb_execpolicy_cb(self, fb):
