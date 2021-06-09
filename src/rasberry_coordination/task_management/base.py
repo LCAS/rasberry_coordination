@@ -584,6 +584,7 @@ class StageDef(object):
             self.agent = agent
             self.action_required = False
             self.route_required = False
+            self.route_found = False
             self.stage_complete = False
             self.new_stage = True
             self.target = None
@@ -742,6 +743,7 @@ class StageDef(object):
             self.target = None
         def _start(self):
             super(StageDef.Navigation, self)._start()
+            self.route_found = False
             self.route_required = True
             logmsg(category="stage", id=self.agent.agent_id, msg="Naivgation from %s to %s is begun." % (self.agent.location(accurate=True), self.target))
         def _query(self):
@@ -750,6 +752,7 @@ class StageDef(object):
         def _end(self):
             logmsg(category="stage", id=self.agent.agent_id, msg="Naivgation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
             self.agent.temp_interface.cancel_execpolicy_goal()
+            self.agent.cb['trigger_replan']() #ReplanTrigger
     class NavigateToAgent(Navigation):
         def _start(self):
             super(StageDef.NavigateToAgent, self)._start()

@@ -237,7 +237,7 @@ class FragmentPlanner(BasePlanner):
         """
         super(FragmentPlanner, self).find_routes()
 
-        logmsg(category="route", id="ROUTING", msg="Finding routes for Active agents")
+        logmsg(category="route", id="routing", msg="Finding routes for Active agents")
         [logmsg(category="route", msg="    - %s:%s"%(a.agent_id, a.goal())) for a in self.agent_details.values()]
         actives =   [a for a in self.agent_details.values() if a.goal()]
         inactives = [a for a in self.agent_details.values() if not a.goal()]
@@ -252,6 +252,7 @@ class FragmentPlanner(BasePlanner):
         """find unblocked routes for all agents which need one"""
         for agent in actives:
             agent_id = agent.agent_id
+            agent().route_found = False
 
             """get start node and goal node"""
             start_node = agent.location(accurate=False) #?
@@ -264,9 +265,10 @@ class FragmentPlanner(BasePlanner):
                 # this is a moving robot, so must be in a go_to_task stage (picker, storage or base)
 
                 # reset routes and route_edges
-                agent.route = [start_node]
-                agent.route_edges = []
-                self.get_edge_distances(agent_id)
+                # agent.route = [start_node]
+                # agent.route_edges = []
+                # self.get_edge_distances(agent_id)
+                inactives += [agent]
                 continue
 
             """take copy of empty map"""
@@ -289,26 +291,20 @@ class FragmentPlanner(BasePlanner):
             # moving to wait_node is a different task stage... should this be handled differently?
             """ If failed to find route, set robot as inactive and mark navigation as failed """
             if route is None:
-                agent().route_failed = True
-                logmsg(category="route", id=agent.agent_id, msg="failed to find route")
+                logmsg(level="warn", category="route", id=agent.agent_id, msg="failed to find route, waiting idle")
+                logmsg(level="warn", category="route", msg="modify here for wait_node addition")
                 inactives += [agent]
                 continue
 
-            """if route is found""" #can this be moved below `for agent in inactives:`?
-            if route is None:
-                if agent.no_route_found_notification:
-                    logmsg(category="route", id=agent_id, msg='no route found from %s to %s' % (start_node, goal_node))
-                    agent.no_route_found_notification = False
-                #TODO: see how we could improve this by generating wait_node dynamically based on map activity
-            else:
-                # if route is not None:
-                route_nodes = route.source + [goal_node] # add goal_node as it could be a critical point
-                route_edges = route.edge_id
-                agent.no_route_found_notification = True
+            route_nodes = route.source + [goal_node] # add goal_node as it could be a critical point
+            route_edges = route.edge_id
+            agent.no_route_found_notification = True
 
             """save route details"""
             agent.route = route_nodes
             agent.route_edges = route_edges
+            agent().route_found = True #ReplanTrigger #todo: is this really right here?
+            logmsg(level="error", category="robot", id=agent.agent_id, msg="Route has been found, marking as such")
 
             self.get_edge_distances(agent_id)
 
@@ -322,17 +318,7 @@ class FragmentPlanner(BasePlanner):
         for a in self.agent_details.values():
             logmsg(category="route", msg="        - %s:%s" % (a.agent_id, a.route))
 
-        # find critical points and fragment routes to avoid critical point collisions
-        # for i in range(10):
-        #     locked = self.task_lock.acquire(False) #we need to get rid of this...
-        #     if locked:
-        #         break
-        #     rospy.sleep(0.05)
-        # if locked:
-        #     # restrict finding critical_path as task may get cancelled and moved from processing_tasks
-        #     # ---> does this still stand up with out linear progression?
-        #     self.split_critical_paths()
-        #     self.task_lock.release()
-
         # find critical points and fragment routes to avoid critical point collistions
         self.split_critical_paths()
+
+        rospy.sleep(1)

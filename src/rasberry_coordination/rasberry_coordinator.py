@@ -52,7 +52,7 @@ class RasberryCoordinator(object):
         """ Meta Fields """
         self.ns = ns.strip("/") + "/"
         self.is_parent = True
-        self.trigger_replan = False
+        self.trigger_fresh_replan = False #ReplanTrigger
         self.log_count = 0
 
 
@@ -77,7 +77,7 @@ class RasberryCoordinator(object):
 
         """ Initialise Agents: """
         callbacks = {'update_topo_map': None
-                     # , 'task_cancelled': self.task_cancelled
+                     , 'trigger_replan': self.trigger_replan #ReplanTrigger
                     }
         #TODO: redesign for this to be gone
 
@@ -138,13 +138,14 @@ class RasberryCoordinator(object):
     """ Main loop for task progression """
     def run(self, planning_type='fragment_planner'):
         # Remappings to simplify function
-        offer_service  = self.offer_service
-        l              = self.log_minimal
-        find_routes    = self.route_finder.find_routes
-        publish_routes = self.execute_policy_routes
-        get_agents     = self.get_agents
-        interrupt_task = self.interrupt_task
-        TOC            = self.TOC_Interface
+        offer_service   = self.offer_service
+        l               = self.log_minimal
+        find_routes     = self.route_finder.find_routes
+        publish_route   = self.execute_policy_route
+        get_agents      = self.get_agents
+        interrupt_task  = self.interrupt_task
+        TOC             = self.TOC_Interface
+        trigger_routing = self.trigger_routing
         def lognull(): logmsg(category="null")
         # def interrupt_all(): return self.agent_manager.pause_all
 
@@ -174,9 +175,9 @@ class RasberryCoordinator(object):
             [offer_service(a)   for a in A if a().action_required];                """ Offer Service """
             l(2)
 
-            lognull() if any([a().route_required for a in A]) else None
-            find_routes()       if any([a().route_required for a in A]) else None; """ Find Routes """
-            [publish_routes(a)  for a in A if a().route_required];                 """ Publish Routes """
+            # lognull() if any([a().route_required for a in A]) else None
+            if trigger_routing(A): find_routes();                                  """ Find Routes """
+            [publish_route(a)  for a in A if a().route_found];                     """ Publish Routes """
             l(3)
 
             [a()._query()       for a in A];                                       """" Query """
@@ -215,7 +216,6 @@ class RasberryCoordinator(object):
         if agent().action['response_location']:
             logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
             agent().action_required = False
-
     def interrupt_task(self):
         interrupts = {'pause': self.pause_task
                      ,'unpause': self.unpause_task
@@ -233,7 +233,6 @@ class RasberryCoordinator(object):
         logmsgbreak(1)
 
         [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption[0] in interrupts]
-
     def pause_task(self, agent):
         logmsg(category="DTM", id=agent.agent_id, msg="Task advancement paused.")
         agent().new_stage = True #re-enable the _start() call for once unpaused
@@ -274,16 +273,12 @@ class RasberryCoordinator(object):
         logmsgbreak(1)
         pass
     def force_cancel_task(self, agent): self.cancel_task(agent, trigger_agent="dfm", force_release=True)
-
     def delete_agent(self, agent):
         logmsg(level="error", category="DRM", id=agent.agent_id, msg="Agent has been removed from the scope of the coordinator.")
         logmsg(level="error", category="DRM", msg="    - Coordinator is no longer recieving location data")
         logmsg(level="error", category="DRM", msg="    - Agent is no longer reserving a node in the network")
         logmsg(level="error", category="DRM", msg="    - Ensure agent is moved away")
         self.agent_manager.agent_details.pop(agent.agent_id)
-
-
-
     def toc_pause_task(self, agent): self.pause_task(agent)
     def toc_unpause_task(self, agent): self.unpause_task(agent)
     def toc_cancel_task(self, agent): self.cancel_task(agent, trigger_agent="toc", force_release=True)
@@ -297,7 +292,6 @@ class RasberryCoordinator(object):
 
         responses = {"closest": self.find_closest_agent}  # TODO: ROOM TO EXPAND
         return responses[action_style](agent, A)
-
     def find_node(self, agent):
         action_style =      agent().action['action_style']
         descriptor =        agent().action['descriptor']
@@ -310,7 +304,6 @@ class RasberryCoordinator(object):
         [logmsg(category='action', msg="    - %s: %s"%(n,N[n])) for n in N]
         responses = {"closest": self.find_closest_node}  # ROOM TO EXPAND
         return responses[action_style](agent, N)
-
     def find_agent_from_list(self, agent):
         action_style =      agent().action['action_style']
         agent_list =        agent().action['list']
@@ -353,8 +346,8 @@ class RasberryCoordinator(object):
 
 
     """ Publish route if different from current """
-    def execute_policy_routes(self, agent):
-        # logmsg(category="route", id=agent.agent_id, msg="Attempting to publish route.")
+    def execute_policy_route(self, agent):
+        logmsg(category="route", id=agent.agent_id, msg="Attempting to publish route.")
 
         """ Publish ExecutePolicyModeGoal if different from current policy """
         policy = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
@@ -365,7 +358,8 @@ class RasberryCoordinator(object):
 
 
         """ Flag to identify if new route is the same and should not be re-published """
-        check_route = True
+        publish_route = True #assume route is identical
+        logmsg(level='warn', category="route", msg="check_route label 1")
 
         """ Identify key elements in routes. """
         old_node = agent.temp_interface.execpolicy_goal.route.source
@@ -375,35 +369,33 @@ class RasberryCoordinator(object):
         # logmsg(category="ROB_PY", id=agent.agent_id, msg="    - route to join {0} and {1}"%(old_node, new_node))
 
         """ If no new route is generated, dont do anything. """
-        if (not new_node) or (not new_edge):
-            return
+        if (not new_node) or (not new_edge): return
 
         """ If old route exists, check against it """
         if old_node:
+            publish_route = False  #addume new route is the same
 
             """ Identify key elements in routes. """
-            old_start_node = old_node[0]
             old_start_edge = old_edge[0]
-            old_target_node = old_node[-1]
             old_target_edge = old_node[-1]
-            new_start_node = new_node[0]
             new_start_edge = new_edge[0]
-            new_target_node = new_node[-1]
             new_target_edge = new_node[-1]
 
             """ Do lists have different entrances to the target node? """
             # old: R========T
             # new:          T=====R
-            if check_route and new_target_edge != old_target_edge:
-                check_route = False
+            if not publish_route and new_target_edge != old_target_edge:
+                logmsg(level='warn', category="route", msg="check_route label 2")
+                publish_route = True #route is different
 
             """ Do lists have different lengths? """
             # old: R========T
             # new:     R====T
-            if check_route and len(new_edge) != len(old_edge):
+            if not publish_route and len(new_edge) != len(old_edge):
+                logmsg(level='warn', category="route", msg="check_route label 3")
                 # If new_route is larger, routes are different
                 if len(new_edge) > len(old_edge):
-                    check_route = False
+                    publish_route = True #route is different
                 else:
                     """ Go backwards from target till smaller route is used up. """
                     # old: R========T
@@ -417,20 +409,29 @@ class RasberryCoordinator(object):
             """ Do same-sized routes differ? """
             # old: ****R====T
             # new:     R=-_=T
-            if check_route:
+            if not publish_route:
+                logmsg(level='warn', category="route", msg="check_route label 4")
                 for i, e in enumerate(list(zip(*(old_edge,new_edge)))):
                     if e[0] != e[1]:
                         logmsg(category="route", id=agent.agent_id, msg="New route different from existing route")
-                        check_route = False
+                        publish_route = True #route is different
                         break
 
         """ If check_route is false, routes are different """
-        if check_route:
+        if publish_route:
+            logmsg(level='warn', category="route", msg="check_route label 5")
             if self.log_routes:
                 logmsg(category="rob_py", id=agent.agent_id, msg='New route generated:\n%s' % policy)
                 logmsg(category="rob_py", msg='Previous route:\n%s' % agent.temp_interface.execpolicy_goal)
+
+            agent.temp_interface.cancel_execpolicy_goal()
             agent.temp_interface.set_execpolicy_goal(policy)
-            agent().route_required = False
+
+            agent().route_required = False #ReplanTrigger
+            logmsg(level='warn', category="route", id=agent.agent_id, msg="route published")
+        agent().route_found = False
+        logmsg(level='warn', category="route", id=agent.agent_id, msg="route publish attempt complete")
+        rospy.sleep(1)
 
     def get_path_details(self, start_node, goal_node):
         """get route_nodes, route_edges and route_distance from start_node to goal_node
@@ -457,6 +458,32 @@ class RasberryCoordinator(object):
             route_distance.append(self.route_finder.planner.get_distance_between_adjacent_nodes(route_nodes[i], route_nodes[i + 1]))
 
         return (route_nodes, route_edges, route_distance)
+    def trigger_replan(self):
+        logmsg(level='error', category="route", msg="route has been completed, refreshing routes")
+        self.trigger_fresh_replan = True #ReplanTrigger
+
+    def trigger_routing(self, A):
+        """
+        route_required => agent is doing navigation task
+        route_found => agent has been assigned a route
+
+        # a.Navigation:  REQUIRED=true
+        # replan:        TRIGGER=true
+        #
+        # find\REQUIRED: FOUND=true
+        #     |TRIGGER:  TRIGGER=false
+        #
+        # publish\FOUND: FOUND=false,
+        #                REQUIRED=false
+        """
+
+        if any([a().route_required for a in A]):
+            return True
+        elif self.trigger_fresh_replan:
+            logmsg(level='error', category="route", msg="replan is triggered!")
+            self.trigger_fresh_replan = False #ReplanTrigger
+            return True
+        return False
 
     """ Task Stage Logging """
     def log_linebreak(self):
