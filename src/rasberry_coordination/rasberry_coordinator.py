@@ -14,8 +14,11 @@ import time
 import datetime
 import threading
 from pprint import pprint
-import rospy
 
+import rospy
+from rospy import Subscriber, Publisher
+
+from std_msgs.msg import Empty
 import strands_executive_msgs.msg
 import strands_executive_msgs.srv
 import strands_navigation_msgs.msg
@@ -91,14 +94,14 @@ class RasberryCoordinator(object):
         # routing_cb = {'publish_task_state': self.publish_task_state,
         #               'send_robot_to_base': self.send_robot_to_base}  # These need to be eventually managed better
         self.route_finder = RouteFinder(planning_type=planning_type, agent_manager=self.agent_manager)
-
+        self.replan_trigger_cb = Subscriber('/rasberry_coordination/force_replan', Empty, self.trigger_replan, )
 
         """ Communications Setup """
         self.advertise_services()
 
         # Initialise topics for marker management #Combine these into 1 topic
-        self.marker_add_pub = rospy.Publisher('/rasberry_coordination/marker_add', MarkerDetails, queue_size=5)
-        self.marker_remove_pub = rospy.Publisher('/rasberry_coordination/marker_remove', MarkerDetails, queue_size=5)
+        self.marker_add_pub = Publisher('/rasberry_coordination/marker_add', MarkerDetails, queue_size=5)
+        self.marker_remove_pub = Publisher('/rasberry_coordination/marker_remove', MarkerDetails, queue_size=5)
 
         """ TOC Communications """
         self.TOC_Interface = InterfaceDef.TOC_Interface(self)
@@ -206,82 +209,13 @@ class RasberryCoordinator(object):
         del action_deets['action_type']
         del action_deets['action_style']
         del action_deets['response_location']
-        logmsg(category="action", id=agent.agent_id,
-               msg="Perfoming %s(%s) - details: %s" \
-                   % (action_type, action_style, action_deets))
-
+        logmsg(category="action", id=agent.agent_id, msg="Perfoming %s(%s) - details: %s" % (action_type, action_style, action_deets))
 
         agent().action['response_location'] = responses[action_type](agent)
 
         if agent().action['response_location']:
             logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
             agent().action_required = False
-    def interrupt_task(self):
-        interrupts = {'pause': self.pause_task
-                     ,'unpause': self.unpause_task
-                     ,'cancel': self.cancel_task
-                     ,'toc_pause': self.toc_pause_task
-                     ,'toc_unpause': self.toc_unpause_task
-                     ,'toc_cancel': self.toc_cancel_task
-                     ,'force_cancel_task': self.force_cancel_task
-                     ,'delete_agent': self.delete_agent
-                     }
-
-        rospy.sleep(0.5) #TODO: find a way to remove this (added for toc_cancel all to process)
-        logmsg(category="DTM", msg="Interruption detected!");
-        [logmsg(category="DTM", msg="    - %s : %s" % (a.agent_id, a.interruption[0])) for a in self.AllAgentsList.values() if a.interruption]
-        logmsgbreak(1)
-
-        [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption[0] in interrupts]
-    def pause_task(self, agent):
-        logmsg(category="DTM", id=agent.agent_id, msg="Task advancement paused.")
-        agent().new_stage = True #re-enable the _start() call for once unpaused
-        agent.task_stage_list.insert(0, StageDef.Pause(agent))
-        agent.registration = False #disable generic query success condition
-        if hasattr(agent, 'temp_interface'):
-            agent.temp_interface.cancel_execpolicy_goal()  # TODO: how to handle this?
-            #TODO: setup an onPause cfunctin similar to oncancel, add all this in there?
-        agent.interruption = None #reset interruption trigger
-        self.agent_manager.format_agent_marker(agent.agent_id, style='red')
-    def unpause_task(self, agent):
-        logmsg(category="DTM", id=agent.agent_id, msg="Task advancement resumed.")
-        agent.registration = True #enable generic query success condition
-        agent.interruption = None #reset interruption trigger
-        self.agent_manager.format_agent_marker(agent.agent_id, style='')
-    def cancel_task(self, agent, trigger_agent="self", force_release=False):
-        logmsg(category="DTM", id=agent.agent_id, msg="Cancellation request made for {task:%s} by %s." % (agent['task_id'], trigger_agent))
-        logmsg(category="DTM", msg="Cancelling agent and contacts:")
-
-        # Reset agent.interruption so this section is not called again
-        module = agent.interruption[1]
-        task_id = agent.interruption[2]
-        agent.interruption = None
-
-        # Mark robot as inactive to task assignment
-        agent.registration = False #disable generic query success condition
-
-        # Call the on_cancel response function for each agent actively conected to this task
-        if module in agent.interfaces: # TODO: THIS IS BAD, we need to manage base module properly
-            for aid, a in [[aid, a] for aid, a in agent.task_contacts.items() if module in a.interfaces]: #contacts:
-                a.interfaces[module].on_cancel(task_id=task_id, contact_id=agent.agent_id, force_release=force_release)
-            agent.interfaces[module].on_cancel(task_id=task_id, contact_id=trigger_agent, force_release=force_release)
-            # agent.task_contacts = {}
-        else:
-            logmsg(level="error", category='DTM', msg="Attempt to cancel base task. Functionality not yet included.")
-
-        self.agent_manager.format_agent_marker(agent.agent_id, style='red')
-        logmsgbreak(1)
-        pass
-    def force_cancel_task(self, agent): self.cancel_task(agent, trigger_agent="dfm", force_release=True)
-    def delete_agent(self, agent):
-        logmsg(level="error", category="DRM", id=agent.agent_id, msg="Agent has been removed from the scope of the coordinator.")
-        logmsg(level="error", category="DRM", msg="    - Coordinator is no longer recieving location data")
-        logmsg(level="error", category="DRM", msg="    - Agent is no longer reserving a node in the network")
-        logmsg(level="error", category="DRM", msg="    - Ensure agent is moved away")
-        self.agent_manager.agent_details.pop(agent.agent_id)
-    def toc_pause_task(self, agent): self.pause_task(agent)
-    def toc_unpause_task(self, agent): self.unpause_task(agent)
-    def toc_cancel_task(self, agent): self.cancel_task(agent, trigger_agent="toc", force_release=True)
 
     """ Action Category """
     def find_agent(self, agent):
@@ -295,13 +229,18 @@ class RasberryCoordinator(object):
     def find_node(self, agent):
         action_style =      agent().action['action_style']
         descriptor =        agent().action['descriptor']
+        rl='response_location'
+        AExcl = [a for _id,a in self.AllAgentsList.items()  if (_id is not agent.agent_id)]
         logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
-        taken = [a.current_node for a in self.AllAgentsList.values() if
-                 (a.agent_id is not agent.agent_id) and a.current_node is not None] #Check if node is occupied
+
+        taken = [a.current_node for a in AExcl if a.current_node] #Check if node is occupied
+        taken += [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]  # TackleSharedTarget
         logmsg(category='action', msg='Occupied Nodes: %s'%taken)
+
         N = {n['id']:n for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in taken)}
         logmsg(category='action', msg='Nodes to Compare Against:')
         [logmsg(category='action', msg="    - %s: %s"%(n,N[n])) for n in N]
+
         responses = {"closest": self.find_closest_node}  # ROOM TO EXPAND
         return responses[action_style](agent, N)
     def find_agent_from_list(self, agent):
@@ -338,11 +277,87 @@ class RasberryCoordinator(object):
         logmsg(category="action", msg="Finding closest in:")
         [logmsg(category='action', msg="    - %s: %s"%(n,dist_list[n])) for n in dist_list]
         return min(dist_list, key=dist_list.get)
-
     """ Find Distance """
     def dist(self, start_node, goal_node):
         _,_,route_dists = self.get_path_details(start_node, goal_node)
         return sum(route_dists)
+
+
+    """ Interrupt Task """
+    def interrupt_task(self):
+        interrupts = {'pause': self.pause_task
+            , 'unpause': self.unpause_task
+            , 'cancel': self.cancel_task
+            , 'toc_pause': self.toc_pause_task
+            , 'toc_unpause': self.toc_unpause_task
+            , 'toc_cancel': self.toc_cancel_task
+            , 'force_cancel_task': self.force_cancel_task
+            , 'delete_agent': self.delete_agent
+                      }
+
+        rospy.sleep(0.5)  # TODO: find a way to remove this (added for toc_cancel all to process)
+        logmsg(category="DTM", msg="Interruption detected!");
+        [logmsg(category="DTM", msg="    - %s : %s" % (a.agent_id, a.interruption[0])) for a in
+         self.AllAgentsList.values() if a.interruption]
+        logmsgbreak(1)
+
+        [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if
+         a.interruption and a.interruption[0] in interrupts]
+    def pause_task(self, agent):
+        logmsg(category="DTM", id=agent.agent_id, msg="Task advancement paused.")
+        agent().new_stage = True  # re-enable the _start() call for once unpaused
+        agent.task_stage_list.insert(0, StageDef.Pause(agent))
+        agent.registration = False  # disable generic query success condition
+        if hasattr(agent, 'temp_interface'):
+            agent.temp_interface.cancel_execpolicy_goal()  # TODO: how to handle this?
+            # TODO: setup an onPause cfunctin similar to oncancel, add all this in there?
+        agent.interruption = None  # reset interruption trigger
+        self.agent_manager.format_agent_marker(agent.agent_id, style='red')
+    def unpause_task(self, agent):
+        logmsg(category="DTM", id=agent.agent_id, msg="Task advancement resumed.")
+        agent.registration = True  # enable generic query success condition
+        agent.interruption = None  # reset interruption trigger
+        self.agent_manager.format_agent_marker(agent.agent_id, style='')
+    def cancel_task(self, agent, trigger_agent="self", force_release=False):
+        logmsg(category="DTM", id=agent.agent_id,
+               msg="Cancellation request made for {task:%s} by %s." % (agent['task_id'], trigger_agent))
+        logmsg(category="DTM", msg="Cancelling agent and contacts:")
+
+        # Reset agent.interruption so this section is not called again
+        module = agent.interruption[1]
+        task_id = agent.interruption[2]
+        agent.interruption = None
+
+        # Mark robot as inactive to task assignment
+        agent.registration = False  # disable generic query success condition
+
+        # Call the on_cancel response function for each agent actively conected to this task
+        if module in agent.interfaces:  # TODO: THIS IS BAD, we need to manage base module properly
+            for aid, a in [[aid, a] for aid, a in agent.task_contacts.items() if module in a.interfaces]:  # contacts:
+                a.interfaces[module].on_cancel(task_id=task_id, contact_id=agent.agent_id, force_release=force_release)
+            agent.interfaces[module].on_cancel(task_id=task_id, contact_id=trigger_agent, force_release=force_release)
+            # agent.task_contacts = {}
+        else:
+            logmsg(level="error", category='DTM', msg="Attempt to cancel base task. Functionality not yet included.")
+
+        self.agent_manager.format_agent_marker(agent.agent_id, style='red')
+        logmsgbreak(1)
+        pass
+    def force_cancel_task(self, agent):
+        self.cancel_task(agent, trigger_agent="dfm", force_release=True)
+    def delete_agent(self, agent):
+        logmsg(level="error", category="DRM", id=agent.agent_id,
+               msg="Agent has been removed from the scope of the coordinator.")
+        logmsg(level="error", category="DRM", msg="    - Coordinator is no longer recieving location data")
+        logmsg(level="error", category="DRM", msg="    - Agent is no longer reserving a node in the network")
+        logmsg(level="error", category="DRM", msg="    - Ensure agent is moved away")
+        self.agent_manager.agent_details.pop(agent.agent_id)
+    def toc_pause_task(self, agent):
+        self.pause_task(agent)
+    def toc_unpause_task(self, agent):
+        self.unpause_task(agent)
+    def toc_cancel_task(self, agent):
+        self.cancel_task(agent, trigger_agent="toc", force_release=True)
 
 
     """ Publish route if different from current """
@@ -432,7 +447,6 @@ class RasberryCoordinator(object):
         agent().route_found = False
         logmsg(level='warn', category="route", id=agent.agent_id, msg="route publish attempt complete")
         rospy.sleep(1)
-
     def get_path_details(self, start_node, goal_node):
         """get route_nodes, route_edges and route_distance from start_node to goal_node
 
@@ -458,10 +472,9 @@ class RasberryCoordinator(object):
             route_distance.append(self.route_finder.planner.get_distance_between_adjacent_nodes(route_nodes[i], route_nodes[i + 1]))
 
         return (route_nodes, route_edges, route_distance)
-    def trigger_replan(self):
-        logmsg(level='error', category="route", msg="route has been completed, refreshing routes")
+    def trigger_replan(self, msg=None):
+        logmsg(category="route", msg="A route has been completed, refreshing routes")
         self.trigger_fresh_replan = True #ReplanTrigger
-
     def trigger_routing(self, A):
         """
         route_required => agent is doing navigation task
@@ -480,10 +493,11 @@ class RasberryCoordinator(object):
         if any([a().route_required for a in A]):
             return True
         elif self.trigger_fresh_replan:
-            logmsg(level='error', category="route", msg="replan is triggered!")
+            logmsg(category="route", msg="Replanning is triggered")
             self.trigger_fresh_replan = False #ReplanTrigger
             return True
         return False
+
 
     """ Task Stage Logging """
     def log_linebreak(self):

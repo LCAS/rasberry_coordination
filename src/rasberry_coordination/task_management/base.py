@@ -716,15 +716,6 @@ class StageDef(object):
 
         def _end(self):
             self.agent.task_contacts['base_node'] = self.action['response_location']
-    class AssignChargeNode(AssignNode):
-        def _start(self):
-            super(StageDef.AssignChargeNode, self)._start()
-            self.action['action_type'] = 'find_node'
-            self.action['action_style'] = 'closest'
-            self.action['descriptor'] = 'charging_station'
-            self.action['response_location'] = None
-        def _end(self):
-            self.agent.task_contacts['charging_station'] = self.action['response_location']
 
     """ Idle Actions for Pending Actions """
     class Idle(StageBase):
@@ -736,7 +727,7 @@ class StageDef(object):
             if self.target:
                 return "%s(%s)"%(self.get_class(), self.target)
             else:
-                return "%s()" % (self.get_class())
+                return "%s(unk)" % (self.get_class())
         def __init__(self, agent, association):
             super(StageDef.Navigation, self).__init__(agent)
             self.association = association
@@ -772,11 +763,6 @@ class StageDef(object):
         def __init__(self, agent): super(StageDef.NavigateToWaitNode, self).__init__(agent, association='wait_node')
     class NavigateToExitNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToExitNode, self).__init__(agent, association='exit_node')
-        def _query(self):
-            success_conditions = [self.agent.location(accurate=True) == self.target]
-            self.agent.flag(any(success_conditions))
-    class NavigateToChargeNode(NavigateToNode):
-        def __init__(self, agent): super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
             self.agent.flag(any(success_conditions))
@@ -817,7 +803,6 @@ class StageDef(object):
             self.summary['_start'] = "load check_value"
             self.summary['_query'] = "check field update"
 
-
     """ Meta Stages """
     class Pause(StageBase):
         def _start(self):
@@ -829,7 +814,6 @@ class StageDef(object):
             success_conditions = [self.agent.registration]
             self.agent.flag(any(success_conditions))
     class Unregister(StageBase): pass
-
     class Exit(StageBase):
         def _start(self):
             super(StageDef.Exit, self)._start()
@@ -844,6 +828,22 @@ class StageDef(object):
             self.agent.cb['format_agent_marker'](self.agent.agent_id, 'black')
             self.agent.set_interrupt('delete_agent', '', '')
 
+    """ Charging Task Stages """
+    class AssignChargeNode(AssignNode):
+        def _start(self):
+            super(StageDef.AssignChargeNode, self)._start()
+            self.action['action_type'] = 'find_node'
+            self.action['action_style'] = 'closest'
+            self.action['descriptor'] = 'charging_station'
+            self.action['response_location'] = None
+        def _end(self):
+            self.agent.task_contacts['charging_station'] = self.action['response_location']
+    class NavigateToChargeNode(NavigateToNode):
+        def __init__(self, agent): super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')
+        def _query(self):
+            success_conditions = [self.agent.location(accurate=True) == self.target
+                                  ,self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']]
+            self.agent.flag(any(success_conditions))
     class StartChargeTask(StartTask):
         def _start(self):
             super(StageDef.StartChargeTask, self)._start()
