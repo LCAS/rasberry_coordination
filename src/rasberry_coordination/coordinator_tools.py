@@ -62,18 +62,18 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg
     # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
     # TODO: include padding at end of msg
 
-    reject_tags = ["ROBNAV", "LIST", "ROUTE", "ACTION1", "ROB_PY", "TOC", "RVIZ", "LOG"]
+    reject_tags = ["ROBNAV1", "LIST1", "ROUTE1", "ACTION1", "ROB_PY1", "TOC1", "RVIZ1", "LOG1"]
     if category.upper() in reject_tags: return
 
     if use_custom_formatting:
 
         ros_time = ''
         if disable_ros_time_printout:
-            ros_time = '\b' * 21
+            ros_time = '\b' * 21  # TODO: swap out using \u001b[{n}D
 
         """ Define id and/or category to highlight """
         color_id = ["thorvald_001", "thorvald_002"]
-        color_category = ["DTM1", "DRM1", "RVIZ1"]  # TODO move these out of this definition and into some config file  # TODO: moving them outside the funciton will set on import logmsg? if so, we can grab from param server?
+        color_category = ["TOC", "DRM1", "RVIZ1"]  # TODO move these out of this definition and into some config file  # TODO: moving them outside the funciton will set on import logmsg? if so, we can grab from param server?
         # (load from parameter server in launch file?)
 
         """ Format category portion of message """
@@ -95,7 +95,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg
 
         """ Define color values for printing """ #TODO: optimise this with re.sub(r'\[.*\]','[]',line)
         reset = '\033[00m'
-        info_color = '\033[38;5;231m'
+        info_color = '\033[38;5;231m\033[0m'
         warn_color = '\033[38;5;136m'
         err_color = '\033[38;5;1m'
         green_highlight = '\033[01;32m'
