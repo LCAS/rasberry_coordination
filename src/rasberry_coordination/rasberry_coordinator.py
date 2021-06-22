@@ -137,7 +137,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         logmsg(msg='robots initialised: ' + ', '.join(self.robot_manager.agent_details.keys()))
 
-        self.free_charging_nodes = set(["dock_1"])
+        self.free_charging_nodes = set(["WayPoint72", "WayPoint70"])
         self.occupied_charging_nodes = set()
         self.charging_queue = set()
 
@@ -1107,6 +1107,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     self.finish_charging_ros_srv(req) # TODO: check response
                     robot._set_as_not_charging()
                     trigger_replan = True
+        else:
+            trigger_replan = True
         # if there is a robot in the queue, send it for charging
         to_remove = [] # track processed robots from the queue
         if self.charging_queue and self.free_charging_nodes:
