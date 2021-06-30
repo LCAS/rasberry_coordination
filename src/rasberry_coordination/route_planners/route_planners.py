@@ -25,6 +25,7 @@ class RouteFinder(object):  # TODO: investigate use of static class (return plan
                           'alternative_planner': self.alternative_planner}
         self.planner = planning_types[self.planning_type]()
 
+
     def find_routes(self):
         """ Proxy function to self.planner.find_routes()
 

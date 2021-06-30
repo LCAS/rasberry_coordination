@@ -43,16 +43,11 @@ class Robot(object):
 
         self.topo_map = None
         self.rec_topo_map = False
-        rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
-        logmsg(category="rob_py", id=self.robot_id, msg='waiting for Topological map ...')
-
-        while not self.rec_topo_map:
-            rospy.sleep(rospy.Duration.from_sec(0.1))
-        logmsg(category="rob_py", id=self.robot_id, msg='received Topological map')
-
-        self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
+        self.route_search = None
         self.route_publisher = rospy.Publisher("%s/current_route" %(self.robot_id), nav_msgs.msg.Path, latch=True, queue_size=5)
-        self.publish_route()
+
+        rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
+
 
         self.topo_route_sub = rospy.Subscriber("/%s/topological_navigation/Route" %(self.robot_id),
                                                strands_navigation_msgs.msg.TopologicalRoute,
@@ -70,6 +65,10 @@ class Robot(object):
         """
         self.topo_map = msg
         self.rec_topo_map = True
+        if not self.route_search:
+            logmsg(category="rob_py", id=self.robot_id, msg='received Topological map')
+            self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
+            self.publish_route()
 
     def topo_route_cb(self, msg):
         """callback for topological_navigation/Route messages
@@ -99,12 +98,17 @@ class Robot(object):
         goal_node -- name of the goal node
         """
         logmsg(category="rob_py", msg='get_path from start_node:[%s] to goal_node:[%s]'%(start_node,goal_node))
+
+        if not self.route_search:
+            logmsg(level="error", category="rob_py", msg='self.route_search not initialised')
+            return([], [], [float("inf")])
+
         route = self.route_search.search_route(start_node, goal_node)
         if route is None:
             logmsg(category="rob_py", id=self.robot_id, msg='no route found between %s and %s' %(start_node, goal_node))
-            #TODO: Set this up so it doesnt repeat along with with "logwarn(replanning now)"
-
+            #TODO: Set this up so it doesnt repeat along with with "logwarn(replanning now)" (throttle?)
             return ([], [], [float("inf")])
+
         route_nodes = route.source
         route_nodes.append(goal_node)
         route_edges = route.edge_id

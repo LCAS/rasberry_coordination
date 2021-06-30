@@ -688,7 +688,7 @@ class StageDef(object):
             super(StageDef.Assignment, self)._start()
             self.action_required = True
         def _query(self):
-            success_conditions = [self.action['response_location'] != None]
+            success_conditions = [('response_location' in self.action and self.action['response_location'] != None)]
             self.agent.flag(any(success_conditions))
         def _summary(self):
             super(StageDef.Assignment, self)._summary()
@@ -696,15 +696,6 @@ class StageDef(object):
     class AssignAgent(Assignment): pass
     class AssignNode(Assignment): pass
 
-    class AssignWaitNode(AssignNode):
-        def _start(self):
-            super(StageDef.AssignWaitNode, self)._start()
-            self.action['action_type'] = 'find_node'
-            self.action['action_style'] = 'closest'
-            self.action['descriptor'] = 'wait_node'
-            self.action['response_location'] = None
-        def _end(self):
-            self.agent.task_contacts['wait_node'] = self.action['response_location']
 
     class AssignBaseNode(AssignNode):
         def _start(self):
@@ -736,13 +727,13 @@ class StageDef(object):
             super(StageDef.Navigation, self)._start()
             self.route_found = False
             self.route_required = True
-            logmsg(category="stage", id=self.agent.agent_id, msg="Naivgation from %s to %s is begun." % (self.agent.location(accurate=True), self.target))
+            logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is begun." % (self.agent.location(accurate=True), self.target))
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
             self.agent.flag(any(success_conditions))
         def _end(self):
-            logmsg(category="stage", id=self.agent.agent_id, msg="Naivgation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
-            self.agent.temp_interface.cancel_execpolicy_goal()
+            logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
+            # self.agent.temp_interface.cancel_execpolicy_goal()
             self.agent.cb['trigger_replan']() #ReplanTrigger
     class NavigateToAgent(Navigation):
         def _start(self):
@@ -759,13 +750,24 @@ class StageDef(object):
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
             self.agent.flag(any(success_conditions))
-    class NavigateToWaitNode(NavigateToNode):
-        def __init__(self, agent): super(StageDef.NavigateToWaitNode, self).__init__(agent, association='wait_node')
     class NavigateToExitNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToExitNode, self).__init__(agent, association='exit_node')
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
             self.agent.flag(any(success_conditions))
+
+    """ Routing Recovery Behviour """
+    class AssignWaitNode(AssignNode):
+        def _start(self):
+            super(StageDef.AssignWaitNode, self)._start()
+            self.action['action_type'] = 'find_node'
+            self.action['action_style'] = 'closest'
+            self.action['descriptor'] = 'wait_node'
+            self.action['response_location'] = None
+        def _end(self):
+            self.agent.task_contacts['wait_node'] = self.action['response_location']
+    class NavigateToWaitNode(NavigateToNode):
+        def __init__(self, agent): super(StageDef.NavigateToWaitNode, self).__init__(agent, association='wait_node')
 
     """ Active Navigation """
     class FollowAgent(StageBase):

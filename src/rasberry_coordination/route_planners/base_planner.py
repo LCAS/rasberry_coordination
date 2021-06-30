@@ -14,6 +14,8 @@ import topological_navigation.route_search
 import topological_navigation.tmap_utils
 
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
+from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
+
 from abc import ABCMeta, abstractmethod
 
 class BasePlanner(object):
@@ -102,6 +104,19 @@ class BasePlanner(object):
         # Filter out agents with no physical presence
         self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.has_presence}
 
+    def no_route_found(self, agent):
+        logmsg(level='error', category='route', id=agent.agent_id, msg='Route not found, executing recovery behaviour:')
+        if not 'WaitNode' in str(agent()):
+            logmsg(level='error', category='route', msg='    - Adding WaitNode as intermediate target')
+
+            logmsg(category="DTM", id=agent.agent_id, msg="    - Adding stages to active task:")
+            agent().new_stage = True
+            recovery_stages = [ StageDef.AssignWaitNode(agent), StageDef.NavigateToWaitNode(agent) ]
+            recovery_stages.reverse()
+            for stage in recovery_stages:
+                logmsg(category="DTM", msg="        - " + str(stage))
+                agent.task_stage_list.insert(0, stage)
+
     @abstractmethod
     def __init__(self, agent_manager):
         """ Copy parameters to properties, set update_map callback for agents and initialise map
@@ -140,3 +155,4 @@ class BasePlanner(object):
     @abstractmethod
     def update_available_topo_map(self, ):
         pass
+

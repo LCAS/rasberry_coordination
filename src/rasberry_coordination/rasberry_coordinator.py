@@ -132,10 +132,6 @@ class RasberryCoordinator(object):
         """on shutdown cancel all goals
         """
         logmsg(level='warn', msg='shutting down all actions')
-        # for robot in self.courier_manager.agent_details.values():
-        #     if robot.active:
-        #         robot.interface.cancel_execpolicy_goal()
-        #         robot.interface.cancel_toponav_goal()
 
 
     """ Main loop for task progression """
@@ -358,6 +354,14 @@ class RasberryCoordinator(object):
         self.unpause_task(agent)
     def toc_cancel_task(self, agent):
         self.cancel_task(agent, trigger_agent="toc", force_release=True)
+    def add_stages(self, agent, stage_list):
+        logmsg(category="DTM", id=agent.agent_id, msg="Adding stages to active task:")
+        agent().new_stage = True
+        for stage in stage_list:
+            logmsg(category="DTM", msg="    - " + str(stage))
+            agent.task_stage_list.insert(0, stage)
+
+
 
 
     """ Publish route if different from current """

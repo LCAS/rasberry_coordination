@@ -293,6 +293,7 @@ class FragmentPlanner(BasePlanner):
             if route is None:
                 logmsg(level="warn", category="route", id=agent.agent_id, msg="failed to find route, waiting idle")
                 logmsg(level="warn", category="route", msg="modify here for wait_node addition")
+                self.no_route_found(agent)
                 inactives += [agent]
                 continue
 
