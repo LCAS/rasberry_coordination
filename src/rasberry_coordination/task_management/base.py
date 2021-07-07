@@ -337,7 +337,15 @@ class InterfaceDef(object):
             logmsg(category="DTM", id="toc", msg="Interruption made on TOC channels of type: %s" % m.interrupt)
             A = {a.agent_id:a for a in self.coordinator.get_agents()}
 
-            if m.target == "":
+
+            targets = {"pause":"toc_pause"
+                      ,"resume":"toc_unpause"
+                      ,"reset":"toc_cancel"
+                      ,"cancel":"toc_cancel"
+                      }
+            m.interrupt = targets[m.interrupt];
+
+            if m.target in ["", "-"]:
                 # Modify all tasks
                 logmsg(category="DTM", msg="    - to affect all agents.")
                 [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], quiet=True) for a in A.values() if a['task_id']]
