@@ -6,6 +6,7 @@
 # ----------------------------------
 
 from rasberry_coordination.route_planners.fragment_planner import FragmentPlanner
+from rasberry_coordination.coordinator_tools import logmsg
 
 
 class RouteFinder(object):  # TODO: investigate use of static class (return planner obj from __init__ instead of self)
@@ -31,7 +32,12 @@ class RouteFinder(object):  # TODO: investigate use of static class (return plan
 
         :return: None
         """
-        self.planner.find_routes()
+        try:
+            self.planner.find_routes()
+        except AttributeError as e:
+            print(e)
+            logmsg(level="error", category="robot", msg='error w/ search_route(start_node, goal_node)')
+
 
     def fragment_planner(self):  # TODO: add direct object creation in __init__
         """ Create a FragmentPlanner object and populate it with the pointers to the agent managers and the callbacks

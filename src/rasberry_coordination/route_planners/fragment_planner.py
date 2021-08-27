@@ -392,7 +392,9 @@ class FragmentPlanner(object):
                 avail_route_search = topological_navigation.route_search.TopologicalRouteSearch(avail_topo_map)
                 route = None
                 if start_node and goal_node:
+                    logmsg(category="robot", id=robot_id, msg='finding route for [start_node: %s | goal_node: %s]' % (start_node, goal_node))
                     route = avail_route_search.search_route(start_node, goal_node)
+
                 route_nodes = []
                 route_edges = []
 
