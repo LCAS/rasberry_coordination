@@ -94,14 +94,14 @@ class MarkerPublisher:
     # Setup picker marker
     def add_picker(self, id):
         self.picker_marker_publishers[id] = markers.HumanMarkerPublisher(id)
-        topic = "/" + id + "/posestamped"
+        topic = "/" + id + "/pose_stamped"
         pub = rasberry_coordination.base_frame_publisher.PoseStampedBaseFramePublisher(id, topic)
         self.base_frame_publishers[id] = pub
 
     # Setup virtual picker marker
     def add_virtual_picker(self, id):
         self.virtual_picker_marker_publishers[id] = markers.HumanMarkerPublisher(id)
-        topic = "/" + id + "/posestamped"
+        topic = "/" + id + "/pose_stamped"
         pub = rasberry_coordination.base_frame_publisher.PoseStampedBaseFramePublisher(id, topic)
         self.base_frame_publishers[id] = pub
 

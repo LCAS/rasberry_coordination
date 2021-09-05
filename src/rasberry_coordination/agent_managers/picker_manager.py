@@ -242,6 +242,9 @@ class PickerDetails(AgentDetails):
         """ State Publisher """
         self.car_state_pub = rospy.Publisher("/car_client/set_states", Str, latch=True, queue_size=5)
 
+        """ Custom named pose_stamped publisher """
+        self.posestamped_pub = rospy.Publisher("/%s/pose_stamped" % self.picker_id, PoseStamped, latch=True, queue_size=5)
+
         """ Manual Location Moving """
         self.move_current_node_sub = Sub(ID+"/move_current_node", Str, self._move_current_node_cb)
 
@@ -316,7 +319,12 @@ class PickerDetails(AgentDetails):
         :return: None
         """
         self.current_node_sub.unregister()
+        self.closest_node_sub.unregister()
+        self.posestamped_sub.unregister()
+
         self._current_node_cb(msg)
+        self._closest_node_cb(msg)
+        self._posestamped_cb(msg)
 
     def _current_node_cb(self, msg):
         """ Callback for "picker_id/current_node"
@@ -334,6 +342,28 @@ class PickerDetails(AgentDetails):
         if goal_update and self.task_id:
             logmsg(category="task", id=self.task_id, msg='new target assigned to robot')
             self.cb['task_update']("picker_node_update", self.task_id, self.current_node)
+
+    def _closest_node_cb(self, msg):
+        """ Callback for "picker_id/closest_node
+
+        :param msg: string containing the new closest_node for the picker
+        :return: None
+        """
+        super(PickerDetails, self)._closest_node_cb(msg)
+
+    def _posestamped_cb(self, msg):
+        """ Callback for picker_id/posestamped
+
+        :param msg: string containing the new current_node for the picker
+        :return: None
+        """
+        if 'get_node' in self.cb:
+            node = self.cb['get_node'](msg.data)
+            posestamped_msg = PoseStamped()
+            posestamped_msg.pose = node.pose
+            self.picker_posestamped_cb(posestamped_msg)
+
+    """ pose_stamped is needed for RViz visualisation"""
     def picker_posestamped_cb(self, msg):
         """ Callback for "picker_id/posestamped"
 
@@ -341,3 +371,5 @@ class PickerDetails(AgentDetails):
         :return: None
         """
         self.posestamped = msg
+        self.posestamped_pub.publish(self.posestamped)
+
