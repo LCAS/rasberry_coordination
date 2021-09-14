@@ -10,6 +10,7 @@ import rospy
 
 from rospy import Subscriber as Sub, get_rostime as Now
 from std_msgs.msg import String as Str
+from std_srvs.srv import Trigger, TriggerResponse
 from rasberry_coordination.agent_managers.agent_manager import AgentManager, AgentDetails
 from geometry_msgs.msg import PoseStamped
 from rasberry_coordination.msg import TasksDetails, TaskUpdates
@@ -42,13 +43,16 @@ class PickerManager(AgentManager):
                                               ResetPicker,
                                               self.reset_picker_node_cb)
 
+        self.reset_picker_srv = rospy.Service(ns+"reset_all_picker_nodes",
+                                              Trigger,
+                                              self.reset_all_picker_nodes_cb)
         #   Define
         # self.task_updates_sub = rospy.Subscriber("rasberry_coordination/task_updates", TaskUpdates, self.task_updates_cb)
         # self.active_tasks_pub = rospy.Publisher("rasberry_coordination/active_tasks_details", TasksDetails, latch=True, queue_size=5)
 
-    """Set picker position to a custom node (from coordinator perspective)"""
+    """ Set picker position to a custom node (from coordinator perspective) """
     def set_picker_node_cb(self, req):
-        """
+        """ set_picker_node service callback
         """
         resp = SetPickerNodeResponse()
         resp.success = False
@@ -59,9 +63,9 @@ class PickerManager(AgentManager):
             resp.message = "Given picker_id is not listed"
         return resp
 
-    """Reset picker position back to default subscribers"""
+    """ Reset picker position back to default subscribers """
     def reset_picker_node_cb(self, req):
-        """
+        """ reset_picker_node service callback
         """
         resp = ResetPickerResponse()
         resp.success = False
@@ -69,6 +73,16 @@ class PickerManager(AgentManager):
             self.agent_details[req.picker_id]._reset_picker_node_cb()
         else:
             resp.message = "Given picker_id is not listed"
+        return resp
+
+    """ Reset all picker nodes in one go """
+    def reset_all_picker_nodes_cb(self, req):
+        """ reset_all_picker_nodes service callback
+        """
+        resp = TriggerResponse()
+        resp.success = True
+        for picker_id in self.agent_details:
+            self.agent_details[picker_id]._reset_picker_node_cb()
         return resp
 
     """Add Picker Details Objects"""
@@ -341,8 +355,15 @@ class PickerDetails(AgentDetails):
 
     """ Reset Picker Location """
     def _reset_picker_node_cb(self):
+        """ reset_picker_node callback
         """
-        """
+        # unregister any existing subscribers
+        # if subscribers are non-existent it should not create any problems
+        # https://github.com/ros/ros_comm/blob/11ebad/clients/rospy/src/rospy/topics.py#L176
+        self.current_node_sub.unregister()
+        self.closest_node_sub.unregister()
+        self.posestamped_sub.unregister()
+
         self.previous_node = None
         self.current_node = None
         self.closest_node = None
