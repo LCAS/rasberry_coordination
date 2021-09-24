@@ -71,6 +71,7 @@ class PickerManager(AgentManager):
         resp.success = False
         if req.picker_id in self.agent_details:
             self.agent_details[req.picker_id]._reset_picker_node_cb()
+            resp.success = True
         else:
             resp.message = "Given picker_id is not listed"
         return resp
