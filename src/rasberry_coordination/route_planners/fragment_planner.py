@@ -30,6 +30,7 @@ class FragmentPlanner(object):
         """ Change callback location to modify the FragmentPlanner available topomap """
         for agent in self.robot_manager.agent_details.values() + self.picker_manager.agent_details.values():
             agent.cb['update_topo_map'] = self.update_available_topo_map
+            agent.cb['get_node'] = self.get_node
 
         """ Download Topological Map """
         rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
