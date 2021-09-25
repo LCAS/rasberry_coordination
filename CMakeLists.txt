@@ -85,8 +85,10 @@ add_service_files(
   AgentID.srv
   AllTasksInfo.srv
   ConnectAgent.srv
+  ResetPicker.srv
   RobotState.srv
   RobotStates.srv
+  SetPickerNode.srv
   TrayLoaded.srv
   TriggerRobot.srv
   UnregisterAgent.srv
