@@ -55,7 +55,7 @@ class MarkerPublisher:
         for robot_id in self.robot_ids:
             print(self.robot_ids)
             print("Adding robot " + robot_id)
-            self.add_small_robot(robot_id)
+            self.add_short_robot(robot_id)
             # TODO: use robot type here to add tall robot markers
         for picker_id in self.picker_ids:
             print("Adding picker " + picker_id)
@@ -67,7 +67,7 @@ class MarkerPublisher:
     # Marker add callback
     def add_marker_cb(self, msg):
         print("Adding " + msg.type + " " + msg.name)
-        if msg.type == "small_robot":
+        if msg.type == "short_robot":
             self.robot_ids.append(msg.name)
             self.add_robot(msg.name, msg.optional_color)
             print(self.thorvald_marker_publishers.keys())
@@ -85,8 +85,8 @@ class MarkerPublisher:
             print(self.virtual_picker_marker_publishers.keys())
         return 0
 
-    # Setup small robot marker
-    def add_small_robot(self, id, color=''):
+    # Setup short robot marker
+    def add_short_robot(self, id, color=''):
         if id in self.thorvald_marker_publishers:
             self.thorvald_marker_publishers.pop(id)
             self.base_frame_publishers.pop(id)
