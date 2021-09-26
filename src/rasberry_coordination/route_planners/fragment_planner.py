@@ -69,13 +69,13 @@ class FragmentPlanner(object):
 
         for node in topo_map["nodes"]:
             to_pop=[]
-            for i in range(len(node["edges"])):
-                if node["edges"][i]["node"] in agent_nodes:
+            for i in range(len(node["node"]["edges"])):
+                if node["node"]["edges"][i]["node"] in agent_nodes:
                     to_pop.append(i)
             if to_pop:
                 to_pop.reverse()
                 for j in to_pop:
-                    node["edges"].pop(j)
+                    node["node"]["edges"].pop(j)
 
         self.available_topo_map = topo_map
 
