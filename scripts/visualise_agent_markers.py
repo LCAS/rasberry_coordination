@@ -55,7 +55,8 @@ class MarkerPublisher:
         for robot_id in self.robot_ids:
             print(self.robot_ids)
             print("Adding robot " + robot_id)
-            self.add_robot(robot_id)
+            self.add_small_robot(robot_id)
+            # TODO: use robot type here to add tall robot markers
         for picker_id in self.picker_ids:
             print("Adding picker " + picker_id)
             self.add_picker(picker_id)
@@ -66,7 +67,11 @@ class MarkerPublisher:
     # Marker add callback
     def add_marker_cb(self, msg):
         print("Adding " + msg.type + " " + msg.name)
-        if msg.type == "robot":
+        if msg.type == "small_robot":
+            self.robot_ids.append(msg.name)
+            self.add_robot(msg.name, msg.optional_color)
+            print(self.thorvald_marker_publishers.keys())
+        elif msg.type == "tall_robot":
             self.robot_ids.append(msg.name)
             self.add_robot(msg.name, msg.optional_color)
             print(self.thorvald_marker_publishers.keys())
@@ -80,13 +85,24 @@ class MarkerPublisher:
             print(self.virtual_picker_marker_publishers.keys())
         return 0
 
-    # Setup robot marker
-    def add_robot(self, id, color=''):
+    # Setup small robot marker
+    def add_small_robot(self, id, color=''):
         if id in self.thorvald_marker_publishers:
             self.thorvald_marker_publishers.pop(id)
             self.base_frame_publishers.pop(id)
 
         self.thorvald_marker_publishers[id] = markers.ColoredThorvaldMarkerPublisher(id, color)
+        topic = "/" + id + "/robot_pose"
+        pub = rasberry_coordination.base_frame_publisher.PoseBaseFramePublisher(id, topic)
+        self.base_frame_publishers[id] = pub
+
+    # Setup tall robot marker
+    def add_tall_robot(self, id, color=''):
+        if id in self.thorvald_marker_publishers:
+            self.thorvald_marker_publishers.pop(id)
+            self.base_frame_publishers.pop(id)
+
+        self.thorvald_marker_publishers[id] = markers.ColoredTallThorvaldMarkerPublisher(id, color)
         topic = "/" + id + "/robot_pose"
         pub = rasberry_coordination.base_frame_publisher.PoseBaseFramePublisher(id, topic)
         self.base_frame_publishers[id] = pub

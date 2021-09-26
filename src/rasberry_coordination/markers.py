@@ -269,6 +269,136 @@ class ColoredThorvaldMarkerPublisher(ThorvaldMarkerPublisher):
         self.marker_pub = rospy.Publisher("/%s/vis" %(robot_name), visualization_msgs.msg.MarkerArray, queue_size=10)
         self.publish()
 
+class TallThorvaldMarkerPublisher(ThorvaldMarkerPublisher):
+
+    def __init__(self, robot_name, color=''):
+        """
+        """
+        super(TallThorvaldMarkerPublisher, self).__init__(robot_name)
+
+    def _create_markers(self):
+        """
+        """
+        # wheels
+        wheel_0_marker = self._wheel_marker("wheel0", 0, position=(0.65, 0.3, 0.15))
+        wheel_1_marker = self._wheel_marker("wheel1", 1, position=(0.65, -0.3, 0.15))
+        wheel_2_marker = self._wheel_marker("wheel2", 2, position=(-0.65, -0.3, 0.15))
+        wheel_3_marker = self._wheel_marker("wheel3", 3, position=(-0.65, 0.3, 0.15))
+
+        self._marker_array.markers.append(wheel_0_marker)
+        self._marker_array.markers.append(wheel_1_marker)
+        self._marker_array.markers.append(wheel_2_marker)
+        self._marker_array.markers.append(wheel_3_marker)
+
+        # towers
+        tower_0_marker = self._tower_marker("tower0", 4, position=(0.6, 0.3, 0.45))
+        tower_1_marker = self._tower_marker("tower1", 5, position=(0.6, -0.3, 0.45))
+        tower_2_marker = self._tower_marker("tower2", 6, position=(-0.6, -0.3, 0.45))
+        tower_3_marker = self._tower_marker("tower3", 7, position=(-0.6, 0.3, 0.45))
+
+        self._marker_array.markers.append(tower_0_marker)
+        self._marker_array.markers.append(tower_1_marker)
+        self._marker_array.markers.append(tower_2_marker)
+        self._marker_array.markers.append(tower_3_marker)
+
+        # front - back pipes
+        pipe_0_marker = self._front_back_pipe_marker("pipe0", 8, position=(0.0, 0.32, 0.5))
+        pipe_1_marker = self._front_back_pipe_marker("pipe1", 9, position=(0.0, 0.32, 0.4))
+        pipe_2_marker = self._front_back_pipe_marker("pipe2", 10, position=(0.0, -0.32, 0.5))
+        pipe_3_marker = self._front_back_pipe_marker("pipe3", 11, position=(0.0, -0.32, 0.4))
+
+        self._marker_array.markers.append(pipe_0_marker)
+        self._marker_array.markers.append(pipe_1_marker)
+        self._marker_array.markers.append(pipe_2_marker)
+        self._marker_array.markers.append(pipe_3_marker)
+
+        # arch
+        arch_marker = self._arch_marker("arch", 12, position=(-0.68, -0.37, 0.4))
+
+        self._marker_array.markers.append(arch_marker)
+
+        # name
+        name_marker = self._name_marker("name", 16, position=(0, 0, 0.7))
+        self._marker_array.markers.append(name_marker)
+
+    def _arch_marker(self, arch_id, marker_index, position):
+        """ Tall robot model with the arch
+        """
+        arch_marker = visualization_msgs.msg.Marker()
+        arch_marker.header.frame_id = self.frame_id
+        arch_marker.ns = arch_id
+        arch_marker.id = marker_index
+        arch_marker.type = visualization_msgs.msg.Marker.MESH_RESOURCE
+        arch_marker.mesh_resource = "package://thorvald_description/meshes/uv_frame/uv_arc.STL"
+        arch_marker.action = visualization_msgs.msg.Marker.ADD
+        arch_marker.pose.position.x = position[0]
+        arch_marker.pose.position.y = position[1]
+        arch_marker.pose.position.z = position[2]
+        quat = tf.transformations.quaternion_from_euler(3.14/2.0, 0.0, 3.14/2.0)
+        arch_marker.pose.orientation.x = quat[0]
+        arch_marker.pose.orientation.y = quat[1]
+        arch_marker.pose.orientation.z = quat[2]
+        arch_marker.pose.orientation.w = quat[3]
+        arch_marker.scale.x = 0.54
+        arch_marker.scale.y = 0.7
+        arch_marker.scale.z = 1.3
+        arch_marker.color.r = 0.9
+        arch_marker.color.g = 0.9
+        arch_marker.color.b = 0.9
+        arch_marker.color.a = 1.0
+        arch_marker.frame_locked = True
+
+        return arch_marker
+
+class ColoredTallThorvaldMarkerPublisher(TallThorvaldMarkerPublisher):
+
+    def __init__(self, robot_name, color=''):
+        """
+        """
+        self.robot_name = robot_name
+        self._marker_array = visualization_msgs.msg.MarkerArray()
+        self.frame_id = self.robot_name+"/base_link"
+        self._create_markers()
+
+        if color != '':
+            if color == "red":
+                pipe = ColorRGBA(.5, 0, 0, 1)
+                wheel = ColorRGBA(0, 0, 0, 1)
+                tower = ColorRGBA(1, 0, 0, 1)
+                arch = ColorRGBA(1, 0, 0, 1)
+            if color == "green":
+                pipe = ColorRGBA(0, .5, 0, 1)
+                wheel = ColorRGBA(0, 0, 0, 1)
+                tower = ColorRGBA(0, 1, 0, 1)
+                arch = ColorRGBA(0, 1, 0, 1)
+            if color == "blue":
+                pipe = ColorRGBA(0, 0, .5, 1)
+                wheel = ColorRGBA(0, 0, 0, 1)
+                tower = ColorRGBA(0, 0, 1, 1)
+                arch = ColorRGBA(0, 0, 1, 1)
+            if color == "black":
+                pipe = ColorRGBA(0, 0, 0, 1)
+                wheel = ColorRGBA(0, 0, 0, 1)
+                tower = ColorRGBA(0, 0, 0, 1)
+                arch = ColorRGBA(0, 0, 0, 1)
+            if color == "white":
+                pipe = ColorRGBA(1, 1, 1, 1)
+                wheel = ColorRGBA(0, 0, 0, 1)
+                tower = ColorRGBA(1, 1, 1, 1)
+                arch = ColorRGBA(1, 1, 1, 1)
+
+            for marker in self._marker_array.markers:
+                if marker.ns.startswith('pipe'):
+                    marker.color = pipe
+                if marker.ns.startswith('tower'):
+                    marker.color = tower
+                if marker.ns.startswith('wheel'):
+                    marker.color = wheel
+                if marker.ns.startswith('arch'):
+                    marker.color = arch
+
+        self.marker_pub = rospy.Publisher("/%s/vis" %(robot_name), visualization_msgs.msg.MarkerArray, queue_size=10)
+        self.publish()
 
 class HumanMarkerPublisher(object):
     """
