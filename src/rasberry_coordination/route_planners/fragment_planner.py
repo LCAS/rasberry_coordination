@@ -5,17 +5,14 @@
 # @date:
 # ----------------------------------
 
-import rospy
 import copy
-import threading
 import operator
+import rospy
+import threading
+import yaml
 
-# import strands_executive_msgs.msg
-# import strands_executive_msgs.srv
-import strands_navigation_msgs.msg
-# import strands_navigation_msgs.srv
-# import topological_navigation.msg
-import topological_navigation.route_search
+import std_msgs.msg
+import topological_navigation.route_search2
 import topological_navigation.tmap_utils
 
 from rasberry_coordination.coordinator_tools import logmsg
@@ -32,8 +29,9 @@ class FragmentPlanner(object):
             agent.cb['update_topo_map'] = self.update_available_topo_map
             agent.cb['get_node'] = self.get_node
 
+        self.rec_topo_map = False
         """ Download Topological Map """
-        rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
+        rospy.Subscriber("topological_map_2", std_msgs.msg.String, self._map_cb)
         logmsg(msg='FragmentPlanner waiting for Topological map ...')
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
@@ -43,7 +41,7 @@ class FragmentPlanner(object):
     def _map_cb(self, msg):
         """This function receives the Topological Map
         """
-        self.topo_map = msg
+        self.topo_map = yaml.safe_load(msg.data)
         self.rec_topo_map = True
 
     def update_available_topo_map(self, ):
@@ -69,15 +67,15 @@ class FragmentPlanner(object):
             if curr_nodes[i] is not None:
                 agent_nodes.append(curr_nodes[i])
 
-        for node in topo_map.nodes:
+        for node in topo_map["nodes"]:
             to_pop=[]
-            for i in range(len(node.edges)):
-                if node.edges[i].node in agent_nodes:
+            for i in range(len(node["edges"])):
+                if node["edges"][i]["node"] in agent_nodes:
                     to_pop.append(i)
             if to_pop:
                 to_pop.reverse()
                 for j in to_pop:
-                    node.edges.pop(j)
+                    node["edges"].pop(j)
 
         self.available_topo_map = topo_map
 
@@ -88,17 +86,17 @@ class FragmentPlanner(object):
         edges_to_append=[]
 
         """ for each edge in network, if edge connects to a node to unblock, add to list """
-        for node in self.topo_map.nodes:
-            for edge in node.edges:
-                if edge.node == node_to_unblock:
-                    nodes_to_append.append(node.name)
+        for node in self.topo_map["nodes"]:
+            for edge in node["node"]["edges"]:
+                if edge["node"] == node_to_unblock:
+                    nodes_to_append.append(node["node"]["name"])
                     edges_to_append.append(edge)
 
         """ for each node in empty map, if node is to be unblocked, add a extra edge """
-        for node in available_topo_map.nodes:
-            if node.name in nodes_to_append:
-                ind_to_append = nodes_to_append.index(node.name)
-                node.edges.append(edges_to_append[ind_to_append])
+        for node in available_topo_map["nodes"]:
+            if node["node"]["name"] in nodes_to_append:
+                ind_to_append = nodes_to_append.index(node["node"]["name"])
+                node["node"]["edges"].append(edges_to_append[ind_to_append])
 
         return available_topo_map
 
@@ -109,7 +107,7 @@ class FragmentPlanner(object):
         Keyword arguments:
 
         node -- name of the node in topological map"""
-        return topological_navigation.tmap_utils.get_node(self.topo_map, node)
+        return topological_navigation.tmap_utils.get_node_from_tmap2(self.topo_map, node)
 
     def get_distance_between_adjacent_nodes(self, from_node, to_node):
         """get_distance_between_adjacent_nodes: Given names of two nodes, return the distance of the edge
@@ -122,7 +120,7 @@ class FragmentPlanner(object):
         to_node -- name of the ending node name"""
         from_node_obj = self.get_node(from_node)
         to_node_obj = self.get_node(to_node)
-        return topological_navigation.tmap_utils.get_distance_to_node(from_node_obj, to_node_obj)
+        return topological_navigation.tmap_utils.get_distance_to_node_tmap2(from_node_obj, to_node_obj)
 
     def get_edge_distances(self, robot_id):
         """find and fill distances of all edges of a robot's planned route, if at least one edge is there.
@@ -337,7 +335,6 @@ class FragmentPlanner(object):
             """for each active robot"""
             if robot.active:
 
-
                 """if waiting set goal as current node, generate route, and exit"""
                 if robot.task_stage in ["wait_loading", "wait_unloading"]:
                     # loading and unloading robots should finish those stages first
@@ -346,7 +343,6 @@ class FragmentPlanner(object):
                     robot.route_edges = []
                     self.get_edge_distances(robot_id)
                     continue
-
 
                 """get start node and goal node"""
                 start_node = robot._get_start_node(accuracy=True)
@@ -388,9 +384,8 @@ class FragmentPlanner(object):
                 if robot.task_stage == "go_to_picker":
                     avail_topo_map = self.unblock_node(avail_topo_map, goal_node)
 
-
                 """generate route from start node to goal node"""
-                avail_route_search = topological_navigation.route_search.TopologicalRouteSearch(avail_topo_map)
+                avail_route_search = topological_navigation.route_search2.TopologicalRouteSearch2(avail_topo_map)
                 route = None
                 if start_node and goal_node:
                     logmsg(category="robot", id=robot_id, msg='finding route for [start_node: %s | goal_node: %s]' % (start_node, goal_node))
@@ -406,7 +401,7 @@ class FragmentPlanner(object):
                     robot.wait_node != robot.current_node):
                     logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
                     goal_node = robot.wait_node
-                    avail_route_search = topological_navigation.route_search.TopologicalRouteSearch(avail_topo_map)
+                    avail_route_search = topological_navigation.route_search2.TopologicalRouteSearch2(avail_topo_map)
                     route = avail_route_search.search_route(start_node, goal_node)
 
                 """if still no route to wait node or goal node"""
@@ -430,7 +425,6 @@ class FragmentPlanner(object):
                 """save route details"""
                 robot.route = route_nodes
                 robot.route_edges = route_edges
-
                 self.get_edge_distances(robot_id)
 
             else:
