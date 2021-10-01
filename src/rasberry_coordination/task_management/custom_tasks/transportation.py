@@ -93,27 +93,25 @@ class TaskDef(object):
         return TDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
     def transportation_courier_idle(cls, agent, task_id=None, details={}, contacts={}):
-        """
-        if load >= max_load:
-            go2storage
-        elif unassigned picker tasks exist:
-            go2picker
-        elif load > 0:
-            go2storage
-        else:
-            go2base
-        """
         AP = agent.properties
+
+        # Low battery is added here as new task once idle
+        # Critical battery is forced into next task when identified
         if 'battery_level' in AP and AP['critical_battery_limit'] <= AP['battery_level'] <= AP['min_battery_limit']:
             return TDef.charge_at_charging_station(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
+        #If agent can carry more, wait at base
+        #Otherwise deliver load
         agent.properties['load'] = int(agent.properties['load'])
         if AP['load'] < int(AP['max_load']):
             return TDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
+
     @classmethod
     def transportation_storage_idle(cls, agent, task_id=None, details={}, contacts={}):
+        #If agents are waiting to visit, begin transportation storage
+        #Otherwise wait idle
         if len(agent.request_admittance) > 0:
             return TaskDef.transportation_storage(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:

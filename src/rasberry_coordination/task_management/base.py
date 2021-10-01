@@ -338,12 +338,12 @@ class InterfaceDef(object):
             A = {a.agent_id:a for a in self.coordinator.get_agents()}
 
 
-            targets = {"pause":"toc_pause"
+            interrupt_keys = {"pause":"toc_pause"
                       ,"resume":"toc_unpause"
                       ,"reset":"toc_cancel"
                       ,"cancel":"toc_cancel"
                       }
-            m.interrupt = targets[m.interrupt];
+            m.interrupt = interrupt_keys[m.interrupt];
 
             if m.target in ["", "-"]:
                 # Modify all tasks
@@ -379,7 +379,7 @@ class InterfaceDef(object):
                 if msg['state'] in self.responses:
                     self.responses[msg['state']]()
         def notify(self, state):
-            msg = Str('{\"user\":\"%s\", \"state\": \"%s\"}' % (self.agent.agent_id, state))
+            msg = Str('{\"user\":\"%s\", \"state\":\"%s\"}' % (self.agent.agent_id, state))
             # logmsg(category="TASK", msg="Publishing: (%s)" % msg)
             self.pub.publish(msg)
 
@@ -431,7 +431,7 @@ class TaskDef(object):
         agent.task_stage_list = task['stage_list']
 
         logmsg(category="null")
-        logmsg(category="TASK", id=agent.agent_id, msg="Active task: %s(%s)" % (task['task_module'], task['name']))
+        logmsg(category="TASK", id=agent.agent_id, msg="Active task: %s" % task['name'], speech=False)
         logmsg(category="TASK", msg="Task details:")
         for stage in task['stage_list']: logmsg(category="TASK", msg="    - %s" % stage)
 

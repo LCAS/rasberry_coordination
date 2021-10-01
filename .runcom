@@ -12,6 +12,7 @@ function add () { rosrun rasberry_coordination add_agent.py ; }
 
 #Dummy Functions
 function start_coordinator () { roslaunch rasberry_coordination new_simple_task_coordinator.launch config_file:=$TASK_COORD_CONFIG ; }
+function reset_picker () { rostopic pub /car_client/set_states std_msgs/String data:"{\"user\":\"$1\", \"state\": \"INIT\"}" -1 ; }
 function set_battery () { rostopic pub /$1/dummy_battery_data thorvald_base/BatteryArray "header:
   seq: 0
   stamp:

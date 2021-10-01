@@ -225,14 +225,14 @@ class AgentDetails(object):
         total_voltage = sum(battery.battery_voltage for battery in msg.battery_data)
         self.properties['battery_level'] = total_voltage
         if self.battery_critical(): self.add_task(task_name="charge_at_charging_station", index=0) #if battery is critical, set next task
-
+        #TODO: add condition to not add task if active task is charging
     def battery_critical(self):
         AP = self.properties
-        if 'battery_level' in AP and AP['battery_level'] <= AP['critical_battery_limit']:
+        if 'battery_level' in AP and AP['battery_level'] < AP['critical_battery_limit']:
             return True
     def battery_low(self):
         AP = self.properties
-        if 'battery_level' in AP and AP['critical_battery_limit'] < AP['battery_level'] <= AP['min_battery_limit']:
+        if 'battery_level' in AP and AP['critical_battery_limit'] <= AP['battery_level'] <= AP['min_battery_limit']:
             return True
 
 

@@ -5,6 +5,7 @@
 # @date:
 # ----------------------------------
 
+import os
 import rospy
 
 
@@ -19,7 +20,7 @@ def logmsgbreak(total=3):
         logmsg(category="null")
 
 
-def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg_color=default
+def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speech=False): #msg_color=default
     """ Print formatted log messages to console.
 
     Functionality offered:
@@ -121,6 +122,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg
         if str(id) in color_id:
             c3 = green_highlight
 
+        basic_msg = msg
         msg = ros_time + "%s%s%s|%s%s %s%s%s" % (c1, cat, c2, c3, ids, c4, msg, reset)
     else:
         if category == "null": return
@@ -137,6 +139,10 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0): #msg
                 "warn": rospy.logwarn,
                 "error": rospy.logerr}
         logs[level](msg)
+
+
+    if id=="empty": id='';
+    if speech: os.system('spd-say "%s, %s" -r 10 -t female2 -w'%(id, basic_msg));
 
 
 def remove(collection, item):

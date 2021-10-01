@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   rasberry_people_perception
   rosbridge_server
   rosduct
+  rosduct
   rospy
   std_msgs
   std_srvs
@@ -210,6 +211,7 @@ install(PROGRAMS
   scripts/visualise_agent_markers.py
   scripts/agent_monitor.py
   scripts/add_agent.py
+  scripts/reset_picker.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

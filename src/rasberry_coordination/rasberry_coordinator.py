@@ -229,9 +229,20 @@ class RasberryCoordinator(object):
         AExcl = [a for _id,a in self.AllAgentsList.items()  if (_id is not agent.agent_id)]
         logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
 
+
+        # t1 = [a.current_node for a in AExcl if a.current_node]
+        # t2 = [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]
+        # t3 = [a.goal() for a in AExcl if a.goal()]
+        # logmsg(level='error', category='action', msg='Physically Occupied Nodes: %s'%t1, speech=True)
+        # logmsg(level='error', category='action', msg='Reservered Nodes: %s'%t2, speech=True)
+        # logmsg(level='error', category='action', msg='Goal Nodes: %s'%t3, speech=True)
+
         taken = [a.current_node for a in AExcl if a.current_node] #Check if node is occupied
         taken += [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]  # TackleSharedTarget
+        taken += [a.goal() for a in AExcl if a.goal()]
         logmsg(category='action', msg='Occupied Nodes: %s'%taken)
+
+
 
         N = {n['id']:n for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in taken)}
         logmsg(category='action', msg='Nodes to Compare Against:')
@@ -329,7 +340,7 @@ class RasberryCoordinator(object):
 
         # Call the on_cancel response function for each agent actively conected to this task
         if module in agent.interfaces:  # TODO: THIS IS BAD, we need to manage base module properly
-            for aid, a in [[aid, a] for aid, a in agent.task_contacts.items() if module in a.interfaces]:  # contacts:
+            for aid, a in [[aid, a] for aid, a in agent.task_contacts.items() if module in agent.interfaces]:  # contacts:
                 a.interfaces[module].on_cancel(task_id=task_id, contact_id=agent.agent_id, force_release=force_release)
             agent.interfaces[module].on_cancel(task_id=task_id, contact_id=trigger_agent, force_release=force_release)
             # agent.task_contacts = {}
