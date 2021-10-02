@@ -189,59 +189,6 @@ class InterfaceDef(object):
             self.update_completed_task(agent['task_id'])
 
         """ Active Task List Modifers """
-        # def update_active_tasks_list_2(self):
-        #     # logmsg(level='warn', category="TOC", msg="2Logging active tasks to TOC.")
-        #
-        #     progression = ['','CALLED', 'ACCEPT', 'ARRIVED', 'LOADED', 'STORAGE', 'UNLOADED', 'DELIVERED', 'CANCELLED']
-        #
-        #     # lst = {
-        #     #     task_id: [{agent_id: state}, {agent_id: state}],
-        #     #     task_id: [{agent_id: state}, {agent_id: state}],
-        #     #     task_id: [{agent_id: state}, {agent_id: state}]
-        #     # }
-        #     T = TasksDetailsList()
-        #     A = self.coordinator.get_agents()
-        #     lst = {a['task_id']:[] for a in A if a['task_id']}
-        #
-        #     # lst = {
-        #     #     80: [''],
-        #     #     60: ['']
-        #     # }
-        #     # print(lst)
-        #
-        #     for l in lst:
-        #         lst[l] = ['',{a.agent_id:self.toc_legacy_responses(a().get_class()) for a in A if a['task_id'] == l}]
-        #         # lst = {
-        #         #     80: ['',{thorvald_001: CALLED, picker01: ACCEPT}),
-        #         #     60: ['',{thorvald_002: ARRIVED, picker02: ARRIVED})
-        #         # }
-        #         # print({a:a['task_id'] for a in A})
-        #         # print(lst)
-        #
-        #         lst[l][0]=progression[max([progression.index(a) for a in lst[l][1].values()])]
-        #         # lst = {
-        #         #     80: ['ACCEPT', {'thorvald_001': 'CALLED', 'picker01': 'ACCEPT'}],
-        #         #     60: ['ARRIVED', {'thorvald_002': 'ARRIVED', 'picker02': 'ARRIVED'}]
-        #         # }
-        #         # print(lst)
-        #
-        #         picker_id = lst[l][1].keys()[1] if len(lst[l][1].keys()) > 1 else ''
-        #         T.tasks.append(SingleTaskDetails(task_id=l, state=lst[l][0], robot_id=lst[l][1].keys()[0], picker_id=picker_id))
-        #
-        #     from pprint import pprint
-        #     if T != self.previous_task_list_2:
-        #         self.previous_task_list_2 = T
-        #         # self.active_tasks_pub.publish(T)
-        #         # logmsg(level='warn', category="TOC", msg="2publishing:")
-        #
-        #         logmsg(level='warn', category="TOC", msg="Active Tasks:")
-        #         [logmsg(level='warn', category="TOC", msg="    - %s | %s [%s,%s]" % (t.task_id, t.state, t.robot_id, t.picker_id)) for t in T.tasks]
-        #         # pprint(lst)
-        #         # print(T)
-        #     else:
-        #         if T.tasks:
-        #             logmsg(level='warn', category="TOC", msg="DUPLICATE:")
-        #             [logmsg(level='warn', category="TOC", msg="----- %s | %s [%s,%s]" % (t.task_id, t.state, t.robot_id, t.picker_id)) for t in T.tasks]
         def update_active_tasks_list(self):
             """ Publish updated list of Active Tasks to TOC """
             # logmsg(category="TOC", msg="1Logging active tasks to TOC.")
@@ -285,12 +232,12 @@ class InterfaceDef(object):
                 # Publish task list
                 self.active_tasks_pub.publish(task_list)
                 logmsg(category="TOC", msg="Active Tasks:")
-                [logmsg(category="TOC",msg="    - %s | %s [%s,%s]" % (t.task_id, t.state, t.robot_id, t.picker_id)) for t in task_list.tasks]
+                [logmsg(category="TOC",msg="    - %s | %s [%s,%s]" % (t.task_id, t.state, t.initiator_id, t.responder_id)) for t in task_list.tasks]
                 # print(task_list)
             else:
                 if task_list.tasks:
                     logmsg(category="TOC", msg="DUPLICATE:")
-                    [logmsg(category="TOC", msg="----- %s | %s [%s,%s]" % (t.task_id, t.state, t.robot_id, t.picker_id)) for t in task_list.tasks]
+                    [logmsg(category="TOC", msg="----- %s | %s [%s,%s]" % (t.task_id, t.state, t.initiator_id, t.responder_id)) for t in task_list.tasks]
 
         def update_completed_task(self, task_id=None):
             """ Publish task_complete state to Active Tasks list """
@@ -306,36 +253,6 @@ class InterfaceDef(object):
             task_list.tasks.append(task)
             self.active_tasks_pub.publish(task_list)
             pass
-        # def toc_legacy_responses(self, state): #TODO: this should be removed
-        #     st = state.split('.')[-1] #TODO: querying [0].[1] we could set a direct remapping reference
-        #     return st
-        #
-        #     """ as not all stage identifiers are TOC-compatible, remap these here """
-        #     lstt = {'CREATED': 'CALLED',
-        #             'ASSIGNED': 'ACCEPT', #custom_tasks.transportation.AssignCourier
-        #             'go_to_picker': 'ACCEPT',
-        #
-        #             'ARRIVED': 'ARRIVED',
-        #             'LoadCourier': 'LOADED',
-        #
-        #             'AcceptCourier': 'ACCEPT',
-        #             'AwaitCourier':  'ACCEPT',
-        #             'UnloadCourier': 'STORAGE',
-        #
-        #             'Idle': 'DELIVERED',
-        #
-        #             #'task_cancelled': 'CANCELLED',
-        #
-        #             #'paused': 'PAUSED',
-        #             #'go_to_base': 'None',
-        #             #'None': 'None'
-        #             }
-        #
-        #     if st in lstt:
-        #         logmsg(category="TOC", msg="    - stage:%s = TOC:%s" % (st,lstt[st]))
-        #         return lstt[st]
-        #     else:
-        #         return 'CALLED'
 
         """ Dynamic Task Management """
         def InterruptTask(self, m):
@@ -442,28 +359,26 @@ class TaskDef(object):
     """ Runtime Method for Idle Task Definitions """
     @classmethod
     def idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        task_name = "idle"
-        task_details = cls.load_details(details)
-        task_contacts = contacts.copy()
-        task_module = 'base'
-        task_stage_list = [
-            StageDef.IdleTask(agent)
-        ]
-
         return({'id': task_id,
-                'name': task_name,
-                'details': task_details,
-                'contacts': task_contacts,
-                'task_module': task_module,
-                'stage_list': task_stage_list})
+                'name': "idle",
+                'details': cls.load_details(details),
+                'contacts': contacts.copy(),
+                'task_module': 'base',
+                'initiator_id': agent.agent_id,
+                'responder_id': "n/a",
+                'stage_list': [
+                    StageDef.IdleTask(agent)
+                ]})
     @classmethod
     def wait_at_base(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return ({'id': task_id,
-                 'name': "wait_at_base",
-                 'details': cls.load_details(details),
-                 'contacts': contacts.copy(),
-                 'task_module': 'base', # TODO: setup common task to replace this
-                 'stage_list': [
+        return({'id': task_id,
+                'name': "wait_at_base",
+                'details': cls.load_details(details),
+                'contacts': contacts.copy(),
+                'task_module': 'base', # TODO: setup common task to replace this
+                'initiator_id': agent.agent_id,
+                'responder_id': "",
+                'stage_list': [
                      StageDef.AssignBaseNode(agent),
                      StageDef.NavigateToBaseNode(agent),
                      StageDef.IdleTask(agent)
@@ -475,6 +390,8 @@ class TaskDef(object):
                 'details': cls.load_details(details),
                 'contacts': contacts.copy(),
                 'task_module': 'base',
+                'initiator_id': agent.agent_id,
+                'responder_id': "",
                 'stage_list': [
                     StageDef.NavigateToExitNode(agent),
                     StageDef.Exit(agent)
@@ -484,22 +401,19 @@ class TaskDef(object):
     """ Runtime Method for Charging Task Definitions """
     @classmethod
     def charge_at_charging_station(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        task_name = "charge_at_charging_station"
-        task_details = cls.load_details(details)
-        task_contacts = contacts.copy()
-        task_module = 'base'
-        task_stage_list = [
-            StageDef.StartChargeTask(agent),
-            StageDef.AssignChargeNode(agent),
-            StageDef.NavigateToChargeNode(agent),
-            StageDef.Charge(agent)
-        ]
         return({'id': task_id,
-                'name': task_name,
-                'details': task_details,
-                'contacts': task_contacts,
-                'task_module': task_module,
-                'stage_list': task_stage_list})
+                'name': "charge_at_charging_station",
+                'details': cls.load_details(details),
+                'contacts': contacts.copy(),
+                'task_module': 'base',
+                'initiator_id': agent.agent_id,
+                'responder_id': "",
+                'stage_list': [
+                    StageDef.StartChargeTask(agent),
+                    StageDef.AssignChargeNode(agent),
+                    StageDef.NavigateToChargeNode(agent),
+                    StageDef.Charge(agent)
+                ]})
 
 
     """ Dynamic Task Management """
@@ -634,9 +548,9 @@ class StageDef(object):
             self.action['action_style'] = 'closest'
             self.action['descriptor'] = 'base_node'
             self.action['response_location'] = None
-
         def _end(self):
             self.agent.task_contacts['base_node'] = self.action['response_location']
+            self.agent.responder_id = self.agent.task_contacts['base_node']
 
     """ Idle Actions for Pending Actions """
     class Idle(StageBase):
@@ -734,6 +648,7 @@ class StageDef(object):
             self.action['response_location'] = None
         def _end(self):
             self.agent.task_contacts['charging_station'] = self.action['response_location']
+            self.agent.responder_id = self.agent.task_contacts['charging_station']
     class NavigateToChargeNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')
         def _query(self):
