@@ -45,8 +45,6 @@ class RasberryCoordinator(object):
     """RasberryCoordinator class definition
     """
     def __init__(self, agent_list, base_station_nodes_pool, wait_nodes_pool, planning_type, ns, special_nodes):
-
-
         logmsgbreak(total=1)
         print("------------------------------------------")
         logmsg(category="setup", msg='Coordinator initialisation begun')

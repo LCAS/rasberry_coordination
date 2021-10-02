@@ -50,6 +50,8 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
     :param msg: message to display
     :return: None
     """
+    # if category == "DTM": speech=True
+
     quick_print = False
     if quick_print:
         if category == "null": print("\n")
@@ -63,7 +65,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
     # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
     # TODO: include padding at end of msg
 
-    reject_tags = ["ROBNAV1", "LIST1", "ROUTE1", "ACTION1", "ROB_PY1", "TOC", "RVIZ", "LOG"]
+    reject_tags = ["ROBNAV", "LIST1", "ROUTE", "ACTION1", "ROB_PY", "TOC1", "RVIZ", "LOG"]
     if category.upper() in reject_tags: return
 
     if use_custom_formatting:

@@ -168,7 +168,7 @@ class AgentDetails(object):
     """ Task Starters """
     def add_init_task(self): self.add_task(task_name="%s_init"%self.task_identifier)
     def add_idle_task(self): self.add_task(task_name="%s_idle"%self.task_identifier)
-    def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None, quiet=False):
+    def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None, quiet=False, initiator_id=""):
 
         """ Called by task stages, used to buffer new tasks for the agent """
         if task_name not in dir(TaskDef):
@@ -181,7 +181,7 @@ class AgentDetails(object):
         3. #buffer += [task] OR buffer.insert(0, [task])
 
         task_def = getattr(TaskDef, task_name)
-        task = task_def(self, task_id=task_id, details=details, contacts=contacts)
+        task = task_def(self, task_id=task_id, details=details, contacts=contacts, initiator_id=initiator_id)
         if not index: self.task_buffer += [task]
         else: self.task_buffer.insert(index, [task])
 
