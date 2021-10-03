@@ -9,7 +9,7 @@ from thorvald_base.msg import BatteryArray as Battery
 
 class InterfaceDef(object):
 
-    class charging_robot(IDef.AgentInterface):
+    class health_monitoring_robot(IDef.AgentInterface):
         def __init__(self, agent):
             self.agent = agent
             self.battery_data_sub = Subscriber("/%s/dummy_battery_data" % (self.agent.agent_id), Battery, self._battery_data_cb)  # TODO: point this to the correct location
@@ -30,18 +30,18 @@ class InterfaceDef(object):
 class TaskDef(object):
 
     @classmethod
-    def charging_robot_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        agent.properties['critical_battery_limit'] = PDef['charging']['critical_battery_limit']
-        agent.properties['min_battery_limit'] = PDef['charging']['min_battery_limit']
-        agent.properties['max_battery_limit'] = PDef['charging']['max_battery_limit']
+    def health_monitoring_robot_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+        agent.properties['critical_battery_limit'] = PDef['health_monitoring']['critical_battery_limit']
+        agent.properties['min_battery_limit'] = PDef['health_monitoring']['min_battery_limit']
+        agent.properties['max_battery_limit'] = PDef['health_monitoring']['max_battery_limit']
 
     @classmethod
-    def charging_robot_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def health_monitoring_robot_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         AP = agent.properties
 
         # Low battery is added here as new task once idle
         # Critical battery is forced into next task when identified
-        if agent.interfaces['charging'].battery_low():
+        if agent.interfaces['health_monitoring'].battery_low():
             return TaskDef.charge_at_charging_station(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
     @classmethod
@@ -50,7 +50,7 @@ class TaskDef(object):
                 'name': "charge_at_charging_station",
                 'details': TDef.load_details(details),
                 'contacts': contacts.copy(),
-                'task_module': 'base',
+                'task_module': 'health_monitoring',
                 'initiator_id': agent.agent_id,
                 'responder_id': "",
                 'stage_list': [

@@ -330,8 +330,6 @@ class InterfaceDef(object):
             return old_id
 
 class TaskDef(object):
-    """ Definitions for Task Initialisation Criteria """
-
     """ Runtime Method for Custom Task Definitions """
     @classmethod
     def load_details(cls, details):
@@ -395,25 +393,6 @@ class TaskDef(object):
                     StageDef.NavigateToExitNode(agent),
                     StageDef.Exit(agent)
                 ]})
-
-    #
-    # """ Runtime Method for Charging Task Definitions """
-    # @classmethod
-    # def charge_at_charging_station(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-    #     return({'id': task_id,
-    #             'name': "charge_at_charging_station",
-    #             'details': cls.load_details(details),
-    #             'contacts': contacts.copy(),
-    #             'task_module': 'base',
-    #             'initiator_id': agent.agent_id,
-    #             'responder_id': "",
-    #             'stage_list': [
-    #                 StageDef.StartChargeTask(agent),
-    #                 StageDef.AssignChargeNode(agent),
-    #                 StageDef.NavigateToChargeNode(agent),
-    #                 StageDef.Charge(agent)
-    #             ]})
-    #
 
     """ Dynamic Task Management """
     @classmethod
@@ -520,7 +499,7 @@ class StageDef(object):
             super(StageDef.IdleTask, self)._start()
         def _query(self):
             success_conditions = [len(self.agent.task_buffer) > 0,
-                                  self.agent.interfaces['charging'].battery_low() if 'charging' in self.agent.interfaces else False] #this needs to be removed
+                                  self.agent.interfaces['health_monitoring'].battery_low() if 'health_monitoring' in self.agent.interfaces else False] #this needs to be removed
 
             self.agent.flag(any(success_conditions))
         def _summary(self):
@@ -563,7 +542,7 @@ class StageDef(object):
             if self.target:
                 return "%s(%s)"%(self.get_class(), self.target.replace('WayPoint','WP'))
             else:
-                return "%s()" % (self.get_class())
+                return "%s" % (self.get_class())
         def __init__(self, agent, association):
             super(StageDef.Navigation, self).__init__(agent)
             self.association = association
@@ -638,31 +617,3 @@ class StageDef(object):
             super(StageDef.Exit, self)._end()
             self.agent.cb['format_agent_marker'](self.agent.agent_id, 'black')
             self.agent.set_interrupt('delete_agent', '', '')
-    #
-    # """ Charging Task Stages """
-    # class AssignChargeNode(AssignNode):
-    #     def _start(self):
-    #         super(StageDef.AssignChargeNode, self)._start()
-    #         self.action['action_type'] = 'find_node'
-    #         self.action['action_style'] = 'closest'
-    #         self.action['descriptor'] = 'charging_station'
-    #         self.action['response_location'] = None
-    #     def _end(self):
-    #         self.agent.task_contacts['charging_station'] = self.action['response_location']
-    #         self.agent.responder_id = self.agent.task_contacts['charging_station']
-    # class NavigateToChargeNode(NavigateToNode):
-    #     def __init__(self, agent): super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')
-    #     def _query(self):
-    #         success_conditions = [self.agent.location(accurate=True) == self.target
-    #                               ,self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']]
-    #         self.agent.flag(any(success_conditions))
-    # class StartChargeTask(StartTask):
-    #     def _start(self):
-    #         super(StageDef.StartChargeTask, self)._start()
-    #         self.agent.registration = False
-    # class Charge(StageBase):
-    #     def _query(self):
-    #         success_conditions = [self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']];
-    #         self.agent.flag(any(success_conditions))
-    #     def _end(self):
-    #         self.agent.registration = True
