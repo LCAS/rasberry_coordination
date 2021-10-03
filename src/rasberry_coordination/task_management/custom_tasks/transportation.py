@@ -2,9 +2,11 @@ from std_msgs.msg import String as Str
 from rasberry_coordination.coordinator_tools import logmsg
 from rospy import Time, Duration, Subscriber, Publisher, Time
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
+from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef
 from rasberry_coordination.robot import Robot as RobotInterface_Old
 
 from rospy import Time, Duration
+
 
 class InterfaceDef(object):
 
@@ -69,6 +71,7 @@ class InterfaceDef(object):
         # def on_cancel(self, task_id, contact_id, force_release=False):
         #     super(InterfaceDef.transportation_storage, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
 
+
 class TaskDef(object):
 
     """ Initialisation Verification """
@@ -92,14 +95,11 @@ class TaskDef(object):
     @classmethod
     def transportation_picker_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         return TDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
+
+
     @classmethod
     def transportation_courier_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         AP = agent.properties
-
-        # Low battery is added here as new task once idle
-        # Critical battery is forced into next task when identified
-        if 'battery_level' in AP and AP['critical_battery_limit'] <= AP['battery_level'] <= AP['min_battery_limit']:
-            return TDef.charge_at_charging_station(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
         #If agent can carry more, wait at base
         #Otherwise deliver load
@@ -108,6 +108,8 @@ class TaskDef(object):
             return TDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
+
+
     @classmethod
     def transportation_storage_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         #If agents are waiting to visit, begin transportation storage
@@ -336,12 +338,12 @@ class StageDef(object):
             self.agent.task_contacts['courier']['has_tray'] = not self.end_requirement
     class LoadCourier(LoadModifier): #PICKER
         def __init__(self, agent):
-            super(StageDef.LoadCourier, self).__init__(agent, end_requirement=False, wait_timeout=10)
+            super(StageDef.LoadCourier, self).__init__(agent, end_requirement=False, wait_timeout=PDef['transportation']['wait_loading'])
         def _notify_end(self):
             self.agent.interfaces['transportation'].notify("INIT")
     class UnloadCourier(LoadModifier): #STORAGE
         def __init__(self, agent):
-            super(StageDef.UnloadCourier, self).__init__(agent, end_requirement=True, wait_timeout=30)
+            super(StageDef.UnloadCourier, self).__init__(agent, end_requirement=True, wait_timeout=PDef['transportation']['wait_unloading'])
 
     """ Loading Modifiers for Courier """
     class Loading(SDef.StageBase):

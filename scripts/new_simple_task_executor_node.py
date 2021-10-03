@@ -132,22 +132,11 @@ if __name__ == '__main__':
 
     # Initialise task manager to store all task and stage definitions in single objects for later access
     import rasberry_coordination.task_management.__init__ as task_init
+    task_init.set_properties(config_data['active_tasks'])
     task_init.def_tasks(list(modules_to_load))
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-    # initialise the coordinator and internally all robots
+    """ COORDINATOR """
     import rasberry_coordination.rasberry_coordinator
     coordinator = rasberry_coordination.rasberry_coordinator.RasberryCoordinator(
         agent_list=config_data['agent_list'],

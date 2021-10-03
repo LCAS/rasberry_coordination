@@ -140,6 +140,7 @@ from rasberry_coordination.coordinator_tools import logmsg
 import rasberry_coordination.srv
 import rasberry_coordination.msg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
+from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef
 
 """
 python
@@ -162,7 +163,6 @@ task_list.tasks.append(task)
 active_tasks_pub.publish(task_list)
 # """
 
-
 class InterfaceDef(object):
 
     class TOC_Interface(object):
@@ -184,7 +184,6 @@ class InterfaceDef(object):
         """ Short-Definition Convenience Functions """
         def Update(self):
             self.update_active_tasks_list();
-            # self.update_active_tasks_list_2();
         def End(self, agent):
             self.update_completed_task(agent['task_id'])
 
@@ -204,7 +203,7 @@ class InterfaceDef(object):
                     # Get task details
                     task = SingleTaskDetails()
                     task.task_id = agent['task_id']
-                    task.state = agent().get_class()
+                    task.state = agent().__repr__()
 
                     # Assign initialiser and responder agent_ids to the task
                     task.initiator_id = agent.initiator_id
@@ -226,7 +225,6 @@ class InterfaceDef(object):
 
                 # Convert task state to a toc-recognised state
                 for T in task_list.tasks:
-                    # T.state = self.toc_legacy_responses(T.state)  # TODO: TOC is visualisation tool, no need to restrict
                     T.state = T.state.split('.')[-1]
 
                 # Publish task list
@@ -397,24 +395,24 @@ class TaskDef(object):
                     StageDef.Exit(agent)
                 ]})
 
-
-    """ Runtime Method for Charging Task Definitions """
-    @classmethod
-    def charge_at_charging_station(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "charge_at_charging_station",
-                'details': cls.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'base',
-                'initiator_id': agent.agent_id,
-                'responder_id': "",
-                'stage_list': [
-                    StageDef.StartChargeTask(agent),
-                    StageDef.AssignChargeNode(agent),
-                    StageDef.NavigateToChargeNode(agent),
-                    StageDef.Charge(agent)
-                ]})
-
+    #
+    # """ Runtime Method for Charging Task Definitions """
+    # @classmethod
+    # def charge_at_charging_station(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    #     return({'id': task_id,
+    #             'name': "charge_at_charging_station",
+    #             'details': cls.load_details(details),
+    #             'contacts': contacts.copy(),
+    #             'task_module': 'base',
+    #             'initiator_id': agent.agent_id,
+    #             'responder_id': "",
+    #             'stage_list': [
+    #                 StageDef.StartChargeTask(agent),
+    #                 StageDef.AssignChargeNode(agent),
+    #                 StageDef.NavigateToChargeNode(agent),
+    #                 StageDef.Charge(agent)
+    #             ]})
+    #
 
     """ Dynamic Task Management """
     @classmethod
@@ -521,7 +519,8 @@ class StageDef(object):
             super(StageDef.IdleTask, self)._start()
         def _query(self):
             success_conditions = [len(self.agent.task_buffer) > 0,
-                                  self.agent.battery_low()]
+                                  self.agent.interfaces['charging'].battery_low() if 'charging' in self.agent.interfaces else False] #this needs to be removed
+
             self.agent.flag(any(success_conditions))
         def _summary(self):
             super(StageDef.IdleTask, self)._summary()
@@ -637,31 +636,31 @@ class StageDef(object):
             super(StageDef.Exit, self)._end()
             self.agent.cb['format_agent_marker'](self.agent.agent_id, 'black')
             self.agent.set_interrupt('delete_agent', '', '')
-
-    """ Charging Task Stages """
-    class AssignChargeNode(AssignNode):
-        def _start(self):
-            super(StageDef.AssignChargeNode, self)._start()
-            self.action['action_type'] = 'find_node'
-            self.action['action_style'] = 'closest'
-            self.action['descriptor'] = 'charging_station'
-            self.action['response_location'] = None
-        def _end(self):
-            self.agent.task_contacts['charging_station'] = self.action['response_location']
-            self.agent.responder_id = self.agent.task_contacts['charging_station']
-    class NavigateToChargeNode(NavigateToNode):
-        def __init__(self, agent): super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')
-        def _query(self):
-            success_conditions = [self.agent.location(accurate=True) == self.target
-                                  ,self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']]
-            self.agent.flag(any(success_conditions))
-    class StartChargeTask(StartTask):
-        def _start(self):
-            super(StageDef.StartChargeTask, self)._start()
-            self.agent.registration = False
-    class Charge(StageBase):
-        def _query(self):
-            success_conditions = [self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']];
-            self.agent.flag(any(success_conditions))
-        def _end(self):
-            self.agent.registration = True
+    #
+    # """ Charging Task Stages """
+    # class AssignChargeNode(AssignNode):
+    #     def _start(self):
+    #         super(StageDef.AssignChargeNode, self)._start()
+    #         self.action['action_type'] = 'find_node'
+    #         self.action['action_style'] = 'closest'
+    #         self.action['descriptor'] = 'charging_station'
+    #         self.action['response_location'] = None
+    #     def _end(self):
+    #         self.agent.task_contacts['charging_station'] = self.action['response_location']
+    #         self.agent.responder_id = self.agent.task_contacts['charging_station']
+    # class NavigateToChargeNode(NavigateToNode):
+    #     def __init__(self, agent): super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')
+    #     def _query(self):
+    #         success_conditions = [self.agent.location(accurate=True) == self.target
+    #                               ,self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']]
+    #         self.agent.flag(any(success_conditions))
+    # class StartChargeTask(StartTask):
+    #     def _start(self):
+    #         super(StageDef.StartChargeTask, self)._start()
+    #         self.agent.registration = False
+    # class Charge(StageBase):
+    #     def _query(self):
+    #         success_conditions = [self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']];
+    #         self.agent.flag(any(success_conditions))
+    #     def _end(self):
+    #         self.agent.registration = True

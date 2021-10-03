@@ -8,11 +8,10 @@
 # from abc import ABCMeta, abstractmethod
 from rospy import Subscriber, Publisher, Service, Time
 from std_msgs.msg import String as Str
-from thorvald_base.msg import BatteryArray as Battery
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.srv import AddAgent, AgentNodePair
 from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
+from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef, PropertiesDef
 
 
 """ Agent Details """
@@ -142,12 +141,13 @@ class AgentDetails(object):
         self.properties = setup['properties']
 
         # Define interface for each role given #TODO: what about differentiating between Device and App?
+        self.tasks = setup['tasks']
         self.roles = []
         self.interfaces = dict()
-        for task in setup['tasks']:
+        for task in self.tasks:
             self.roles += [task['role']]
             interface_name = '%s_%s' % (task['module'], task['role'])
-            definition = getattr(InterfaceDef, interface_name)
+            definition = getattr(InterfaceDef, interface_name) #TODO: add catch for module not found
             self.interfaces[task['module']] = definition(agent=self)
 
         #Location and Callbacks
@@ -159,15 +159,17 @@ class AgentDetails(object):
         if 'initial_location' in agent_dict: self.current_node = agent_dict['initial_location']
         self.subs['current_node'] = Subscriber('/%s/current_node'%(self.agent_id), Str, self.current_node_cb)
         self.subs['closest_node'] = Subscriber('/%s/closest_node'%(self.agent_id), Str, self.closest_node_cb)
-        self.subs['battery_data_sub'] = Subscriber("/%s/dummy_battery_data"%(self.agent_id), Battery, self._battery_data_cb) #TODO: point this to the correct location
-        # Define Default Tasks
-        task = setup['tasks'][0]
-        self.task_identifier = '%s_%s' % (task['module'], task['role'])
+
         self.add_init_task()
 
     """ Task Starters """
-    def add_init_task(self): self.add_task(task_name="%s_init"%self.task_identifier)
-    def add_idle_task(self): self.add_task(task_name="%s_idle"%self.task_identifier)
+    def add_init_task(self):
+        for task in self.tasks:
+            self.add_task(task_name='%s_%s_init' % (task['module'], task['role']))
+    def add_idle_task(self):
+        for task in self.tasks:
+            self.add_task(task_name='%s_%s_idle' % (task['module'], task['role']))
+
     def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None, quiet=False, initiator_id=""):
 
         """ Called by task stages, used to buffer new tasks for the agent """
@@ -182,15 +184,16 @@ class AgentDetails(object):
 
         task_def = getattr(TaskDef, task_name)
         task = task_def(self, task_id=task_id, details=details, contacts=contacts, initiator_id=initiator_id)
-        if not index: self.task_buffer += [task]
-        else: self.task_buffer.insert(index, [task])
+        if task:
+            if not index: self.task_buffer += [task]
+            else: self.task_buffer.insert(index, [task])
 
-        if quiet:
-            logmsg(category="DTM", msg="    :    - buffering %s to task_buffer[%i]" % (task['name'], index or len(self.task_buffer)))
-        else:
-            logmsg(category="null")
-            logmsg(category="TASK", id=self.agent_id, msg="Buffering %s to position %i of task_buffer, task stage list:" % (task['name'], index or len(self.task_buffer)))
-            [logmsg(category="TASK", msg='    - %s'%t) for t in task['stage_list']]
+            if quiet:
+                logmsg(category="DTM", msg="    :    - buffering %s to task_buffer[%i]" % (task['name'], index or len(self.task_buffer)))
+            else:
+                logmsg(category="null")
+                logmsg(category="TASK", id=self.agent_id, msg="Buffering %s to position %i of task_buffer, task stage list:" % (task['name'], index or len(self.task_buffer)))
+                [logmsg(category="TASK", msg='    - %s'%t) for t in task['stage_list']]
     def start_next_task(self, idx=0):
         # if self.disconnect_on_task_completion: return #TODO: this condition not nescessary anymore
         if len(self.task_buffer) < 1: self.add_idle_task()
@@ -219,22 +222,6 @@ class AgentDetails(object):
         return self.current_node or self.closest_node or self.previous_node
     def goal(self):
         return self().target
-
-    """ Battery Monitoring """
-    def _battery_data_cb(self, msg): #TODO: this is robot-specific and should be moved to robot interface
-        total_voltage = sum(battery.battery_voltage for battery in msg.battery_data)
-        self.properties['battery_level'] = total_voltage
-        if self.battery_critical(): self.add_task(task_name="charge_at_charging_station", index=0) #if battery is critical, set next task
-        #TODO: add condition to not add task if active task is charging
-    def battery_critical(self):
-        AP = self.properties
-        if 'battery_level' in AP and AP['battery_level'] < AP['critical_battery_limit']:
-            return True
-    def battery_low(self):
-        AP = self.properties
-        if 'battery_level' in AP and AP['critical_battery_limit'] <= AP['battery_level'] <= AP['min_battery_limit']:
-            return True
-
 
     """ Conveniences """
     def __call__(A, index=0):

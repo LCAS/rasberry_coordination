@@ -1,16 +1,27 @@
-global TaskDef, StageDef, InterfaceDef
+global TaskDef, StageDef, InterfaceDef, PropertiesDef
+
+
+def set_properties(task_dict):
+    from rasberry_coordination.coordinator_tools import logmsg
+    global PropertiesDef
+    PropertiesDef = {M['module']:M['properties'] for M in task_dict}
+
+    logmsg(category="START",  msg="Properties: ")
+    for module in task_dict:
+        logmsg(category="START",  msg="    - %s"%module['module'])
+        [logmsg(category="START", msg="        | %s -> %s" % (key,val)) for key,val in module['properties'].items()]
 
 
 def def_tasks(clean_task_list):
     from rasberry_coordination.coordinator_tools import logmsg
-    print(" ")
+    logmsg(category="null")
 
     task_list = ['rasberry_coordination.task_management.custom_tasks.%s' % task for task in clean_task_list]
     if 'rasberry_coordination.task_management.base' not in task_list:
         task_list.insert(0, 'rasberry_coordination.task_management.base')
 
-    logmsg(category="setup", msg="Collecting Interface, Task, and Stage Definitions for modules: ")
-    [logmsg(category="setup", msg="    - %s" % module) for module in clean_task_list]
+    logmsg(category="START",  msg="Collecting Interface, Task, and Stage Definitions for modules: ")
+    [logmsg(category="START", msg="    - %s" % module) for module in clean_task_list]
 
     # For each task, import the TaskDef, StageDef, and InterfaceDef to the respective dictionaries
     task_definitions = dict()
@@ -27,9 +38,9 @@ def def_tasks(clean_task_list):
     StageDef = type('StageDef', tuple(stage_definitions.values()), dict())
     InterfaceDef = type('InterfaceDef', tuple(interface_definitions.values()), dict())
 
-    # logmsg(msg="Interfaces: ")
-    # [logmsg(msg="    - %s" % interface) for interface in dir(InterfaceDef) if not d.startswith('__')]
-    # logmsg(msg="Tasks: ")
-    # [logmsg(msg="    - %s" % task) for task in dir(TaskDef) if not d.startswith('__')]
-    # logmsg(msg="Stages: ")
-    # [logmsg(msg="    - %s" % stage) for stage in dir(StageDef) if not d.startswith('__')]
+    logmsg(category="START",  msg="Interfaces: ")
+    [logmsg(category="START", msg="    - %s" % interface) for interface in dir(InterfaceDef) if not interface.startswith('__')]
+    logmsg(category="START",  msg="Tasks: ")
+    [logmsg(category="START", msg="    - %s" % task) for task in dir(TaskDef) if not task.startswith('__')]
+    logmsg(category="START",  msg="Stages: ")
+    [logmsg(category="START", msg="    - %s" % stage) for stage in dir(StageDef) if not stage.startswith('__')]
