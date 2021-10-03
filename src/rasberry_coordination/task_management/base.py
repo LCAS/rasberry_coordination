@@ -204,6 +204,7 @@ class InterfaceDef(object):
                     task = SingleTaskDetails()
                     task.task_id = agent['task_id']
                     task.state = agent().__repr__()
+                    task.state.replace('()','')
 
                     # Assign initialiser and responder agent_ids to the task
                     task.initiator_id = agent.initiator_id
@@ -523,6 +524,7 @@ class StageDef(object):
 
             self.agent.flag(any(success_conditions))
         def _summary(self):
+            # logmsg(level='error', id=self.agent.agent_id, msg=self.agent.properties, speech=False)
             super(StageDef.IdleTask, self)._summary()
             self.summary['_start'] = 'clear task_details'
             self.summary['_query'] = 'len(task_buffer) > 0'
@@ -559,9 +561,9 @@ class StageDef(object):
     class Navigation(StageBase):
         def __repr__(self):
             if self.target:
-                return "%s(%s)"%(self.get_class(), self.target)
+                return "%s(%s)"%(self.get_class(), self.target.replace('WayPoint','WP'))
             else:
-                return "%s(unk)" % (self.get_class())
+                return "%s()" % (self.get_class())
         def __init__(self, agent, association):
             super(StageDef.Navigation, self).__init__(agent)
             self.association = association

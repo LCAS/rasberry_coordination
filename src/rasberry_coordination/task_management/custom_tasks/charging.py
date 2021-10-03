@@ -10,17 +10,12 @@ from thorvald_base.msg import BatteryArray as Battery
 class InterfaceDef(object):
 
     class charging_robot(IDef.AgentInterface):
-        def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
+        def __init__(self, agent):
             self.agent = agent
             self.battery_data_sub = Subscriber("/%s/dummy_battery_data" % (self.agent.agent_id), Battery, self._battery_data_cb)  # TODO: point this to the correct location
 
-            # self.release_options = []
-            # self.restart_options = []
-            # responses={}
-            # super(InterfaceDef.transportation_courier, self).__init__(self.agent, responses, sub=sub, pub=pub)
-
         """ Battery Monitoring """
-        def _battery_data_cb(self, msg):  # TODO: this is robot-specific and should be moved to robot interface
+        def _battery_data_cb(self, msg):
             total_voltage = sum(battery.battery_voltage for battery in msg.battery_data)
             self.agent.properties['battery_level'] = total_voltage
             if self.battery_critical(): self.agent.add_task(task_name="charge_at_charging_station", index=0)
@@ -93,7 +88,7 @@ class StageDef(object):
 
     class Charge(SDef.StageBase):
         def __repr__(self):
-            return "%s(%s)"%(self.get_class(), self.agent.properties['battery_level'])
+            return "%s(%s%%)"%(self.get_class(), str(100*self.agent.properties['battery_level']).split('.')[0])
         def _query(self):
             success_conditions = [self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']];
             self.agent.flag(any(success_conditions))

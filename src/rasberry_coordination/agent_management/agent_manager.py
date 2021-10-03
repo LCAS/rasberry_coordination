@@ -125,7 +125,8 @@ class AgentDetails(object):
         self.agent_id = agent_dict['agent_id']
         self.int = -1
         self.cb = callbacks
-        setup = agent_dict['setup']
+        from copy import deepcopy
+        setup = deepcopy(agent_dict['setup'])
 
         #Task Defaults
         self.action = dict()
