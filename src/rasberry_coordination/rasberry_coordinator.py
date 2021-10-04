@@ -897,7 +897,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     """ If conditions are satisfied, finish waiting """
                     tray_loaded = False
 
-                    """ If wait timeout has expired complete task """  # abandon task? """
+                    """ If wait timeout has expired complete task """  # abandon task?
                     if rospy.get_rostime() - robot.start_time > self.max_load_duration:
                         tray_loaded = True
 

@@ -10,9 +10,12 @@ import rospy
 
 from rospy import Subscriber as Sub, get_rostime as Now
 from std_msgs.msg import String as Str
+from std_srvs.srv import Trigger, TriggerResponse
 from rasberry_coordination.agent_managers.agent_manager import AgentManager, AgentDetails
 from geometry_msgs.msg import PoseStamped
 from rasberry_coordination.msg import TasksDetails, TaskUpdates
+from rasberry_coordination.srv import SetPickerNode, SetPickerNodeResponse
+from rasberry_coordination.srv import ResetPicker, ResetPickerResponse
 from rasberry_coordination.coordinator_tools import logmsg
 
 class PickerManager(AgentManager):
@@ -32,10 +35,56 @@ class PickerManager(AgentManager):
         # Define interaction services with CAR interface
         self.car_event_sub = rospy.Subscriber("/car_client/get_states", Str, self.car_event_cb)
 
+        self.move_picker_srv = rospy.Service(ns+"set_picker_node",
+                                             SetPickerNode,
+                                             self.set_picker_node_cb)
+
+        self.reset_picker_srv = rospy.Service(ns+"reset_picker_node",
+                                              ResetPicker,
+                                              self.reset_picker_node_cb)
+
+        self.reset_picker_srv = rospy.Service(ns+"reset_all_picker_nodes",
+                                              Trigger,
+                                              self.reset_all_picker_nodes_cb)
         #   Define
         # self.task_updates_sub = rospy.Subscriber("rasberry_coordination/task_updates", TaskUpdates, self.task_updates_cb)
         # self.active_tasks_pub = rospy.Publisher("rasberry_coordination/active_tasks_details", TasksDetails, latch=True, queue_size=5)
 
+    """ Set picker position to a custom node (from coordinator perspective) """
+    def set_picker_node_cb(self, req):
+        """ set_picker_node service callback
+        """
+        resp = SetPickerNodeResponse()
+        resp.success = False
+        if req.picker_id in self.agent_details:
+            self.agent_details[req.picker_id]._set_picker_node_cb(req.node)
+            resp.success = True
+        else:
+            resp.message = "Given picker_id is not listed"
+        return resp
+
+    """ Reset picker position back to default subscribers """
+    def reset_picker_node_cb(self, req):
+        """ reset_picker_node service callback
+        """
+        resp = ResetPickerResponse()
+        resp.success = False
+        if req.picker_id in self.agent_details:
+            self.agent_details[req.picker_id]._reset_picker_node_cb()
+            resp.success = True
+        else:
+            resp.message = "Given picker_id is not listed"
+        return resp
+
+    """ Reset all picker nodes in one go """
+    def reset_all_picker_nodes_cb(self, req):
+        """ reset_all_picker_nodes service callback
+        """
+        resp = TriggerResponse()
+        resp.success = True
+        for picker_id in self.agent_details:
+            self.agent_details[picker_id]._reset_picker_node_cb()
+        return resp
 
     """Add Picker Details Objects"""
     def add_agent(self, agent_id):
@@ -242,8 +291,8 @@ class PickerDetails(AgentDetails):
         """ State Publisher """
         self.car_state_pub = rospy.Publisher("/car_client/set_states", Str, latch=True, queue_size=5)
 
-        """ Manual Location Moving """
-        self.move_current_node_sub = Sub(ID+"/move_current_node", Str, self._move_current_node_cb)
+        """ Custom named pose_stamped publisher """
+        self.posestamped_pub = rospy.Publisher("/%s/pose_stamped" % self.picker_id, PoseStamped, latch=True, queue_size=5)
 
     def _remove(self):
         """ When shutting down coordinator, unregister posestamped_sub_cb
@@ -305,18 +354,44 @@ class PickerDetails(AgentDetails):
         msg.data = '{\"user\":\"%s\", \"state\": \"%s\"}' % (self.picker_id, state)
         self.car_state_pub.publish(msg)
 
-    """ Picker Location Pose """
-    def _move_current_node_cb(self, msg):
+    """ Reset Picker Location """
+    def _reset_picker_node_cb(self):
+        """ reset_picker_node callback
+        """
+        # unregister any existing subscribers
+        # if subscribers are non-existent it should not create any problems
+        # https://github.com/ros/ros_comm/blob/11ebad/clients/rospy/src/rospy/topics.py#L176
+        self.current_node_sub.unregister()
+        self.closest_node_sub.unregister()
+        self.posestamped_sub.unregister()
+
+        self.previous_node = None
+        self.current_node = None
+        self.closest_node = None
+
+        self.current_node_sub = Sub(self.picker_id+"/current_node", Str, self._current_node_cb)
+        self.closest_node_sub = Sub(self.picker_id+"/closest_node", Str, self._closest_node_cb)
+        self.posestamped_sub = Sub(self.picker_id+"/posestamped", PoseStamped, self.picker_posestamped_cb)
+
+    """ Set Picker Location Pose """
+    def _set_picker_node_cb(self, node):
         """ Manual override to take control of picker's current location. (Debugging Tool)
         Callback for "picker_id/move_current_node"
 
         Unregisters from current_node subscriber and pulishes message to its callback.
 
-        :param msg: String containing fake current_node
+        :param node: String containing fake current_node
         :return: None
         """
         self.current_node_sub.unregister()
+        self.closest_node_sub.unregister()
+        self.posestamped_sub.unregister()
+
+        msg = Str()
+        msg.data = node
         self._current_node_cb(msg)
+        self._closest_node_cb(msg)
+        self._posestamped_cb(msg)
 
     def _current_node_cb(self, msg):
         """ Callback for "picker_id/current_node"
@@ -334,6 +409,28 @@ class PickerDetails(AgentDetails):
         if goal_update and self.task_id:
             logmsg(category="task", id=self.task_id, msg='new target assigned to robot')
             self.cb['task_update']("picker_node_update", self.task_id, self.current_node)
+
+    def _closest_node_cb(self, msg):
+        """ Callback for "picker_id/closest_node
+
+        :param msg: string containing the new closest_node for the picker
+        :return: None
+        """
+        super(PickerDetails, self)._closest_node_cb(msg)
+
+    def _posestamped_cb(self, msg):
+        """ Callback for picker_id/posestamped
+
+        :param msg: string containing the new current_node for the picker
+        :return: None
+        """
+        if 'get_node' in self.cb:
+            node = self.cb['get_node'](msg.data)
+            posestamped_msg = PoseStamped()
+            posestamped_msg.pose = node.pose
+            self.picker_posestamped_cb(posestamped_msg)
+
+    """ pose_stamped is needed for RViz visualisation"""
     def picker_posestamped_cb(self, msg):
         """ Callback for "picker_id/posestamped"
 
@@ -341,3 +438,5 @@ class PickerDetails(AgentDetails):
         :return: None
         """
         self.posestamped = msg
+        self.posestamped_pub.publish(self.posestamped)
+
