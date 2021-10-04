@@ -180,17 +180,24 @@ class InterfaceDef(object):
             """ TOC Dynamic Task Management """
             Subscriber('/rasberry_coordination/dtm', Interruption, self.InterruptTask)
 
-
         """ Short-Definition Convenience Functions """
-        def Update(self):
-            self.update_active_tasks_list();
-        def End(self, agent):
-            self.update_completed_task(agent['task_id'])
+        def UpdateTaskList(self):
+            active_task_list = self.generate_active_tasks_list();
+
+            if self.previous_task_list != active_task_list and active_task_list.tasks:
+                self.previous_task_list = active_task_list
+                self.active_tasks_pub.publish(active_task_list)
+        def EndTask(self, E):
+            logmsg(level="error", msg="Tasks ended: %s"%E)
+            active_task_list = self.generate_active_tasks_list();
+            active_task_list.tasks = [t for t in active_task_list.tasks if t.task_id not in E]
+            for task_id in E:
+                active_task_list.tasks.append(self.generate_completed_task(task_id))
+            self.active_tasks_pub.publish(active_task_list)
 
         """ Active Task List Modifers """
-        def update_active_tasks_list(self):
+        def generate_active_tasks_list(self):
             """ Publish updated list of Active Tasks to TOC """
-            # logmsg(category="TOC", msg="1Logging active tasks to TOC.")
             task_list = TasksDetailsList()
             for agent in self.coordinator.get_agents():
 
@@ -203,55 +210,23 @@ class InterfaceDef(object):
                     # Get task details
                     task = SingleTaskDetails()
                     task.task_id = agent['task_id']
-                    task.state = agent().__repr__()
-                    task.state.replace('()','')
+                    task.state = agent().__repr__().replace('()','').split('.')[-1]
 
-                    # Assign initialiser and responder agent_ids to the task
+                    # Assign agents to the task
                     task.initiator_id = agent.initiator_id
                     task.responder_id = agent.responder_id
-                    # print(agent.task_contacts)
-                    # for a in agent.task_contacts.values():
-                    #     if a.__class__ != str:
-                    #         task.initiator_id = a.agent_id
-                            # TODO: this needs to be refined toc shouldnt be task-specific
-                    # task.responder_id = agent.agent_id
 
                     # Add task to list
                     task_list.tasks.append(task)
 
-            # If worth publishing
-            # if task_list == TasksDetailsList(): return
-            if task_list != self.previous_task_list:
-                self.previous_task_list = task_list
-
-                # Convert task state to a toc-recognised state
-                for T in task_list.tasks:
-                    T.state = T.state.split('.')[-1]
-
-                # Publish task list
-                self.active_tasks_pub.publish(task_list)
-                logmsg(category="TOC", msg="Active Tasks:")
-                [logmsg(category="TOC",msg="    - %s | %s [%s,%s]" % (t.task_id, t.state, t.initiator_id, t.responder_id)) for t in task_list.tasks]
-                # print(task_list)
-            else:
-                if task_list.tasks:
-                    logmsg(category="TOC", msg="DUPLICATE:")
-                    [logmsg(category="TOC", msg="----- %s | %s [%s,%s]" % (t.task_id, t.state, t.initiator_id, t.responder_id)) for t in task_list.tasks]
-
-        def update_completed_task(self, task_id=None):
-            """ Publish task_complete state to Active Tasks list """
-            task_list = TasksDetailsList()
-            if not task_id: return
-
-            # Get the task details
+            logmsg(category="TOC", msg="Active Tasks:")
+            [logmsg(category="TOC", msg="----- %s | %s [%s,%s]" % (t.task_id, t.state, t.initiator_id, t.responder_id)) for t in task_list.tasks]
+            return task_list
+        def generate_completed_task(self, task_id=None):
             task = SingleTaskDetails()
             task.task_id = task_id
             task.state = "CANCELLED"
-
-            # Add task to list and publish
-            task_list.tasks.append(task)
-            self.active_tasks_pub.publish(task_list)
-            pass
+            return task
 
         """ Dynamic Task Management """
         def InterruptTask(self, m):
@@ -280,11 +255,6 @@ class InterfaceDef(object):
             else:
                 # Modify all agents on specific task
                 logmsg(category="DTM", msg="    - to affect task: %s." % m.target)
-                try:
-                    m.target = int(m.target) #TODO: this is wrong....
-                except:
-                    logmsg(level="error", category="DTM", msg="Given target identified as task, target could not cast to int.")
-                    logmsg(level="error", category="DTM", msg="After TOC task conversion to string, this is no issue.")
                 [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
 
     class AgentInterface(object):
@@ -325,8 +295,8 @@ class InterfaceDef(object):
                 if force_release:
                    TaskDef.release_task(self.agent)
                 else:
-                    if any([contact_id.startswith(option) for option in self.release_options]): TaskDef.release_task(self.agent)
-                    if any([contact_id.startswith(option) for option in self.restart_options]): TaskDef.restart_task(self.agent)
+                    if any([contact_id.startswith(option) for option in self.release_triggers]): TaskDef.release_task(self.agent)
+                    if any([contact_id.startswith(option) for option in self.restart_triggers]): TaskDef.restart_task(self.agent)
             return old_id
 
 class TaskDef(object):
@@ -362,9 +332,10 @@ class TaskDef(object):
                 'contacts': contacts.copy(),
                 'task_module': 'base',
                 'initiator_id': agent.agent_id,
-                'responder_id': "n/a",
+                'responder_id': "",
                 'stage_list': [
-                    StageDef.IdleTask(agent)
+                    StageDef.StartTask(agent, task_id),
+                    StageDef.Idle(agent)
                 ]})
     @classmethod
     def wait_at_base(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
@@ -376,10 +347,11 @@ class TaskDef(object):
                 'initiator_id': agent.agent_id,
                 'responder_id': "",
                 'stage_list': [
-                     StageDef.AssignBaseNode(agent),
-                     StageDef.NavigateToBaseNode(agent),
-                     StageDef.IdleTask(agent)
-                 ]})
+                    StageDef.StartTask(agent, task_id),
+                    StageDef.AssignBaseNode(agent),
+                    StageDef.NavigateToBaseNode(agent),
+                    StageDef.Idle(agent)
+                ]})
     @classmethod
     def exit_at_node(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         return({'id': task_id,
@@ -448,7 +420,11 @@ class StageDef(object):
             pass
         def _query(self):
             success_conditions = []  # What should be queried to tell if the stage is completed?
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
+        def _flag(self, flag):
+            # TODO: this is not very good here, the state of an agent being interrupted should be handled abstractly
+            if not self.agent.interruption:
+                self.stage_complete = flag
         def _notify_end(self):
             pass
         def _end(self):
@@ -471,15 +447,15 @@ class StageDef(object):
         """
         def __init__(self, agent, task_id=None):
             super(StageDef.StartTask, self).__init__(agent)
-            # self.task_id = task_id if task_id else "%s_%s" % (self.agent.agent_id, self.agent.total_tasks)
-            self.task_id = task_id if task_id else (self.agent.int*10)+self.agent.total_tasks #TODO: TOC needs updating
+            self.task_id = task_id if task_id else "%s_%s" % (self.agent.agent_id.replace('thorvald','T').replace('picker','P').replace('storage','S'), self.agent.total_tasks) #TODO: this replace nest needs removing
             self.agent.total_tasks += 1
         def _start(self):
+            self.agent.task_details = {}
             super(StageDef.StartTask, self)._start()
             self.agent['task_id'] = self.task_id #Set task_id as active_task_id for agent
             self.agent['start_time'] = Time.now()
         def _query(self):
-            self.agent.flag(True)
+            self._flag(True)
         def _summary(self):
             super(StageDef.StartTask, self)._summary()
             self.summary['_start'] = "adopt active task_id"
@@ -487,25 +463,20 @@ class StageDef(object):
     class WaitForLocalisation(StageBase):
         def _query(self):
             success_conditions = [self.agent.location() is not None]
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
         def _end(self):
             super(StageDef.WaitForLocalisation, self)._end()
             logmsg(category="stage", msg="Localisation achieved %s" % self.agent.location())
 
-    """ Idle Placeholder Task """
-    class IdleTask(StageBase):
-        def _start(self):
-            self.agent.task_details = {}
-            super(StageDef.IdleTask, self)._start()
+    """ Idle """
+    class Idle(StageBase):
         def _query(self):
             success_conditions = [len(self.agent.task_buffer) > 0,
                                   self.agent.interfaces['health_monitoring'].battery_low() if 'health_monitoring' in self.agent.interfaces else False] #this needs to be removed
-
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
         def _summary(self):
             # logmsg(level='error', id=self.agent.agent_id, msg=self.agent.properties, speech=False)
-            super(StageDef.IdleTask, self)._summary()
-            self.summary['_start'] = 'clear task_details'
+            super(StageDef.Idle, self)._summary()
             self.summary['_query'] = 'len(task_buffer) > 0'
 
     """ Assignment-Based Task Stages (involves coordinator) """
@@ -515,7 +486,7 @@ class StageDef(object):
             self.action_required = True
         def _query(self):
             success_conditions = [('response_location' in self.action and self.action['response_location'] != None)]
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
         def _summary(self):
             super(StageDef.Assignment, self)._summary()
             self.summary['_start'] = "load service requirements"
@@ -530,11 +501,6 @@ class StageDef(object):
             self.action['response_location'] = None
         def _end(self):
             self.agent.task_contacts['base_node'] = self.action['response_location']
-            self.agent.responder_id = self.agent.task_contacts['base_node']
-
-    """ Idle Actions for Pending Actions """
-    class Idle(StageBase):
-        pass
 
     """ Navigation Controllers for Courier """
     class Navigation(StageBase):
@@ -554,7 +520,7 @@ class StageDef(object):
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is begun." % (self.agent.location(accurate=True), self.target))
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
         def _end(self):
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
             # self.agent.temp_interface.cancel_execpolicy_goal()
@@ -573,12 +539,12 @@ class StageDef(object):
         def __init__(self, agent): super(StageDef.NavigateToBaseNode, self).__init__(agent, association='base_node')
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
     class NavigateToExitNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToExitNode, self).__init__(agent, association='exit_node')
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
 
     """ Routing Recovery Behviour """
     class AssignWaitNode(AssignNode):
@@ -602,7 +568,7 @@ class StageDef(object):
             pass
         def _query(self):
             success_conditions = [self.agent.registration]
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
     class Unregister(StageBase): pass
     class Exit(StageBase):
         def _start(self):
@@ -612,7 +578,7 @@ class StageDef(object):
                 self.agent.set_interrupt('force_cancel_task', task['task_module'], task['id'])
         def _query(self):
             success_conditions = [len(self.agent.task_buffer) == 0];
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
         def _end(self):
             super(StageDef.Exit, self)._end()
             self.agent.cb['format_agent_marker'](self.agent.agent_id, 'black')

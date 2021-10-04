@@ -84,13 +84,13 @@ class StageDef(object):
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target
                                   ,self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']]
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
 
     class Charge(SDef.StageBase):
         def __repr__(self):
             return "%s(%s%%)"%(self.get_class(), str(100*self.agent.properties['battery_level']).split('.')[0])
         def _query(self):
             success_conditions = [self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']];
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
         def _end(self):
             self.agent.registration = True

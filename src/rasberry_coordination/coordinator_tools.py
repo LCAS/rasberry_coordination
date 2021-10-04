@@ -65,7 +65,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
     # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
     # TODO: include padding at end of msg
 
-    reject_tags = ["ROBNAV", "ROUTE", "ACTION", "ROB_PY", "TOC", "RVIZ", "LOG", "START"]
+    reject_tags = ["LOG1", "START", "RVIZ", "TOC1", "ROBNAV", "ROUTE", "ACTION", "ROB_PY"]
     if category.upper() in reject_tags: return
 
     if use_custom_formatting:
@@ -75,7 +75,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
             ros_time = '\b' * 21  # TODO: swap out using \u001b[{n}D
 
         """ Define id and/or category to highlight """
-        color_id = ["thorvald_001", "thorvald_002"]
+        color_id = {"thorvald_001":'\033[01;32m', "thorvald_002":'\033[01;35m'}
         color_category = ["TOC", "DRM1", "START"]  # TODO move these out of this definition and into some config file  # TODO: moving them outside the funciton will set on import logmsg? if so, we can grab from param server?
         # (load from parameter server in launch file?)
 
@@ -122,7 +122,8 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
         if str(category).upper() in color_category:
             c1 = yellow_highlight
         if str(id) in color_id:
-            c3 = green_highlight
+            c3 = color_id[str(id)]
+            # c3 = green_highlight
 
         basic_msg = msg
         msg = ros_time + "%s%s%s|%s%s %s%s%s" % (c1, cat, c2, c3, ids, c4, msg, reset)

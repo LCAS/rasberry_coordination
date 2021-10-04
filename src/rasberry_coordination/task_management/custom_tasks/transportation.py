@@ -12,8 +12,8 @@ class InterfaceDef(object):
 
     class transportation_picker(IDef.AgentInterface):
         def __init__(self, agent, sub='/car_client/get_states', pub='/car_client/set_states'):
-            self.release_options = ['self', 'toc']
-            self.restart_options = ['thorvald']
+            self.release_triggers = ['self', 'toc']
+            self.restart_triggers = ['thorvald']
 
             responses = {'CALLED': self.called, 'LOADED': self.loaded, 'INIT': self.reset}
             super(InterfaceDef.transportation_picker, self).__init__(agent, responses, sub=sub, pub=pub)
@@ -23,25 +23,24 @@ class InterfaceDef(object):
             self.agent['start_time'] = Time.now()
         def loaded(self): self.agent['has_tray'] = False #picker no longer has the tray
         def reset(self):
-            if self.agent['task_id']:
+            if self.agent['task_id'] and self.agent['task_name']=='transportation_request_courier':
                 self.agent.set_interrupt('cancel', 'transportation', self.agent['task_id'])
 
         def on_cancel(self, task_id, contact_id, force_release=False):
             old_id = super(InterfaceDef.transportation_picker, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
-            # if old_id == task_id and contact_id == "toc": self.notify("INIT") #TODO: find why we added "&contact==toc"
             if old_id == task_id: self.notify("INIT")
 
     class transportation_courier(IDef.AgentInterface):
         def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
             #E.g. If a cancellation request is triggered by picker, we much release
             #E.g. If a cancellation request is triggered by storage, we much restart
-            self.release_options = ['self', 'picker', 'toc']  # TODO: change *_options to *_triggers
-            self.restart_options = ['storage']
+            self.release_triggers = ['self', 'picker', 'toc']
+            self.restart_triggers = ['storage']
 
             responses={'PAUSE':self.pause, 'UNPAUSE':self.unpause, 'RELEASE':self.release}
             super(InterfaceDef.transportation_courier, self).__init__(agent, responses, sub=sub, pub=pub)
 
-            #TODO: These need a new home
+            #TODO: These need a new home (do we need a robot core_task_module?)
             self.agent.temp_interface = RobotInterface_Old(self.agent.agent_id)
 
         def pause(self): self.agent.set_interrupt('pause', 'transportation', self.agent['task_id'])
@@ -54,15 +53,15 @@ class InterfaceDef(object):
 
     class transportation_storage(IDef.AgentInterface):
         def __init__(self, agent, sub='/uar/get_states', pub='/uar/set_states'):
-            self.release_options = ['self', 'toc']
-            self.restart_options = ['thorvald']
+            self.release_triggers = ['self', 'toc']
+            self.restart_triggers = ['thorvald']
 
             responses={'UNLOADED': self.unloaded, 'OFFLINE': self.offline, 'ONLINE': self.online}
             super(InterfaceDef.transportation_storage, self).__init__(agent, responses, sub=sub, pub=pub)
 
             #These need a new home
             self.agent.request_admittance = []
-            self.agent.has_presence = False  # used for routing (swap out for physical?)
+            self.agent.has_presence = False  # used for routing (swap key for physical?)
 
         def unloaded(self): self.agent['has_tray'] = True
         def offline(self): pass
@@ -77,26 +76,21 @@ class TaskDef(object):
     """ Initialisation Verification """
     @classmethod
     def transportation_courier_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        task_name = "transportation_courier_init"
-        task_details = cls.load_details(details)
-        task_contacts = contacts.copy()
-        task_module = 'base'
-        task_stage_list = [SDef.WaitForLocalisation(agent)]
-
         return({'id': task_id,
-                'name': task_name,
-                'details': task_details,
-                'contacts': task_contacts,
-                'task_module': task_module,
-                'stage_list': task_stage_list})
+                'name': "transportation_courier_init",
+                'details': cls.load_details(details),
+                'contacts': contacts.copy(),
+                'task_module': 'transportation',
+                'stage_list': [
+                    SDef.StartTask(agent, task_id),
+                    SDef.WaitForLocalisation(agent)
+                ]})
 
 
     """ Initial Task Stages for Transportation Agents """
     @classmethod
     def transportation_picker_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         return TDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
-
-
     @classmethod
     def transportation_courier_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         AP = agent.properties
@@ -108,8 +102,6 @@ class TaskDef(object):
             return TDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
-
-
     @classmethod
     def transportation_storage_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         #If agents are waiting to visit, begin transportation storage
@@ -128,6 +120,7 @@ class TaskDef(object):
                 'initiator_id': agent.agent_id,
                 'responder_id': "",
                 'stage_list': [
+                    SDef.StartTask(agent, task_id),
                     StageDef.IdleStorage(agent)
                 ]})
 
@@ -197,10 +190,10 @@ class TaskDef(object):
 
 class StageDef(object):
 
-    class IdleStorage(SDef.IdleTask):
+    class IdleStorage(SDef.Idle):
         def _query(self):
             success_conditions = [len(self.agent.request_admittance) > 0] #TODO: this may prove error prone w/ _start
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
             if any(success_conditions): print("admittance required: %s"%self.agent.request_admittance)
         def _end(self):
             self.agent.add_task('transportation_storage_idle')
@@ -287,7 +280,7 @@ class StageDef(object):
                 return "%s()" % (self.get_class())
         def _query(self):
             success_conditions = [self.agent.task_contacts['courier'].location(accurate=True) == self.agent.location()]
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
         def _notify_end(self):
             self.agent.interfaces['transportation'].notify("ARRIVED")
         def _summary(self):
@@ -312,7 +305,7 @@ class StageDef(object):
             if 'courier' not in storage.task_contacts: return
             courier = storage.task_contacts['courier']
             success_conditions = [courier.agent_id == self.agent.agent_id]
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
 
     """ Transportation Navigation Subclasses """
     class NavigateToPicker(SDef.NavigateToAgent):
@@ -332,7 +325,7 @@ class StageDef(object):
         def _query(self):
             success_conditions = [Time.now() - self.start_time > self.wait_timeout,
                                   self.agent['has_tray'] == self.end_requirement]
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
         def _end(self):
             super(StageDef.LoadModifier, self)._end()
             self.agent.task_contacts['courier']['has_tray'] = not self.end_requirement
@@ -349,17 +342,17 @@ class StageDef(object):
     class Loading(SDef.StageBase):
         def _query(self):
             success_conditions = [self.agent['has_tray'] == True]
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
         def _end(self):
             super(StageDef.Loading, self)._end()
             self.agent.properties['load'] += 1
-            print("agent: %s has new load %s" % (self.agent.agent_id, self.agent.properties['load']))
+            # logmsg(level='warn', category='STAGE', id=self.agent.agent_id, msg="Total load: %s" % self.agent.properties['load'])
     class Unloading(SDef.StageBase):
         def _query(self):
             success_conditions = [self.agent['has_tray'] == False]
-            self.agent.flag(any(success_conditions))
+            self._flag(any(success_conditions))
         def _end(self):
             super(StageDef.Unloading, self)._end()
             self.agent.properties['load'] = 0
-            print("agent: %s has load %s" % (self.agent.agent_id, self.agent.properties['load']))
+            # logmsg(level='warn', category='STAGE', id=self.agent.agent_id, msg="Total load: %s" % self.agent.properties['load'])
 

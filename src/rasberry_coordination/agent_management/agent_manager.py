@@ -242,15 +242,13 @@ class AgentDetails(object):
         self().new_stage = False
     def notify(self, state):
         self.interface.publish(state)
-    def flag(self, flag):
-        # TODO: this is not very good here, the state of an agent being interrupted should be handled abstractly
-        if not self.interruption:
-            self().stage_complete = flag
     def end_stage(self):
+        from time import sleep; sleep(0.2) #TODO: this can be removed once add task to buffer is removed from async
         logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self.task_stage_list[0])
         self()._notify_end()
         self()._end()
         self.task_stage_list.pop(0)
+        return None if self.task_stage_list else self['task_id']
 
     """ Task Interruption """
     def set_interrupt(self, type, module, task_id, quiet=False):
@@ -268,5 +266,4 @@ class AgentDetails(object):
 
     """ Disconnection """
     def __del__(self):
-        for i in range(10):
-            print("IM DYINNGNNGNGN")
+        logmsg(level="error", agent=self.agent_id, msg="Identify why this does not get called.", speech=True)

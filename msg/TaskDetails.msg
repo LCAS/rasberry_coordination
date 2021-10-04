@@ -1,4 +1,4 @@
-int64 task_id
+string task_id
 string robot_id
 string picker_id
 string initiator_id

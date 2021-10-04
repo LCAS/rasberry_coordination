@@ -155,34 +155,41 @@ class RasberryCoordinator(object):
         self.previous_log_iteration = ""
         self.current_log_iteration = ""
 
+        from time import time as Now
+        Ut = Now(); #time_since_TOC_update
+        def Update_TOC(A, TOC, Ut):
+            if any([a().new_stage for a in A]) or (Now() - Ut > 15):
+                TOC.UpdateTaskList();
+                return Now();
+            return Ut
+
         l(-1)
         while not rospy.is_shutdown():
-            interrupt_task()    if any([a.interruption for a in A]) else None;     """ Interrupt Task Execution """
+            interrupt_task()     if any([a.interruption for a in A]) else None;    """ Interrupt Task Execution """
             A = get_agents()
 
             lognull() if any([not a.task_stage_list for a in A]) else None
-            [TOC.End(a) for a in A if not a.task_stage_list];                      """ Update TOC with Ended Tasks """  # TODO: Use better condition
             [a.start_next_task() for a in A if not a.task_stage_list];             """ Start Buffered Task """
             l(0);
 
             lognull() if any([a().new_stage for a in A]) else None
-            TOC.Update() if any([a().new_stage for a in A]) else None;             """ Update TOC """ #TODO: Add better conditional
-            [a.start_stage()    for a in A if a().new_stage];                      """ Start Stage """
+            Ut = Update_TOC(A, TOC, Ut);                                           """ Update TOC """
+            [a.start_stage()     for a in A if a().new_stage];                     """ Start Stage """
             lognull() if any([a().action_required for a in A]) else None
-            [offer_service(a)   for a in A if a().action_required];                """ Offer Service """
+            [offer_service(a)    for a in A if a().action_required];               """ Offer Service """
             l(2)
 
-            # lognull() if any([a().route_required for a in A]) else None
             if trigger_routing(A): find_routes();                                  """ Find Routes """
-            [publish_route(a)  for a in A if a().route_found];                     """ Publish Routes """
+            [publish_route(a)    for a in A if a().route_found];                   """ Publish Routes """
             l(3)
 
-            [a()._query()       for a in A];                                       """" Query """
+            [a()._query()        for a in A];                                      """ Query """
             l(4)
 
             lognull() if any([a().stage_complete for a in A]) else None
-            [a.end_stage()      for a in A if a().stage_complete];                 """ End Stage """
-            l(-2) #publish route
+            E=[a.end_stage()     for a in A if a().stage_complete];                """ End Stage """
+            TOC.EndTask(E) if any(E) else None;                                    """ Update TOC with Ended Tasks """
+            l(-2)
 
     def get_all_agents(self):
         return self.agent_manager.agent_details.copy() #TODO: is copy needed?
@@ -638,15 +645,3 @@ class RasberryCoordinator(object):
             switch[idx]()
         else:
             self.log_data(switch[idx])
-
-
-
-
-
-
-
-
-
-
-
-
