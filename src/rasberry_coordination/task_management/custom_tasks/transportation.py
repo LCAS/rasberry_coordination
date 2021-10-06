@@ -81,6 +81,8 @@ class TaskDef(object):
                 'details': cls.load_details(details),
                 'contacts': contacts.copy(),
                 'task_module': 'transportation',
+                'initiator_id': agent.agent_id,
+                'responder_id': "",
                 'stage_list': [
                     SDef.StartTask(agent, task_id),
                     SDef.WaitForLocalisation(agent)

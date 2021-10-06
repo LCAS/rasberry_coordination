@@ -18,7 +18,9 @@ class InterfaceDef(object):
         def _battery_data_cb(self, msg):
             total_voltage = sum(battery.battery_voltage for battery in msg.battery_data)
             self.agent.properties['battery_level'] = total_voltage
-            if self.battery_critical(): self.agent.add_task(task_name="charge_at_charging_station", index=0)
+            if self.battery_critical() and self.agent.task_name is not "charge_at_charging_station":
+                self.agent.add_task(task_name="charge_at_charging_station", index=0)
+                #TODO: and remove any other charging tasks buffered
         def battery_critical(self):
             AP = self.agent.properties
             if 'battery_level' in AP and AP['battery_level'] < AP['critical_battery_limit']: return True

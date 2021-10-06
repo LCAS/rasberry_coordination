@@ -182,18 +182,16 @@ class InterfaceDef(object):
 
         """ Short-Definition Convenience Functions """
         def UpdateTaskList(self):
-            active_task_list = self.generate_active_tasks_list();
-
-            if self.previous_task_list != active_task_list and active_task_list.tasks:
-                self.previous_task_list = active_task_list
-                self.active_tasks_pub.publish(active_task_list)
+            task_list = self.generate_active_tasks_list()
+            if self.previous_task_list != task_list and task_list.tasks:
+                self.previous_task_list = task_list
+                self.publish_task_list(task_list)
         def EndTask(self, E):
-            logmsg(level="error", msg="Tasks ended: %s"%E)
-            active_task_list = self.generate_active_tasks_list();
-            active_task_list.tasks = [t for t in active_task_list.tasks if t.task_id not in E]
+            task_list = self.generate_active_tasks_list();
+            task_list.tasks = [t for t in task_list.tasks if t.task_id not in E]
             for task_id in E:
-                active_task_list.tasks.append(self.generate_completed_task(task_id))
-            self.active_tasks_pub.publish(active_task_list)
+                task_list.tasks.append(self.generate_completed_task(task_id))
+            self.publish_task_list(task_list)
 
         """ Active Task List Modifers """
         def generate_active_tasks_list(self):
@@ -218,15 +216,17 @@ class InterfaceDef(object):
 
                     # Add task to list
                     task_list.tasks.append(task)
-
-            logmsg(category="TOC", msg="Active Tasks:")
-            [logmsg(category="TOC", msg="----- %s | %s [%s,%s]" % (t.task_id, t.state, t.initiator_id, t.responder_id)) for t in task_list.tasks]
             return task_list
         def generate_completed_task(self, task_id=None):
             task = SingleTaskDetails()
             task.task_id = task_id
             task.state = "CANCELLED"
             return task
+        def publish_task_list(self, task_list):
+            logmsg(category="TOC", msg="Active Tasks:")
+            [logmsg(category="TOC", msg="    | %s\t-- %s [%s,%s]" % (t.task_id, t.state, t.initiator_id, t.responder_id)) for t in task_list.tasks]
+            logmsg(category="null")
+            self.active_tasks_pub.publish(task_list)
 
         """ Dynamic Task Management """
         def InterruptTask(self, m):
