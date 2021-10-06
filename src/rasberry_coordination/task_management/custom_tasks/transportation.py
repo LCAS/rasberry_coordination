@@ -21,14 +21,17 @@ class InterfaceDef(object):
         def called(self):
             self.agent.add_task(task_name='transportation_request_courier')
             self.agent['start_time'] = Time.now()
-        def loaded(self): self.agent['has_tray'] = False #picker no longer has the tray
+
+        def loaded(self):
+            self.agent['has_tray'] = False #picker no longer has the tray
+
         def reset(self):
             if self.agent['task_id'] and self.agent['task_name']=='transportation_request_courier':
                 self.agent.set_interrupt('cancel', 'transportation', self.agent['task_id'])
 
-        def on_cancel(self, task_id, contact_id, force_release=False):
-            old_id = super(InterfaceDef.transportation_picker, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
-            if old_id == task_id: self.notify("INIT")
+        # def on_cancel(self, task_id, contact_id, force_release=False):
+        #     old_id = super(InterfaceDef.transportation_picker, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
+        #     if old_id == task_id: self.notify("INIT")
 
     class transportation_courier(IDef.AgentInterface):
         def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
@@ -47,9 +50,9 @@ class InterfaceDef(object):
         def unpause(self): self.agent.set_interrupt('unpause', 'transportation', self.agent['task_id'])
         def release(self): self.agent.set_interrupt('cancel', 'transportation', self.agent['task_id'])
 
-        def on_cancel(self, task_id, contact_id, force_release=False):
-            old_id = super(InterfaceDef.transportation_courier, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
-            if old_id == task_id: self.agent.temp_interface.cancel_execpolicy_goal()
+        # def on_cancel(self, task_id, contact_id, force_release=False):
+        #     old_id = super(InterfaceDef.transportation_courier, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
+        #     if old_id == task_id: self.agent.temp_interface.cancel_execpolicy_goal()
 
     class transportation_storage(IDef.AgentInterface):
         def __init__(self, agent, sub='/uar/get_states', pub='/uar/set_states'):

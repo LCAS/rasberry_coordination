@@ -226,10 +226,7 @@ class AgentDetails(object):
 
     """ Conveniences """
     def __call__(A, index=0):
-        if len(A.task_stage_list) > index:
-            return A.task_stage_list[index]
-        else:
-            return None
+        return A.task_stage_list[index] if len(A.task_stage_list) > index else None
     def __getitem__(A, key):
         return A.task_details[key] if key in A.task_details else None
     def __setitem__(A, key, val):
@@ -245,14 +242,15 @@ class AgentDetails(object):
     def end_stage(self):
         from time import sleep; sleep(0.2) #TODO: this can be removed once add task to buffer is removed from async
         logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self.task_stage_list[0])
+        logmsg(category="null")
         self()._notify_end()
         self()._end()
         self.task_stage_list.pop(0)
         return None if self.task_stage_list else self['task_id']
 
     """ Task Interruption """
-    def set_interrupt(self, type, module, task_id, quiet=False):
-        self.interruption = (type, module, task_id)
+    def set_interrupt(self, type, module, task_id, scope, quiet=False):
+        self.interruption = (type, module, task_id, scope)
         if quiet:
             logmsg(category="DTM", msg="    - interrupt attached to %s of type: (%s,%s,%s)." % (self.agent_id, type, module, task_id))
         else:

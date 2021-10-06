@@ -180,7 +180,16 @@ class InterfaceDef(object):
             """ TOC Dynamic Task Management """
             Subscriber('/rasberry_coordination/dtm', Interruption, self.InterruptTask)
 
+            """ Reset the TOC Active Task List """
+            self.ResetTaskList()
+
         """ Short-Definition Convenience Functions """
+        def ResetTaskList(self):
+            t = TasksDetailsList()
+            task = SingleTaskDetails()
+            task.task_id = "__RESET__"
+            t.tasks.append(task)
+            self.publish_task_list(t)
         def UpdateTaskList(self):
             task_list = self.generate_active_tasks_list()
             if self.previous_task_list != task_list and task_list.tasks:
@@ -189,8 +198,7 @@ class InterfaceDef(object):
         def EndTask(self, E):
             task_list = self.generate_active_tasks_list();
             task_list.tasks = [t for t in task_list.tasks if t.task_id not in E]
-            for task_id in E:
-                task_list.tasks.append(self.generate_completed_task(task_id))
+            [task_list.tasks.append(self.generate_completed_task(task_id)) for task_id in E if task_id]
             self.publish_task_list(task_list)
 
         """ Active Task List Modifers """
@@ -225,6 +233,7 @@ class InterfaceDef(object):
         def publish_task_list(self, task_list):
             logmsg(category="TOC", msg="Active Tasks:")
             [logmsg(category="TOC", msg="    | %s\t-- %s [%s,%s]" % (t.task_id, t.state, t.initiator_id, t.responder_id)) for t in task_list.tasks]
+            print(task_list)
             logmsg(category="null")
             self.active_tasks_pub.publish(task_list)
 
@@ -232,30 +241,33 @@ class InterfaceDef(object):
         def InterruptTask(self, m):
             #For targets, set interruption to [toc_cancel|toc_pause|toc_unpause]
             logmsg(category="DTM", id="toc", msg="Interruption made on TOC channels of type: %s" % m.interrupt)
+            pprint(m)
             A = {a.agent_id:a for a in self.coordinator.get_agents()}
 
 
-            interrupt_keys = {"pause":"toc_pause"
-                      ,"resume":"toc_unpause"
-                      ,"reset":"toc_cancel"
-                      ,"cancel":"toc_cancel"
-                      }
-            m.interrupt = interrupt_keys[m.interrupt];
+            # interrupt_keys = {
+            #     "pause":"toc_pause",
+            #     "resume":"toc_unpause",
+            #     "reset":"toc_cancel",
+            #     "cancel":"toc_cancel"
+            #     }
+            # m.interrupt = interrupt_keys[m.interrupt];
 
-            if m.target in ["", "-"]:
+            if m.scope in ["Coord", "Coordinator"]:
                 # Modify all tasks
                 logmsg(category="DTM", msg="    - to affect all agents.")
-                [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], quiet=True) for a in A.values() if a['task_id']]
+                [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
 
-            elif m.target in A:
-                # Modify specific agent's task
-                logmsg(category="DTM", msg="    - to affect agent: %s." % m.target)
-                A[m.target].set_interrupt(m.interrupt, A[m.target].task_module, A[m.target]['task_id'], quiet=True)
-
-            else:
+            elif m.scope == "Task":
                 # Modify all agents on specific task
                 logmsg(category="DTM", msg="    - to affect task: %s." % m.target)
-                [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
+                [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], m.scope, quiet=True) for a in A.values() if
+                 a['task_id'] and a['task_id'] == m.target]
+
+            elif m.scope == "Agent":
+                # Modify specific agent's task
+                logmsg(category="DTM", msg="    - to affect agent: %s." % m.target)
+                A[m.target].set_interrupt(m.interrupt, A[m.target].task_module, A[m.target]['task_id'], m.scope, quiet=True)
 
     class AgentInterface(object):
         def __init__(self, agent, responses, sub, pub):
@@ -275,29 +287,29 @@ class InterfaceDef(object):
             # logmsg(category="TASK", msg="Publishing: (%s)" % msg)
             self.pub.publish(msg)
 
-        def on_cancel(self, task_id, contact_id, force_release=False):
-            logmsg(category='DTM', id=self.agent.agent_id, msg="    : Request made by %s to cancel task: %s" % (contact_id,task_id))
-
-            # If the task is in the buffer, remove it
-            try:
-                if task_id in [task.task_id for task in self.agent.task_buffer]:
-                    logmsg(category='DTM', msg="    - removing task from task_buffer")
-                    self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
-                    return None
-            except:
-                logmsg(level="error", category='DTM', msg="    :    - task_id not attribute in item in task_buffer?")
-                print(self.agent.task_buffer)
-                #TODO: it seems as though restart task does not retain a task id
-
-            # If task is active, perform appropriate cancellations for contacts
-            old_id = self.agent['task_id']
-            if self.agent['task_id'] == task_id:
-                if force_release:
-                   TaskDef.release_task(self.agent)
-                else:
-                    if any([contact_id.startswith(option) for option in self.release_triggers]): TaskDef.release_task(self.agent)
-                    if any([contact_id.startswith(option) for option in self.restart_triggers]): TaskDef.restart_task(self.agent)
-            return old_id
+        # def on_cancel(self, task_id, contact_id, force_release=False):
+        #     logmsg(category='DTM', id=self.agent.agent_id, msg="    : Request made by %s to cancel task: %s" % (contact_id,task_id))
+        #
+        #     # If the task is in the buffer, remove it
+        #     try:
+        #         if task_id in [task.task_id for task in self.agent.task_buffer]:
+        #             logmsg(category='DTM', msg="    - removing task from task_buffer")
+        #             self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
+        #             return None
+        #     except:
+        #         logmsg(level="error", category='DTM', msg="    :    - task_id not attribute in item in task_buffer?")
+        #         print(self.agent.task_buffer)
+        #         #TODO: it seems as though restart task does not retain a task id
+        #
+        #     # If task is active, perform appropriate cancellations for contacts
+        #     old_id = self.agent['task_id']
+        #     if self.agent['task_id'] == task_id:
+        #         if force_release:
+        #            TaskDef.release_task(self.agent)
+        #         else:
+        #             if any([contact_id.startswith(option) for option in self.release_triggers]): TaskDef.release_task(self.agent)
+        #             if any([contact_id.startswith(option) for option in self.restart_triggers]): TaskDef.restart_task(self.agent)
+        #     return old_id
 
 class TaskDef(object):
     """ Runtime Method for Custom Task Definitions """
@@ -320,7 +332,17 @@ class TaskDef(object):
         logmsg(category="null")
         logmsg(category="TASK", id=agent.agent_id, msg="Active task: %s" % task['name'], speech=False)
         logmsg(category="TASK", msg="Task details:")
-        for stage in task['stage_list']: logmsg(category="TASK", msg="    - %s" % stage)
+        [logmsg(category="TASK", msg="    - %s" % stage) for stage in task['stage_list']]
+    @classmethod
+    def clear_active_task(self, agent):
+        agent.task_name = None
+        agent.action = dict()
+        agent.task_details = {}
+        agent.task_contacts = {}
+        agent.initiator_id = ""
+        agent.responder_id = ""
+        agent.task_module = None
+        agent.task_stage_list = []
 
 
     """ Runtime Method for Idle Task Definitions """
@@ -370,19 +392,12 @@ class TaskDef(object):
     @classmethod
     def release_task(cls, agent):
         logmsg(category="DTM", msg="    :    - releasing task %s" % (agent.task_name))
-        task_name = agent.task_name
-        agent.task_name = None
-        agent.action = dict()
-        agent.task_details = {}
-        agent.task_contacts = {}
-        task_module = None
-        agent.task_stage_list = []
-        return task_name
+        cls.clear_active_task(agent)
     @classmethod
     def restart_task(cls, agent):
-        task_name = TaskDef.release_task(agent)
         logmsg(category="DTM", msg="    :    - restarting task %s" % (task_name))
-        agent.add_task(task_name=task_name, index=0, quiet=True)
+        agent.add_task(task_name=agent.task.task_name, task_id=agent['task_id'], index=0, quiet=True)
+        cls.clear_active_task(agent)
 
 class StageDef(object):
     class StageBase(object):
@@ -416,6 +431,8 @@ class StageDef(object):
             """
             logmsg(category="stage", id=self.agent.agent_id, msg="Begun stage %s" % self)
             self.start_time = Time.now()
+        def _suspend(self):
+            self.new_stage = True
         def _notify_start(self):
             pass
         def _query(self):
@@ -561,11 +578,12 @@ class StageDef(object):
 
     """ Meta Stages """
     class Pause(StageBase):
-        def _start(self):
+        def __init__(self):
+            super(StageDef.Pause, self).__init__(agent)
             self.agent.registration=False
-            if hasattr(self.agent, 'temp_interface'):
-                self.agent.temp_interface.cancel_execpolicy_goal()
-            pass
+        def _start(self):
+            if hasattr(self.agent, 'temp_interface'): self.agent.temp_interface.cancel_execpolicy_goal()
+            #TODO: set an agent function for generic definition of pausing?
         def _query(self):
             success_conditions = [self.agent.registration]
             self._flag(any(success_conditions))
