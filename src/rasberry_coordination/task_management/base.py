@@ -233,7 +233,6 @@ class InterfaceDef(object):
         def publish_task_list(self, task_list):
             logmsg(category="TOC", msg="Active Tasks:")
             [logmsg(category="TOC", msg="    | %s\t-- %s [%s,%s]" % (t.task_id, t.state, t.initiator_id, t.responder_id)) for t in task_list.tasks]
-            print(task_list)
             logmsg(category="null")
             self.active_tasks_pub.publish(task_list)
 
@@ -241,17 +240,7 @@ class InterfaceDef(object):
         def InterruptTask(self, m):
             #For targets, set interruption to [toc_cancel|toc_pause|toc_unpause]
             logmsg(category="DTM", id="toc", msg="Interruption made on TOC channels of type: %s" % m.interrupt)
-            pprint(m)
             A = {a.agent_id:a for a in self.coordinator.get_agents()}
-
-
-            # interrupt_keys = {
-            #     "pause":"toc_pause",
-            #     "resume":"toc_unpause",
-            #     "reset":"toc_cancel",
-            #     "cancel":"toc_cancel"
-            #     }
-            # m.interrupt = interrupt_keys[m.interrupt];
 
             if m.scope in ["Coord", "Coordinator"]:
                 # Modify all tasks
@@ -334,7 +323,8 @@ class TaskDef(object):
         logmsg(category="TASK", msg="Task details:")
         [logmsg(category="TASK", msg="    - %s" % stage) for stage in task['stage_list']]
     @classmethod
-    def clear_active_task(self, agent):
+    def clear_active_task(cls, agent):
+        print("i gots no way to send msg to TOC to cancel /shrug")
         agent.task_name = None
         agent.action = dict()
         agent.task_details = {}

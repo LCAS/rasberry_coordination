@@ -18,16 +18,21 @@ class InterfaceDef(object):
             responses = {'CALLED': self.called, 'LOADED': self.loaded, 'INIT': self.reset}
             super(InterfaceDef.transportation_picker, self).__init__(agent, responses, sub=sub, pub=pub)
 
+            self.notify("INIT")
+
         def called(self):
+            logmsg(msg="picker called called")
             self.agent.add_task(task_name='transportation_request_courier')
             self.agent['start_time'] = Time.now()
 
         def loaded(self):
+            logmsg(msg="picker called loaded")
             self.agent['has_tray'] = False #picker no longer has the tray
 
         def reset(self):
-            if self.agent['task_id'] and self.agent['task_name']=='transportation_request_courier':
-                self.agent.set_interrupt('cancel', 'transportation', self.agent['task_id'])
+            logmsg(msg="picker called reset")
+            if self.agent['task_id'] and self.agent.task_name=='transportation_request_courier':
+                self.agent.set_interrupt('reset', 'transportation', self.agent['task_id'], "Task")
 
         # def on_cancel(self, task_id, contact_id, force_release=False):
         #     old_id = super(InterfaceDef.transportation_picker, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
@@ -48,7 +53,7 @@ class InterfaceDef(object):
 
         def pause(self): self.agent.set_interrupt('pause', 'transportation', self.agent['task_id'])
         def unpause(self): self.agent.set_interrupt('unpause', 'transportation', self.agent['task_id'])
-        def release(self): self.agent.set_interrupt('cancel', 'transportation', self.agent['task_id'])
+        def release(self): self.agent.set_interrupt('reset', 'transportation', self.agent['task_id'])
 
         # def on_cancel(self, task_id, contact_id, force_release=False):
         #     old_id = super(InterfaceDef.transportation_courier, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
@@ -59,7 +64,7 @@ class InterfaceDef(object):
             self.release_triggers = ['self', 'toc']
             self.restart_triggers = ['thorvald']
 
-            responses={'UNLOADED': self.unloaded, 'OFFLINE': self.offline, 'ONLINE': self.online}
+            responses={'UNLOADED': self.unloaded}
             super(InterfaceDef.transportation_storage, self).__init__(agent, responses, sub=sub, pub=pub)
 
             #These need a new home
@@ -67,8 +72,6 @@ class InterfaceDef(object):
             self.agent.has_presence = False  # used for routing (swap key for physical?)
 
         def unloaded(self): self.agent['has_tray'] = True
-        def offline(self): pass
-        def online(self): pass
 
         # def on_cancel(self, task_id, contact_id, force_release=False):
         #     super(InterfaceDef.transportation_storage, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)

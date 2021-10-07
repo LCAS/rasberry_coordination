@@ -75,8 +75,10 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
             ros_time = '\b' * 21  # TODO: swap out using \u001b[{n}D
 
         """ Define id and/or category to highlight """
-        color_id = {"thorvald_001":'\033[01;32m', "thorvald_002":'\033[01;35m'}
-        color_category = ["TOC", "DRM1", "START"]  # TODO move these out of this definition and into some config file  # TODO: moving them outside the funciton will set on import logmsg? if so, we can grab from param server?
+        color_id = {"storage01":'\033[01;31m', "thorvald_001":'\033[01;32m', "thorvald_002":'\033[01;33m', "picker01":'\033[01;34m', "picker02":'\033[01;35m'}
+        color_category = ["TOC1", "DRM", "START", "OTHER1", "DTM"]
+        # TODO move these out of this definition and into some config file
+        # TODO: moving them outside the funciton will set on import logmsg? if so, we can grab from param server?
         # (load from parameter server in launch file?)
 
         """ Format category portion of message """
