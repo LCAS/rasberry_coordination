@@ -22,6 +22,7 @@ class MarkerPublisher:
 
         # Initialise variables
         self.robot_ids = [self.config_get('robot_id', config=robot) for robot in self.config_get('spawn_list')[1:]]
+        self.robot_types = {self.config_get('robot_id', config=robot):self.config_get('type', config=robot) for robot in self.config_get('spawn_list')[1:]}
         self.picker_ids = [] + self.config_get("picker_ids")
         self.virtual_picker_ids = [] + self.config_get("virtual_picker_ids")
 
@@ -55,7 +56,14 @@ class MarkerPublisher:
         for robot_id in self.robot_ids:
             print(self.robot_ids)
             print("Adding robot " + robot_id)
-            self.add_short_robot(robot_id)
+            if robot_id not in self.robot_types:
+                self.add_short_robot(robot_id)
+            elif self.robot_types[robot_id] == 'short':
+                self.add_short_robot(robot_id)
+            elif self.robot_types[robot_id] == 'tall':
+                self.add_tall_robot(robot_id)
+            else:
+                self.add_short_robot(robot_id)
             # TODO: use robot type here to add tall robot markers
         for picker_id in self.picker_ids:
             print("Adding picker " + picker_id)
