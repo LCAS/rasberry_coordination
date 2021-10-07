@@ -190,7 +190,7 @@ class AgentDetails(object):
             else: self.task_buffer.insert(index, [task])
 
             if quiet:
-                logmsg(category="DTM", msg="    :    - buffering %s to task_buffer[%i]" % (task['name'], index or len(self.task_buffer)))
+                logmsg(category="DTM", msg="    | buffering %s to task_buffer[%i]" % (task['name'], index or len(self.task_buffer)))
             else:
                 logmsg(category="null")
                 logmsg(category="TASK", id=self.agent_id, msg="Buffering %s to position %i of task_buffer, task stage list:" % (task['name'], index or len(self.task_buffer)))
@@ -242,7 +242,6 @@ class AgentDetails(object):
     def end_stage(self):
         from time import sleep; sleep(0.2) #TODO: this can be removed once add task to buffer is removed from async
         logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self.task_stage_list[0])
-        logmsg(category="null")
         self()._notify_end()
         self()._end()
         self.task_stage_list.pop(0)

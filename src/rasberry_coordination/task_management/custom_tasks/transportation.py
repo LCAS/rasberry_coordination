@@ -98,6 +98,7 @@ class TaskDef(object):
     """ Initial Task Stages for Transportation Agents """
     @classmethod
     def transportation_picker_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+        agent.interfaces['transportation'].notify("INIT")
         return TDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
     def transportation_courier_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
@@ -209,6 +210,7 @@ class StageDef(object):
             super(StageDef.IdleStorage, self)._summary()
             self.summary['_query'] = 'len(store.request_admittance) > 0'
             self.summary['_del'] = 'begin task'
+
 
     """ Assignment-Based Task Stages (involves coordinator) """
     class AssignCourier(SDef.AssignAgent):

@@ -82,7 +82,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
         # (load from parameter server in launch file?)
 
         """ Format category portion of message """
-        valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "ROB_PY", "ROUTE", "ACTION", "LOG", "STAGE", "SETUP", "RVIZ", "ROBNAV", "DRM", "DTM", "TOC", "START"]
+        valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "ROB_PY", "ROUTE", "ACTION", "LOG", "STAGE", "SETUP", "RVIZ", "ROBNAV", "DRM", "DTM", "TOC", "START", "COMMS"]
         total_pad_space = max([len(_category) + 1 for _category in valid_categories])
         if category.upper() in valid_categories:
             category_padding = total_pad_space - len(category)

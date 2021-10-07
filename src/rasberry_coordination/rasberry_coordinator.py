@@ -296,6 +296,7 @@ class RasberryCoordinator(object):
 
     """ Interrupt Task """
     def interrupt_task(self):
+        from time import sleep; sleep(0.5) #TODO: preventing log overwriting from interrupt attachments
         interrupts = {'pause': self.pause, 'unpause': self.unpause, 'reset': self.reset}
         logmsg(category="null")
         logmsg(category="DTM", msg="Interrupt detected!", speech=False);
@@ -307,7 +308,7 @@ class RasberryCoordinator(object):
         2. Add an additional pause stage which queries self.agent.registration
         """
         logmsg(category="DTM", id=agent.agent_id, msg="Task advancement paused.")
-        agent().suspend() #suspend active stage
+        agent()._suspend() #suspend active stage
         agent.task_stage_list.insert(0, StageDef.Pause(agent)) #add paused stage
         agent.interruption = None  # reset interruption trigger
         self.agent_manager.format_agent_marker(agent.agent_id, style='red')
@@ -330,6 +331,8 @@ class RasberryCoordinator(object):
         """
         logmsg(category="DTM", msg="Request made to reset task: %s" % agent['task_id'])
         init, resp, tid = agent.initiator_id, agent.responder_id, agent['task_id']
+
+        logmsg(category="DTM", msg="If the request came from TOC, it needs to release both?")
 
         if agent.agent_id == init:
             TaskDef.release_task(self.agent_manager[init])

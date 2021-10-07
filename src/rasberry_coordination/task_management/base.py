@@ -242,18 +242,36 @@ class InterfaceDef(object):
             logmsg(category="DTM", id="toc", msg="Interruption made on TOC channels of type: %s" % m.interrupt)
             A = {a.agent_id:a for a in self.coordinator.get_agents()}
 
-            if m.scope in ["Coord", "Coordinator"]:
+            if m.scope in [0, "Coord", "Coordinator"]:
                 # Modify all tasks
                 logmsg(category="DTM", msg="    - to affect all agents.")
-                [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
+                # [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
 
-            elif m.scope == "Task":
+                if m.interrupt == "reset":
+                    for a in A.values():
+                        if a['task_id'] and a.agent_id == a.initiator_id:
+                            logmsg(category="DTM", msg="      | release")
+                            a.set_interrupt("reset", a.task_module, a['task_id'], m.scope, quiet=True)
+                else:
+                    [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
+
+
+            elif m.scope in [1, "Task"]:
                 # Modify all agents on specific task
                 logmsg(category="DTM", msg="    - to affect task: %s." % m.target)
-                [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], m.scope, quiet=True) for a in A.values() if
-                 a['task_id'] and a['task_id'] == m.target]
+                # [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
 
-            elif m.scope == "Agent":
+                if m.interrupt == "reset":
+                    for a in A.values():
+                        if (a['task_id']) and (a['task_id'] == m.target) and (a.agent_id == a.initiator_id):
+                            logmsg(category="DTM", msg="      | release")
+                            a.set_interrupt("reset", a.task_module, a['task_id'], m.scope, quiet=True)
+                else:
+                    [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
+
+
+
+            elif m.scope == [2, "Agent"]:
                 # Modify specific agent's task
                 logmsg(category="DTM", msg="    - to affect agent: %s." % m.target)
                 A[m.target].set_interrupt(m.interrupt, A[m.target].task_module, A[m.target]['task_id'], m.scope, quiet=True)
@@ -273,7 +291,7 @@ class InterfaceDef(object):
                     self.responses[msg['state']]()
         def notify(self, state):
             msg = Str('{\"user\":\"%s\", \"state\":\"%s\"}' % (self.agent.agent_id, state))
-            # logmsg(category="TASK", msg="Publishing: (%s)" % msg)
+            logmsg(category="COMMS", msg="Publishing: (%s)" % msg)
             self.pub.publish(msg)
 
         # def on_cancel(self, task_id, contact_id, force_release=False):
@@ -324,7 +342,7 @@ class TaskDef(object):
         [logmsg(category="TASK", msg="    - %s" % stage) for stage in task['stage_list']]
     @classmethod
     def clear_active_task(cls, agent):
-        print("i gots no way to send msg to TOC to cancel /shrug")
+        # print("i gots no way to send msg to TOC to cancel /shrug")
         agent.task_name = None
         agent.action = dict()
         agent.task_details = {}
@@ -381,12 +399,12 @@ class TaskDef(object):
     """ Dynamic Task Management """
     @classmethod
     def release_task(cls, agent):
-        logmsg(category="DTM", msg="    :    - releasing task %s" % (agent.task_name))
+        logmsg(category="DTM", msg="    | releasing task %s" % (agent.task_name))
         cls.clear_active_task(agent)
     @classmethod
     def restart_task(cls, agent):
-        logmsg(category="DTM", msg="    :    - restarting task %s" % (task_name))
-        agent.add_task(task_name=agent.task.task_name, task_id=agent['task_id'], index=0, quiet=True)
+        logmsg(category="DTM", msg="    | restarting task %s" % (agent.task_name))
+        agent.add_task(task_name=agent.task_name, task_id=agent['task_id'], index=0, quiet=True)
         cls.clear_active_task(agent)
 
 class StageDef(object):
