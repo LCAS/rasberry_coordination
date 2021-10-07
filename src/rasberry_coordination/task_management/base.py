@@ -239,6 +239,7 @@ class InterfaceDef(object):
         """ Dynamic Task Management """
         def InterruptTask(self, m):
             #For targets, set interruption to [toc_cancel|toc_pause|toc_unpause]
+            logmsg(category="null")
             logmsg(category="DTM", id="toc", msg="Interruption made on TOC channels of type: %s" % m.interrupt)
             A = {a.agent_id:a for a in self.coordinator.get_agents()}
 
@@ -271,10 +272,13 @@ class InterfaceDef(object):
 
 
 
-            elif m.scope == [2, "Agent"]:
+            elif m.scope in [2, "Agent"]:
                 # Modify specific agent's task
                 logmsg(category="DTM", msg="    - to affect agent: %s." % m.target)
                 A[m.target].set_interrupt(m.interrupt, A[m.target].task_module, A[m.target]['task_id'], m.scope, quiet=True)
+
+            else:
+                print(m)
 
     class AgentInterface(object):
         def __init__(self, agent, responses, sub, pub):
@@ -586,7 +590,7 @@ class StageDef(object):
 
     """ Meta Stages """
     class Pause(StageBase):
-        def __init__(self):
+        def __init__(self, agent):
             super(StageDef.Pause, self).__init__(agent)
             self.agent.registration=False
         def _start(self):

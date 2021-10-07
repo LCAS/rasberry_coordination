@@ -297,7 +297,7 @@ class RasberryCoordinator(object):
     """ Interrupt Task """
     def interrupt_task(self):
         from time import sleep; sleep(0.5) #TODO: preventing log overwriting from interrupt attachments
-        interrupts = {'pause': self.pause, 'unpause': self.unpause, 'reset': self.reset}
+        interrupts = {'pause': self.pause, 'resume': self.resume, 'reset': self.reset}
         logmsg(category="null")
         logmsg(category="DTM", msg="Interrupt detected!", speech=False);
         [logmsg(category="DTM", msg="    | %s : %s" % (a.agent_id, a.interruption[0])) for a in self.AllAgentsList.values() if a.interruption]
@@ -312,13 +312,13 @@ class RasberryCoordinator(object):
         agent.task_stage_list.insert(0, StageDef.Pause(agent)) #add paused stage
         agent.interruption = None  # reset interruption trigger
         self.agent_manager.format_agent_marker(agent.agent_id, style='red')
-    def unpause(self, agent):
+    def resume(self, agent):
         """ Agent unpausing works as follows:
         1. Set the flag to end the pause stage (self.agent.registration)
         """
         logmsg(category="DTM", id=agent.agent_id, msg="Task advancement resumed.")
-        agent.registration = True  # enable generic query success condition
         agent.interruption = None  # reset interruption trigger
+        agent.registration = True  # enable generic query success condition
         self.agent_manager.format_agent_marker(agent.agent_id, style='')
     def reset(self, agent):
         """ Reset task works as follows:
@@ -336,9 +336,10 @@ class RasberryCoordinator(object):
 
         if agent.agent_id == init:
             TaskDef.release_task(self.agent_manager[init])
-            self.agent_manager.format_agent_marker(init, style='red')
+            self.unregister(init)
         elif agent.agent_id == resp:
             TaskDef.restart_task(self.agent_manager[init])
+            self.unregister(resp)
         self.agent_manager[init].interruption = None  # reset interruption trigger
 
         if resp and resp in self.agent_manager.agent_details:
@@ -346,6 +347,11 @@ class RasberryCoordinator(object):
             self.agent_manager[resp].interruption = None  # reset interruption trigger
 
         self.TOC_Interface.EndTask([tid])
+
+    def unregister(self, agent_id):
+        logmsg(category="DTM", msg="    | unregistering agent: %s"%agent_id)
+        self.agent_manager[agent_id].registration = False
+        self.agent_manager.format_agent_marker(agent_id, style='red')
 
     # def delete_agent(self, agent):
     #     logmsg(level="error", category="DRM", id=agent.agent_id,
