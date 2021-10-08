@@ -56,15 +56,7 @@ class MarkerPublisher:
         for robot_id in self.robot_ids:
             print(self.robot_ids)
             print("Adding robot " + robot_id)
-            if robot_id not in self.robot_types:
-                self.add_short_robot(robot_id)
-            elif self.robot_types[robot_id] == 'short':
-                self.add_short_robot(robot_id)
-            elif self.robot_types[robot_id] == 'tall':
-                self.add_tall_robot(robot_id)
-            else:
-                self.add_short_robot(robot_id)
-            # TODO: use robot type here to add tall robot markers
+            self.add_robot(robot_id)
         for picker_id in self.picker_ids:
             print("Adding picker " + picker_id)
             self.add_picker(picker_id)
@@ -75,11 +67,7 @@ class MarkerPublisher:
     # Marker add callback
     def add_marker_cb(self, msg):
         print("Adding " + msg.type + " " + msg.name)
-        if msg.type == "short_robot":
-            self.robot_ids.append(msg.name)
-            self.add_robot(msg.name, msg.optional_color)
-            print(self.thorvald_marker_publishers.keys())
-        elif msg.type == "tall_robot":
+        if msg.type == "robot":
             self.robot_ids.append(msg.name)
             self.add_robot(msg.name, msg.optional_color)
             print(self.thorvald_marker_publishers.keys())
@@ -92,6 +80,17 @@ class MarkerPublisher:
             self.add_virtual_picker(msg.name)
             print(self.virtual_picker_marker_publishers.keys())
         return 0
+
+    # add correct robot marker
+    def add_robot(self, id, color=''):
+         if robot_id not in self.robot_types:
+            self.add_short_robot(robot_id, color)
+        elif self.robot_types[robot_id] == 'short':
+            self.add_short_robot(robot_id, color)
+        elif self.robot_types[robot_id] == 'tall':
+            self.add_tall_robot(robot_id, color)
+        else:
+            self.add_short_robot(robot_id, color)
 
     # Setup short robot marker
     def add_short_robot(self, id, color=''):
