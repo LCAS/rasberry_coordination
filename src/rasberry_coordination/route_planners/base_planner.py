@@ -19,7 +19,7 @@ from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, In
 from abc import ABCMeta, abstractmethod
 
 class BasePlanner(object):
-    __metaclass__ = ABCMeta #@abstractmethod
+    __metaclass__ = ABCMeta  # @abstractmethod
 
     def _map_cb(self, msg):
         """This function receives the Topological Map

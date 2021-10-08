@@ -65,7 +65,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
     # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
     # TODO: include padding at end of msg
 
-    reject_tags = ["LOG1", "START", "RVIZ", "TOC1", "ROBNAV", "ROUTE", "ACTION", "ROB_PY"]
+    reject_tags = ["LOG1", "START", "RVIZ", "TOC1", "ROBNAV", "ROUTE1", "ACTION", "ROB_PY"]
     if category.upper() in reject_tags: return
 
     if use_custom_formatting:

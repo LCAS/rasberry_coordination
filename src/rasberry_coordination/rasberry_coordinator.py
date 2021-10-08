@@ -327,7 +327,7 @@ class RasberryCoordinator(object):
         logmsg(category="DTM", id=agent.agent_id, msg="Task advancement resumed.")
 
         scope = agent.interruption[3]
-        agent.registration = True  # enable generic query success condition
+        # agent.registration = True  # enable generic query success condition
         if agent().get_class() == "base.Pause":
             agent().pause_state[scope] = False
             logmsg(category="DTM", msg="      | pause trigger ['%s'] set to False" % scope)

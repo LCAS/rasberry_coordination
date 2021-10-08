@@ -275,7 +275,6 @@ class StageDef(object):
             logmsg(category="stage", msg="AcceptCourier: stage_complete=%s" % self.stage_complete)
             self.agent.request_admittance.remove(self.agent.task_contacts['courier'].agent_id)
             self.agent.initiator_id = self.agent.task_contacts['courier'].agent_id
-
         def _summary(self):
             super(StageDef.AcceptCourier, self)._summary()
             self.summary['_start'] = "setup action to find admittant"

@@ -594,7 +594,7 @@ class StageDef(object):
         def __init__(self, agent, format_agent_marker):
             super(StageDef.Pause, self).__init__(agent)
             logmsg(category="DTM", msg="      | pause init")
-            self.agent.registration=False
+            self.agent.registration = False
             self.pause_state = {'Coord':False, 'Task':False, 'Agent':False}
             self.format_agent_marker = format_agent_marker
         def _start(self):
@@ -605,6 +605,7 @@ class StageDef(object):
             success_conditions = [not (True in self.pause_state.values())]
             self._flag(any(success_conditions))
         def _end(self):
+            self.agent.registration = True
             self.format_agent_marker(self.agent.agent_id, style='')
     class Unregister(StageBase): pass
     class Exit(StageBase):
