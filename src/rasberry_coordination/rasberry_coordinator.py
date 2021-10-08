@@ -43,6 +43,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                  max_task_priorities,
                  admissible_robot_ids, active_tasks,
                  base_station_nodes_pool, wait_nodes_pool,
+                 robot_types, robot_tasks,
                  max_load_duration, max_unload_duration,
                  ns="rasberry_coordination"):
         """initialise a RasberryCoordinator object
@@ -66,6 +67,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             active_tasks -- list of tasks which the system is currently performing
             base_station_nodes_pool -- pool defining list of all base stations within the system
             wait_nodes_pool -- pool defining list all waiting nodes
+            robot_types -- type of robot (short/tall)
+            robot_tasks -- task modules and task roles in different tasks supported by the robot
             max_load_duration -- time to wait until the coordinator forces advancement through LOADING stage
             max_unload_duration -- time to wait until the coordinator forces advancement through UNLOADING stage
         """

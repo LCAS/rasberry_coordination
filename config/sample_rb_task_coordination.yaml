@@ -1,4 +1,4 @@
-version: 1.1.0
+version: 1.1.1
 use_sim: true # is this a simulated environment
 
 #TASKS
@@ -79,5 +79,13 @@ spawn_list:  # robots to initialise when simulation started
   - default: null  #REQUIRED
   - robot_id: thorvald_003
     base_station_node: Waypoint22
+    type: short
+    tasks:
+      - module: transportation
+        role: courier
   - robot_id: thorvald_005
     base_station_node: Waypoint24
+    type: short
+    tasks:
+      - module: transportation
+        role: courier
