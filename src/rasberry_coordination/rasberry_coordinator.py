@@ -302,24 +302,40 @@ class RasberryCoordinator(object):
         logmsg(category="DTM", msg="Interrupt detected!", speech=False);
         [logmsg(category="DTM", msg="    | %s : %s" % (a.agent_id, a.interruption[0])) for a in self.AllAgentsList.values() if a.interruption]
         [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption[0] in interrupts]
+
     def pause(self, agent):
         """ Agent pausing works as follows:
         1. Put the active stage into a suspended state (so once active again it will be restarted)
         2. Add an additional pause stage which queries self.agent.registration
         """
-        logmsg(category="DTM", id=agent.agent_id, msg="Task advancement paused.")
         agent()._suspend() #suspend active stage
-        agent.task_stage_list.insert(0, StageDef.Pause(agent)) #add paused stage
+
+        scope = agent.interruption[3]
+        if agent().get_class() != "base.Pause":
+            agent.task_stage_list.insert(0, StageDef.Pause(agent, self.agent_manager.format_agent_marker)) #add paused stage
+        agent().pause_state[scope] = True
+        logmsg(category="DTM", msg="      | pause trigger ['%s'] set to True" % scope)
+        logmsg(category="DTM", msg="      | stage state: %s" % agent().__repr__())
+
         agent.interruption = None  # reset interruption trigger
         self.agent_manager.format_agent_marker(agent.agent_id, style='red')
+
     def resume(self, agent):
         """ Agent unpausing works as follows:
         1. Set the flag to end the pause stage (self.agent.registration)
         """
         logmsg(category="DTM", id=agent.agent_id, msg="Task advancement resumed.")
-        agent.interruption = None  # reset interruption trigger
+
+        scope = agent.interruption[3]
         agent.registration = True  # enable generic query success condition
-        self.agent_manager.format_agent_marker(agent.agent_id, style='')
+        if agent().get_class() == "base.Pause":
+            agent().pause_state[scope] = False
+            logmsg(category="DTM", msg="      | pause trigger ['%s'] set to False" % scope)
+            logmsg(category="DTM", msg="      | stage state: %s" % agent().__repr__())
+
+        agent.interruption = None  # reset interruption trigger
+        # self.agent_manager.format_agent_marker(agent.agent_id, style='')
+
     def reset(self, agent):
         """ Reset task works as follows:
         If the reset request comes from the initiator:

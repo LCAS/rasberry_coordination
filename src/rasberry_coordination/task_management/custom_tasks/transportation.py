@@ -199,6 +199,7 @@ class TaskDef(object):
 
 class StageDef(object):
 
+    #TODO: change this to idle, and make this condition an interface response?
     class IdleStorage(SDef.Idle):
         def _query(self):
             success_conditions = [len(self.agent.request_admittance) > 0] #TODO: this may prove error prone w/ _start

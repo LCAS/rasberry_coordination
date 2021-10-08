@@ -536,8 +536,7 @@ class StageDef(object):
         def __repr__(self):
             if self.target:
                 return "%s(%s)"%(self.get_class(), self.target.replace('WayPoint','WP'))
-            else:
-                return "%s" % (self.get_class())
+            return "%s" % (self.get_class())
         def __init__(self, agent, association):
             super(StageDef.Navigation, self).__init__(agent)
             self.association = association
@@ -590,15 +589,23 @@ class StageDef(object):
 
     """ Meta Stages """
     class Pause(StageBase):
-        def __init__(self, agent):
+        def __repr__(self):
+            return "%s(C%s|T%s|A%s)" % (self.get_class(), int(self.pause_state['Coord']), int(self.pause_state['Task']), int(self.pause_state['Agent']))
+        def __init__(self, agent, format_agent_marker):
             super(StageDef.Pause, self).__init__(agent)
+            logmsg(category="DTM", msg="      | pause init")
             self.agent.registration=False
+            self.pause_state = {'Coord':False, 'Task':False, 'Agent':False}
+            self.format_agent_marker = format_agent_marker
         def _start(self):
             if hasattr(self.agent, 'temp_interface'): self.agent.temp_interface.cancel_execpolicy_goal()
             #TODO: set an agent function for generic definition of pausing?
         def _query(self):
-            success_conditions = [self.agent.registration]
+            # success_conditions = [self.agent.registration]
+            success_conditions = [not (True in self.pause_state.values())]
             self._flag(any(success_conditions))
+        def _end(self):
+            self.format_agent_marker(self.agent.agent_id, style='')
     class Unregister(StageBase): pass
     class Exit(StageBase):
         def _start(self):
