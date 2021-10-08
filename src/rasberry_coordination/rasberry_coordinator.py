@@ -43,7 +43,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                  max_task_priorities,
                  admissible_robot_ids, active_tasks,
                  base_station_nodes_pool, wait_nodes_pool,
-                 robot_types, robot_tasks,
+                 robot_types, robot_tasks, use_restrictions,
                  max_load_duration, max_unload_duration,
                  ns="rasberry_coordination"):
         """initialise a RasberryCoordinator object
@@ -69,6 +69,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             wait_nodes_pool -- pool defining list all waiting nodes
             robot_types -- type of robot (short/tall)
             robot_tasks -- task modules and task roles in different tasks supported by the robot
+            use_restrictions -- use toponav2 restrictions
             max_load_duration -- time to wait until the coordinator forces advancement through LOADING stage
             max_unload_duration -- time to wait until the coordinator forces advancement through UNLOADING stage
         """
@@ -97,6 +98,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.wait_nodes_pool = set(wait_nodes_pool)
         used_wait_nodes = set(wait_nodes.values())
         self.available_wait_nodes = list(self.wait_nodes_pool.difference(used_wait_nodes))
+
+        self.use_restrictions = use_restrictions
 
         # Initialise conditions for robot registration
         self.admissible_robot_ids = admissible_robot_ids
@@ -131,6 +134,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             robot.base_station = base_stations[robot.robot_id]
             robot.wait_node = wait_nodes[robot.robot_id]
             robot.max_task_priority = max_task_priorities[robot.robot_id]
+            robot.type = robot_types[robot.robot_id]
+            robot.task_types = robot_types[robot.robot_id]
+            robot.use_restrictions = self.use_restrictions
 
         self.task_pause_pub = rospy.Publisher('/rasberry_coordination/pause_state', std_msgs.msg.Bool, queue_size=5, latch=True)
         self.task_pause = False
@@ -288,7 +294,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         # Set first available base station as taken
         robot.base_station = remove(self.available_base_stations, self.available_base_stations[-1])
-        robot.wait_node = remove(self.available_wait_nodes, self.available_base_stations[-1])
+        robot.wait_node = remove(self.available_wait_nodes, self.available_wait_nodes[-1])
 
         logmsg(category="drm", id=robot_id, msg='assigned to base station %s' % (robot.base_station))
         logmsg(category="drm", msg='base stations in use: %s' % (str(self.robot_manager.get_list('base_station'))))

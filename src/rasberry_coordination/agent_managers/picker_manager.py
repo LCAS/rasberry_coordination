@@ -270,7 +270,7 @@ class PickerDetails(AgentDetails):
         self.registered = True
 
         """Task Details"""
-        self.task_type = None
+        self.task_type = 'transportation' # pickers create only transportation tasks
         self.task_id = None
         self.task_location = None
         self.task_action = None

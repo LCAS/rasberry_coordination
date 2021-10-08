@@ -151,6 +151,10 @@ class RobotDetails(AgentDetails):
         """Initialise Fields in Parent Class"""
         super(RobotDetails, robot).__init__(ID, cb)
 
+        robot.type = None # type of the robot - short or tall
+        robot.task_types = None # task capabilities of the robot and the role
+        robot.use_restrictions = False # use toponav2 restrictions or not
+
         """Detail whether the robot is moving"""
         robot.idle = True
         robot.interruptable = False

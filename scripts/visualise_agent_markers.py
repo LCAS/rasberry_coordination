@@ -83,14 +83,14 @@ class MarkerPublisher:
 
     # add correct robot marker
     def add_robot(self, id, color=''):
-         if robot_id not in self.robot_types:
-            self.add_short_robot(robot_id, color)
-        elif self.robot_types[robot_id] == 'short':
-            self.add_short_robot(robot_id, color)
-        elif self.robot_types[robot_id] == 'tall':
-            self.add_tall_robot(robot_id, color)
+        if id not in self.robot_types:
+            self.add_short_robot(id, color)
+        elif self.robot_types[id] == 'short':
+            self.add_short_robot(id, color)
+        elif self.robot_types[id] == 'tall':
+            self.add_tall_robot(id, color)
         else:
-            self.add_short_robot(robot_id, color)
+            self.add_short_robot(id, color)
 
     # Setup short robot marker
     def add_short_robot(self, id, color=''):

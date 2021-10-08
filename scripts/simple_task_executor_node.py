@@ -150,6 +150,8 @@ if __name__ == '__main__':
     # initialise ROSNode
     rospy.init_node('simple_task_coordinator', anonymous=False)
 
+    use_restrictions = rospy.get_param("~use_restrictions", False)
+
     # initialise the coordinator and internally all robots
     coordinator = rasberry_coordination.rasberry_coordinator.RasberryCoordinator(
                                                     robot_ids=robot_ids,
@@ -167,6 +169,7 @@ if __name__ == '__main__':
                                                     wait_nodes_pool=wait_nodes_pool,
                                                     robot_types=robot_types,
                                                     robot_tasks=robot_tasks,
+                                                    use_restrictions=use_restrictions,
                                                     max_load_duration=rospy.Duration(secs=max_load_duration),
                                                     max_unload_duration=rospy.Duration(secs=max_unload_duration),
                                                     ns="rasberry_coordination")
