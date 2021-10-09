@@ -7,6 +7,7 @@
 
 import actionlib
 import rospy
+import yaml
 
 from rospy import Subscriber as Sub, Service as Srv, get_rostime as Now
 from std_msgs.msg import String as Str
@@ -29,14 +30,24 @@ class RobotManager(AgentManager):
         Srv("rasberry_coordination/get_robot_state", RobotState, self.get_robot_state_ros_srv)
         Srv("rasberry_coordination/get_robot_states", RobotStates, self.get_robot_states_ros_srv)  # TODO: one not needed
 
+    """Add Robot agents"""
+    def add_agents(self, agent_id_list, use_restrictions):
+        """ Initialise a given list of agents and add to the agent_details collection
+
+        :param agent_id_list: list of agents to instantiate
+        :return: None
+        """
+        for agent_id in agent_id_list:
+            self.add_agent(agent_id, use_restrictions)
+
     """Add Robot Details Objects"""
-    def add_agent(self, agent_id):
+    def add_agent(self, agent_id, use_restrictions):
         """ Initialise a given agent and add to the agent_details collection
 
         :param agent_id: identifier for the agent to initialise
         :return: None
         """
-        self.agent_details[agent_id] = RobotDetails(agent_id, self.cb)
+        self.agent_details[agent_id] = RobotDetails(agent_id, self.cb, use_restrictions)
 
     """Service responses"""
     def get_robot_states_ros_srv(self, req): #TODO: combine these 2 srv into 1?
@@ -141,7 +152,7 @@ class RobotManager(AgentManager):
 
 """Centralised container for all details pertaining to the robot"""
 class RobotDetails(AgentDetails):
-    def __init__(robot, ID, cb):
+    def __init__(robot, ID, cb, use_restrictions):
         """ Class to define details and interactions for an individual robot.
 
         :param ID: Unique identifie for robot
@@ -153,7 +164,14 @@ class RobotDetails(AgentDetails):
 
         robot.type = None # type of the robot - short or tall
         robot.task_types = None # task capabilities of the robot and the role
-        robot.use_restrictions = False # use toponav2 restrictions or not
+        robot.use_restrictions = use_restrictions # use toponav2 restrictions or not
+
+        robot.tmap2 = {}
+        robot.tmap2_nodes = []
+        if robot.use_restrictions:
+            robot.tmap2_sub = rospy.Subscriber("/%s/restricted_topological_map_2" %(ID), Str, robot.restricted_tmap2_cb, queue_size=5)
+        else:
+            robot.tmap2_sub = rospy.Subscriber("/topological_map_2", Str, robot.tmap2_cb, queue_size=5)
 
         """Detail whether the robot is moving"""
         robot.idle = True
@@ -218,6 +236,41 @@ class RobotDetails(AgentDetails):
     # """On Shutdown"""
     # def _remove(robot): #This shouldnt be required.
     #     super(RobotDetails, robot)._remove()
+
+    """returns True if the robot can do a task"""
+    def can_do(robot, task_type):
+        """check if the robot can execute a task type depending on task modules
+        """
+        if robot.task_types is None:
+            return False
+        elif robot.task_types.__class__ is list:
+            if len(robot.task_types) == 0:
+                return False
+            else:
+                for item in robot.task_types:
+                    if item["module"] == task_type:
+                        return True
+                return False
+
+    """tmap2 callback"""
+    def tmap2_cb(robot, msg):
+        """topological_map_2 callback
+        """
+        robot.tmap2 = yaml.safe_load(msg.data)
+        robot.tmap2_nodes = [node["node"]["name"] for node in robot.tmap2["nodes"]]
+
+    """restricted_tmap2 callback"""
+    def restricted_tmap2_cb(robot, msg):
+        """restricted_topological_map_2 callback
+        """
+        robot.tmap2 = yaml.safe_load(msg.data)
+        robot.tmap2_nodes = [node["node"]["name"] for node in robot.tmap2["nodes"]]
+
+    """check if a node is in the robot's topomap"""
+    def is_node_in_topomap(robot, node_name):
+        """checks if a given node is in the robot's restricted tmap2
+        """
+        return node_name in robot.tmap2_nodes
 
     """return goal node as picker location, storage or base station"""
     def _get_goal_node(robot):

@@ -7,6 +7,7 @@
 
 import Queue
 import copy
+import yaml
 
 import rospy
 
@@ -16,7 +17,7 @@ import strands_executive_msgs.srv
 import strands_navigation_msgs.msg
 import strands_navigation_msgs.srv
 import topological_navigation.msg
-import topological_navigation.route_search
+import topological_navigation.route_search2
 import topological_navigation.tmap_utils
 import thorvald_base.msg
 
@@ -31,13 +32,20 @@ from rasberry_coordination.agent_managers.picker_manager import PickerManager
 class Coordinator(object):
     """Coordinator base class definition
     """
-    def __init__(self, robot_ids, picker_ids, virtual_picker_ids, ns="rasberry_coordination", is_parent=False):
+    def __init__(self,
+                 robot_ids,
+                 picker_ids,
+                 virtual_picker_ids,
+                 use_restrictions,
+                 ns="rasberry_coordination",
+                 is_parent=False):
         """Initialise the base Coordinator class object.
 
         Keyword arguments:
             robot_ids -- list of all robots' ids
             picker_ids -- list of all human pickers' ids
-            virtual_picker_ids -- list of all DES simulated pickers' ids
+            virtual_picker_ids -- list of all DES simulated pickers'
+            use_restrictions -- to use toponav2 restrictions or not
             is_parent -- if this is a parent class of another class
         """
         # TODO: this will strip leading slashes as well
@@ -50,14 +58,14 @@ class Coordinator(object):
 
         self.topo_map = None
         self.rec_topo_map = False
-        rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
-        logmsg(msg='coordinator waiting for Topological map ...')
+        rospy.Subscriber("topological_map_2", std_msgs.msg.String, self._map_cb)
+        logmsg(msg='coordinator waiting for Topological map 2...')
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
-        logmsg(msg='coordinator received Topological map ...')
+        logmsg(msg='coordinator received Topological map 2...')
 
         # default route search object
-        self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
+        self.route_search = topological_navigation.route_search2.TopologicalRouteSearch2(self.topo_map)
 
         # route planning may be done on available_topo_map avoiding other tracked agents
         # available_topo_map = full_topomap - edges_to_nodes_currently_occupied
@@ -82,7 +90,7 @@ class Coordinator(object):
         """Robot Detail Manage Initialisation"""
         cb_dict = {'update_topo_map': None, 'task_cancelled': self.task_cancelled, 'task_update': self.task_update}
         self.robot_manager = RobotManager(cb_dict)
-        self.robot_manager.add_agents(robot_ids)
+        self.robot_manager.add_agents(robot_ids, use_restrictions)
         self.picker_manager = PickerManager(cb_dict)
         self.picker_manager.add_agents(picker_ids + virtual_picker_ids)
         for picker in self.picker_manager.agent_details.values():
@@ -98,7 +106,7 @@ class Coordinator(object):
     def _map_cb(self, msg):
         """This function receives the Topological Map
         """
-        self.topo_map = msg
+        self.topo_map = yaml.safe_load(msg.data)
         self.rec_topo_map = True
 
     def cancel_task_ros_srv(self, req):
@@ -288,7 +296,7 @@ class Coordinator(object):
         Keyword arguments:
 
         node -- name of the node in topological map"""
-        return topological_navigation.tmap_utils.get_node(self.topo_map, node)
+        return topological_navigation.tmap_utils.get_node_from_tmap2(self.topo_map, node)
 
     def get_distance_between_adjacent_nodes(self, from_node, to_node):
         """get_distance_between_adjacent_nodes: Given names of two nodes, return the distance of the edge
@@ -301,7 +309,7 @@ class Coordinator(object):
         to_node -- name of the ending node name"""
         from_node_obj = self.get_node(from_node)
         to_node_obj = self.get_node(to_node)
-        return topological_navigation.tmap_utils.get_distance_to_node(from_node_obj, to_node_obj)
+        return topological_navigation.tmap_utils.get_distance_to_node_tmap2(from_node_obj, to_node_obj)
 
     def finish_task(self, robot_id):
         """Template method to set the task assigned to the robot as finished.

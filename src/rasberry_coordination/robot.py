@@ -7,12 +7,15 @@
 
 import actionlib
 import rospy
+import yaml
 
 import topological_navigation.msg
 import strands_navigation_msgs.msg
+import std_msgs.msg
 import nav_msgs.msg
 import geometry_msgs.msg
 import topological_navigation.tmap_utils
+import topological_navigation.route_search2
 from rasberry_coordination.coordinator_tools import logmsg
 
 
@@ -43,14 +46,14 @@ class Robot(object):
 
         self.topo_map = None
         self.rec_topo_map = False
-        rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
-        logmsg(category="rob_py", id=self.robot_id, msg='waiting for Topological map ...')
+        rospy.Subscriber("/topological_map_2", std_msgs.msg.String, self._map_cb)
+        logmsg(category="rob_py", id=self.robot_id, msg='waiting for Topological map 2...')
 
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
-        logmsg(category="rob_py", id=self.robot_id, msg='received Topological map')
+        logmsg(category="rob_py", id=self.robot_id, msg='received Topological map 2')
 
-        self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
+        self.route_search = topological_navigation.route_search2.TopologicalRouteSearch2(self.topo_map)
         self.route_publisher = rospy.Publisher("%s/current_route" %(self.robot_id), nav_msgs.msg.Path, latch=True, queue_size=5)
         self.publish_route()
 
@@ -68,7 +71,7 @@ class Robot(object):
     def _map_cb(self, msg):
         """This function receives the Topological Map
         """
-        self.topo_map = msg
+        self.topo_map = yaml.safe_load(msg.data)
         self.rec_topo_map = True
 
     def topo_route_cb(self, msg):
@@ -88,7 +91,7 @@ class Robot(object):
         Keyword arguments:
 
         node -- name of the node in topological map"""
-        return topological_navigation.tmap_utils.get_node(self.topo_map, node)
+        return topological_navigation.tmap_utils.get_node_from_tmap2(self.topo_map, node)
 
     def get_path(self, start_node, goal_node):
         """get route_nodes and route_edges from start_node to goal_node
@@ -208,18 +211,20 @@ class Robot(object):
                 node_obj = self.get_node(node)
                 pose_stamped = geometry_msgs.msg.PoseStamped()
                 pose_stamped.header.frame_id = "map"
-                pose_stamped.pose.position.x = node_obj.pose.position.x
-                pose_stamped.pose.position.y = node_obj.pose.position.y
+                pose_stamped.pose.position.x = node_obj["node"]["pose"]["position"]["x"]
+                pose_stamped.pose.position.y = node_obj["node"]["pose"]["position"]["y"]
+                pose_stamped.pose.orientation.w = 1
                 route.poses.append(pose_stamped)
 
             # add the goal node, by looking for the edge in the last source node
-            for edge in node_obj.edges:
-                if edge.edge_id == edge_id[-1]:
-                    node_obj = self.get_node(edge.node)
+            for edge in node_obj["node"]["edges"]:
+                if edge["edge_id"] == edge_id[-1]:
+                    node_obj = self.get_node(edge["node"])
                     pose_stamped = geometry_msgs.msg.PoseStamped()
                     pose_stamped.header.frame_id = "map"
-                    pose_stamped.pose.position.x = node_obj.pose.position.x
-                    pose_stamped.pose.position.y = node_obj.pose.position.y
+                    pose_stamped.pose.position.x = node_obj["node"]["pose"]["position"]["x"]
+                    pose_stamped.pose.position.y = node_obj["node"]["pose"]["position"]["y"]
+                    pose_stamped.pose.orientation.w = 1
                     route.poses.append(pose_stamped)
                     break
 

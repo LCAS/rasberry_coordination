@@ -79,6 +79,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         super(RasberryCoordinator, self).__init__(robot_ids,
                                                   picker_ids,
                                                   virtual_picker_ids,
+                                                  use_restrictions,
                                                   ns=ns,
                                                   is_parent=True)
 
@@ -129,14 +130,16 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.write_log({"action_type": "starting coordinator"})
 
         """Robot Detail Manage Initialisation"""
-        self.robot_manager.add_agents(robot_ids)
+        self.robot_manager.add_agents(robot_ids, use_restrictions)
         for robot in self.robot_manager.agent_details.values():
             robot.base_station = base_stations[robot.robot_id]
             robot.wait_node = wait_nodes[robot.robot_id]
             robot.max_task_priority = max_task_priorities[robot.robot_id]
             robot.type = robot_types[robot.robot_id]
-            robot.task_types = robot_types[robot.robot_id]
-            robot.use_restrictions = self.use_restrictions
+            robot.task_types = robot_tasks[robot.robot_id]
+
+        self.robot_types = robot_types
+        self.robot_task_types = robot_tasks
 
         self.task_pause_pub = rospy.Publisher('/rasberry_coordination/pause_state', std_msgs.msg.Bool, queue_size=5, latch=True)
         self.task_pause = False
@@ -288,13 +291,16 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
     def connect_robot(self, robot_id):
         """ initialise newly connected agent
         """
-        self.robot_manager.add_agent(robot_id)
+        self.robot_manager.add_agent(robot_id, self.use_restrictions)
         robot = self.robot_manager[robot_id]
         robot.registered = False
 
         # Set first available base station as taken
         robot.base_station = remove(self.available_base_stations, self.available_base_stations[-1])
         robot.wait_node = remove(self.available_wait_nodes, self.available_wait_nodes[-1])
+
+        robot.task_type = self.robot_task_types[robot_id]
+        robot.type = self.robot_types[robot_id]
 
         logmsg(category="drm", id=robot_id, msg='assigned to base station %s' % (robot.base_station))
         logmsg(category="drm", msg='base stations in use: %s' % (str(self.robot_manager.get_list('base_station'))))
@@ -592,12 +598,14 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                             "closest_node": robot.closest_node,
                             })
 
-    def find_closest_robot(self, location, priority):
+    def find_closest_robot(self, location, priority, task_type):
         """find the robot closest to the task location (picker_node)
         # assign based on priority (0 - virtual pickers only, >=1 real pickers)
 
         Keyword arguments:
-            task - strands_executive_msgs.Task
+            location - task location
+            priority - task priority
+            task_type - type of task
         """
         goal_node = location
         robot_dists = {}
@@ -609,8 +617,16 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             if not robot.registered:
                 continue
 
+            # can the robot do the task?
+            if not robot.can_do(task_type):
+                continue
+
             # ignore if the robot's closest_node and current_node is not yet available
             if robot.current_node is None and robot.closest_node is None:
+                continue
+
+            # is the goal_node in robot's restricted topomap?
+            if not robot.is_node_in_topomap(goal_node):
                 continue
 
             # ignore if the task priority is less than the min task priority for the robot
@@ -639,64 +655,73 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         return sorted(robot_dists.items(), key=operator.itemgetter(1))[0][0]
 
-    def assign_tasks(self, ):
-        """assign task to idle robots
-        high priority tasks are assigned first
-        among equal priority tasks, low task_id is assigned first
+    def assign_tasks(self):
+        """assign tasks to idle robots
         """
-        trigger_replan = False
 
         locked = self.task_lock.acquire(False)
 
         if locked:
-
-            """ get list of unassigned tasks """
-            tasks = self.picker_manager.get_unassigned_tasks_ordered()
-            if tasks:
-                logmsg(category="task", msg='Tasks to Assign:')
-                [logmsg(category="task", msg='    - %s' % task) for task in tasks]
-            else:
-                logmsg(level='warn', category="task", msg='No tasks found but called to assign_tasks')
-
-            """ for each task, assign the most effective robot """
-            for task_id in tasks:
-                picker = self.picker_manager.get_task_handler(task_id)
-
-                """ identify most promising robot """
-                robot_id = self.find_closest_robot(picker.task_location, picker.task_priority) #swap out to use picker.location
-                if robot_id is None:
-                    continue
-                robot = self.robot_manager[robot_id]
-
-                logmsg(category="robot", id=robot_id, msg='assigned task %s'%(task_id))
-                logmsg(category="list", msg='interruptable robots: %s'%(str(self.robot_manager.interruptable_list())))
-                logmsg(category="list", msg='idle robots: %s'%(str(self.robot_manager.idle_list())))
-
-                """ enable planing for task """
-                trigger_replan = True
-
-                """ prepare robot to take task """
-                robot._begin_task(task_id)
-
-                # self.processing_tasks[task_id] = picker.task_backup
-                robot.goal_node = picker.task_location
-
-                self.update_current_storage(robot_id)
-
-                self.publish_task_state(task_id, robot_id, "ACCEPT")
-
-                self.write_log({"action_type": "robot_update",
-                                "robot_task_stage": "go_to_picker_start",
-                                "task_id": task_id,
-                                "robot_id": robot_id,
-                                "details": "to %s" %(picker.task_location),
-                                "current_node": robot.current_node,
-                                "closest_node": robot.closest_node,
-                                })
+            # assign transportation tasks
+            trigger_replan = self.assign_transportation_tasks()
+            # update trigger_replan after each type of task assignment
+            self.trigger_replan = self.trigger_replan or trigger_replan
 
             self.task_lock.release()
 
-        self.trigger_replan = self.trigger_replan or trigger_replan
+    def assign_transportation_tasks(self, ):
+        """assign transporation tasks to idle robots
+        high priority tasks are assigned first
+        among equal priority tasks, low task_id is assigned first
+        """
+
+        trigger_replan = False
+
+        """ get list of unassigned tasks """
+        tasks = self.picker_manager.get_unassigned_tasks_ordered()
+        if tasks:
+            logmsg(category="task", msg='Tasks to Assign:')
+            [logmsg(category="task", msg='    - %s' % task) for task in tasks]
+        else:
+            logmsg(level='warn', category="task", msg='No tasks found but called to assign_tasks')
+
+        """ for each task, assign the most effective robot """
+        for task_id in tasks:
+            picker = self.picker_manager.get_task_handler(task_id)
+
+            """ identify most promising robot """
+            robot_id = self.find_closest_robot(picker.task_location, picker.task_priority, picker.task_type) #swap out to use picker.location
+            if robot_id is None:
+                continue
+            robot = self.robot_manager[robot_id]
+
+            logmsg(category="robot", id=robot_id, msg='assigned task %s'%(task_id))
+            logmsg(category="list", msg='interruptable robots: %s'%(str(self.robot_manager.interruptable_list())))
+            logmsg(category="list", msg='idle robots: %s'%(str(self.robot_manager.idle_list())))
+
+            """ enable planing for task """
+            trigger_replan = True
+
+            """ prepare robot to take task """
+            robot._begin_task(task_id)
+
+            # self.processing_tasks[task_id] = picker.task_backup
+            robot.goal_node = picker.task_location
+
+            self.update_current_storage(robot_id)
+
+            self.publish_task_state(task_id, robot_id, "ACCEPT")
+
+            self.write_log({"action_type": "robot_update",
+                            "robot_task_stage": "go_to_picker_start",
+                            "task_id": task_id,
+                            "robot_id": robot_id,
+                            "details": "to %s" %(picker.task_location),
+                            "current_node": robot.current_node,
+                            "closest_node": robot.closest_node,
+                            })
+
+        return trigger_replan
 
     def update_current_storage(self, robot_id):
         """set the current_storage node of the robot. If the robot is idle,
