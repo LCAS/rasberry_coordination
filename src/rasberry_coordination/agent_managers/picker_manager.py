@@ -427,7 +427,13 @@ class PickerDetails(AgentDetails):
         if 'get_node' in self.cb:
             node = self.cb['get_node'](msg.data)
             posestamped_msg = PoseStamped()
-            posestamped_msg.pose = node.pose
+            posestamped_msg.pose.position.x = node["node"]["pose"]["position"]["x"]
+            posestamped_msg.pose.position.y = node["node"]["pose"]["position"]["y"]
+            posestamped_msg.pose.position.z = node["node"]["pose"]["position"]["z"]
+            posestamped_msg.pose.orientation.x = node["node"]["pose"]["orientation"]["x"]
+            posestamped_msg.pose.orientation.y = node["node"]["pose"]["orientation"]["y"]
+            posestamped_msg.pose.orientation.z = node["node"]["pose"]["orientation"]["z"]
+            posestamped_msg.pose.orientation.w = node["node"]["pose"]["orientation"]["w"]
             self.picker_posestamped_cb(posestamped_msg)
 
     """ pose_stamped is needed for RViz visualisation"""
