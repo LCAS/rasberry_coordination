@@ -82,17 +82,7 @@ class TaskDef(object):
     """ Initialisation Verification """
     @classmethod
     def transportation_courier_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "transportation_courier_init",
-                'details': cls.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'transportation',
-                'initiator_id': agent.agent_id,
-                'responder_id': "",
-                'stage_list': [
-                    SDef.StartTask(agent, task_id),
-                    SDef.WaitForLocalisation(agent)
-                ]})
+        return TDef.robot_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
 
     """ Initial Task Stages for Transportation Agents """

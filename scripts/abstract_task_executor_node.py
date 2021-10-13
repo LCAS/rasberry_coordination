@@ -29,6 +29,7 @@ def validate_types(file, config):
     # Meta Fields
     validate_field(file, config, mandatory=True, key='version', datatype=[str])
     validate_field(file, config, mandatory=True, key='use_sim', datatype=[bool])
+    validate_field(file, config, mandatory=True, key='use_restrictions', datatype=[bool])
 
     # Topology Fields
     for node in config['special_nodes']:
@@ -38,6 +39,7 @@ def validate_types(file, config):
 
     # Routing Fields
     validate_field(file, config, mandatory=True, key='planning_type', datatype=[str])
+    validate_field(file, config, mandatory=True, key='heterogeneous_map', datatype=[bool])
 
     # Setup Definition
     for setup in [s['setup'] for s in config['agent_setups']]:
@@ -72,7 +74,7 @@ if __name__ == '__main__':
     config_keys = rasberry_des.config_utils.get_config_keys(config_file)
 
     """ Configuration File Validation """
-    VERSION = "1.2.2"
+    VERSION = "1.2.3"
     template_location = "raspberry_coordination/config/map_config_template_%s.yaml" % VERSION
     if "version" not in config_data:
         raise Exception('\033[92m'+"Config outdated, update following: %s\033[0m" % template_location)
@@ -99,7 +101,9 @@ if __name__ == '__main__':
             charging_station_pool.add(node['id'])
 
     """ ROUTING """
-    planning_type = config_data["planning_type"]
+    planning_format = dict()
+    planning_format['planning_type'] = config_data["planning_type"]
+    planning_format['heterogeneous_map'] = config_data["heterogeneous_map"]
 
     """ INITIALISATION """
     # load default values for non-mandatory fields
@@ -128,7 +132,7 @@ if __name__ == '__main__':
     modules_to_load = set([t['module'] for t in config_data['active_tasks']])
 
     # Start ROSNode
-    rospy.init_node('simple_task_coordinator', anonymous=False)
+    rospy.init_node('abstract_task_coordinator', anonymous=False)
 
     # Initialise task manager to store all task and stage definitions in single objects for later access
     import rasberry_coordination.task_management.__init__ as task_init
@@ -142,7 +146,7 @@ if __name__ == '__main__':
         agent_list=config_data['agent_list'],
         base_station_nodes_pool=base_station_nodes_pool,
         wait_nodes_pool=wait_nodes_pool,
-        planning_type=planning_type,
+        planning_format=planning_format,
         ns="rasberry_coordination",
         special_nodes=config_data['special_nodes'][1:])  # We are not certain of ordering?
 
@@ -151,5 +155,3 @@ if __name__ == '__main__':
 
     # Run the coordinator
     coordinator.run()
-
-    # rospy.spin() #TODO: is this necessary?

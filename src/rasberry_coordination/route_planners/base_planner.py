@@ -24,7 +24,7 @@ class BasePlanner(object):
     def _map_cb(self, msg):
         """This function receives the Topological Map
         """
-        self.topo_map = msg
+        self.topo_map = yaml.safe_load(msg.data)
         self.rec_topo_map = True
 
     def get_node(self, node):
@@ -34,7 +34,7 @@ class BasePlanner(object):
         Keyword arguments:
 
         node -- name of the node in topological map"""
-        return topological_navigation.tmap_utils.get_node(self.topo_map, node)
+        return topological_navigation.tmap_utils.get_node_from_tmap2(self.topo_map, node)
 
     def get_distance_between_adjacent_nodes(self, from_node, to_node):
         """get_distance_between_adjacent_nodes: Given names of two nodes, return the distance of the edge
@@ -47,7 +47,7 @@ class BasePlanner(object):
         to_node -- name of the ending node name"""
         from_node_obj = self.get_node(from_node)
         to_node_obj = self.get_node(to_node)
-        return topological_navigation.tmap_utils.get_distance_to_node(from_node_obj, to_node_obj)
+        return topological_navigation.tmap_utils.get_distance_to_node_tmap2(from_node_obj, to_node_obj)
 
     def get_edge_distances(self, agent_id):
         """find and fill distances of all edges of a agent's planned route, if at least one edge is there.
@@ -118,7 +118,7 @@ class BasePlanner(object):
                 agent.task_stage_list.insert(0, stage)
 
     @abstractmethod
-    def __init__(self, agent_manager):
+    def __init__(self, agent_manager, heterogeneous_map):
         """ Copy parameters to properties, set update_map callback for agents and initialise map
 
         Args:
@@ -130,8 +130,9 @@ class BasePlanner(object):
         self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.has_presence}
 
         """ Download Topological Map """
+        self.heterogeneous_map = heterogeneous_map
         self.rec_topo_map = False
-        rospy.Subscriber("topological_map", strands_navigation_msgs.msg.TopologicalMap, self._map_cb)
+        rospy.Subscriber("topological_map_2", std_msgs.msg.String, self._map_cb)
 
         logmsgbreak(total=1)
         logmsg(category="route", msg='Route Planner waiting for Topological map ...')

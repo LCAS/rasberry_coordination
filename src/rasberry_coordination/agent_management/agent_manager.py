@@ -8,6 +8,7 @@
 # from abc import ABCMeta, abstractmethod
 from rospy import Subscriber, Publisher, Service, Time
 from std_msgs.msg import String as Str
+from std_msgs.msg import Trigger, TriggerResponse
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.srv import AddAgent, AgentNodePair
 from rasberry_coordination.coordinator_tools import logmsg
@@ -16,7 +17,6 @@ from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, In
 
 """ Agent Details """
 class AgentManager(object):
-
 
     """ Initialisation """
     def __init__(self, callback_dict):
@@ -28,6 +28,7 @@ class AgentManager(object):
         # Setup Services for Dynamic Fleet Management
         Service('/rasberry_coordination/dfm/add_agent',    AddAgent, self.add_agent_ros_srv)
         Service('/rasberry_coordination/dfm/remove_agent', AgentNodePair, self.remove_agent_ros_srv)
+        Service('/rasberry_coordination/reenable_localisation', Trigger, self.reset_location_srv)
 
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
 
@@ -35,10 +36,10 @@ class AgentManager(object):
         for agent in agent_list: self.add_agent(agent)
     def add_agent(self, agent_dict):
         self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
-        self.agent_details[agent_dict['agent_id']].int = len(self.agent_details)*2 #TODO: remove this once TOC accepts string tasks
-        self.format_agent_marker(agent_dict['agent_id'], style='')
+        # self.agent_details[agent_dict['agent_id']].int = len(self.agent_details)*2 #TODO: remove this once TOC accepts string tasks
+        self.format_agent_marker(self.agent_details[agent_dict['agent_id']], style='')
 
-    """ Dynnamic Fleet Management """
+    """ Dynamic Fleet Management """
     def add_agent_ros_srv(self, agent_obj):
         agent_dict = self.agent_dict(agent_obj)
         if self.validate_dict(agent_dict):
@@ -64,7 +65,6 @@ class AgentManager(object):
             return {'success': 1, 'msg': 'exit_at_node task added for %s'%srv.node_id}
         return {'success': 0, 'msg': 'agent not found'}
 
-
     """ New Agent Validation """
     def validate_dict(self, agent_dict): return True #TODO: setup validation system
     def format_dict(self, agent_dict):
@@ -81,14 +81,27 @@ class AgentManager(object):
         agent_dict['initial_location'] = agent_obj.initial_location
         return agent_dict
 
-
     """ Conveniences """
     def __getitem__(self, key):
         return self.agent_details[key] if key in self.agent_details else None
 
+    """ Localisation Ovveride """
+    def reset_location_srv(self, req):
+        """ Call to reanable automonous localisation for each robot.
+
+        :param node: String containing fake current_node
+        :return: None
+        """
+        r = TriggerResponse()
+        r.success = False
+        for agent in self.agent_details:
+            resp = agent.set_location_srv(AgentNodePairResponse())
+        r.success = True
+        r.msg = "Localisation resumed for all agents"
+        return resp
 
     """ Visuals """
-    def format_agent_marker(self, agent_id, style):
+    def format_agent_marker(self, agent, style):
         """ Add/modify marker to display in rviz """
         """
            Add Marker: call self.format_agent_marker(agent_id, "")
@@ -96,12 +109,8 @@ class AgentManager(object):
         Remove Marker: call self.format_agent_marker(agent_id, "remove")
         """
         marker = MarkerDetails()
-        marker.agent_id = agent_id
-
-        #Define marker type
-        if agent_id.startswith("thorvald"): marker.type = "robot"
-        elif agent_id.startswith("picker"): marker.type = "picker"
-        elif agent_id.startswith("storage"): marker.type = "storage"
+        marker.agent_id = agent.agent_id
+        marker.type = agent.properties['rviz_type']
 
         #Define marker color ["remove", "red", "green", "blue", "black", "white", ""]
         marker.optional_color = style
@@ -109,6 +118,7 @@ class AgentManager(object):
         logmsg(category="rviz", msg="Setting %s %s(%s)"%(marker.type,marker.agent_id,marker.optional_color))
 
         self.set_marker_pub.publish(marker)
+
 
 """ Agent Management """
 class AgentDetails(object):
@@ -127,6 +137,12 @@ class AgentDetails(object):
         self.cb = callbacks
         from copy import deepcopy
         setup = deepcopy(agent_dict['setup'])
+
+        #Subscriptions
+        self.subs = {}
+
+        #Navigation Defaults
+        self.navigation = dict()
 
         #Task Defaults
         self.action = dict()
@@ -153,13 +169,9 @@ class AgentDetails(object):
 
         #Location and Callbacks
         self.has_presence = True if setup['has_presence'] == 1 else False #used for routing
-        self.subs = {}
-        self.current_node = None
+        self.current_node = agent_dict['initial_location'] if 'initial_location' in agent_dict else None
         self.previous_node = None
         self.closest_node = None
-        if 'initial_location' in agent_dict: self.current_node = agent_dict['initial_location']
-        self.subs['current_node'] = Subscriber('/%s/current_node'%(self.agent_id), Str, self.current_node_cb)
-        self.subs['closest_node'] = Subscriber('/%s/closest_node'%(self.agent_id), Str, self.closest_node_cb)
 
         self.add_init_task()
 
@@ -170,7 +182,6 @@ class AgentDetails(object):
     def add_idle_task(self):
         for task in self.tasks:
             self.add_task(task_name='%s_%s_idle' % (task['module'], task['role']))
-
     def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None, quiet=False, initiator_id=""):
 
         """ Called by task stages, used to buffer new tasks for the agent """
@@ -207,22 +218,51 @@ class AgentDetails(object):
     def current_node_cb(self, msg):
         self.previous_node = self.current_node if self.current_node else self.previous_node
         self.current_node = None if msg.data == "none" else msg.data
-        if self.cb['update_topo_map']:
-            self.cb['update_topo_map']()
-        # if self.current_node:
-            # logmsg(msg="Agent: %s now at node: %s" % (self.agent_id,self.current_node))
+        if self.cb['update_topo_map']: self.cb['update_topo_map']()
     def closest_node_cb(self, msg):
         self.closest_node = None if msg.data == "none" else msg.data
     def location(self, accurate=False):
-        # print("%s |  Current Node: %s" % (self.agent_id, self.current_node))
-        # print("%s |  Closest Node: %s" % (self.agent_id, self.closest_node))
-        # print("%s | Previous Node: %s" % (self.agent_id, self.previous_node))
-
         if accurate:
             return self.current_node or self.previous_node or self.closest_node
         return self.current_node or self.closest_node or self.previous_node
     def goal(self):
         return self().target
+    def set_location_srv(self, req):
+        """ Manual override to take control of picker's current location. (Debugging Tool)
+        Callback for "picker_id/move_current_node"
+
+        Unregisters from current_node subscriber and pulishes message to its callback.
+        If a node is not given, it reanables the automonous localisation.
+
+        :param node: String containing fake current_node
+        :return: None
+        """
+        r = AgentNodePairResponse()
+        r.success = False
+
+        if req.node_id: #set location to given node
+            self.subs['current_node'].unregister()
+            self.subs['closest_node'].unregister()
+            msg = Str(req.node_id)
+            self._current_node_cb(msg)
+            self._closest_node_cb(msg)
+            r.success = True ; r.msg = "Node Set" ;
+
+        else:
+            self.previous_node, self.current_node, self.closest_node = None, None, None
+            self.subs['current_node'] = Sub(self.picker_id + "/current_node", Str, self.current_node_cb)
+            self.subs['closest_node'] = Sub(self.picker_id + "/closest_node", Str, self.closest_node_cb)
+            r.success = True ; r.msg = "Localisation resumed" ;
+
+        return resp
+
+    """ Navigation """
+    def map_cb(self, msg):
+        self.navigation['tmap'] = yaml.safe_load(msg.data)
+        self.navigation['tmap_node_list'] = [node["name"] for node in self.navigation['tmap']['nodes']]
+    def is_node_restricted(self, node_id):
+        return (node_id in self.navigation['tmap_node_list'])
+
 
     """ Conveniences """
     def __call__(A, index=0):

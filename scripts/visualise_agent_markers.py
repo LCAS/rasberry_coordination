@@ -34,21 +34,15 @@ class AgentMarker:
     def publish_marker(self): self.marker.publish()
 
 class MarkerPublisher:
-
     def __init__(self):
         self.agents = dict()
-
-        # Listen for markers to be added
         self.marker_set_sub = rospy.Subscriber('/rasberry_coordination/set_marker', MarkerDetails, self.set_marker_cb)
 
-    """ Main Callback """
     def set_marker_cb(self, msg):
         logmsg(category="rviz", id=msg.agent_id, msg="Setting %s %s(%s)"%(msg.type,msg.agent_id,msg.optional_color))
-
         if msg.optional_color == 'remove':
             # Remove Agent from RViZ
             self.agents.pop(msg.agent_id)
-
         else:
             # Add Agent to RViZ
             self.agents[msg.agent_id] = AgentMarker(msg)

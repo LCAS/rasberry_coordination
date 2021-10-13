@@ -357,6 +357,23 @@ class TaskDef(object):
         agent.task_stage_list = []
 
 
+    """ Runtime Method for Init Task Definitions """
+    @classmethod
+    def robot_localisation(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+        return({'id': task_id,
+                'name': "robot_localisation",
+                'details': cls.load_details(details),
+                'contacts': contacts.copy(),
+                'task_module': 'base',
+                'initiator_id': agent.agent_id,
+                'responder_id': "",
+                'stage_list': [
+                    StageDef.StartTask(agent, task_id),
+                    StageDef.WaitForLocalisation(agent),
+                    StageDef.WaitForMap(agent)
+                ]})
+
+
     """ Runtime Method for Idle Task Definitions """
     @classmethod
     def idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
@@ -490,12 +507,29 @@ class StageDef(object):
             self.summary['_start'] = "adopt active task_id"
             self.summary['_query'] = "return true"
     class WaitForLocalisation(StageBase):
+        def _start(self):
+            agent, agent_id = self.agent, self.agent.agent_id
+            self.agent.subs['current_node'] = Subscriber('/%s/current_node' % agent_id, Str, agent.current_node_cb)
+            self.agent.subs['closest_node'] = Subscriber('/%s/closest_node' % agent_id, Str, agent.closest_node_cb)
+            self.agent.subs['set_location'] = Service('/%s/set_location' % agent_id, AgentNodePair, agent.set_location_srv)
         def _query(self):
             success_conditions = [self.agent.location() is not None]
             self._flag(any(success_conditions))
         def _end(self):
             super(StageDef.WaitForLocalisation, self)._end()
             logmsg(category="stage", msg="Localisation achieved %s" % self.agent.location())
+    class WaitForMap(StageBase):
+        def _start(self):
+            topic = "/topological_map_2"
+            if 'navigation_restrictions' in self.agent.properties:
+                    topic = "/%s/restricted_topological_map_2" % self.agent.agent_id
+            self.agent.subs['tmap'] = Subscriber(topic, Str, self.agent.map_cb, queue_size=5)
+        def _query(self):
+            success_conditions = ['tmap' in self.agent.navigation]
+            self._flag(any(success_conditions))
+        def _end(self):
+            super(StageDef.WaitForMap, self)._end()
+            logmsg(category="stage", msg="Map achieved %s" % self.agent.location())
 
     """ Idle """
     class Idle(StageBase):

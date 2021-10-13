@@ -44,7 +44,7 @@ from rasberry_coordination.agent_management.agent_manager import AgentManager
 class RasberryCoordinator(object):
     """RasberryCoordinator class definition
     """
-    def __init__(self, agent_list, base_station_nodes_pool, wait_nodes_pool, planning_type, ns, special_nodes):
+    def __init__(self, agent_list, base_station_nodes_pool, wait_nodes_pool, planning_format, ns, special_nodes):
         logmsgbreak(total=1)
         print("------------------------------------------")
         logmsg(category="setup", msg='Coordinator initialisation begun')
@@ -89,9 +89,7 @@ class RasberryCoordinator(object):
 
 
         """ Routing Details """
-        # routing_cb = {'publish_task_state': self.publish_task_state,
-        #               'send_robot_to_base': self.send_robot_to_base}  # These need to be eventually managed better
-        self.route_finder = RouteFinder(planning_type=planning_type, agent_manager=self.agent_manager)
+        self.route_finder = RouteFinder(planning_format=planning_format, agent_manager=self.agent_manager)
         self.replan_trigger_cb = Subscriber('/rasberry_coordination/force_replan', Empty, self.trigger_replan, )
 
         """ Communications Setup """
@@ -271,12 +269,13 @@ class RasberryCoordinator(object):
         :param agent_list: The list of agents to query.
         :return: The agent_details object closest to the agent querying against.
         """
-        dist_list = {a.agent_id:self.dist(agent.location(),a.location()) for a in agent_list.values() if a.registration}
+        loc = agent.location()
+        dist_list = {a.agent_id:self.dist(loc,a.location()) for a in agent_list.values()
+                     if a.registration and a.is_node_restricted(loc)}
         logmsg(category="action", msg="Finding closest in: %s" % dist_list)
         if dist_list:
             return agent_list[min(dist_list, key=dist_list.get)]
-        else:
-            return None
+        return None
     def find_closest_node(self, agent, node_list):
         """ Find the closest node (via optimal route) to the given agent.
 
@@ -284,7 +283,8 @@ class RasberryCoordinator(object):
         :param node_list: The list of nodes to query.
         :return: The node_id closest to the agent querying against.
         """
-        dist_list = {n:self.dist(agent.location(),n) for n in node_list}
+        loc = agent.location()
+        dist_list = {n:self.dist(loc,n) for n in node_list}
         logmsg(category="action", msg="Finding closest in:")
         [logmsg(category='action', msg="    - %s: %s"%(n,dist_list[n])) for n in dist_list]
         return min(dist_list, key=dist_list.get)

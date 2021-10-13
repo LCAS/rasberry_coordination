@@ -10,7 +10,7 @@ from rasberry_coordination.coordinator_tools import logmsg
 
 
 class RouteFinder(object):  # TODO: investigate use of static class (return planner obj from __init__ instead of self)
-    def __init__(self, planning_type, agent_manager):
+    def __init__(self, planning_format, agent_manager):
         """ Class to create a route_planner object and manage finding of routes (in both empty and congested maps)
 
         :param planning_type: the planning framework to use (eg. str:"fragment_planner")
@@ -18,7 +18,8 @@ class RouteFinder(object):  # TODO: investigate use of static class (return plan
         :param pickers: pointer to picker_manager
         :param callbacks: list of callbacks for direct access to functionality within the coordinator
         """
-        self.planning_type = planning_type
+        self.planning_type = planning_format['planning_type']
+        self.heterogeneous_map = planning_format['heterogeneous_map']
         self.agent_manager = agent_manager
 
         planning_types = {'fragment_planner': self.fragment_planner,
@@ -43,7 +44,7 @@ class RouteFinder(object):  # TODO: investigate use of static class (return plan
 
         :return: FragmentPlanner
         """
-        return FragmentPlanner(self.agent_manager)
+        return FragmentPlanner(self.agent_manager, self.heterogeneous_map)
 
     def alternative_planner(self):
         """ Example function to show how planning_types dict can be expanded in __init__
@@ -52,4 +53,4 @@ class RouteFinder(object):  # TODO: investigate use of static class (return plan
         :return: None
         """
         print('placeholder in ' + str(self.__class__))
-        # return alternative_planner(self.agents, self.callbacks)
+        # return alternative_planner(self.agent_manager, self.heterogeneous_map)

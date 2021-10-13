@@ -19,8 +19,8 @@ agent_setups:
     tasks:
       - module: transportation                  #Task module
         role: courier                           #Agents role in task
-      - module: uv
-        role: phototherapist
+#      - module: uv
+#        role: phototherapist
     has_presence: true
     proerties:
         key: value

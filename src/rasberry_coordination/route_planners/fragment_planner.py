@@ -18,7 +18,7 @@ from rasberry_coordination.route_planners.base_planner import BasePlanner
 from rasberry_coordination.coordinator_tools import logmsg
 
 class FragmentPlanner(BasePlanner):
-    def __init__(self, all_agent_details_pointer):
+    def __init__(self, all_agent_details_pointer, heterogeneous_map):
         """ Copy parameters to properties
 
         Args:
@@ -26,7 +26,6 @@ class FragmentPlanner(BasePlanner):
         """
         super(FragmentPlanner, self).__init__(all_agent_details_pointer)
         self.task_lock = threading.Lock()
-
 
     def update_available_topo_map(self, ):
         """This function updates the available_topological_map, which is topological_map
