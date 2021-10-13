@@ -1,4 +1,4 @@
-string picker_id
+string agent_id
 string node
 ---
 bool success

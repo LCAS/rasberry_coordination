@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   rasberry_people_perception
   rosbridge_server
   rosduct
+  rosduct
   rospy
   std_msgs
   std_srvs
@@ -66,11 +67,13 @@ catkin_python_setup()
 
 add_message_files(
   FILES
+  Interruption.msg
+  KeyValuePair.msg
+  MarkerDetails.msg
   TaskUpdates.msg
   TaskDetails.msg
   TasksDetails.msg
-  MarkerDetails.msg
-  KeyValuePair.msg
+  TaskRole.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -82,7 +85,9 @@ add_message_files(
 
 add_service_files(
   FILES
+  AddAgent.srv
   AgentID.srv
+  AgentNodePair.srv
   AllTasksInfo.srv
   ConnectAgent.srv
   ResetPicker.srv
@@ -207,6 +212,8 @@ install(PROGRAMS
   scripts/simple_task_executor_node.py
   scripts/visualise_agent_markers.py
   scripts/agent_monitor.py
+  scripts/add_agent.py
+  scripts/reset_picker.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

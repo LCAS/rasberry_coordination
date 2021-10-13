@@ -1,5 +1,5 @@
 #If updated, ensure simple_task_executor_node.py/validate_types() is updated accordingly
-version: 1.1.1   # This is the latest version ID
+version: 1.1.0   # This is the latest version ID
 use_sim: BOOLEAN # is this a simulated environment
 
 #TASKS
@@ -50,7 +50,3 @@ spawn_list:
     max_task_priority: INT
     base_station_node: NODE
     wait_node: none/NODE
-    type: ROBOT_TYPE # str, short/tall
-    tasks:
-    - module: APPLICATION_MODULE # str, e.g. transportation
-      role: ROLE_OF_ROBOT # str, e.g. courier

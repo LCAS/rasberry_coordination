@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<launch>
+
+  <arg name="config_file" />
+
+  <node pkg="rasberry_coordination" name="rasberry_coordination" type="abstract_task_executor_node.py" args="$(arg config_file)" output="screen" />
+
+</launch>
+
+

@@ -46,9 +46,11 @@ class Robot(object):
 
         self.topo_map = None
         self.rec_topo_map = False
+        self.route_search = None
+        self.route_publisher = rospy.Publisher("%s/current_route" %(self.robot_id), nav_msgs.msg.Path, latch=True, queue_size=5)
+
         rospy.Subscriber("/topological_map_2", std_msgs.msg.String, self._map_cb)
         logmsg(category="rob_py", id=self.robot_id, msg='waiting for Topological map 2...')
-
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
         logmsg(category="rob_py", id=self.robot_id, msg='received Topological map 2')
@@ -73,6 +75,10 @@ class Robot(object):
         """
         self.topo_map = yaml.safe_load(msg.data)
         self.rec_topo_map = True
+        if not self.route_search:
+            logmsg(category="rob_py", id=self.robot_id, msg='received Topological map')
+            self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
+            self.publish_route()
 
     def topo_route_cb(self, msg):
         """callback for topological_navigation/Route messages
@@ -102,12 +108,17 @@ class Robot(object):
         goal_node -- name of the goal node
         """
         logmsg(category="rob_py", msg='get_path from start_node:[%s] to goal_node:[%s]'%(start_node,goal_node))
+
+        if not self.route_search:
+            logmsg(level="error", category="rob_py", msg='self.route_search not initialised')
+            return([], [], [float("inf")])
+
         route = self.route_search.search_route(start_node, goal_node)
         if route is None:
             logmsg(category="rob_py", id=self.robot_id, msg='no route found between %s and %s' %(start_node, goal_node))
-            #TODO: Set this up so it doesnt repeat along with with "logwarn(replanning now)"
-
+            #TODO: Set this up so it doesnt repeat along with with "logwarn(replanning now)" (throttle?)
             return ([], [], [float("inf")])
+
         route_nodes = route.source
         route_nodes.append(goal_node)
         route_edges = route.edge_id
@@ -172,6 +183,7 @@ class Robot(object):
         self.execpolicy_result = None
         self.execpolicy_status = None
         self._exec_policy.send_goal(goal, done_cb=done_cb, active_cb=active_cb, feedback_cb=feedback_cb)
+        # print("\n\n\nGOAL ASSIGNED self._exec_policy.send_goal(goal...\n\n\n")
 #        self._exec_policy.wait_for_result()
 
     def _fb_execpolicy_cb(self, fb):

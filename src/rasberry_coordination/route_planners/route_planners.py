@@ -10,7 +10,7 @@ from rasberry_coordination.coordinator_tools import logmsg
 
 
 class RouteFinder(object):  # TODO: investigate use of static class (return planner obj from __init__ instead of self)
-    def __init__(self, planning_type, robots, pickers, callbacks):
+    def __init__(self, planning_type, agent_manager):
         """ Class to create a route_planner object and manage finding of routes (in both empty and congested maps)
 
         :param planning_type: the planning framework to use (eg. str:"fragment_planner")
@@ -19,13 +19,12 @@ class RouteFinder(object):  # TODO: investigate use of static class (return plan
         :param callbacks: list of callbacks for direct access to functionality within the coordinator
         """
         self.planning_type = planning_type
-        self.robot_manager = robots
-        self.picker_manager = pickers
-        self.callbacks = callbacks
+        self.agent_manager = agent_manager
 
         planning_types = {'fragment_planner': self.fragment_planner,
                           'alternative_planner': self.alternative_planner}
         self.planner = planning_types[self.planning_type]()
+
 
     def find_routes(self):
         """ Proxy function to self.planner.find_routes()
@@ -44,7 +43,7 @@ class RouteFinder(object):  # TODO: investigate use of static class (return plan
 
         :return: FragmentPlanner
         """
-        return FragmentPlanner(self.robot_manager, self.picker_manager, self.callbacks)
+        return FragmentPlanner(self.agent_manager)
 
     def alternative_planner(self):
         """ Example function to show how planning_types dict can be expanded in __init__
@@ -52,5 +51,5 @@ class RouteFinder(object):  # TODO: investigate use of static class (return plan
 
         :return: None
         """
-        print('placeholder for ' + self.planning_type)
-        # return alternative_planner(self.robot_manager, self.picker_manager)
+        print('placeholder in ' + str(self.__class__))
+        # return alternative_planner(self.agents, self.callbacks)

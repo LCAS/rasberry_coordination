@@ -231,41 +231,32 @@ class ColoredThorvaldMarkerPublisher(ThorvaldMarkerPublisher):
     def __init__(self, robot_name, color=''):
         """
         """
+
+        # Format marker object
         self.robot_name = robot_name
         self._marker_array = visualization_msgs.msg.MarkerArray()
         self.frame_id = self.robot_name+"/base_link"
         self._create_markers()
 
-        if color != '':
-            if color == "red":
-                pipe = ColorRGBA(.5, 0, 0, 1)
-                wheel = ColorRGBA(0, 0, 0, 1)
-                tower = ColorRGBA(1, 0, 0, 1)
-            if color == "green":
-                pipe = ColorRGBA(0, .5, 0, 1)
-                wheel = ColorRGBA(0, 0, 0, 1)
-                tower = ColorRGBA(0, 1, 0, 1)
-            if color == "blue":
-                pipe = ColorRGBA(0, 0, .5, 1)
-                wheel = ColorRGBA(0, 0, 0, 1)
-                tower = ColorRGBA(0, 0, 1, 1)
-            if color == "black":
-                pipe = ColorRGBA(0, 0, 0, 1)
-                wheel = ColorRGBA(0, 0, 0, 1)
-                tower = ColorRGBA(0, 0, 0, 1)
-            if color == "white":
-                pipe = ColorRGBA(1, 1, 1, 1)
-                wheel = ColorRGBA(0, 0, 0, 1)
-                tower = ColorRGBA(1, 1, 1, 1)
+        # Define colors associated to specific marker components
+        color_swaps = {
+          'label': ('pipe',                 'wheel',            'tower'),
+          'red':   (ColorRGBA(.5, 0, 0, 1), ColorRGBA(0,0,0,1), ColorRGBA(1,0,0,1)),
+          'green': (ColorRGBA( 0,.5, 0, 1), ColorRGBA(0,0,0,1), ColorRGBA(0,1,0,1)),
+          'blue':  (ColorRGBA( 0, 0,.5, 1), ColorRGBA(0,0,0,1), ColorRGBA(0,0,1,1)),
+          'black': (ColorRGBA( 0, 0, 0, 1), ColorRGBA(0,0,0,1), ColorRGBA(0,0,0,1)),
+          'white': (ColorRGBA( 1, 1, 1, 1), ColorRGBA(0,0,0,1), ColorRGBA(1,1,1,1))
+        } #TODO: transpose this
 
+        # Assign color to respective marker component
+        if color in color_swaps:
             for marker in self._marker_array.markers:
-                if marker.ns.startswith('pipe'):
-                    marker.color = pipe
-                if marker.ns.startswith('tower'):
-                    marker.color = tower
-                if marker.ns.startswith('wheel'):
-                    marker.color = wheel
+                starts = [i for i, s in enumerate(color_swaps['label']) if marker.ns.startswith(s)]
+                # print("Setting: marker component(%s) to color %s" % (marker.ns,str(starts)))
+                if starts:
+                    marker.color = color_swaps[color][starts[0]]
 
+        # Publish marker to rviz
         self.marker_pub = rospy.Publisher("/%s/vis" %(robot_name), visualization_msgs.msg.MarkerArray, queue_size=10)
         self.publish()
 
