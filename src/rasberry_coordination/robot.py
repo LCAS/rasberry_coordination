@@ -165,6 +165,7 @@ class Robot(object):
         if feedback_cb is None:
             feedback_cb = self._fb_execpolicy_cb
 
+        print ("%s goal: " %(self.robot_id), goal)
         self.publish_route(goal.route.source, goal.route.edge_id)
 
         self.execpolicy_goal = goal

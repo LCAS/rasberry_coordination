@@ -88,7 +88,7 @@ class Coordinator(object):
         self.task_robot_id = {} # {task_id:robot_id} to track which robot is assigned to a task
 
         """Robot Detail Manage Initialisation"""
-        cb_dict = {'update_topo_map': None, 'task_cancelled': self.task_cancelled, 'task_update': self.task_update}
+        cb_dict = {'task_cancelled': self.task_cancelled, 'task_update': self.task_update}
         self.robot_manager = RobotManager(cb_dict)
         self.robot_manager.add_agents(robot_ids, use_restrictions)
         self.picker_manager = PickerManager(cb_dict)

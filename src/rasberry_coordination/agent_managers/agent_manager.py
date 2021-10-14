@@ -186,7 +186,6 @@ class AgentDetails(object):
         """ Callback for "agent_id/current_node"
 
         If the current_node is not None, copy current_node to previous_node.
-        Call callback to update_topo_map (roue_planner).
 
         :param msg: string containing the new current_node for the agent
         :return: None
@@ -199,9 +198,6 @@ class AgentDetails(object):
             self.current_node = None
         if self.previous_node == "none":
             self.previous_node = None
-
-        if self.cb['update_topo_map']:
-            self.cb['update_topo_map']()
 
     """Callback for closest node from agent"""
     def _closest_node_cb(self, msg):

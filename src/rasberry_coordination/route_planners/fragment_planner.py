@@ -24,9 +24,8 @@ class FragmentPlanner(object):
         self.picker_manager = picker_manager_pointer
         self.callbacks = callbacks
 
-        """ Change callback location to modify the FragmentPlanner available topomap """
+        """ Change callback location to modify the FragmentPlanner get_node method"""
         for agent in self.robot_manager.agent_details.values() + self.picker_manager.agent_details.values():
-            agent.cb['update_topo_map'] = self.update_available_topo_map
             agent.cb['get_node'] = self.get_node
 
         self.rec_topo_map = False
@@ -36,7 +35,6 @@ class FragmentPlanner(object):
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
         logmsg(msg='FragmentPlanner received Topological map ...')
-        self.available_topo_map = copy.deepcopy(self.topo_map) #empty map used to measure routes
 
     def _map_cb(self, msg):
         """This function receives the Topological Map
@@ -44,12 +42,10 @@ class FragmentPlanner(object):
         self.topo_map = yaml.safe_load(msg.data)
         self.rec_topo_map = True
 
-    def update_available_topo_map(self, ):
-        """This function updates the available_topological_map, which is topological_map
-        without the edges going into the nodes occupied by the agents. When current node
-        of an agent is none, the closest node of the agent is taken.
+    def get_agent_nodes(self):
+        """ get the list of nodes occupied by all agents
+        When current node of an agent is none, the closest node of the agent is taken.
         """
-        topo_map = copy.deepcopy(self.topo_map)
         agent_nodes = []
 
         """Extract lists of current and closest nodes to the robots and pickers"""
@@ -66,39 +62,7 @@ class FragmentPlanner(object):
                 curr_nodes[i] = clos_nodes[i]
             if curr_nodes[i] is not None:
                 agent_nodes.append(curr_nodes[i])
-
-        for node in topo_map["nodes"]:
-            to_pop=[]
-            for i in range(len(node["node"]["edges"])):
-                if node["node"]["edges"][i]["node"] in agent_nodes:
-                    to_pop.append(i)
-            if to_pop:
-                to_pop.reverse()
-                for j in to_pop:
-                    node["node"]["edges"].pop(j)
-
-        self.available_topo_map = topo_map
-
-    def unblock_node(self, available_topo_map, node_to_unblock):
-        """ unblock a node by adding edges to an occupied node in available_topo_map
-        """
-        nodes_to_append=[]
-        edges_to_append=[]
-
-        """ for each edge in network, if edge connects to a node to unblock, add to list """
-        for node in self.topo_map["nodes"]:
-            for edge in node["node"]["edges"]:
-                if edge["node"] == node_to_unblock:
-                    nodes_to_append.append(node["node"]["name"])
-                    edges_to_append.append(edge)
-
-        """ for each node in empty map, if node is to be unblocked, add a extra edge """
-        for node in available_topo_map["nodes"]:
-            if node["node"]["name"] in nodes_to_append:
-                ind_to_append = nodes_to_append.index(node["node"]["name"])
-                node["node"]["edges"].append(edges_to_append[ind_to_append])
-
-        return available_topo_map
+        return agent_nodes
 
     def get_node(self, node):
         """get_node: Given a node name return its node object.
@@ -328,7 +292,9 @@ class FragmentPlanner(object):
         paths at critical points - whenever triggered
         """
 
-        """find routes for all robots which need one in empty map"""
+        agent_nodes = self.get_agent_nodes()
+
+        """ find routes for all robots which need one in empty map"""
         for robot in self.robot_manager.agent_details.values():
             robot_id = robot.robot_id
 
@@ -373,36 +339,34 @@ class FragmentPlanner(object):
                     self.get_edge_distances(robot_id)
                     continue
 
-                """take copy of empty map"""
-                avail_topo_map = copy.deepcopy(self.available_topo_map)
+                # update the robot's available_tmap2
+                robot.update_available_tmap2(agent_nodes)
 
                 """unblock means to add an additional edge into and out of any potentially conjected nodes"""
                 """unblock nodes for robot starting point"""
-                avail_topo_map = self.unblock_node(avail_topo_map, start_node)
+                robot.unblock_node(start_node)
 
                 """unblock nodes for picker location so robots can reach them if needed"""
                 if robot.task_stage == "go_to_picker":
-                    avail_topo_map = self.unblock_node(avail_topo_map, goal_node)
+                    robot.unblock_node(goal_node)
 
                 """generate route from start node to goal node"""
-                avail_route_search = topological_navigation.route_search2.TopologicalRouteSearch2(avail_topo_map)
                 route = None
                 if start_node and goal_node:
                     logmsg(category="robot", id=robot_id, msg='finding route for [start_node: %s | goal_node: %s]' % (start_node, goal_node))
-                    route = avail_route_search.search_route(start_node, goal_node)
+                    route = robot.get_available_optimum_route(start_node, goal_node)
 
                 route_nodes = []
                 route_edges = []
 
-                """if route is not available, replan route to wait node"""
+                """if there is no route to the goal_node, replan route to wait node"""
                 if (route is None and
                     robot.task_stage == "go_to_storage" and
                     robot.wait_node is not None and
                     robot.wait_node != robot.current_node):
                     logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
                     goal_node = robot.wait_node
-                    avail_route_search = topological_navigation.route_search2.TopologicalRouteSearch2(avail_topo_map)
-                    route = avail_route_search.search_route(start_node, goal_node)
+                    route = robot.get_available_optimum_route(start_node, goal_node)
 
                 """if still no route to wait node or goal node"""
                 if route is None:

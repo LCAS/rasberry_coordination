@@ -6,6 +6,7 @@
 # ----------------------------------
 
 import actionlib
+import copy
 import rospy
 import yaml
 
@@ -16,6 +17,7 @@ from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
 from rasberry_coordination.robot import Robot as RobotInterface
 from rasberry_coordination.agent_managers.agent_manager import AgentManager, AgentDetails
 from rasberry_coordination.srv import RobotState, RobotStates, RobotStateResponse, RobotStatesResponse
+from topological_navigation.route_search2 import TopologicalRouteSearch2
 
 class RobotManager(AgentManager):
 
@@ -168,6 +170,8 @@ class RobotDetails(AgentDetails):
 
         robot.tmap2 = {}
         robot.tmap2_nodes = []
+        robot.available_tmap2 = {}
+        robot.available_route_search = TopologicalRouteSearch2({"nodes":{}})
         if robot.use_restrictions:
             robot.tmap2_sub = rospy.Subscriber("/%s/restricted_topological_map_2" %(ID), Str, robot.restricted_tmap2_cb, queue_size=5)
         else:
@@ -258,6 +262,8 @@ class RobotDetails(AgentDetails):
         """
         robot.tmap2 = yaml.safe_load(msg.data)
         robot.tmap2_nodes = [node["node"]["name"] for node in robot.tmap2["nodes"]]
+        robot.available_tmap2 = copy.deepcopy(robot.tmap2)
+        robot.available_route_search = TopologicalRouteSearch2(robot.available_tmap2)
 
     """restricted_tmap2 callback"""
     def restricted_tmap2_cb(robot, msg):
@@ -265,12 +271,79 @@ class RobotDetails(AgentDetails):
         """
         robot.tmap2 = yaml.safe_load(msg.data)
         robot.tmap2_nodes = [node["node"]["name"] for node in robot.tmap2["nodes"]]
+        robot.available_tmap2 = copy.deepcopy(robot.tmap2)
+        robot.available_route_search = TopologicalRouteSearch2(robot.available_tmap2)
 
     """check if a node is in the robot's topomap"""
     def is_node_in_topomap(robot, node_name):
         """checks if a given node is in the robot's restricted tmap2
+
+        :param node_name: name of the node, str
         """
         return node_name in robot.tmap2_nodes
+
+    """ remove the given agent nodes and update the available_tmap2"""
+    def update_available_tmap2(robot, agent_nodes=[]):
+        """remove incoming edges to the list of agent nodes in the available_tmap2
+        and update the available_route_search object with the new map
+
+        :param agent_nodes: list of nodes occupied by other agents, list
+        """
+        # Nothing to do if restrictions are not used
+        if not robot.use_restrictions:
+            return
+
+        available_tmap2 = copy.deepcopy(robot.tmap2)
+
+        for node in available_tmap2["nodes"]:
+            to_pop=[]
+            for i in range(len(node["node"]["edges"])):
+                if node["node"]["edges"][i]["node"] in agent_nodes:
+                    to_pop.append(i)
+            if to_pop:
+                to_pop.reverse()
+                for j in to_pop:
+                    node["node"]["edges"].pop(j)
+
+        robot.available_tmap2 = available_tmap2
+        robot.available_route_search = TopologicalRouteSearch2(robot.available_tmap2)
+
+    def unblock_node(robot, node_to_unblock):
+        """ unblock a node by adding edges to an occupied node in available_tmap2
+        copying from tmap2
+
+        :param node_to_unblock: name of the node to be unblocked, str
+        """
+        nodes_to_append=[]
+        edges_to_append=[]
+
+        """ for each edge in network, if edge connects to a node to unblock, add to list """
+        for node in robot.tmap2["nodes"]:
+            for edge in node["node"]["edges"]:
+                if edge["node"] == node_to_unblock:
+                    nodes_to_append.append(node["node"]["name"])
+                    edges_to_append.append(edge)
+
+        """ for each node in empty map, if node is to be unblocked, add a extra edge """
+        for node in robot.available_tmap2["nodes"]:
+            if node["node"]["name"] in nodes_to_append:
+                ind_to_append = nodes_to_append.index(node["node"]["name"])
+                node["node"]["edges"].append(edges_to_append[ind_to_append])
+
+        # update the route_search object
+        robot.available_route_search = TopologicalRouteSearch2(robot.available_tmap2)
+
+    """get a route to the goal node from the available tmap2"""
+    def get_available_optimum_route(robot, start_node, goal_node):
+        """ find and return a route from start_node to goal_node on the available_tmap2
+
+        :param start_node: name of the node from which route should be planned, str
+        :param goal_node: name of the node to which route should be planned, str
+        :return: route from start_node to goal_node
+        """
+        route = None
+        route = robot.available_route_search.search_route(start_node, goal_node)
+        return route
 
     """return goal node as picker location, storage or base station"""
     def _get_goal_node(robot):
