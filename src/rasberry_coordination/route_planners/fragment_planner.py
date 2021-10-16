@@ -14,8 +14,8 @@ import yaml
 import std_msgs.msg
 import topological_navigation.route_search2
 import topological_navigation.tmap_utils
-
 from rasberry_coordination.coordinator_tools import logmsg
+from strands_navigation_msgs.msg import NavRoute
 
 class FragmentPlanner(object):
     def __init__(self, robot_manager_pointer, picker_manager_pointer, callbacks):
@@ -42,7 +42,7 @@ class FragmentPlanner(object):
         self.topo_map = yaml.safe_load(msg.data)
         self.rec_topo_map = True
 
-    def get_agent_nodes(self):
+    def get_agent_nodes(self, accuracy=False):
         """ get the list of nodes occupied by all agents
         When current node of an agent is none, the closest node of the agent is taken.
         """
@@ -53,15 +53,29 @@ class FragmentPlanner(object):
             return
 
         curr_nodes = self.robot_manager.get_list('current_node') + self.picker_manager.get_list('current_node')
+        prev_nodes = self.robot_manager.get_list('previous_node') + self.picker_manager.get_list('previous_node')
         clos_nodes = self.robot_manager.get_list('closest_node') + self.picker_manager.get_list('closest_node')
 
 
-        """For each agent, if they do not have a current_node, extract the closest_node"""
-        for i in range(len(curr_nodes)):
-            if curr_nodes[i] is None:
-                curr_nodes[i] = clos_nodes[i]
-            if curr_nodes[i] is not None:
-                agent_nodes.append(curr_nodes[i])
+        if accuracy:
+            """For each agent, if they do not have a current_node, extract previous and then the closest_node"""
+            for i in range(len(curr_nodes)):
+                if curr_nodes[i] is None:
+                    if prev_nodes[i] is None:
+                        curr_nodes[i] = clos_nodes[i]
+                    else:
+                        curr_nodes[i] = prev_nodes[i]
+                if curr_nodes[i] is not None:
+                    agent_nodes.append(curr_nodes[i])
+
+        else:
+            """For each agent, if they do not have a current_node, extract the closest_node"""
+            for i in range(len(curr_nodes)):
+                if curr_nodes[i] is None:
+                    curr_nodes[i] = clos_nodes[i]
+                if curr_nodes[i] is not None:
+                    agent_nodes.append(curr_nodes[i])
+
         return agent_nodes
 
     def get_node(self, node):
@@ -187,6 +201,10 @@ class FragmentPlanner(object):
         """identify critical points for each route and the robots which are involved"""
         c_points, c_robots = self.critical_points()
 
+#        print (c_points)
+#        print (c_robots)
+#        print ("\n")
+
         """ remove start node as critical for robots heading to picker """
         for robot_id in self.robot_manager.active_list():
             robot = self.robot_manager.agent_details[robot_id]
@@ -292,7 +310,7 @@ class FragmentPlanner(object):
         paths at critical points - whenever triggered
         """
 
-        agent_nodes = self.get_agent_nodes()
+        agent_nodes = self.get_agent_nodes(accuracy=True)
 
         """ find routes for all robots which need one in empty map"""
         for robot in self.robot_manager.agent_details.values():
@@ -355,12 +373,20 @@ class FragmentPlanner(object):
                 if start_node and goal_node:
                     logmsg(category="robot", id=robot_id, msg='finding route for [start_node: %s | goal_node: %s]' % (start_node, goal_node))
                     route = robot.get_available_optimum_route(start_node, goal_node)
+#                    print(route)
 
                 route_nodes = []
                 route_edges = []
 
                 """if there is no route to the goal_node, replan route to wait node"""
                 if (route is None and
+                    robot.task_stage == "go_to_storage" and
+                    robot.wait_node is not None and
+                    robot.wait_node != robot.current_node):
+                    logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
+                    goal_node = robot.wait_node
+                    route = robot.get_available_optimum_route(start_node, goal_node)
+                elif (route == NavRoute() and
                     robot.task_stage == "go_to_storage" and
                     robot.wait_node is not None and
                     robot.wait_node != robot.current_node):
@@ -379,6 +405,15 @@ class FragmentPlanner(object):
                         robot._dump(filename='no route found from none')
 
                     #TODO: see how we could improve this by generating wait_node dynamically based on map activity
+                elif route == NavRoute():
+                    # empty route -> do not add last node
+                    if robot.no_route_found_notification:
+                        logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
+                        robot.no_route_found_notification = False
+                    if start_node is None:
+                        robot._dump(filename='no route found from None')
+                    if start_node == "none":
+                        robot._dump(filename='no route found from none')
                 else:
                     route_nodes = route.source
                     route_edges = route.edge_id

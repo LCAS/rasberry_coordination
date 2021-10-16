@@ -289,7 +289,7 @@ class RobotDetails(AgentDetails):
 
         :param agent_nodes: list of nodes occupied by other agents, list
         """
-        print ("%s updating available map" %(robot.robot_id), agent_nodes)
+#        print ("%s updating available map" %(robot.robot_id), agent_nodes)
         available_tmap2 = copy.deepcopy(robot.tmap2)
 
         for node in available_tmap2["nodes"]:
@@ -311,7 +311,7 @@ class RobotDetails(AgentDetails):
 
         :param node_to_unblock: name of the node to be unblocked, str
         """
-        print ("%s unblocking %s" %(robot.robot_id, node_to_unblock))
+#        print ("%s unblocking %s" %(robot.robot_id, node_to_unblock))
         nodes_to_append=[]
         edges_to_append=[]
 

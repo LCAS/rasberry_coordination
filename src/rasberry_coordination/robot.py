@@ -17,7 +17,7 @@ import geometry_msgs.msg
 import topological_navigation.tmap_utils
 import topological_navigation.route_search2
 from rasberry_coordination.coordinator_tools import logmsg
-
+from strands_navigation_msgs.msg import NavRoute
 
 class Robot(object):
     """Robot class to wrap all ros interfaces to the physical/simulated robot
@@ -108,6 +108,12 @@ class Robot(object):
             #TODO: Set this up so it doesnt repeat along with with "logwarn(replanning now)"
 
             return ([], [], [float("inf")])
+        elif route == NavRoute():
+            logmsg(category="rob_py", id=self.robot_id, msg='no route found between %s and %s' %(start_node, goal_node))
+            #TODO: Set this up so it doesnt repeat along with with "logwarn(replanning now)"
+
+            return ([], [], [float("inf")])
+
         route_nodes = route.source
         route_nodes.append(goal_node)
         route_edges = route.edge_id
@@ -148,7 +154,7 @@ class Robot(object):
     def cancel_toponav_goal(self, ):
         """
         """
-        print ("%s cancelling execute policy mode goal" %(self.robot_id))
+#        print ("%s cancelling execute policy mode goal" %(self.robot_id))
         self._topo_nav.cancel_all_goals()
         self.toponav_goal = topological_navigation.msg.GotoNodeGoal()
         self.toponav_result = None
@@ -166,14 +172,19 @@ class Robot(object):
         if feedback_cb is None:
             feedback_cb = self._fb_execpolicy_cb
 
-        print ("%s goal: " %(self.robot_id), goal)
+#        print ("%s goal: " %(self.robot_id), goal)
         self.publish_route(goal.route.source, goal.route.edge_id)
 
         self.execpolicy_goal = goal
         self.execpolicy_current_wp = None
         self.execpolicy_result = None
         self.execpolicy_status = None
-        self._exec_policy.send_goal(goal, done_cb=done_cb, active_cb=active_cb, feedback_cb=feedback_cb)
+
+        if self.execpolicy_goal == strands_navigation_msgs.msg.ExecutePolicyModeGoal():
+            # sending empty route will cause error in the action server. avoid it by cancelling it
+            self.cancel_execpolicy_goal()
+        else:
+            self._exec_policy.send_goal(goal, done_cb=done_cb, active_cb=active_cb, feedback_cb=feedback_cb)
 #        self._exec_policy.wait_for_result()
 
     def _fb_execpolicy_cb(self, fb):
