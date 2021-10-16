@@ -148,6 +148,7 @@ class Robot(object):
     def cancel_toponav_goal(self, ):
         """
         """
+        print ("%s cancelling execute policy mode goal" %(self.robot_id))
         self._topo_nav.cancel_all_goals()
         self.toponav_goal = topological_navigation.msg.GotoNodeGoal()
         self.toponav_result = None
