@@ -128,40 +128,14 @@ Notes:
 -> `python -c "import this"`
 """
 
-from pprint import pprint
 from copy import deepcopy
-from std_msgs.msg import String as Str
-import strands_executive_msgs.msg
-import std_msgs.msg
-from std_msgs.msg import Bool
-import std_srvs.srv
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
+from std_msgs.msg import Bool, String as Str
+import strands_executive_msgs.msg
 from rasberry_coordination.coordinator_tools import logmsg
-import rasberry_coordination.srv
-import rasberry_coordination.msg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
-from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef
+from rasberry_coordination.srv import AgentNodePair
 
-"""
-python
-from rospy import Publisher, init_node
-init_node("temp")
-from rasberry_coordination.msg import \
-    TasksDetails as TasksDetailsList, \
-    TaskDetails as SingleTaskDetails
-ns = "/rasberry_coordination"
-topic = '%s/active_tasks_details' % ns
-active_tasks_pub = Publisher(topic, TasksDetailsList,
-                             latch=True, queue_size=5)
-task_list = TasksDetailsList()
-task = SingleTaskDetails()
-task.task_id = 6
-task.state = "CALLED"
-task.picker_id = 'picker01'
-task.robot_id = 'thorvald_002'
-task_list.tasks.append(task)
-active_tasks_pub.publish(task_list)
-# """
 
 class InterfaceDef(object):
 
@@ -322,6 +296,7 @@ class InterfaceDef(object):
         #             if any([contact_id.startswith(option) for option in self.restart_triggers]): TaskDef.restart_task(self.agent)
         #     return old_id
 
+
 class TaskDef(object):
     """ Runtime Method for Custom Task Definitions """
     @classmethod
@@ -371,6 +346,19 @@ class TaskDef(object):
                     StageDef.StartTask(agent, task_id),
                     StageDef.WaitForLocalisation(agent),
                     StageDef.WaitForMap(agent)
+                ]})
+    @classmethod
+    def human_localisation(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+        return({'id': task_id,
+                'name': "human_localisation",
+                'details': cls.load_details(details),
+                'contacts': contacts.copy(),
+                'task_module': 'base',
+                'initiator_id': agent.agent_id,
+                'responder_id': "",
+                'stage_list': [
+                    StageDef.StartTask(agent, task_id),
+                    StageDef.WaitForLocalisation(agent)
                 ]})
 
 
@@ -427,6 +415,7 @@ class TaskDef(object):
         logmsg(category="DTM", msg="    | restarting task %s" % (agent.task_name))
         agent.add_task(task_name=agent.task_name, task_id=agent['task_id'], index=0, quiet=True)
         cls.clear_active_task(agent)
+
 
 class StageDef(object):
     class StageBase(object):
@@ -533,6 +522,9 @@ class StageDef(object):
 
     """ Idle """
     class Idle(StageBase):
+        def __repr__(self):
+            if self.agent: return "%s(%s)" % (self.get_class(), self.agent.location())
+            return self.get_class()
         def _query(self):
             success_conditions = [len(self.agent.task_buffer) > 0,
                                   self.agent.interfaces['health_monitoring'].battery_low() if 'health_monitoring' in self.agent.interfaces else False] #this needs to be removed

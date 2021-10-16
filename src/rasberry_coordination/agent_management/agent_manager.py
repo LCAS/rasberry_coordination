@@ -6,9 +6,11 @@
 # ----------------------------------
 
 # from abc import ABCMeta, abstractmethod
+from pprint import pprint
+import yaml
 from rospy import Subscriber, Publisher, Service, Time
 from std_msgs.msg import String as Str
-from std_msgs.msg import Trigger, TriggerResponse
+from std_srvs.srv import Trigger, TriggerResponse
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.srv import AddAgent, AgentNodePair
 from rasberry_coordination.coordinator_tools import logmsg
@@ -182,6 +184,12 @@ class AgentDetails(object):
     def add_idle_task(self):
         for task in self.tasks:
             self.add_task(task_name='%s_%s_idle' % (task['module'], task['role']))
+        if not self.task_buffer:
+            logmsg(level="error", category="task", id=self.agent_id, msg="WARNING! Agent has no idle tasks.")
+            logmsg(level="error", category="task",                   msg="    | All agents must be assigned a module.")
+            logmsg(level="error", category="task",                   msg="    | Each module must have an idle task for each agent.")
+            logmsg(level="error", category="task",                   msg="    \ Agent to be assigned a basic idle task.")
+            self.add_task(task_name='idle')
     def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None, quiet=False, initiator_id=""):
 
         """ Called by task stages, used to buffer new tasks for the agent """
@@ -216,6 +224,7 @@ class AgentDetails(object):
 
     """ Localisation """
     def current_node_cb(self, msg):
+        if self.agent_id == "picker01": logmsg(category="agent", msg="Location achieved?")
         self.previous_node = self.current_node if self.current_node else self.previous_node
         self.current_node = None if msg.data == "none" else msg.data
         if self.cb['update_topo_map']: self.cb['update_topo_map']()
@@ -259,8 +268,10 @@ class AgentDetails(object):
     """ Navigation """
     def map_cb(self, msg):
         self.navigation['tmap'] = yaml.safe_load(msg.data)
-        self.navigation['tmap_node_list'] = [node["name"] for node in self.navigation['tmap']['nodes']]
+        self.navigation['tmap_node_list'] = [node["node"]["name"] for node in self.navigation['tmap']['nodes']]
     def is_node_restricted(self, node_id):
+        print("Node is:::")
+        print(node_id)
         return (node_id in self.navigation['tmap_node_list'])
 
 

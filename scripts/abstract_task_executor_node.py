@@ -29,7 +29,6 @@ def validate_types(file, config):
     # Meta Fields
     validate_field(file, config, mandatory=True, key='version', datatype=[str])
     validate_field(file, config, mandatory=True, key='use_sim', datatype=[bool])
-    validate_field(file, config, mandatory=True, key='use_restrictions', datatype=[bool])
 
     # Topology Fields
     for node in config['special_nodes']:

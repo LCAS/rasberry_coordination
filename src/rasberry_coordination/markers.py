@@ -10,6 +10,7 @@ import rospy
 import visualization_msgs.msg
 import tf
 from std_msgs.msg import ColorRGBA
+from rasberry_coordination.coordinator_tools import logmsg
 
 class ThorvaldMarkerPublisher(object):
     """
@@ -225,7 +226,6 @@ class ThorvaldMarkerPublisher(object):
 
         return name_marker
 
-
 class ColoredThorvaldMarkerPublisher(ThorvaldMarkerPublisher):
 
     def __init__(self, robot_name, color=''):
@@ -233,6 +233,7 @@ class ColoredThorvaldMarkerPublisher(ThorvaldMarkerPublisher):
         """
 
         # Format marker object
+        logmsg(msg="new marker initialised for %s"%robot_name)
         self.robot_name = robot_name
         self._marker_array = visualization_msgs.msg.MarkerArray()
         self.frame_id = self.robot_name+"/base_link"
@@ -346,6 +347,7 @@ class ColoredTallThorvaldMarkerPublisher(TallThorvaldMarkerPublisher):
     def __init__(self, robot_name, color=''):
         """
         """
+        logmsg(msg="new marker initialised for %s"%robot_name)
         self.robot_name = robot_name
         self._marker_array = visualization_msgs.msg.MarkerArray()
         self.frame_id = self.robot_name+"/base_link"
@@ -394,9 +396,10 @@ class ColoredTallThorvaldMarkerPublisher(TallThorvaldMarkerPublisher):
 class HumanMarkerPublisher(object):
     """
     """
-    def __init__(self, picker_id):
+    def __init__(self, picker_id, color=''):
         """
         """
+        logmsg(msg="new marker initialised for %s"%picker_id)
         self.picker_id = picker_id
         self._marker_array = visualization_msgs.msg.MarkerArray()
         self.frame_id = self.picker_id+"/base_link"

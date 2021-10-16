@@ -24,7 +24,7 @@ class FragmentPlanner(BasePlanner):
         Args:
             all_agent_details_pointer - pointer to coordinator.all_agents_list a dictionary of all agent_details objects
         """
-        super(FragmentPlanner, self).__init__(all_agent_details_pointer)
+        super(FragmentPlanner, self).__init__(all_agent_details_pointer, heterogeneous_map)
         self.task_lock = threading.Lock()
 
     def update_available_topo_map(self, ):
@@ -239,7 +239,7 @@ class FragmentPlanner(BasePlanner):
         """
         super(FragmentPlanner, self).find_routes()
 
-        logmsg(category="route", id="routing", msg="Finding routes for Active agents")
+        logmsg(category="route", id="COORDINATOR", msg="Finding routes for Active agents")
         [logmsg(category="route", msg="    - %s:%s"%(a.agent_id, a.goal())) for a in self.agent_details.values()]
         actives =   [a for a in self.agent_details.values() if a.goal()]
         inactives = [a for a in self.agent_details.values() if not a.goal()]

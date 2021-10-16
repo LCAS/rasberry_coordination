@@ -270,8 +270,12 @@ class RasberryCoordinator(object):
         :return: The agent_details object closest to the agent querying against.
         """
         loc = agent.location()
-        dist_list = {a.agent_id:self.dist(loc,a.location()) for a in agent_list.values()
-                     if a.registration and a.is_node_restricted(loc)}
+        dist_list = {a.agent_id:self.dist(loc, a.location()) for a in agent_list.values() if a.registration and a.is_node_restricted(loc)}
+
+        [logmsg(id=a.agent_id, msg="Localisations") for a in agent_list.values()]
+        [logmsg(msg="  - %s(%s|%s|%s)"%(a.agent_id, a.current_node, a.closest_node, a.previous_node)) for a in agent_list.values()]
+
+
         logmsg(category="action", msg="Finding closest in: %s" % dist_list)
         if dist_list:
             return agent_list[min(dist_list, key=dist_list.get)]
@@ -302,7 +306,6 @@ class RasberryCoordinator(object):
         logmsg(category="DTM", msg="Interrupt detected!", speech=False);
         [logmsg(category="DTM", msg="    | %s : %s" % (a.agent_id, a.interruption[0])) for a in self.AllAgentsList.values() if a.interruption]
         [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption[0] in interrupts]
-
     def pause(self, agent):
         """ Agent pausing works as follows:
         1. Put the active stage into a suspended state (so once active again it will be restarted)
@@ -319,7 +322,6 @@ class RasberryCoordinator(object):
 
         agent.interruption = None  # reset interruption trigger
         self.agent_manager.format_agent_marker(agent.agent_id, style='red')
-
     def resume(self, agent):
         """ Agent unpausing works as follows:
         1. Set the flag to end the pause stage (self.agent.registration)
@@ -335,7 +337,6 @@ class RasberryCoordinator(object):
 
         agent.interruption = None  # reset interruption trigger
         # self.agent_manager.format_agent_marker(agent.agent_id, style='')
-
     def reset(self, agent):
         """ Reset task works as follows:
         If the reset request comes from the initiator:
@@ -363,11 +364,10 @@ class RasberryCoordinator(object):
             self.agent_manager[resp].interruption = None  # reset interruption trigger
 
         self.TOC_Interface.EndTask([tid])
-
     def unregister(self, agent_id):
         logmsg(category="DTM", msg="    | unregistering agent: %s"%agent_id)
         self.agent_manager[agent_id].registration = False
-        self.agent_manager.format_agent_marker(agent_id, style='red')
+        self.agent_manager.format_agent_marker(self.agent_manager[agent_id], style='red')
 
     # def delete_agent(self, agent):
     #     logmsg(level="error", category="DRM", id=agent.agent_id,
@@ -455,8 +455,8 @@ class RasberryCoordinator(object):
         if publish_route:
             logmsg(level='warn', category="route", msg="check_route label 5")
             if self.log_routes:
-                logmsg(category="rob_py", id=agent.agent_id, msg='New route generated:\n%s' % policy)
-                logmsg(category="rob_py", msg='Previous route:\n%s' % agent.temp_interface.execpolicy_goal)
+                logmsg(category="route", id=agent.agent_id, msg='New route generated:\n%s' % policy)
+                logmsg(category="route", msg='Previous route:\n%s' % agent.temp_interface.execpolicy_goal)
 
             agent.temp_interface.cancel_execpolicy_goal()
             agent.temp_interface.set_execpolicy_goal(policy)

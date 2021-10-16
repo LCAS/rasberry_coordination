@@ -6,11 +6,15 @@
 # ----------------------------------
 
 import rospy
+from rospy import Subscriber
+
 import copy
+import yaml
 import operator
 
+from std_msgs.msg import String
 import strands_navigation_msgs.msg
-import topological_navigation.route_search
+import topological_navigation.route_search2
 import topological_navigation.tmap_utils
 
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
@@ -132,7 +136,7 @@ class BasePlanner(object):
         """ Download Topological Map """
         self.heterogeneous_map = heterogeneous_map
         self.rec_topo_map = False
-        rospy.Subscriber("topological_map_2", std_msgs.msg.String, self._map_cb)
+        Subscriber("topological_map_2", String, self._map_cb)
 
         logmsgbreak(total=1)
         logmsg(category="route", msg='Route Planner waiting for Topological map ...')
@@ -146,7 +150,7 @@ class BasePlanner(object):
             agent.cb['update_topo_map'] = self.update_available_topo_map
 
         """ Setup object to perform route_searching in empty map """
-        self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
+        self.route_search = topological_navigation.route_search2.TopologicalRouteSearch2(self.topo_map)
 
     @abstractmethod
     def find_routes(self):

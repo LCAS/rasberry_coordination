@@ -65,7 +65,8 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
     # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
     # TODO: include padding at end of msg
 
-    reject_tags = ["LOG1", "START", "RVIZ", "TOC1", "ROBNAV", "ROUTE1", "ACTION", "ROB_PY"]
+    reject_tags = ["START", "COMMS", "RVIZ"]
+    # reject_tags = ["LOG1", "START", "RVIZ1", "TOC1", "ROBNAV", "ROUTE1", "ACTION", "ROB_PY"]
     if category.upper() in reject_tags: return
 
     if use_custom_formatting:
@@ -75,7 +76,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
             ros_time = '\b' * 21  # TODO: swap out using \u001b[{n}D
 
         """ Define id and/or category to highlight """
-        color_id = {"storage01":'\033[01;31m', "thorvald_001":'\033[01;32m', "thorvald_002":'\033[01;33m', "picker01":'\033[01;34m', "picker02":'\033[01;35m'}
+        color_id = {"storage01":'\033[01;31m', "thorvald_001":'\033[01;32m', "thorvald_002":'\033[01;33m', "picker01":'\033[01;34m', "picker02":'\033[01;35m', "thorvald_014":'\033[01;36m'}
         color_category = ["TOC1", "DRM", "START", "OTHER1", "DTM"]
         # TODO move these out of this definition and into some config file
         # TODO: moving them outside the funciton will set on import logmsg? if so, we can grab from param server?
