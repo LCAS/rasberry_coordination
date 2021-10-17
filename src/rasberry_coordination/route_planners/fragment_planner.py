@@ -46,7 +46,7 @@ class FragmentPlanner(object):
         self.topo_map = msg
         self.rec_topo_map = True
 
-    def update_available_topo_map(self, ):
+    def update_available_topo_map(self, accuracy=None):
         """This function updates the available_topological_map, which is topological_map
         without the edges going into the nodes occupied by the agents. When current node
         of an agent is none, the closest node of the agent is taken.
@@ -59,15 +59,26 @@ class FragmentPlanner(object):
             return
 
         curr_nodes = self.robot_manager.get_list('current_node') + self.picker_manager.get_list('current_node')
+        prev_nodes = self.robot_manager.get_list('previous_node') + self.picker_manager.get_list('previous_node')
         clos_nodes = self.robot_manager.get_list('closest_node') + self.picker_manager.get_list('closest_node')
 
-
-        """For each agent, if they do not have a current_node, extract the closest_node"""
-        for i in range(len(curr_nodes)):
-            if curr_nodes[i] is None:
-                curr_nodes[i] = clos_nodes[i]
-            if curr_nodes[i] is not None:
-                agent_nodes.append(curr_nodes[i])
+        if accuracy:
+            """For each agent, if they do not have a current_node, extract the closest_node"""
+            for i in range(len(curr_nodes)):
+                if curr_nodes[i] is None:
+                    if prev_nodes[i] is not None:
+                        curr_nodes[i] = prev_nodes[i]
+                    else:
+                        curr_nodes[i] = clos_nodes[i]
+                if curr_nodes[i] is not None:
+                    agent_nodes.append(curr_nodes[i])
+        else:
+            """For each agent, if they do not have a current_node, extract the closest_node"""
+            for i in range(len(curr_nodes)):
+                if curr_nodes[i] is None:
+                    curr_nodes[i] = clos_nodes[i]
+                if curr_nodes[i] is not None:
+                    agent_nodes.append(curr_nodes[i])
 
         for node in topo_map.nodes:
             to_pop=[]
@@ -169,6 +180,7 @@ class FragmentPlanner(object):
         also find active robots which cross paths at these critical points.
         """
         active_robots = self.robot_manager.active_list()
+        charging_robots = self.robot_manager.charging_robots()
         critical_points = {}  # {[route: critical point]} each route which contains a critical point
         critical_robots = {}  # {[critical_point: robot_ids]} all robots touching a critical point
 
@@ -179,7 +191,7 @@ class FragmentPlanner(object):
             critical_points[str(r_outer)] = set([])
 
             """for each active robot excluding the agent"""
-            for robot_id in active_robots:
+            for robot_id in active_robots + charging_robots:
                 robot = self.robot_manager.agent_details[robot_id]
                 if agent_id == robot_id:
                     continue
@@ -331,6 +343,8 @@ class FragmentPlanner(object):
         """replan - find indiviual paths, find critical points in these paths, and fragment the
         paths at critical points - whenever triggered
         """
+        # update available topo map - this may be redundant, but needs accuracy related updates
+        self.update_available_topo_map(accuracy=True)
 
         """find routes for all robots which need one in empty map"""
         for robot in self.robot_manager.agent_details.values():

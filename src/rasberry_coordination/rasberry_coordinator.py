@@ -1109,6 +1109,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     trigger_replan = True
         else:
             trigger_replan = True
+
         # if there is a robot in the queue, send it for charging
         to_remove = [] # track processed robots from the queue
         if self.charging_queue and self.free_charging_nodes:
@@ -1128,6 +1129,56 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         # remove robots sent to charging from the charging queue
         for robot_id in to_remove:
             self.charging_queue.remove(robot_id)
+
+        # if any robot is waiting for a free path, send it to its charging node
+        for robot_id in charging_robots:
+            robot = self.robot_manager[robot_id]
+
+            if robot.moving:
+                # topo nav stage
+                # if any robot has finished its current goal, remove the finished goal from the robot's route
+                if robot.robot_interface.execpolicy_result is None:
+                    # task/fragment not finished
+                    continue
+
+                # check for robots which are moving, not waiting before a critical point
+                if robot.robot_interface.execpolicy_result.success:
+
+                    """ Trigger replan whenever a segment is completed """
+                    trigger_replan = True
+
+                    """ Robot has reached goal_node or wait_node """
+                    if robot._get_start_node() == robot._get_goal_node():
+                        # robot has reached its goal node. Nothing to do
+                        pass
+                    elif robot._get_start_node() == robot.wait_node:
+                        # finished only a fragment. may have to wait for clearance at wait node?
+                        robot._finish_route_fragment()
+                    else:
+                        robot._finish_route_fragment()
+
+                else:
+                    #if robot is idle and hasnt completed its task stage
+                    logmsg(category="robot", id=robot_id, msg='execpolicy_result is not success or None (%s)'%(robot.robot_interface.execpolicy_result))
+                    logmsg(category="robot", id=robot_id, msg='current task stage: %s'%(robot.task_stage))
+
+                    #if robot has failed to complete task
+                    trigger_replan = True
+
+                    # TODO: Not sure what to do here
+                    # asking to go to base is problematic as the action will be completed and robot
+                    # will be at goal node
+                    pass
+#                    self.send_robot_to_base(robot_id)
+
+            else:
+                # robot is waiting before a critical point
+                if self.robot_manager.moving_robots_exist():
+                    # no other moving robots - replan
+                    trigger_replan = True
+                else:
+                    # wait for a moving robot to finish its route fragment
+                    pass
 
         self.trigger_replan = self.trigger_replan or trigger_replan
 
