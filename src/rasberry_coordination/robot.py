@@ -9,14 +9,16 @@ import actionlib
 import rospy
 import yaml
 
-import topological_navigation.msg
-import strands_navigation_msgs.msg
-import std_msgs.msg
-import nav_msgs.msg
-import geometry_msgs.msg
-import topological_navigation.tmap_utils
-import topological_navigation.route_search2
+from std_msgs.msg import String
+from nav_msgs.msg import Path
+from geometry_msgs.msg import PoseStamped
+
 from rasberry_coordination.coordinator_tools import logmsg
+from strands_navigation_msgs.msg import NavRoute, ExecutePolicyModeGoal, TopologicalRoute, ExecutePolicyModeAction
+
+from topological_navigation.msg import GotoNodeGoal, GotoNodeAction
+from topological_navigation.tmap_utils import get_node_from_tmap2 as GetTopoMapNode
+from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
 
 class Robot(object):
@@ -34,12 +36,12 @@ class Robot(object):
 
         self.goal_node = "none"
         self.start_time = rospy.get_rostime()
-        self.toponav_goal = topological_navigation.msg.GotoNodeGoal()
+        self.toponav_goal = GotoNodeGoal()
         self.toponav_result = None
         self.toponav_status = None
         self.toponav_route = None
 
-        self.execpolicy_goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
+        self.execpolicy_goal = ExecutePolicyModeGoal()
         self.execpolicy_result = None
         self.execpolicy_status = None
         self.execpolicy_current_wp = None
@@ -47,28 +49,28 @@ class Robot(object):
         self.topo_map = None
         self.rec_topo_map = False
         self.route_search = None
-        self.route_publisher = rospy.Publisher("%s/current_route" %(self.robot_id), nav_msgs.msg.Path, latch=True, queue_size=5)
+        self.route_publisher = rospy.Publisher("%s/current_route" %(self.robot_id), Path, latch=True, queue_size=5)
 
-        rospy.Subscriber("/topological_map_2", std_msgs.msg.String, self._map_cb)
+        rospy.Subscriber("/topological_map_2", String, self._map_cb)
         logmsg(category="rob_py", id=self.robot_id, msg='waiting for Topological map 2...')
+
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
         logmsg(category="rob_py", id=self.robot_id, msg='received Topological map 2')
 
-        self.route_search = topological_navigation.route_search2.TopologicalRouteSearch2(self.topo_map)
-        self.route_publisher = rospy.Publisher("%s/current_route" %(self.robot_id), nav_msgs.msg.Path, latch=True, queue_size=5)
+        self.route_search = TopologicalRouteSearch(self.topo_map)
+        self.route_publisher = rospy.Publisher("%s/current_route" %(self.robot_id), Path, latch=True, queue_size=5)
         self.publish_route()
 
-        self.topo_route_sub = rospy.Subscriber("/%s/topological_navigation/Route" %(self.robot_id),
-                                               strands_navigation_msgs.msg.TopologicalRoute,
+        self.topo_route_sub = rospy.Subscriber("/%s/topological_navigation/Route" %(self.robot_id), TopologicalRoute,
                                                self.topo_route_cb,
                                                queue_size=5)
 
         # topological navigation action client
-        self._topo_nav = actionlib.SimpleActionClient(self.ns + "topological_navigation", topological_navigation.msg.GotoNodeAction)
+        self._topo_nav = actionlib.SimpleActionClient(self.ns + "topological_navigation", GotoNodeAction)
 
         # execute policy action client
-        self._exec_policy = actionlib.SimpleActionClient(self.ns + "topological_navigation/execute_policy_mode", strands_navigation_msgs.msg.ExecutePolicyModeAction)
+        self._exec_policy = actionlib.SimpleActionClient(self.ns + "topological_navigation/execute_policy_mode", ExecutePolicyModeAction)
 
     def _map_cb(self, msg):
         """This function receives the Topological Map
@@ -77,7 +79,7 @@ class Robot(object):
         self.rec_topo_map = True
         if not self.route_search:
             logmsg(category="rob_py", id=self.robot_id, msg='received Topological map')
-            self.route_search = topological_navigation.route_search.TopologicalRouteSearch(self.topo_map)
+            self.route_search = TopologicalRouteSearch(self.topo_map)
             self.publish_route()
 
     def topo_route_cb(self, msg):
@@ -97,7 +99,7 @@ class Robot(object):
         Keyword arguments:
 
         node -- name of the node in topological map"""
-        return topological_navigation.tmap_utils.get_node_from_tmap2(self.topo_map, node)
+        return GetTopoMapNode(self.topo_map, node)
 
     def get_path(self, start_node, goal_node):
         """get route_nodes and route_edges from start_node to goal_node
@@ -114,7 +116,7 @@ class Robot(object):
             return([], [], [float("inf")])
 
         route = self.route_search.search_route(start_node, goal_node)
-        if route is None:
+        if route in [None, NavRoute()]:
             logmsg(category="rob_py", id=self.robot_id, msg='no route found between %s and %s' %(start_node, goal_node))
             #TODO: Set this up so it doesnt repeat along with with "logwarn(replanning now)" (throttle?)
             return ([], [], [float("inf")])
@@ -139,7 +141,6 @@ class Robot(object):
         self.toponav_route = None
         self.toponav_status = None
         self._topo_nav.send_goal(goal, done_cb=done_cb, active_cb=active_cb, feedback_cb=feedback_cb)
-
 #        self._topo_nav.wait_for_result()
 
     def _fb_toponav_cb(self, fb):
@@ -151,7 +152,7 @@ class Robot(object):
     def _done_toponav_cb(self, status, result):
         """done callback
         """
-        self.toponav_goal = topological_navigation.msg.GotoNodeGoal()
+        self.toponav_goal = GotoNodeGoal()
         self.toponav_status = status
         self.toponav_result = result
         self.publish_route()
@@ -160,7 +161,7 @@ class Robot(object):
         """
         """
         self._topo_nav.cancel_all_goals()
-        self.toponav_goal = topological_navigation.msg.GotoNodeGoal()
+        self.toponav_goal = GotoNodeGoal()
         self.toponav_result = None
         self.toponav_route = None
         self.toponav_status = None
@@ -182,8 +183,13 @@ class Robot(object):
         self.execpolicy_current_wp = None
         self.execpolicy_result = None
         self.execpolicy_status = None
-        self._exec_policy.send_goal(goal, done_cb=done_cb, active_cb=active_cb, feedback_cb=feedback_cb)
-        # self._exec_policy.wait_for_result()
+        if self.execpolicy_goal == ExecutePolicyModeGoal():
+            # sending empty route will cause error in the action server. avoid it by cancelling it
+            logmsg(category="rob_py", msg="Empty route in action server cancelled.")
+            self.cancel_execpolicy_goal()
+        else:
+            self._exec_policy.send_goal(goal, done_cb=done_cb, active_cb=active_cb, feedback_cb=feedback_cb)
+#        self._exec_policy.wait_for_result()
 
     def _fb_execpolicy_cb(self, fb):
         """feedback callback
@@ -198,14 +204,14 @@ class Robot(object):
         logmsg(category='rob_py', id=self.robot_id, msg='_done_execpolicy_cb, route completed: {%s}'%(result))
         self.execpolicy_status = status
         self.execpolicy_result = result
-        self.execpolicy_goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
+        self.execpolicy_goal = ExecutePolicyModeGoal()
         self.publish_route()
 
     def cancel_execpolicy_goal(self, ):
         """
         """
         self._exec_policy.cancel_all_goals()
-        self.execpolicy_goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
+        self.execpolicy_goal = ExecutePolicyModeGoal()
         self.execpolicy_current_wp = None
         self.execpolicy_result = None
         self.execpolicy_status = None
@@ -214,13 +220,13 @@ class Robot(object):
     def publish_route(self, source=[], edge_id=[]):
         """publish route that can be visualised in rviz
         """
-        route = nav_msgs.msg.Path()
+        route = Path()
         route.header.frame_id = "map"
         if source:
             for node in source:
                 # if there is any elements in the route
                 node_obj = self.get_node(node)
-                pose_stamped = geometry_msgs.msg.PoseStamped()
+                pose_stamped = PoseStamped()
                 pose_stamped.header.frame_id = "map"
                 pose_stamped.pose.position.x = node_obj["node"]["pose"]["position"]["x"]
                 pose_stamped.pose.position.y = node_obj["node"]["pose"]["position"]["y"]
@@ -231,7 +237,7 @@ class Robot(object):
             for edge in node_obj["node"]["edges"]:
                 if edge["edge_id"] == edge_id[-1]:
                     node_obj = self.get_node(edge["node"])
-                    pose_stamped = geometry_msgs.msg.PoseStamped()
+                    pose_stamped = PoseStamped()
                     pose_stamped.header.frame_id = "map"
                     pose_stamped.pose.position.x = node_obj["node"]["pose"]["position"]["x"]
                     pose_stamped.pose.position.y = node_obj["node"]["pose"]["position"]["y"]

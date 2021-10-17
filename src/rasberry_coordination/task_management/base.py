@@ -136,6 +136,8 @@ from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 from rasberry_coordination.srv import AgentNodePair
 
+from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
+
 
 class InterfaceDef(object):
 
@@ -509,9 +511,13 @@ class StageDef(object):
             logmsg(category="stage", msg="Localisation achieved %s" % self.agent.location())
     class WaitForMap(StageBase):
         def _start(self):
+            self.agent.navigation['tmap'] = None
+            self.agent.navigation['tmap_node_list'] = None
+            self.agent.navigation['tmap_available'] = {}
+            self.agent.navigation['available_route_search'] = TopologicalRouteSearch({"nodes": {}})
             topic = "/topological_map_2"
             if 'navigation_restrictions' in self.agent.properties:
-                    topic = "/%s/restricted_topological_map_2" % self.agent.agent_id
+                topic = "/%s/restricted_topological_map_2" % self.agent.agent_id
             self.agent.subs['tmap'] = Subscriber(topic, Str, self.agent.map_cb, queue_size=5)
         def _query(self):
             success_conditions = ['tmap' in self.agent.navigation]

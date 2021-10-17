@@ -6,16 +6,16 @@
 # ----------------------------------
 
 import copy
-import operator
 import rospy
 import threading
 import yaml
 
-import std_msgs.msg
-import topological_navigation.route_search2
-import topological_navigation.tmap_utils
 from rasberry_coordination.route_planners.base_planner import BasePlanner
 from rasberry_coordination.coordinator_tools import logmsg
+
+from strands_navigation_msgs.msg import NavRoute
+
+from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
 class FragmentPlanner(BasePlanner):
     def __init__(self, all_agent_details_pointer, heterogeneous_map):
@@ -27,44 +27,52 @@ class FragmentPlanner(BasePlanner):
         super(FragmentPlanner, self).__init__(all_agent_details_pointer, heterogeneous_map)
         self.task_lock = threading.Lock()
 
-    def update_available_topo_map(self, ):
-        """This function updates the available_topological_map, which is topological_map
-        without the edges going into the nodes occupied by the agents. When current node
-        of an agent is none, the closest node of the agent is taken.
+    def update_available_tmap(self, agent):
+        """remove incoming edges to the list of agent nodes in the available_tmap
+        and update the available_route_search object with the new map
+        :param agent_nodes: list of nodes occupied by other agents, list
         """
-        agent_nodes = [agent.location(accurate=True) for agent in self.agent_details.values() if agent.has_presence]
-        topo_map = copy.deepcopy(self.topo_map)
-        for node in topo_map["nodes"]:
+        # Nothing to do if restrictions are not used
+        if 'navigation_restrictions' not in agent.properties: return
+
+        available_tmap = copy.deepcopy(agent.navigation['tmap'])
+
+        for node in available_tmap["nodes"]:
             to_pop = []
             for i in range(len(node["node"]["edges"])):
-                if node["node"]["edges"][i]["node"] in agent_nodes:
+                if node["node"]["edges"][i]["node"] in self.occupied_nodes:
                     to_pop.append(i)
             if to_pop:
                 to_pop.reverse()
                 for j in to_pop:
                     node["node"]["edges"].pop(j)
-        self.available_topo_map = topo_map
 
-    def unblock_node(self, available_topo_map, node_to_unblock):
-        """ unblock a node by adding edges to an occupied node in available_topo_map
+        agent.navigation['tmap_available'] = available_tmap
+        self.load_route_search(agent)
+
+    def unblock_node(self, agent, node_to_unblock):
+        """ unblock a node by adding edges to an occupied node in available_tmap
+        copying from tmap
+        :param node_to_unblock: name of the node to be unblocked, str
         """
-        nodes_to_append=[]
-        edges_to_append=[]
+        nodes_to_append = []
+        edges_to_append = []
 
         """ for each edge in network, if edge connects to a node to unblock, add to list """
-        for node in self.topo_map["nodes"]:
+        for node in agent.navigation['tmap']["nodes"]:
             for edge in node["node"]["edges"]:
                 if edge["node"] == node_to_unblock:
                     nodes_to_append.append(node["node"]["name"])
                     edges_to_append.append(edge)
 
         """ for each node in empty map, if node is to be unblocked, add a extra edge """
-        for node in available_topo_map["nodes"]:
+        for node in agent.navigation['tmap_available']["nodes"]:
             if node["node"]["name"] in nodes_to_append:
                 ind_to_append = nodes_to_append.index(node["node"]["name"])
                 node["node"]["edges"].append(edges_to_append[ind_to_append])
 
-        return available_topo_map
+        # update the route_search object
+        agent.navigation['available_route_search'] = TopologicalRouteSearch(agent.navigation['tmap_available'])
 
     def critical_points(self, ):
         """find points where agent's path cross with those of active robots.
@@ -241,56 +249,45 @@ class FragmentPlanner(BasePlanner):
 
         logmsg(category="route", id="COORDINATOR", msg="Finding routes for Active agents")
         [logmsg(category="route", msg="    - %s:%s"%(a.agent_id, a.goal())) for a in self.agent_details.values()]
-        actives =   [a for a in self.agent_details.values() if a.goal()]
-        inactives = [a for a in self.agent_details.values() if not a.goal()]
+        actives =   [a for a in self.agent_details.values() if a.goal()]  # agents with an active goal (navigation)
+        inactives = [a for a in self.agent_details.values() if not a.goal()]  # agents without an active goal (idle)
         logmsg(category="route", msg="actives --- "+str([a.agent_id for a in actives]))
         logmsg(category="route", msg="inactives - "+str([a.agent_id for a in inactives]))
 
         need_route = [a for a in self.agent_details.values() if a().route_required]
-        logmsg(category="route", msg="requires route:")
+        logmsg(category="route", msg="Agents requiring routes:")
         for a in need_route:
             logmsg(category="route", msg="    - {%s: %s}" % (a.agent_id, a.task_stage_list))
 
         """find unblocked routes for all agents which need one"""
+        self.load_occupied_nodes()
         for agent in actives:
             agent_id = agent.agent_id
             agent().route_found = False
 
             """get start node and goal node"""
-            start_node = agent.location(accurate=False) #?
-            goal_node = agent.goal()
-
+            start_node = agent.location(accurate=False)
+            goal_node  = agent.goal()
             logmsg(category="route", msg="Finding route for %s: %s -> %s" % (agent_id, start_node, goal_node))
 
-            """if current node is goal node, generate empty route""" #task progression is not to be handled here
+            """if current node is goal node, mark agent as inactive"""
             if start_node == goal_node: #should _query should have handled this by this point?
-                # this is a moving robot, so must be in a go_to_task stage (picker, storage or base)
-
-                # reset routes and route_edges
-                # agent.route = [start_node]
-                # agent.route_edges = []
-                # self.get_edge_distances(agent_id)
                 inactives += [agent]
                 continue
 
             """take copy of empty map"""
-            # Each agent has a callback which disconnects their location within the available_topo_map
-            # This next portion of code makes a copy of this disconnected map, then opens up the connections from their
-            # current location, and to their target location.
-            # This is done to prevent robots from routing over one another.
-            avail_topo_map = copy.deepcopy(self.available_topo_map)
-            avail_topo_map = self.unblock_node(avail_topo_map, start_node)
+            self.update_available_tmap(agent)
+            self.unblock_node(agent, start_node)
+            # self.unblock_node(agent, goal_node)  # TODO: is this needed?
+            self.load_route_search(agent)
 
             """generate route from start node to goal node"""
-            avail_route_search = topological_navigation.route_search2.TopologicalRouteSearch2(avail_topo_map)
             route = None
             if start_node and goal_node:
-                route = avail_route_search.search_route(start_node, goal_node)
+                route = self.get_available_optimum_route(agent, start_node, goal_node)
             route_nodes = []
             route_edges = []
 
-
-            # moving to wait_node is a different task stage... should this be handled differently?
             """ If failed to find route, set robot as inactive and mark navigation as failed """
             if route is None:
                 logmsg(level="warn", category="route", id=agent.agent_id, msg="failed to find route, waiting idle")

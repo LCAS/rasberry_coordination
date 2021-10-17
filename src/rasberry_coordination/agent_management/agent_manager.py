@@ -6,16 +6,21 @@
 # ----------------------------------
 
 # from abc import ABCMeta, abstractmethod
+import copy
 from pprint import pprint
 import yaml
+
 from rospy import Subscriber, Publisher, Service, Time
+
 from std_msgs.msg import String as Str
 from std_srvs.srv import Trigger, TriggerResponse
+
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.srv import AddAgent, AgentNodePair
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef, PropertiesDef
 
+from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
 """ Agent Details """
 class AgentManager(object):
@@ -224,10 +229,8 @@ class AgentDetails(object):
 
     """ Localisation """
     def current_node_cb(self, msg):
-        if self.agent_id == "picker01": logmsg(category="agent", msg="Location achieved?")
         self.previous_node = self.current_node if self.current_node else self.previous_node
         self.current_node = None if msg.data == "none" else msg.data
-        if self.cb['update_topo_map']: self.cb['update_topo_map']()
     def closest_node_cb(self, msg):
         self.closest_node = None if msg.data == "none" else msg.data
     def location(self, accurate=False):
@@ -267,13 +270,70 @@ class AgentDetails(object):
 
     """ Navigation """
     def map_cb(self, msg):
+        """topological map callback
+        """
         self.navigation['tmap'] = yaml.safe_load(msg.data)
         self.navigation['tmap_node_list'] = [node["node"]["name"] for node in self.navigation['tmap']['nodes']]
+        self.navigation['tmap_available'] = copy.deepcopy(self.navigation['tmap'])
+        self.navigation['available_route_search'] = TopologicalRouteSearch(self.navigation['tmap_available'])
     def is_node_restricted(self, node_id):
-        print("Node is:::")
-        print(node_id)
+        """checks if a given node is in the robot's restricted tmap2
+        :param node_id: name of the node, str
+        """
         return (node_id in self.navigation['tmap_node_list'])
-
+    # def update_available_tmap(self, agent_nodes=[]):
+    #     """remove incoming edges to the list of agent nodes in the available_tmap
+    #     and update the available_route_search object with the new map
+    #     :param agent_nodes: list of nodes occupied by other agents, list
+    #     """
+    #     # Nothing to do if restrictions are not used
+    #     if 'navigation_restrictions' not in self.agent.properties: return
+    #
+    #     available_tmap = copy.deepcopy(self.navigation['tmap'])
+    #
+    #     for node in available_tmap["nodes"]:
+    #         to_pop = []
+    #         for i in range(len(node["node"]["edges"])):
+    #             if node["node"]["edges"][i]["node"] in agent_nodes:
+    #                 to_pop.append(i)
+    #         if to_pop:
+    #             to_pop.reverse()
+    #             for j in to_pop:
+    #                 node["node"]["edges"].pop(j)
+    #
+    #     self.navigation['tmap_available'] = available_tmap
+    #     self.navigation['available_route_search'] = TopologicalRouteSearch(self.agent.navigation['tmap_available'])
+    # def unblock_node(self, node_to_unblock):
+    #     """ unblock a node by adding edges to an occupied node in available_tmap
+    #     copying from tmap
+    #     :param node_to_unblock: name of the node to be unblocked, str
+    #     """
+    #     nodes_to_append = []
+    #     edges_to_append = []
+    #
+    #     """ for each edge in network, if edge connects to a node to unblock, add to list """
+    #     for node in self.navigation['tmap']["nodes"]:
+    #         for edge in node["node"]["edges"]:
+    #             if edge["node"] == node_to_unblock:
+    #                 nodes_to_append.append(node["node"]["name"])
+    #                 edges_to_append.append(edge)
+    #
+    #     """ for each node in empty map, if node is to be unblocked, add a extra edge """
+    #     for node in self.navigation['tmap_available']["nodes"]:
+    #         if node["node"]["name"] in nodes_to_append:
+    #             ind_to_append = nodes_to_append.index(node["node"]["name"])
+    #             node["node"]["edges"].append(edges_to_append[ind_to_append])
+    #
+    #     # update the route_search object
+    #     self.navigation['available_route_search'] = TopologicalRouteSearch(self.navigation['tmap_available'])
+    # def get_available_optimum_route(self, start_node, goal_node):
+    #     """ find and return a route from start_node to goal_node on the available_tmap
+    #     :param start_node: name of the node from which route should be planned, str
+    #     :param goal_node: name of the node to which route should be planned, str
+    #     :return: route from start_node to goal_node
+    #     """
+    #     route = None or self.navigation['available_route_search'].search_route(start_node, goal_node)
+    #     return route
 
     """ Conveniences """
     def __call__(A, index=0):
