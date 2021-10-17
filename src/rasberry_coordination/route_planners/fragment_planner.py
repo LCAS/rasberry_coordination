@@ -52,29 +52,15 @@ class FragmentPlanner(object):
         if not (hasattr(self, 'robot_manager') and hasattr(self, 'picker_manager')):
             return
 
-        curr_nodes = self.robot_manager.get_list('current_node') + self.picker_manager.get_list('current_node')
-        prev_nodes = self.robot_manager.get_list('previous_node') + self.picker_manager.get_list('previous_node')
-        clos_nodes = self.robot_manager.get_list('closest_node') + self.picker_manager.get_list('closest_node')
+        for picker in self.picker_manager.agent_details.values():
+            picker_node = picker._get_start_node(accuracy)
+            if picker_node not in agent_nodes:
+                agent_nodes.append(picker_node)
 
-
-        if accuracy:
-            """For each agent, if they do not have a current_node, extract previous and then the closest_node"""
-            for i in range(len(curr_nodes)):
-                if curr_nodes[i] is None:
-                    if prev_nodes[i] is None:
-                        curr_nodes[i] = clos_nodes[i]
-                    else:
-                        curr_nodes[i] = prev_nodes[i]
-                if curr_nodes[i] is not None:
-                    agent_nodes.append(curr_nodes[i])
-
-        else:
-            """For each agent, if they do not have a current_node, extract the closest_node"""
-            for i in range(len(curr_nodes)):
-                if curr_nodes[i] is None:
-                    curr_nodes[i] = clos_nodes[i]
-                if curr_nodes[i] is not None:
-                    agent_nodes.append(curr_nodes[i])
+        for robot in self.robot_manager.agent_details.values():
+            robot_node = robot._get_start_node(accuracy)
+            if robot_node not in agent_nodes:
+                agent_nodes.append(robot_node)
 
         return agent_nodes
 
