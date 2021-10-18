@@ -165,7 +165,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """
         """
         resp = rasberry_coordination.srv.AgentIDResponse()
-        if req.agent_id not in self.charging_queue:
+        if ((req.agent_id not in self.charging_queue) and
+            (req.agent_id not in self.robot_manager.charging_robots())):
             # add robot for charging queue
             self.charging_queue.add(req.agent_id)
             # unregister robot - release task
