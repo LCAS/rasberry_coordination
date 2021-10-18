@@ -272,8 +272,7 @@ class RasberryCoordinator(object):
         loc = agent.location()
         dist_list = {a.agent_id:self.dist(loc, a.location()) for a in agent_list.values() if a.registration and a.is_node_restricted(loc)}
 
-        [logmsg(id=a.agent_id, msg="Localisations") for a in agent_list.values()]
-        [logmsg(msg="  - %s(%s|%s|%s)"%(a.agent_id, a.current_node, a.closest_node, a.previous_node)) for a in agent_list.values()]
+        [logmsg(category="action", msg="Localisation: %s(%s|%s|%s)"%(a.agent_id, a.current_node, a.closest_node, a.previous_node)) for a in agent_list.values()]
 
 
         logmsg(category="action", msg="Finding closest in: %s" % dist_list)
@@ -368,7 +367,6 @@ class RasberryCoordinator(object):
         logmsg(category="DTM", msg="    | unregistering agent: %s"%agent_id)
         self.agent_manager[agent_id].registration = False
         self.agent_manager.format_agent_marker(self.agent_manager[agent_id], style='red')
-
     # def delete_agent(self, agent):
     #     logmsg(level="error", category="DRM", id=agent.agent_id,
     #            msg="Agent has been removed from the scope of the coordinator.")
@@ -458,12 +456,13 @@ class RasberryCoordinator(object):
                 logmsg(category="route", id=agent.agent_id, msg='New route generated:\n%s' % policy)
                 logmsg(category="route", msg='Previous route:\n%s' % agent.temp_interface.execpolicy_goal)
 
+            logmsg(category="test", msg="publish route::cancel_execpolicy_goal")
             agent.temp_interface.cancel_execpolicy_goal()
             agent.temp_interface.set_execpolicy_goal(policy)
 
             agent().route_required = False #ReplanTrigger
             logmsg(level='warn', category="route", id=agent.agent_id, msg="route published")
-        agent().route_found = False
+        agent().route_found = False  # ReplanTrigger?
         logmsg(level='warn', category="route", id=agent.agent_id, msg="route publish attempt complete")
         rospy.sleep(1)
     def get_path_details(self, start_node, goal_node):

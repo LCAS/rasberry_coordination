@@ -520,7 +520,7 @@ class StageDef(object):
                 topic = "/%s/restricted_topological_map_2" % self.agent.agent_id
             self.agent.subs['tmap'] = Subscriber(topic, Str, self.agent.map_cb, queue_size=5)
         def _query(self):
-            success_conditions = ['tmap' in self.agent.navigation]
+            success_conditions = [self.agent.navigation['tmap']]
             self._flag(any(success_conditions))
         def _end(self):
             super(StageDef.WaitForMap, self)._end()
@@ -583,7 +583,6 @@ class StageDef(object):
             self._flag(any(success_conditions))
         def _end(self):
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
-            # self.agent.temp_interface.cancel_execpolicy_goal()
             self.agent.cb['trigger_replan']() #ReplanTrigger
     class NavigateToAgent(Navigation):
         def _start(self):
@@ -630,6 +629,7 @@ class StageDef(object):
             self.pause_state = {'Coord':False, 'Task':False, 'Agent':False}
             self.format_agent_marker = format_agent_marker
         def _start(self):
+            logmsg(category="test", msg="pause::cancel_execpolicy_goal")
             if hasattr(self.agent, 'temp_interface'): self.agent.temp_interface.cancel_execpolicy_goal()
             #TODO: set an agent function for generic definition of pausing?
         def _query(self):

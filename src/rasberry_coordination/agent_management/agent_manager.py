@@ -280,7 +280,7 @@ class AgentDetails(object):
         """checks if a given node is in the robot's restricted tmap2
         :param node_id: name of the node, str
         """
-        return (node_id in self.navigation['tmap_node_list'])
+        return ('tmap_node_list' in self.navigation and node_id in self.navigation['tmap_node_list'])
     # def update_available_tmap(self, agent_nodes=[]):
     #     """remove incoming edges to the list of agent nodes in the available_tmap
     #     and update the available_route_search object with the new map

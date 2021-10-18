@@ -55,10 +55,6 @@ class InterfaceDef(object):
         def unpause(self): self.agent.set_interrupt('unpause', 'transportation', self.agent['task_id'])
         def release(self): self.agent.set_interrupt('reset', 'transportation', self.agent['task_id'])
 
-        # def on_cancel(self, task_id, contact_id, force_release=False):
-        #     old_id = super(InterfaceDef.transportation_courier, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
-        #     if old_id == task_id: self.agent.temp_interface.cancel_execpolicy_goal()
-
     class transportation_storage(IDef.AgentInterface):
         def __init__(self, agent, sub='/uar/get_states', pub='/uar/set_states'):
             self.release_triggers = ['self', 'toc']

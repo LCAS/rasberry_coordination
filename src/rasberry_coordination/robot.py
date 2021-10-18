@@ -49,13 +49,10 @@ class Robot(object):
         self.topo_map = None
         self.rec_topo_map = False
         self.route_search = None
-        self.route_publisher = rospy.Publisher("%s/current_route" %(self.robot_id), Path, latch=True, queue_size=5)
 
         rospy.Subscriber("/topological_map_2", String, self._map_cb)
         logmsg(category="rob_py", id=self.robot_id, msg='waiting for Topological map 2...')
-
-        while not self.rec_topo_map:
-            rospy.sleep(rospy.Duration.from_sec(0.1))
+        while not self.rec_topo_map: rospy.sleep(rospy.Duration.from_sec(0.1))
         logmsg(category="rob_py", id=self.robot_id, msg='received Topological map 2')
 
         self.route_search = TopologicalRouteSearch(self.topo_map)
@@ -78,7 +75,6 @@ class Robot(object):
         self.topo_map = yaml.safe_load(msg.data)
         self.rec_topo_map = True
         if not self.route_search:
-            logmsg(category="rob_py", id=self.robot_id, msg='received Topological map')
             self.route_search = TopologicalRouteSearch(self.topo_map)
             self.publish_route()
 
@@ -140,8 +136,9 @@ class Robot(object):
         self.toponav_result = None
         self.toponav_route = None
         self.toponav_status = None
+        logmsg(category="rob_py", msg="Route published: _topo_nav.send_goal")
         self._topo_nav.send_goal(goal, done_cb=done_cb, active_cb=active_cb, feedback_cb=feedback_cb)
-#        self._topo_nav.wait_for_result()
+        # self._topo_nav.wait_for_result()
 
     def _fb_toponav_cb(self, fb):
         """feedback callback
@@ -186,8 +183,10 @@ class Robot(object):
         if self.execpolicy_goal == ExecutePolicyModeGoal():
             # sending empty route will cause error in the action server. avoid it by cancelling it
             logmsg(category="rob_py", msg="Empty route in action server cancelled.")
+            logmsg(category="test", msg="empty route action server::cancel_execpolicy_goal")
             self.cancel_execpolicy_goal()
         else:
+            logmsg(category="rob_py", msg="Route published: _exec_policy.send_goal")
             self._exec_policy.send_goal(goal, done_cb=done_cb, active_cb=active_cb, feedback_cb=feedback_cb)
 #        self._exec_policy.wait_for_result()
 
@@ -208,8 +207,8 @@ class Robot(object):
         self.publish_route()
 
     def cancel_execpolicy_goal(self, ):
-        """
-        """
+        logmsg(category="test", msg="::cancel_execpolicy_goal")
+
         self._exec_policy.cancel_all_goals()
         self.execpolicy_goal = ExecutePolicyModeGoal()
         self.execpolicy_current_wp = None
