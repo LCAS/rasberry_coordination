@@ -149,6 +149,10 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         logmsg(msg='robots initialised: ' + ', '.join(self.robot_manager.agent_details.keys()))
 
+        self.free_charging_nodes = set(["WayPoint72", "WayPoint70"])
+        self.occupied_charging_nodes = set()
+        self.charging_queue = set()
+
         # calling from the child class
         self.advertise_services()
 
@@ -156,6 +160,60 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         self.max_unload_duration = max_unload_duration
 
         logmsg(msg='coordinator initialised')
+
+    def add_to_charging_queue_ros_srv(self, req):
+        """
+        """
+        resp = rasberry_coordination.srv.AgentIDResponse()
+        if req.agent_id not in self.charging_queue:
+            # add robot for charging queue
+            self.charging_queue.add(req.agent_id)
+            # unregister robot - release task
+            self.unregister_robot_release_task_ros_srv(req) # TODO: check the response
+            # set reponse
+            resp.success = 1
+            resp.msg = "%s added to charging queue" %(req.agent_id)
+            rospy.loginfo(resp.msg)
+        else:
+            resp.success = 1
+            resp.msg = "%s is already in the charging queue" %(req.agent_id)
+            rospy.logwarn(resp.msg)
+        return resp
+
+    add_to_charging_queue_ros_srv.type = rasberry_coordination.srv.AgentID
+
+    def finish_charging_ros_srv(self, req):
+        """
+        """
+        resp = rasberry_coordination.srv.AgentIDResponse()
+
+        charging_robots = self.robot_manager.charging_robots()
+
+        if req.agent_id in charging_robots:
+            # make sure the robot has charged enough
+            pass
+            # release the charging_node
+            robot = self.robot_manager.agent_details[req.agent_id]
+            charging_node = robot.charging_node
+            self.occupied_charging_nodes.remove(charging_node)
+            self.free_charging_nodes.add(charging_node)
+            # set robot as not charging
+            robot._set_as_not_charging()
+            # register robot
+            self.register_robot_ros_srv(req) # TODO: check the response
+            # send robot to base
+            self.send_robot_to_base(req.agent_id)
+            # set response
+            resp.success = 1
+            resp.msg = "%s is finished charging and sent to its base" %(req.agent_id)
+            rospy.loginfo(resp.msg)
+        else:
+            resp.success = 0
+            resp.msg = "%s is not finished charging" %(req.agent_id)
+            rospy.logwarn(resp.msg)
+        return resp
+
+    finish_charging_ros_srv.type = rasberry_coordination.srv.AgentID
 
     def tray_loaded_ros_srv(self, req):
         """tray_loaded service
@@ -598,6 +656,19 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                             "closest_node": robot.closest_node,
                             })
 
+    def send_robot_to_charging_node(self, robot_id):
+        """send robot to base. very specific goal.
+        happens after task is finished (unloaded trays) or task failed
+        also in replan if goal = start node and task is go_to_base
+        """
+        logmsg(category="robot", id=robot_id, msg='attempting to send to charging station')
+
+        robot = self.robot_manager[robot_id]
+        if robot._get_start_node(accuracy=True) == robot.charging_node:
+            logmsg(category="robot", id=robot_id, msg='already at charging station')
+            # already at charging station. set as charging
+            robot.robot_interface.cancel_execpolicy_goal()
+
     def find_closest_robot(self, location, priority, task_type):
         """find the robot closest to the task location (picker_node)
         # assign based on priority (0 - virtual pickers only, >=1 real pickers)
@@ -985,7 +1056,11 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """find connecting edges for each fragment in route_fragments and set
         the corresponding route object (with source and edge_id)
         """
-        for robot_id in self.robot_manager.active_list():
+        charging_robots = self.robot_manager.charging_robots()
+        all_moving_robots = set(self.robot_manager.active_list() + charging_robots)
+
+#        for robot_id in self.robot_manager.active_list():
+        for robot_id in all_moving_robots:
             robot = self.robot_manager[robot_id]
             goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
             if robot.route_fragments:
@@ -1048,6 +1123,100 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     if goal.route.edge_id:
                         robot.moving = True
 
+    def handle_charging(self):
+        """
+        """
+        trigger_replan = False
+        # if there is an occupied charging_node, check the battery voltage of the robot
+        # if battery is > a threshold, finish_charging
+        charging_robots = self.robot_manager.charging_robots()
+        if self.occupied_charging_nodes:
+            for robot_id in charging_robots:
+                robot = self.robot_manager.agent_details[robot_id]
+                if not robot.battery_data.battery_data:
+                    continue
+                if robot.battery_data.battery_data[0].battery_voltage > robot.max_voltage:
+                    req = rasberry_coordination.srv.AgentIDRequest()
+                    req.agent_id = robot_id
+                    self.finish_charging_ros_srv(req) # TODO: check response
+                    robot._set_as_not_charging()
+                    trigger_replan = True
+        else:
+            trigger_replan = True
+
+        # if there is a robot in the queue, send it for charging
+        to_remove = [] # track processed robots from the queue
+        if self.charging_queue and self.free_charging_nodes:
+            # max number of possible charging allocations
+            max_robots = min(len(self.charging_queue), len(self.free_charging_nodes))
+            for robot_id in self.charging_queue:
+                to_remove.append(robot_id)
+                robot = self.robot_manager.agent_details[robot_id]
+                charging_node = self.free_charging_nodes.pop()
+                self.occupied_charging_nodes.add(charging_node)
+                # send robot to charging node
+                robot._set_as_charging(charging_node)
+                self.send_robot_to_charging_node(robot_id)
+                trigger_replan = True
+                max_robots -= 1
+                if max_robots == 0: break
+        # remove robots sent to charging from the charging queue
+        for robot_id in to_remove:
+            self.charging_queue.remove(robot_id)
+
+        # if any robot is waiting for a free path, send it to its charging node
+        for robot_id in charging_robots:
+            robot = self.robot_manager[robot_id]
+
+            if robot.moving:
+                # topo nav stage
+                # if any robot has finished its current goal, remove the finished goal from the robot's route
+                if robot.robot_interface.execpolicy_result is None:
+                    # task/fragment not finished
+                    continue
+
+                # check for robots which are moving, not waiting before a critical point
+                if robot.robot_interface.execpolicy_result.success:
+
+                    """ Trigger replan whenever a segment is completed """
+                    trigger_replan = True
+
+                    """ Robot has reached goal_node or wait_node """
+                    if robot._get_start_node() == robot._get_goal_node():
+                        # robot has reached its goal node. Nothing to do
+                        pass
+                    elif robot._get_start_node() == robot.wait_node:
+                        # finished only a fragment. may have to wait for clearance at wait node?
+                        robot._finish_route_fragment()
+                    else:
+                        robot._finish_route_fragment()
+
+                else:
+                    #if robot is idle and hasnt completed its task stage
+                    logmsg(category="robot", id=robot_id, msg='execpolicy_result is not success or None (%s)'%(robot.robot_interface.execpolicy_result))
+                    logmsg(category="robot", id=robot_id, msg='current task stage: %s'%(robot.task_stage))
+
+                    #if robot has failed to complete task
+                    trigger_replan = True
+
+                    # TODO: Not sure what to do here
+                    # asking to go to base is problematic as the action will be completed and robot
+                    # will be at goal node
+                    pass
+#                    self.send_robot_to_base(robot_id)
+
+            else:
+                # robot is waiting before a critical point
+                if self.robot_manager.moving_robots_exist():
+                    # no other moving robots - replan
+                    trigger_replan = True
+                else:
+                    # wait for a moving robot to finish its route fragment
+                    pass
+
+        self.trigger_replan = self.trigger_replan or trigger_replan
+
+
     def run(self, planning_type='fragment_planner'):
         """the main loop of the coordinator
         """
@@ -1083,6 +1252,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
             """ check progress of active robots """
             self.handle_tasks()
+
+            self.handle_charging()
 
             """ replan if needed """
             if self.trigger_replan:

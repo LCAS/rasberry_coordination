@@ -151,6 +151,10 @@ class RobotManager(AgentManager):
         :return: [agent_id] for each robot if registered and idle/interruptable
         """
         return [R.agent_id for R in self.agent_details.values() if (R.idle or R.interruptable) and R.registered]
+    def charging_robots(self):
+        """
+        """
+        return [R.agent_id for R in self.agent_details.values() if R.charging]
 
 """Centralised container for all details pertaining to the robot"""
 class RobotDetails(AgentDetails):
@@ -236,6 +240,19 @@ class RobotDetails(AgentDetails):
         robot.unregistration_type = None
         robot.disconnect_when_idle = False
         robot.paused = False
+
+        """charging"""
+        robot.charging = False
+        robot.charging_node = None
+        robot.min_voltage = 45 # 45v
+        robot.max_voltage = 48 # 48v
+        robot.battery_data = Battery()
+        robot.battery_data_sub = rospy.Subscriber("/%s/battery_data"%(robot.agent_id), Battery, robot._battery_data_cb)
+
+    def _battery_data_cb(robot, msg):
+        """
+        """
+        robot.battery_data = msg
 
     # """On Shutdown"""
     # def _remove(robot): #This shouldnt be required.
@@ -355,6 +372,8 @@ class RobotDetails(AgentDetails):
             return robot.current_storage
         elif robot.task_stage == "go_to_base":
             return robot.base_station
+        elif robot.charging:
+            return robot.charging_node
 
     """State Changes"""
     def _set_as_idle(robot):
@@ -364,6 +383,19 @@ class RobotDetails(AgentDetails):
         robot.idle = True
         robot.moving = robot.active = False
         robot.interruptable = False  # not needed
+    def _set_as_charging(robot, charging_node):
+        """
+        """
+        robot._set_as_idle()
+        robot.charging = True
+        robot.charging_node = charging_node
+        robot.task_stage = None
+    def _set_as_not_charging(robot):
+        """
+        """
+        robot._set_as_idle()
+        robot.charging = False
+        robot.charging_node = None
     def _begin_task(robot, task_id):
         """ Set attributes for when courier task is begun
 
