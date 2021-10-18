@@ -1184,8 +1184,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
                     """ Robot has reached goal_node or wait_node """
                     if robot._get_start_node() == robot._get_goal_node():
-                        # robot has reached its goal node. Nothing to do
-                        pass
+                        # robot has reached its goal node. finish the fragment?
+                        robot._finish_route_fragment()
                     elif robot._get_start_node() == robot.wait_node:
                         # finished only a fragment. may have to wait for clearance at wait node?
                         robot._finish_route_fragment()

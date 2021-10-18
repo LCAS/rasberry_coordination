@@ -318,6 +318,9 @@ class FragmentPlanner(object):
 
                 """get start node and goal node"""
                 start_node = robot._get_start_node(accuracy=True)
+                if start_node is None:
+                    logmsg(category="robot", id=robot_id, msg='not localised. ignoring routing')
+                    continue
                 goal_node = robot._get_goal_node() #TODO: improve this function
 
                 """if current node is goal node, generate empty route and set task as finished"""
@@ -420,6 +423,9 @@ class FragmentPlanner(object):
             elif robot.charging:
                 if robot.current_node is not robot.charging_node:
                     start_node = robot._get_start_node(accuracy=True)
+                    if start_node is None:
+                        logmsg(category="robot", id=robot_id, msg='not localised. ignoring routing')
+                        continue
                     goal_node = robot._get_goal_node() #TODO: improve this function
                     if start_node == goal_node:
                         rospy.loginfo("%s is charging now" %(robot.agent_id))
