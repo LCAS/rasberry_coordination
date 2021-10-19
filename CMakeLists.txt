@@ -82,6 +82,7 @@ add_message_files(
 
 add_service_files(
   FILES
+  AddNodeTask.srv
   AgentID.srv
   AllTasksInfo.srv
   ConnectAgent.srv
