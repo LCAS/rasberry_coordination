@@ -169,7 +169,7 @@ if __name__ == '__main__':
                                                     active_tasks=active_tasks,
                                                     base_station_nodes_pool=base_station_nodes_pool,
                                                     wait_nodes_pool=wait_nodes_pool,
-                                                    charging_nodes=charging_station_nodes,
+                                                    charging_station_nodes=charging_station_nodes,
                                                     robot_types=robot_types,
                                                     robot_tasks=robot_tasks,
                                                     use_restrictions=use_restrictions,
