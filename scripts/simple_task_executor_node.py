@@ -45,6 +45,7 @@ def validate_types(file, config):
     validate_field(file, config, mandatory=True, key='local_storage_nodes', datatype=[list, str])
     validate_field(file, config, mandatory=True, key='use_cold_storage', datatype=[bool])
     validate_field(file, config, mandatory=False, key='cold_storage_node', datatype=[list, str])
+    validate_field(file, config, mandatory=True, key='charging_station_nodes', datatype=[list, str])
     # ^ can swap cold_storage_node mandatory boolean to reference config['use_cold_storage']
 
     # Robot Fields
@@ -107,6 +108,7 @@ if __name__ == '__main__':
         if "cold_storage_node" not in config_data:
             raise Exception("Cold storage node must be given if use_cold_storage is True.")
         cold_storage_node = config_data["cold_storage_node"]
+    charging_station_nodes = config_data["charging_station_nodes"]
 
     # Routing
     planning_type = config_data["planning_type"]
@@ -167,6 +169,7 @@ if __name__ == '__main__':
                                                     active_tasks=active_tasks,
                                                     base_station_nodes_pool=base_station_nodes_pool,
                                                     wait_nodes_pool=wait_nodes_pool,
+                                                    charging_nodes=charging_station_nodes,
                                                     robot_types=robot_types,
                                                     robot_tasks=robot_tasks,
                                                     use_restrictions=use_restrictions,

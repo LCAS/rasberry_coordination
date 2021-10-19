@@ -30,6 +30,7 @@ import rasberry_coordination.robot
 import rasberry_coordination.msg
 import rasberry_coordination.srv
 import rasberry_coordination.coordinator
+import rasberry_coordination.data_collection_manager
 from rasberry_coordination.coordinator_tools import logmsg, remove, add, move
 from rasberry_coordination.route_planners.route_planners import RouteFinder
 
@@ -43,6 +44,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                  max_task_priorities,
                  admissible_robot_ids, active_tasks,
                  base_station_nodes_pool, wait_nodes_pool,
+                 charging_station_nodes,
                  robot_types, robot_tasks, use_restrictions,
                  max_load_duration, max_unload_duration,
                  ns="rasberry_coordination"):
@@ -149,9 +151,13 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         logmsg(msg='robots initialised: ' + ', '.join(self.robot_manager.agent_details.keys()))
 
-        self.free_charging_nodes = set(["WayPoint72", "WayPoint70"])
+#        self.free_charging_nodes = set(["dock-1"])
+        self.free_charging_nodes = set(charging_station_nodes)
         self.occupied_charging_nodes = set()
         self.charging_queue = set()
+
+        # node data collection task manager
+        self.node_dc_task_manager = rasberry_coordination.data_collection_manager.NodeDataCollectionManager()
 
         # calling from the child class
         self.advertise_services()
@@ -902,8 +908,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         rospy.sleep(0.01)
 
-    def handle_tasks(self):
-        """update task execution progress for all robots
+    def handle_transportation_tasks(self):
+        """update task execution progress for all transportation robots
         """
         # trigger replan if there is a new task assignment, a robot waiting completed
         # or task update from a robot
@@ -1124,6 +1130,158 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     if goal.route.edge_id:
                         robot.moving = True
 
+
+#    def handle_node_datacollection_tasks(self):
+#        """update task execution progress for all node datacollection robots
+#        """
+#        # trigger replan if there is a new task assignment, a robot waiting completed
+#        # or task update from a robot
+#        trigger_replan = False
+#
+#        for robot_id in self.robot_manager.active_list():
+#            robot = self.robot_manager[robot_id]
+#            task_id = robot.task_id
+#
+#            if robot.moving:
+#                # topo nav stage
+#                # if any robot has finished its current goal, remove the finished goal from the robot's route
+#                if robot.robot_interface.execpolicy_result is None:
+#                    # task/fragment not finished
+#                    continue
+#
+#                # check for robots which are moving, not waiting before a critical point
+#                if robot.robot_interface.execpolicy_result.success:
+#
+#                    """ Trigger replan whenever a segment is completed """
+#                    trigger_replan = True
+#
+#                    """ Robot has reached goal_node or wait_node """
+#                    if robot._get_start_node() == robot._get_goal_node():
+#
+#                        # identify completed stage
+#                        completed_stage = robot.task_stage
+#
+#                        # set robot to finish stage
+#                        if completed_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
+#                            logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
+#
+#                        # set picker to finish the stage
+#                        if completed_stage == "go_to_picker":
+#                            robot._reached_picker()
+#                            self.publish_task_state(task_id, robot_id, "ARRIVED")
+#
+#                        elif completed_stage == "go_to_storage":
+#                            robot._reached_storage()
+#                            self.publish_task_state(task_id, robot_id, "STORAGE")
+#
+#                        elif completed_stage == "go_to_base":
+#                            robot._end_task()
+#                            logmsg(category="list", msg='idle robots: %s' % (str(self.robot_manager.idle_list())))
+#                            if robot.disconnect_when_idle:
+#                                self.disconnect_robot(robot_id)
+#                    elif robot._get_start_node() == robot.wait_node:
+#                        # finished only a fragment. may have to wait for clearance
+#                        robot._finish_route_fragment()
+#                    else:
+#                        robot._finish_route_fragment()
+#
+#                else:
+#                    #if robot is idle and hasnt completed its task stage
+#                    logmsg(category="robot", id=robot_id, msg='execpolicy_result is not success or None (%s)'%(robot.robot_interface.execpolicy_result))
+#                    logmsg(category="robot", id=robot_id, msg='current task stage: %s'%(robot.task_stage))
+#
+#                    #if robot has failed to complete task
+#                    trigger_replan = True
+#                    if robot.task_stage == "paused":
+#                        logmsg(category="robot", id=robot_id, msg='unpausing task at stage %s'%(robot.task_stage_list[0]))
+#                    else:
+#                        logmsg(category="robot", id=robot_id, msg='failed to complete task %s at stage %s' % (task_id, robot.task_stage))
+#
+#                    # robot has either failed to complete its task, or it has paused its task
+#                    if robot.task_stage == "paused":
+#                        logmsg(category="robot", id=robot_id, msg='task unpaused')
+#                        robot._unpause_task()
+#
+#                    elif robot.task_stage == "go_to_picker":
+#                        # task is good enough to be assigned to another robot
+#                        self.readd_task(task_id)
+#                        self.send_robot_to_base(robot_id)
+#
+#                    elif robot.task_stage == "go_to_base":
+#                        # robot failed exececute_policy_mode goal. retry going to base
+#                        self.send_robot_to_base(robot_id)
+#                        # another option is to leave the robot out there with a request for help. (# TODO)
+#                        # in that case, remove robot from active_robots and don't add to idle_robots.
+#
+#                    else:
+#                        # set the task as failed as it cannot be readded at this stage
+#                        if task_id not in self.cancelled_tasks or task_id not in self.failed_tasks :
+#                            self.set_task_failed(task_id)
+#                            logmsg(msg='set task as failed')
+#                        self.send_robot_to_base(robot_id)
+#
+#            else:
+#
+#                # robot has either failed to complete its task, or it has paused its task
+#                if robot.task_stage == "paused":
+#                    logmsg(category="robot", id=robot_id, msg='task unpaused')
+#                    robot._unpause_task()
+#
+#                # wait_loading or wait_unloading
+#                elif robot.task_stage == "wait_loading":
+#                    """ If conditions are satisfied, finish waiting """
+#                    tray_loaded = False
+#
+#                    """ If wait timeout has expired complete task """  # abandon task?
+#                    if rospy.get_rostime() - robot.start_time > self.max_load_duration:
+#                        tray_loaded = True
+#
+#                    """ Update task completeness of robot """
+#                    picker = self.picker_manager.get_task_handler(robot.task_id)
+#                    if picker and picker.task_stage in ["LOADED"]:
+#                        tray_loaded = True
+#
+#                    """ If the robot has been loaded """
+#                    if tray_loaded:
+#                        logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
+#                        self.publish_task_state(task_id, robot_id, "LOADED")    #update picker
+#                        robot._tray_loaded() #update robot
+#                        trigger_replan = True
+#
+#                        """ Release picker from task """
+#                        if picker:
+#                            picker.task_finished()
+#
+#                elif robot.task_stage == "wait_unloading":
+#                    """ If conditions are satisfied, finish waiting """
+#                    tray_unloaded = True
+#
+#                    """ If wait timeout has expired, complete task """
+#                    if rospy.get_rostime() - robot.start_time > self.max_unload_duration:
+#                        tray_unloaded = False
+#                    # else:  # TODO: should we really be including artificial delay in the coordination?
+#                    #     rospy.sleep(0.5)
+#
+#                    """ If the robot has been unloaded """
+#                    if not tray_unloaded:
+#                        logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
+#                        self.publish_task_state(task_id, robot_id, "DELIVERED")
+#                        robot._tray_unloaded()
+#                        self.inform_toc_task_ended(task_id=task_id, robot_id=robot_id, reason="task_completed")
+#
+#                        trigger_replan = True
+#
+#                else:
+#                    # robot is waiting before a critical point
+#                    if self.robot_manager.moving_robots_exist():
+#                        # no other moving robots - replan
+#                        trigger_replan = True
+#                    else:
+#                        # wait for a moving robot to finish its route fragment
+#                        pass
+#
+#        self.trigger_replan = self.trigger_replan or trigger_replan
+
     def handle_charging(self):
         """
         """
@@ -1251,9 +1409,13 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 rospy.sleep(0.2)
                 self.assign_tasks()
 
-            """ check progress of active robots """
-            self.handle_tasks()
+            """ check progress of transportation tasks"""
+            self.handle_transportation_tasks()
 
+            # check progress of node-datacollection tasks
+#            self.handle_node_datacollection_tasks()
+
+            # check progress of charging robots
             self.handle_charging()
 
             """ replan if needed """

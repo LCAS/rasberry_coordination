@@ -1,0 +1,6 @@
+# The task to be added to the executive system
+string node_id
+---
+bool success
+string message
+string task_id
