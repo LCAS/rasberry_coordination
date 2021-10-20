@@ -119,11 +119,14 @@ class RobotManager(AgentManager):
         :return: [agent_id] for each robot if moving
         """
         return [robot.agent_id for robot in self.agent_details.values() if robot.moving is True]
-    def active_list(self):
+    def active_list(self, task_type=None):
         """ Return list of active and not paused robots
         :return: [agent_id] for each robot if active and not paused
         """
-        return [robot.agent_id for robot in self.agent_details.values() if robot.active and not robot.paused]
+        if task_type:
+            return [robot.agent_id for robot in self.agent_details.values() if robot.active and not robot.paused and robot.can_do(task_type)]
+        else:
+            return [robot.agent_id for robot in self.agent_details.values() if robot.active and not robot.paused]
     def interruptable_list(self):
         """ Return list of interruptable robots
         :return: [agent_id] for each robot if interruptable
@@ -146,11 +149,16 @@ class RobotManager(AgentManager):
             if not robot.idle: #is moving if NOT idle
                 return 1
         return 0
-    def available_robots(self):
+    def available_robots(self, task_type=None):
         """ Return list of registered agents, which are idle or interruptable (all agents able to take on a new task)
         :return: [agent_id] for each robot if registered and idle/interruptable
         """
-        return [R.agent_id for R in self.agent_details.values() if (R.idle or R.interruptable) and R.registered]
+        if task_type:
+            return [R.agent_id for R in self.agent_details.values() if (R.idle or R.interruptable) and R.registered and R.can_do(task_type)]
+        else:
+            return [R.agent_id for R in self.agent_details.values() if (R.idle or R.interruptable) and R.registered]
+
+
     def charging_robots(self):
         """
         """
@@ -211,8 +219,13 @@ class RobotDetails(AgentDetails):
         robot.goal_node = None
         robot.task_stage = None
         robot.task_stage_list = []
-        robot.tray_loaded = False
         robot.start_time = Now()
+
+        # transportation
+        robot.tray_loaded = False
+
+        # node data collection
+        robot.node_dc_completed = False
 
         """Task Meta Details"""
         robot.max_task_priority = 255
@@ -248,6 +261,25 @@ class RobotDetails(AgentDetails):
         robot.max_voltage = 48 # 48v
         robot.battery_data = Battery()
         robot.battery_data_sub = rospy.Subscriber("/%s/battery_data"%(robot.agent_id), Battery, robot._battery_data_cb)
+
+        robot.type_pub = rospy.Publisher("/%s/type"%(robot.agent_id), Str, latch=True, queue_size=5)
+        robot.task_pub = rospy.Publisher("/%s/task"%(robot.agent_id), Str, latch=True, queue_size=5)
+
+    def set_robot_type(robot, robot_type):
+        """
+        """
+        robot.type = robot_type
+        robot.type_pub.publish(robot.type)
+
+    def set_robot_task_types(robot, task_types):
+        """
+        """
+        robot.task_types = task_types
+        if robot.task_types is None:
+            pass
+        elif robot.task_types.__class__ is list:
+            if len(robot.task_types) != 0:
+                robot.task_pub.publish(robot.task_types[0]["module"])
 
     def _battery_data_cb(robot, msg):
         """
@@ -372,6 +404,8 @@ class RobotDetails(AgentDetails):
             return robot.current_storage
         elif robot.task_stage == "go_to_base":
             return robot.base_station
+        elif robot.task_stage == "go_to_dc_node":
+            return robot.goal_node
         elif robot.charging:
             return robot.charging_node
 
@@ -396,7 +430,8 @@ class RobotDetails(AgentDetails):
         robot._set_as_idle()
         robot.charging = False
         robot.charging_node = None
-    def _begin_task(robot, task_id):
+
+    def _begin_transportation_task(robot, task_id):
         """ Set attributes for when courier task is begun
 
         :param task_id: task_id created by picker on task definition
@@ -404,7 +439,7 @@ class RobotDetails(AgentDetails):
         """
         if robot.interruptable:
             robot.robot_interface.cancel_execpolicy_goal()
-            robot._finish_task_stage("")
+            robot._finish_transportation_task_stage("")
         robot.task_id = task_id
         robot.task_stage_list = ["go_to_picker", "wait_loading", "go_to_storage",
                                  "wait_unloading", "go_to_base", None]
@@ -412,17 +447,19 @@ class RobotDetails(AgentDetails):
         robot.active = True
         robot.interruptable = False
         #print("_init_task: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
-        robot._finish_task_stage(robot.task_stage_list.pop(0))
+        robot._finish_transportation_task_stage(robot.task_stage_list.pop(0))
         #print("_begin_task: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+
     def _reached_picker(robot):
         """ Set attributes for when courier reaches picker
 
         :return: None
         """
         robot.robot_interface.cancel_execpolicy_goal()
-        #robot._finish_task_stage("go_to_picker")
-        robot._finish_task_stage(robot.task_stage_list.pop(0))
+        #robot._finish_transportation_task_stage("go_to_picker")
+        robot._finish_transportation_task_stage(robot.task_stage_list.pop(0))
         #print("_reached_picker: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+
     def _tray_loaded(robot):
         """ Set attributes for when conditions are met for tray to be defined as loaded
         (timeout or notification from picker)
@@ -430,18 +467,20 @@ class RobotDetails(AgentDetails):
         :return: None
         """
         robot.tray_loaded = True
-        #robot._finish_task_stage("wait_loading")
-        robot._finish_task_stage(robot.task_stage_list.pop(0))
+        #robot._finish_transportation_task_stage("wait_loading")
+        robot._finish_transportation_task_stage(robot.task_stage_list.pop(0))
         #print("_tray_loaded: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+
     def _reached_storage(robot):
         """ Set attributes for when robot has reached the storage
 
         :return: None
         """
         robot.robot_interface.cancel_execpolicy_goal()
-        #robot._finish_task_stage("go_to_storage")
-        robot._finish_task_stage(robot.task_stage_list.pop(0))
+        #robot._finish_transportation_task_stage("go_to_storage")
+        robot._finish_transportation_task_stage(robot.task_stage_list.pop(0))
         #print("_reached_storage: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+
     def _tray_unloaded(robot):
         """ Set attributes for when conditions are met for tray to be defined as unloaded
         (timeout or notification from storage)
@@ -453,9 +492,10 @@ class RobotDetails(AgentDetails):
         robot.interruptable = True
         robot.moving = False
         robot.current_storage = None
-        #robot._finish_task_stage("wait_unloading")
-        robot._finish_task_stage(robot.task_stage_list.pop(0))
+        #robot._finish_transportation_task_stage("wait_unloading")
+        robot._finish_transportation_task_stage(robot.task_stage_list.pop(0))
         #print("_tray_unloaded: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+
     def _set_target_base(robot):
         """ Set attributes for when robot has reached the base_station
 
@@ -465,6 +505,51 @@ class RobotDetails(AgentDetails):
         robot.active = True
         robot.interruptable = True
         robot._change_task_stage("go_to_base")
+
+    def _begin_node_dc_task(robot, task_id):
+        """ Set attributes for when node data collection task is begun
+
+        :param task_id: task_id created by picker on task definition
+        :return: None
+        """
+        if robot.interruptable:
+            robot.robot_interface.cancel_execpolicy_goal()
+            robot._finish_node_dc_task_stage("")
+        robot.task_id = task_id
+        robot.task_stage_list = ["go_to_dc_node", "wait_at_dc_node", "go_to_base", None]
+        robot.node_dc_completed = False
+        robot.idle = False
+        robot.active = True
+        robot.interruptable = False
+        #print("_init_task: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+        robot._finish_node_dc_task_stage(robot.task_stage_list.pop(0))
+        #print("_begin_task: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+
+    def _reached_dc_node(robot):
+        """ Set attributes for when robot reaches the datacollection node
+
+        :return: None
+        """
+        robot.robot_interface.cancel_execpolicy_goal()
+        #robot._finish_node_dc_task_stage("go_to_dc_node")
+        robot._finish_node_dc_task_stage(robot.task_stage_list.pop(0))
+        #print("_reached_picker: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+
+    def _node_dc_finished(robot):
+        """ Set attributes for when conditions are met for data collection to be finished
+        (timeout or notification from storage)
+
+        :return: None
+        """
+        robot.task_id = None
+        robot.node_dc_completed = True
+        robot.interruptable = True
+        robot.moving = False
+        robot.current_storage = None
+        #robot._finish_node_dc_task_stage("wait_at_dc_node")
+        robot._finish_node_dc_task_stage(robot.task_stage_list.pop(0))
+        #print("_tray_unloaded: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+
     def _end_task(robot):
         """ Set attributes for when robot has reached the end of its task
 
@@ -486,7 +571,8 @@ class RobotDetails(AgentDetails):
         robot.route = []
         robot.route_fragments = []
         robot.robot_interface.execpolicy_result = None
-    def _finish_task_stage(robot, stage):
+
+    def _finish_transportation_task_stage(robot, stage):
         """ Set attributes for when robot has reached the end of a task stage or sub-route fragment.
         If the task stage is a navigation stage, mark froute reagment as complete. Then start the next task stage.
 
@@ -498,6 +584,20 @@ class RobotDetails(AgentDetails):
         robot.start_time = Now()
         if len(robot.task_stage_list):
             robot._change_task_stage(stage)
+
+    def _finish_node_dc_task_stage(robot, stage):
+        """ Set attributes for when robot has reached the end of a task stage or sub-route fragment.
+        If the task stage is a navigation stage, mark froute reagment as complete. Then start the next task stage.
+
+        :return: None
+        """
+
+        if robot.task_stage in ["go_to_dc_node", "go_to_base"]:
+            robot._finish_route_fragment()
+        robot.start_time = Now()
+        if len(robot.task_stage_list):
+            robot._change_task_stage(stage)
+
     def _change_task_stage(robot, stage):
         """ Set the given task stage as the current stage
 
@@ -540,8 +640,12 @@ class RobotDetails(AgentDetails):
 
         :return: None
         """
-        robot._finish_task_stage(robot.task_stage_list.pop(0))
+        if robot.can_do("transportation"):
+            robot._finish_transportation_task_stage(robot.task_stage_list.pop(0))
+        elif robot.can_do("datacollection"):
+            robot._finish_node_dc_task_stage(robot.task_stage_list.pop(0))
         #print("_unpause_task: [" + str(robot.task_stage) + "] | "+str(robot.task_stage_list))
+
     def _drm_release_task(robot):
         """ Release task as part of unregistration
         > set unregistration_type as "release_task" for use in registration
@@ -551,6 +655,7 @@ class RobotDetails(AgentDetails):
         """
         robot.unregistration_type = "release_task"
         robot._release_task()
+
     def _release_task(robot):
         """ Release task as pat of task cancellation
         > remove navigation execpolicy

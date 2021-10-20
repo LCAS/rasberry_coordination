@@ -137,8 +137,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             robot.base_station = base_stations[robot.robot_id]
             robot.wait_node = wait_nodes[robot.robot_id]
             robot.max_task_priority = max_task_priorities[robot.robot_id]
-            robot.type = robot_types[robot.robot_id]
-            robot.task_types = robot_tasks[robot.robot_id]
+            robot.set_robot_type(robot_types[robot.robot_id])
+            robot.set_robot_task_types(robot_tasks[robot.robot_id])
 
         self.robot_types = robot_types
         self.robot_task_types = robot_tasks
@@ -164,6 +164,9 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         self.max_load_duration = max_load_duration
         self.max_unload_duration = max_unload_duration
+
+        # TODO: This should be updated
+        self.max_node_dc_duration = 5
 
         logmsg(msg='coordinator initialised')
 
@@ -364,8 +367,8 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         robot.base_station = remove(self.available_base_stations, self.available_base_stations[-1])
         robot.wait_node = remove(self.available_wait_nodes, self.available_wait_nodes[-1])
 
-        robot.task_type = self.robot_task_types[robot_id]
-        robot.type = self.robot_types[robot_id]
+        robot.set_robot_task_type(self.robot_task_types[robot_id])
+        robot.set_robot_type(self.robot_types[robot_id])
 
         logmsg(category="drm", id=robot_id, msg='assigned to base station %s' % (robot.base_station))
         logmsg(category="drm", msg='base stations in use: %s' % (str(self.robot_manager.get_list('base_station'))))
@@ -737,69 +740,133 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         """assign tasks to idle robots
         """
 
-        locked = self.task_lock.acquire(False)
+        """ if there are unassigned tasks and there robots able to take them on """
+        available_transportation_robots = self.robot_manager.available_robots("transportation")
+        unassigned_transportation_tasks = self.picker_manager.unassigned_tasks()
+        if available_transportation_robots and unassigned_transportation_tasks:
+            logmsg(category="task", msg='unassigned task present, %s robots available' % (len(available_transportation_robots)))
+            logmsg(category="list", msg='available robots: %s' % (str(available_transportation_robots)))
+            # try to assign all tasks
+            rospy.sleep(0.2)
+            self.assign_transportation_tasks()
 
-        if locked:
-            # assign transportation tasks
-            trigger_replan = self.assign_transportation_tasks()
-            # update trigger_replan after each type of task assignment
-            self.trigger_replan = self.trigger_replan or trigger_replan
-
-            self.task_lock.release()
+        """ if there are unassigned tasks and there robots able to take them on """
+        available_datacollection_robots = self.robot_manager.available_robots("datacollection")
+        unassigned_datacollection_tasks = self.node_dc_task_manager.get_unassigned_tasks()
+        if available_datacollection_robots and unassigned_datacollection_tasks:
+            logmsg(category="task", msg='unassigned task present, %s robots available' % (len(available_datacollection_robots)))
+            logmsg(category="list", msg='available robots: %s' % (str(available_datacollection_robots)))
+            # try to assign all tasks
+            rospy.sleep(0.2)
+            self.assign_node_data_collection_tasks()
 
     def assign_transportation_tasks(self, ):
         """assign transporation tasks to idle robots
         high priority tasks are assigned first
         among equal priority tasks, low task_id is assigned first
         """
+        locked = self.task_lock.acquire(False)
 
-        trigger_replan = False
+        if locked:
+            trigger_replan = False
 
-        """ get list of unassigned tasks """
-        tasks = self.picker_manager.get_unassigned_tasks_ordered()
-        if tasks:
-            logmsg(category="task", msg='Tasks to Assign:')
-            [logmsg(category="task", msg='    - %s' % task) for task in tasks]
-        else:
-            logmsg(level='warn', category="task", msg='No tasks found but called to assign_tasks')
+            """ get list of unassigned tasks """
+            tasks = self.picker_manager.get_unassigned_tasks_ordered()
+            if tasks:
+                logmsg(category="task", msg='Tasks to Assign:')
+                [logmsg(category="task", msg='    - %s' % task) for task in tasks]
+            else:
+                logmsg(level='warn', category="task", msg='No tasks found but called to assign_transportation_tasks')
 
-        """ for each task, assign the most effective robot """
-        for task_id in tasks:
-            picker = self.picker_manager.get_task_handler(task_id)
+            """ for each task, assign the most effective robot """
+            for task_id in tasks:
+                picker = self.picker_manager.get_task_handler(task_id)
 
-            """ identify most promising robot """
-            robot_id = self.find_closest_robot(picker.task_location, picker.task_priority, picker.task_type) #swap out to use picker.location
-            if robot_id is None:
-                continue
-            robot = self.robot_manager[robot_id]
+                """ identify most promising robot """
+                robot_id = self.find_closest_robot(picker.task_location, picker.task_priority, picker.task_type) #swap out to use picker.location
+                if robot_id is None:
+                    continue
+                robot = self.robot_manager[robot_id]
 
-            logmsg(category="robot", id=robot_id, msg='assigned task %s'%(task_id))
-            logmsg(category="list", msg='interruptable robots: %s'%(str(self.robot_manager.interruptable_list())))
-            logmsg(category="list", msg='idle robots: %s'%(str(self.robot_manager.idle_list())))
+                logmsg(category="robot", id=robot_id, msg='assigned task %s'%(task_id))
+                logmsg(category="list", msg='interruptable robots: %s'%(str(self.robot_manager.interruptable_list())))
+                logmsg(category="list", msg='idle robots: %s'%(str(self.robot_manager.idle_list())))
 
-            """ enable planing for task """
-            trigger_replan = True
+                """ enable planing for task """
+                trigger_replan = True
 
-            """ prepare robot to take task """
-            robot._begin_task(task_id)
+                """ prepare robot to take task """
+                robot._begin_transportation_task(task_id)
 
-            # self.processing_tasks[task_id] = picker.task_backup
-            robot.goal_node = picker.task_location
+                # self.processing_tasks[task_id] = picker.task_backup
+                robot.goal_node = picker.task_location
 
-            self.update_current_storage(robot_id)
+                self.update_current_storage(robot_id)
 
-            self.publish_task_state(task_id, robot_id, "ACCEPT")
+                self.publish_task_state(task_id, robot_id, "ACCEPT")
 
-            self.write_log({"action_type": "robot_update",
-                            "robot_task_stage": "go_to_picker_start",
-                            "task_id": task_id,
-                            "robot_id": robot_id,
-                            "details": "to %s" %(picker.task_location),
-                            "current_node": robot.current_node,
-                            "closest_node": robot.closest_node,
-                            })
+                self.write_log({"action_type": "robot_update",
+                                "robot_task_stage": "go_to_picker_start",
+                                "task_id": task_id,
+                                "robot_id": robot_id,
+                                "details": "to %s" %(picker.task_location),
+                                "current_node": robot.current_node,
+                                "closest_node": robot.closest_node,
+                                })
 
-        return trigger_replan
+                # update trigger_replan after each type of task assignment
+                self.trigger_replan = self.trigger_replan or trigger_replan
+
+            self.task_lock.release()
+
+    def assign_node_data_collection_tasks(self, ):
+        """assign node data collection tasks to idle robots
+        high priority tasks are assigned first
+        among equal priority tasks, low task_id is assigned first
+        """
+        locked = self.task_lock.acquire(False)
+
+        if locked:
+            trigger_replan = False
+
+            """ get list of unassigned tasks """
+            tasks = self.node_dc_task_manager.get_unassigned_tasks()
+            if tasks:
+                logmsg(category="task", msg='Tasks to Assign:')
+                [logmsg(category="task", msg='    - %s' % task) for task in tasks]
+            else:
+                logmsg(level='warn', category="task", msg='No tasks found but called to assign_node_data_collection_tasks')
+
+            """ for each task, assign the most effective robot """
+            for task_id in tasks:
+
+                """ identify most promising robot """
+                robot_id = self.find_closest_robot(self.node_dc_task_manager.task_nodes[task_id],
+                                                   self.node_dc_task_manager.task_priority[task_id],
+                                                   self.node_dc_task_manager.task_type[task_id]) #swap out to use picker.location
+                if robot_id is None:
+                    continue
+                robot = self.robot_manager[robot_id]
+
+                logmsg(category="robot", id=robot_id, msg='assigned task %s'%(task_id))
+                logmsg(category="list", msg='interruptable robots: %s'%(str(self.robot_manager.interruptable_list())))
+                logmsg(category="list", msg='idle robots: %s'%(str(self.robot_manager.idle_list())))
+
+                """ enable planing for task """
+                trigger_replan = True
+
+                """ prepare robot to take task """
+                robot._begin_node_dc_task(task_id)
+
+                # self.processing_tasks[task_id] = picker.task_backup
+                robot.goal_node = self.node_dc_task_manager.task_nodes[task_id]
+
+                self.node_dc_task_manager.assign_robot(task_id, robot_id)
+
+                # update trigger_replan after each type of task assignment
+                self.trigger_replan = self.trigger_replan or trigger_replan
+
+            self.task_lock.release()
 
     def update_current_storage(self, robot_id):
         """set the current_storage node of the robot. If the robot is idle,
@@ -882,7 +949,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                         "robot_id": robot_id,
                         })
 
-    def readd_task(self, task_id):
+    def readd_transportation_task(self, task_id):
         """if robot assigned to a task fails before reaching the picker, the task can be
         reassigned. so readd into the task queue.
         """
@@ -908,6 +975,17 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         rospy.sleep(0.01)
 
+    def readd_node_data_collection_task(self, task_id):
+        """if robot assigned to a task fails before reaching the data collection node, the task can be
+        reassigned. so readd into the task queue.
+        """
+
+        """ Identify handlers for task """
+        robot = self.robot_manager.get_task_handler(task_id)
+
+        """ Readd task back to queue if not cancelled """
+        pass
+
     def handle_transportation_tasks(self):
         """update task execution progress for all transportation robots
         """
@@ -915,7 +993,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         # or task update from a robot
         trigger_replan = False
 
-        for robot_id in self.robot_manager.active_list():
+        for robot_id in self.robot_manager.active_list("transportation"):
             robot = self.robot_manager[robot_id]
             task_id = robot.task_id
 
@@ -981,7 +1059,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
                     elif robot.task_stage == "go_to_picker":
                         # task is good enough to be assigned to another robot
-                        self.readd_task(task_id)
+                        self.readd_transportation_task(task_id)
                         self.send_robot_to_base(robot_id)
 
                     elif robot.task_stage == "go_to_base":
@@ -1059,228 +1137,135 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         self.trigger_replan = self.trigger_replan or trigger_replan
 
-    def set_execute_policy_routes(self, ):
-        """find connecting edges for each fragment in route_fragments and set
-        the corresponding route object (with source and edge_id)
+    def handle_node_data_collection_tasks(self):
+        """update task execution progress for all node data collection robots
         """
-        charging_robots = self.robot_manager.charging_robots()
-        all_moving_robots = set(self.robot_manager.active_list() + charging_robots)
+        # trigger replan if there is a new task assignment, a robot waiting completed
+        # or task update from a robot
+        trigger_replan = False
 
-#        for robot_id in self.robot_manager.active_list():
-        for robot_id in all_moving_robots:
+        for robot_id in self.robot_manager.active_list("datacollection"):
             robot = self.robot_manager[robot_id]
-            goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
-            if robot.route_fragments:
-                goal.route.source = robot.route_fragments[0]
-                goal.route.edge_id = robot.route_edges[0]
+            task_id = robot.task_id
 
-            if goal != robot.robot_interface.execpolicy_goal:
-                same_route = True
+            if robot.moving:
+                # topo nav stage
+                # if any robot has finished its current goal, remove the finished goal from the robot's route
+                if robot.robot_interface.execpolicy_result is None:
+                    print "here"
+                    # task/fragment not finished
+                    continue
 
-                if goal.route.source and robot.robot_interface.execpolicy_goal.route.source:
-                    # if there is at least one source node
-                    if goal.route.edge_id[-1] != robot.robot_interface.execpolicy_goal.route.edge_id[-1]:
-                        # goal edge_ids are different
-                        same_route = False
+                # check for robots which are moving, not waiting before a critical point
+                if robot.robot_interface.execpolicy_result.success:
+
+                    """ Trigger replan whenever a segment is completed """
+                    trigger_replan = True
+
+                    """ Robot has reached goal_node or wait_node """
+                    if robot._get_start_node() == robot._get_goal_node():
+
+                        # identify completed stage
+                        completed_stage = robot.task_stage
+
+                        # set robot to finish stage
+                        if completed_stage in ["go_to_dc_node", "go_to_base"]:
+                            logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
+
+                        # set picker to finish the stage
+                        if completed_stage == "go_to_dc_node":
+                            robot._reached_dc_node()
+
+                        elif completed_stage == "go_to_base":
+                            robot._end_task()
+                            logmsg(category="list", msg='idle robots: %s' % (str(self.robot_manager.idle_list())))
+                            if robot.disconnect_when_idle:
+                                self.disconnect_robot(robot_id)
+
+                    elif robot._get_start_node() == robot.wait_node:
+                        # finished only a fragment. may have to wait for clearance
+                        robot._finish_route_fragment()
+
                     else:
-                        # loop from new start source node to end source node
-                        new_start_node = goal.route.source[0]
+                        robot._finish_route_fragment()
 
-                        # look for new_start_node in previous goal
-                        idx = 0
-                        change_idx = False
-                        for i in range(len(robot.robot_interface.execpolicy_goal.route.source)):
-                            if new_start_node == robot.robot_interface.execpolicy_goal.route.source[i]:
-                                # found current start source node in previous source nodes
-                                if len(robot.robot_interface.execpolicy_goal.route.source) - i != len(goal.route.source):
-                                    # remaining nodes in the routes are different => different route
-                                    same_route = False
-                                    break
-                                change_idx = True # enable comparing source nodes here onwards
-
-                            if change_idx:
-                                if goal.route.source[idx] != robot.robot_interface.execpolicy_goal.route.source[i]:
-                                    # different node => different route
-                                    same_route = False
-                                    break
-                                else:
-                                    # check next node
-                                    idx += 1
                 else:
-                    # either new or old source nodes are empty
-                    same_route = False
+                    #if robot is idle and hasnt completed its task stage
+                    logmsg(category="robot", id=robot_id, msg='execpolicy_result is not success or None (%s)'%(robot.robot_interface.execpolicy_result))
+                    logmsg(category="robot", id=robot_id, msg='current task stage: %s'%(robot.task_stage))
 
-                if not same_route:
-                    # publish new route only if different
-                    if self.log_routes:
-                        logmsg(category="robot", id=robot_id, msg='new route %s, previous route was %s' % (goal, robot.robot_interface.execpolicy_goal))
+                    #if robot has failed to complete task
+                    trigger_replan = True
+                    if robot.task_stage == "paused":
+                        logmsg(category="robot", id=robot_id, msg='unpausing task at stage %s'%(robot.task_stage_list[0]))
+                    else:
+                        logmsg(category="robot", id=robot_id, msg='failed to complete task %s at stage %s' % (task_id, robot.task_stage))
 
-                    self.write_log({"action_type": "robot_update",
-                            "details": "new_route",
-                            "source": str(goal.route.source),
-                            "edge_ids": str(goal.route.edge_id),
-                            "robot_id": robot_id,
-                            "current_node": robot.current_node,
-                            "closest_node": robot.closest_node,
-                            })
+                    # robot has either failed to complete its task, or it has paused its task
+                    if robot.task_stage == "paused":
+                        logmsg(category="robot", id=robot_id, msg='task unpaused')
+                        robot._unpause_task()
 
-                    robot.robot_interface.set_execpolicy_goal(goal)
+                    elif robot.task_stage == "go_to_dc_node":
+                        # task is good enough to be assigned to another robot
+                        self.readd_node_data_collection_task(task_id)
+                        self.send_robot_to_base(robot_id)
 
-                    """ if a route exists, mark robot as moving"""
-                    if goal.route.edge_id:
-                        robot.moving = True
+                    elif robot.task_stage == "go_to_base":
+                        # robot failed exececute_policy_mode goal. retry going to base
+                        self.send_robot_to_base(robot_id)
+                        # another option is to leave the robot out there with a request for help. (# TODO)
+                        # in that case, remove robot from active_robots and don't add to idle_robots.
 
+                    else:
+                        # set the task as failed as it cannot be readded at this stage
+                        if task_id not in self.cancelled_tasks or task_id not in self.failed_tasks :
+                            self.set_task_failed(task_id)
+                            logmsg(msg='set task as failed')
+                        self.send_robot_to_base(robot_id)
 
-#    def handle_node_datacollection_tasks(self):
-#        """update task execution progress for all node datacollection robots
-#        """
-#        # trigger replan if there is a new task assignment, a robot waiting completed
-#        # or task update from a robot
-#        trigger_replan = False
-#
-#        for robot_id in self.robot_manager.active_list():
-#            robot = self.robot_manager[robot_id]
-#            task_id = robot.task_id
-#
-#            if robot.moving:
-#                # topo nav stage
-#                # if any robot has finished its current goal, remove the finished goal from the robot's route
-#                if robot.robot_interface.execpolicy_result is None:
-#                    # task/fragment not finished
-#                    continue
-#
-#                # check for robots which are moving, not waiting before a critical point
-#                if robot.robot_interface.execpolicy_result.success:
-#
-#                    """ Trigger replan whenever a segment is completed """
-#                    trigger_replan = True
-#
-#                    """ Robot has reached goal_node or wait_node """
-#                    if robot._get_start_node() == robot._get_goal_node():
-#
-#                        # identify completed stage
-#                        completed_stage = robot.task_stage
-#
-#                        # set robot to finish stage
-#                        if completed_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
-#                            logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
-#
-#                        # set picker to finish the stage
-#                        if completed_stage == "go_to_picker":
-#                            robot._reached_picker()
-#                            self.publish_task_state(task_id, robot_id, "ARRIVED")
-#
-#                        elif completed_stage == "go_to_storage":
-#                            robot._reached_storage()
-#                            self.publish_task_state(task_id, robot_id, "STORAGE")
-#
-#                        elif completed_stage == "go_to_base":
-#                            robot._end_task()
-#                            logmsg(category="list", msg='idle robots: %s' % (str(self.robot_manager.idle_list())))
-#                            if robot.disconnect_when_idle:
-#                                self.disconnect_robot(robot_id)
-#                    elif robot._get_start_node() == robot.wait_node:
-#                        # finished only a fragment. may have to wait for clearance
-#                        robot._finish_route_fragment()
-#                    else:
-#                        robot._finish_route_fragment()
-#
-#                else:
-#                    #if robot is idle and hasnt completed its task stage
-#                    logmsg(category="robot", id=robot_id, msg='execpolicy_result is not success or None (%s)'%(robot.robot_interface.execpolicy_result))
-#                    logmsg(category="robot", id=robot_id, msg='current task stage: %s'%(robot.task_stage))
-#
-#                    #if robot has failed to complete task
-#                    trigger_replan = True
-#                    if robot.task_stage == "paused":
-#                        logmsg(category="robot", id=robot_id, msg='unpausing task at stage %s'%(robot.task_stage_list[0]))
-#                    else:
-#                        logmsg(category="robot", id=robot_id, msg='failed to complete task %s at stage %s' % (task_id, robot.task_stage))
-#
-#                    # robot has either failed to complete its task, or it has paused its task
-#                    if robot.task_stage == "paused":
-#                        logmsg(category="robot", id=robot_id, msg='task unpaused')
-#                        robot._unpause_task()
-#
-#                    elif robot.task_stage == "go_to_picker":
-#                        # task is good enough to be assigned to another robot
-#                        self.readd_task(task_id)
-#                        self.send_robot_to_base(robot_id)
-#
-#                    elif robot.task_stage == "go_to_base":
-#                        # robot failed exececute_policy_mode goal. retry going to base
-#                        self.send_robot_to_base(robot_id)
-#                        # another option is to leave the robot out there with a request for help. (# TODO)
-#                        # in that case, remove robot from active_robots and don't add to idle_robots.
-#
-#                    else:
-#                        # set the task as failed as it cannot be readded at this stage
-#                        if task_id not in self.cancelled_tasks or task_id not in self.failed_tasks :
-#                            self.set_task_failed(task_id)
-#                            logmsg(msg='set task as failed')
-#                        self.send_robot_to_base(robot_id)
-#
-#            else:
-#
-#                # robot has either failed to complete its task, or it has paused its task
-#                if robot.task_stage == "paused":
-#                    logmsg(category="robot", id=robot_id, msg='task unpaused')
-#                    robot._unpause_task()
-#
-#                # wait_loading or wait_unloading
-#                elif robot.task_stage == "wait_loading":
-#                    """ If conditions are satisfied, finish waiting """
-#                    tray_loaded = False
-#
-#                    """ If wait timeout has expired complete task """  # abandon task?
-#                    if rospy.get_rostime() - robot.start_time > self.max_load_duration:
-#                        tray_loaded = True
-#
-#                    """ Update task completeness of robot """
-#                    picker = self.picker_manager.get_task_handler(robot.task_id)
-#                    if picker and picker.task_stage in ["LOADED"]:
-#                        tray_loaded = True
-#
-#                    """ If the robot has been loaded """
-#                    if tray_loaded:
-#                        logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
-#                        self.publish_task_state(task_id, robot_id, "LOADED")    #update picker
-#                        robot._tray_loaded() #update robot
-#                        trigger_replan = True
-#
-#                        """ Release picker from task """
-#                        if picker:
-#                            picker.task_finished()
-#
-#                elif robot.task_stage == "wait_unloading":
-#                    """ If conditions are satisfied, finish waiting """
-#                    tray_unloaded = True
-#
-#                    """ If wait timeout has expired, complete task """
-#                    if rospy.get_rostime() - robot.start_time > self.max_unload_duration:
-#                        tray_unloaded = False
-#                    # else:  # TODO: should we really be including artificial delay in the coordination?
-#                    #     rospy.sleep(0.5)
-#
-#                    """ If the robot has been unloaded """
-#                    if not tray_unloaded:
-#                        logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
-#                        self.publish_task_state(task_id, robot_id, "DELIVERED")
-#                        robot._tray_unloaded()
-#                        self.inform_toc_task_ended(task_id=task_id, robot_id=robot_id, reason="task_completed")
-#
-#                        trigger_replan = True
-#
-#                else:
-#                    # robot is waiting before a critical point
-#                    if self.robot_manager.moving_robots_exist():
-#                        # no other moving robots - replan
-#                        trigger_replan = True
-#                    else:
-#                        # wait for a moving robot to finish its route fragment
-#                        pass
-#
-#        self.trigger_replan = self.trigger_replan or trigger_replan
+            else:
+
+                # robot has either failed to complete its task, or it has paused its task
+                if robot.task_stage == "paused":
+                    logmsg(category="robot", id=robot_id, msg='task unpaused')
+                    robot._unpause_task()
+
+                # wait_loading or wait_unloading
+                elif robot.task_stage == "wait_at_dc_node":
+                    """ If conditions are satisfied, finish waiting """
+                    node_dc_completed = False
+
+                    """ If wait timeout has expired complete task """  # abandon task?
+                    print rospy.get_rostime() - robot.start_time
+                    print robot.start_time
+                    print rospy.Duration(secs=self.max_node_dc_duration), "\n"
+                    if rospy.get_rostime() - robot.start_time > rospy.Duration(secs=self.max_node_dc_duration):
+                        node_dc_completed = True
+
+                    """ Update task completeness of robot when data collection action returns results"""
+                    pass
+                    if not True:
+                        node_dc_completed = True
+
+                    """ If the robot has been loaded """
+                    if node_dc_completed:
+                        logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
+                        robot._node_dc_finished() #update robot
+                        trigger_replan = True
+
+                        self.node_dc_task_manager.set_task_finished(task_id)
+
+                else:
+                    # robot is waiting before a critical point
+                    if self.robot_manager.moving_robots_exist():
+                        # no other moving robots - replan
+                        trigger_replan = True
+                    else:
+                        # wait for a moving robot to finish its route fragment
+                        pass
+
+        self.trigger_replan = self.trigger_replan or trigger_replan
 
     def handle_charging(self):
         """
@@ -1375,6 +1360,77 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
 
         self.trigger_replan = self.trigger_replan or trigger_replan
 
+    def set_execute_policy_routes(self, ):
+        """find connecting edges for each fragment in route_fragments and set
+        the corresponding route object (with source and edge_id)
+        """
+        charging_robots = self.robot_manager.charging_robots()
+        all_moving_robots = set(self.robot_manager.active_list() + charging_robots)
+
+#        for robot_id in self.robot_manager.active_list():
+        for robot_id in all_moving_robots:
+            robot = self.robot_manager[robot_id]
+            goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
+            if robot.route_fragments:
+                goal.route.source = robot.route_fragments[0]
+                goal.route.edge_id = robot.route_edges[0]
+
+            if goal != robot.robot_interface.execpolicy_goal:
+                same_route = True
+
+                if goal.route.source and robot.robot_interface.execpolicy_goal.route.source:
+                    # if there is at least one source node
+                    if goal.route.edge_id[-1] != robot.robot_interface.execpolicy_goal.route.edge_id[-1]:
+                        # goal edge_ids are different
+                        same_route = False
+                    else:
+                        # loop from new start source node to end source node
+                        new_start_node = goal.route.source[0]
+
+                        # look for new_start_node in previous goal
+                        idx = 0
+                        change_idx = False
+                        for i in range(len(robot.robot_interface.execpolicy_goal.route.source)):
+                            if new_start_node == robot.robot_interface.execpolicy_goal.route.source[i]:
+                                # found current start source node in previous source nodes
+                                if len(robot.robot_interface.execpolicy_goal.route.source) - i != len(goal.route.source):
+                                    # remaining nodes in the routes are different => different route
+                                    same_route = False
+                                    break
+                                change_idx = True # enable comparing source nodes here onwards
+
+                            if change_idx:
+                                if goal.route.source[idx] != robot.robot_interface.execpolicy_goal.route.source[i]:
+                                    # different node => different route
+                                    same_route = False
+                                    break
+                                else:
+                                    # check next node
+                                    idx += 1
+                else:
+                    # either new or old source nodes are empty
+                    same_route = False
+
+                if not same_route:
+                    # publish new route only if different
+                    if self.log_routes:
+                        logmsg(category="robot", id=robot_id, msg='new route %s, previous route was %s' % (goal, robot.robot_interface.execpolicy_goal))
+
+                    self.write_log({"action_type": "robot_update",
+                            "details": "new_route",
+                            "source": str(goal.route.source),
+                            "edge_ids": str(goal.route.edge_id),
+                            "robot_id": robot_id,
+                            "current_node": robot.current_node,
+                            "closest_node": robot.closest_node,
+                            })
+
+                    robot.robot_interface.set_execpolicy_goal(goal)
+
+                    """ if a route exists, mark robot as moving"""
+                    if goal.route.edge_id:
+                        robot.moving = True
+
 
     def run(self, planning_type='fragment_planner'):
         """the main loop of the coordinator
@@ -1399,21 +1455,13 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 self.inform_toc_active_tasks()
                 iterations = 100
 
-            """ if there are unassigned tasks and there robots able to take them on """
-            available_robots = self.robot_manager.available_robots()
-            unassigned_tasks = self.picker_manager.unassigned_tasks()
-            if available_robots and unassigned_tasks:
-                logmsg(category="task", msg='unassigned task present, %s robots available' % (len(available_robots)))
-                logmsg(category="list", msg='available robots: %s' % (str(available_robots)))
-                # try to assign all tasks
-                rospy.sleep(0.2)
-                self.assign_tasks()
+            self.assign_tasks()
 
             """ check progress of transportation tasks"""
             self.handle_transportation_tasks()
 
-            # check progress of node-datacollection tasks
-#            self.handle_node_datacollection_tasks()
+            """ check progress of data collection tasks"""
+            self.handle_node_data_collection_tasks()
 
             # check progress of charging robots
             self.handle_charging()

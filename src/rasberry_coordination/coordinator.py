@@ -215,7 +215,9 @@ class Coordinator(object):
 
                 'paused':         'PAUSED',
                 'go_to_base':     'None',
-                'None':           'None'}[str(state)]
+                'None':           'None',
+                'go_to_dc_node':    'None',
+                'wait_at_dc_node':  'None'}[str(state)]
 
         # picker task stages:
         # "CREATED", "ASSIGNED", "ARRIVED", "LOADED", None

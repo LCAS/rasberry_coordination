@@ -14,9 +14,12 @@ class DataCollectionManager(object):
     """
     """
     def __init__(self):
-        self.latest_task_id = 0
+        self.latest_task_id = 10000
         self.assigned_robots = {}
-        self.task_stages = {} # CREATED, ASSIGNED, ABANDONED, COMPLETED
+        self.task_priority = {}
+        self.task_status = {} # CREATED, ASSIGNED, ABANDONED, COMPLETED
+#        self.task_stage = {} # go_to_dc_node, wait_at_dc_node, go_to_base
+        self.task_type = {}
 
     def new_task_id(self): #TODO: could add a tack lock here for safety?
         """ Increment an internal counter to define new task_id's.
@@ -29,27 +32,33 @@ class DataCollectionManager(object):
     def get_unassigned_tasks(self):
         """get the list of unassigned tasks
         """
-        return [task_id for task_id in self.task_status if self.task_stages[task_id] == "CREATED"]
+        return [task_id for task_id in self.task_status if self.task_status[task_id] == "CREATED"]
 
     def get_assigned_tasks(self):
         """get the list of assigned tasks
         """
-        return [task_id for task_id in self.task_status if self.task_stages[task_id] == "ASSIGNED"]
+        return [task_id for task_id in self.task_status if self.task_status[task_id] == "ASSIGNED"]
 
     def get_abandoned_tasks(self):
         """get the list of abandoned tasks
         """
-        return [task_id for task_id in self.task_status if self.task_stages[task_id] == "ABANDONED"]
+        return [task_id for task_id in self.task_status if self.task_status[task_id] == "ABANDONED"]
 
     def get_completed_tasks(self):
         """ get the list of completed tasks
         """
-        return [task_id for task_id in self.task_status if self.task_stages[task_id] == "COMPLETED"]
+        return [task_id for task_id in self.task_status if self.task_status[task_id] == "COMPLETED"]
 
     def assign_robot(self, task_id, robot_id):
         """assign a robot to a task - only for logging
         """
         self.assigned_robots[task_id] = robot_id
+        self.task_status[task_id] = "ASSIGNED"
+
+    def set_task_finished(self, task_id):
+        """set the task as completed
+        """
+        self.task_status[task_id] = "COMPLETED"
 
 class NodeDataCollectionManager(DataCollectionManager):
     """
@@ -65,11 +74,14 @@ class NodeDataCollectionManager(DataCollectionManager):
         """
         """
         resp = rasberry_coordination.srv.AddNodeTaskResponse()
-        task_id = "node_dc_%05d" %(self.new_task_id)
+        task_id = self.new_task_id()
         self.task_nodes[task_id] = req.node_id
-        self.task_stages[task_id] = "CREATED"
+        self.task_status[task_id] = "CREATED"
+        self.task_priority[task_id] = 1 # TODO: may be add this to the service def
+        self.task_type[task_id] = "datacollection"
 
-        resp.succeess = True
-        resp.task_id = task_id
+        rospy.loginfo("new node data collection task added at %s" %(req.node_id))
+        resp.success = True
+        resp.task_id = str(task_id)
         return resp
 

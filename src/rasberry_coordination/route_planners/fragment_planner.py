@@ -305,7 +305,7 @@ class FragmentPlanner(object):
             robot_id = robot.robot_id
 
             """for each active robot"""
-            if robot.active:
+            if robot.active and robot.can_do("transportation"):
 
                 """if waiting set goal as current node, generate route, and exit"""
                 if robot.task_stage in ["wait_loading", "wait_unloading"]:
@@ -328,7 +328,7 @@ class FragmentPlanner(object):
 
                     # this is a moving robot, so must be in a go_to_task stage (picker, storage or base)
                     task_stage = robot.task_stage
-                    robot._finish_task_stage(robot.task_stage)
+                    robot._finish_transportation_task_stage(robot.task_stage)
 
                     if task_stage == "go_to_picker":
                         robot._reached_picker()
@@ -384,6 +384,99 @@ class FragmentPlanner(object):
                     logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
                     goal_node = robot.wait_node
                     route = robot.get_available_optimum_route(start_node, goal_node)
+
+                """if still no route to wait node or goal node"""
+                if route is None:
+                    if robot.no_route_found_notification:
+                        logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
+                        robot.no_route_found_notification = False
+                    if start_node is None:
+                        robot._dump(filename='no route found from None')
+                    if start_node == "none":
+                        robot._dump(filename='no route found from none')
+
+                    #TODO: see how we could improve this by generating wait_node dynamically based on map activity
+
+                elif route == NavRoute():
+                    # empty route -> do not add last node
+                    if robot.no_route_found_notification:
+                        logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
+                        robot.no_route_found_notification = False
+                    if start_node is None:
+                        robot._dump(filename='no route found from None')
+                    if start_node == "none":
+                        robot._dump(filename='no route found from none')
+
+                else:
+                    route_nodes = route.source
+                    route_edges = route.edge_id
+                    # add goal_node to route_nodes as it could be a critical point
+                    route_nodes.append(goal_node)
+                    robot.no_route_found_notification = True
+
+                """save route details"""
+                robot.route = route_nodes
+                robot.route_edges = route_edges
+                self.get_edge_distances(robot_id)
+
+
+            # datacollection
+            elif robot.active and robot.can_do("datacollection"):
+
+                """if waiting set goal as current node, generate route, and exit"""
+                if robot.task_stage in ["wait_at_dc_node"]:
+                    # waiting robots should finish those stages first
+                    # put the current node of the idle robots as their route - to avoid other robots planning routes through those nodes
+                    robot.route = [robot._get_start_node()]
+                    robot.route_edges = []
+                    self.get_edge_distances(robot_id)
+                    continue
+
+                """get start node and goal node"""
+                start_node = robot._get_start_node(accuracy=True)
+                if start_node is None:
+                    logmsg(category="robot", id=robot_id, msg='not localised. ignoring routing')
+                    continue
+                goal_node = robot._get_goal_node() #TODO: improve this function
+
+                """if current node is goal node, generate empty route and set task as finished"""
+                if start_node == goal_node:
+
+                    # this is a moving robot, so must be in a go_to_task stage (picker, storage or base)
+                    task_stage = robot.task_stage
+                    robot._finish_node_dc_task_stage(robot.task_stage)
+
+                    if task_stage == "go_to_dc_node":
+                        robot._reached_dc_node()
+                        #logmsg(category="note", msg='publish_task_state callback within fragment planner should be removed')
+                    elif task_stage == "go_to_base":
+                        self.callbacks['send_robot_to_base'](robot_id)
+                        #logmsg(category="note", msg='send_robot_to_base callback within fragment planner should be removed')
+
+                        logmsg(category="list", msg='idle robots: %s' % (str(self.robot_manager.idle_list())))
+
+                    # reset routes and route_edges
+                    robot.route = [start_node]
+                    robot.route_edges = []
+                    self.get_edge_distances(robot_id)
+                    continue
+
+                # update the robot's available_tmap2
+                robot.update_available_tmap2(agent_nodes)
+
+                """unblock means to add an additional edge into and out of any potentially conjected nodes"""
+                """unblock nodes for robot starting point"""
+                robot.unblock_node(start_node)
+
+                """generate route from start node to goal node"""
+                route = None
+                if start_node and goal_node:
+                    logmsg(category="robot", id=robot_id, msg='finding route for [start_node: %s | goal_node: %s]' % (start_node, goal_node))
+                    route = robot.get_available_optimum_route(start_node, goal_node)
+#                    print(route)
+
+                route_nodes = []
+                route_edges = []
 
                 """if still no route to wait node or goal node"""
                 if route is None:
