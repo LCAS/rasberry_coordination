@@ -1,0 +1,77 @@
+#If updated, ensure simple_task_executor_node.py/validate_types() is updated accordingly
+version: 1.2.1
+use_sim: BOOLEAN  # is this a simulated environment
+
+#TOPOLOGY (Node Descriptors)
+special_nodes:
+  - id: NODE_ID
+    descriptors:
+      - base_station
+      - wait_node
+      - charging_station
+
+#ROUTING
+planning_type: STR # method used for coordinating routes
+
+#INITIALISATION
+agent_setups:
+  - setup: &setup_00
+    manager: RobotManager                     #RobotManager, PickerManager, StorageManager
+    tasks:
+      - module: transportation                  #Task module
+        role: courier                           #Agents role in task
+      - module: uv
+        role: phototherapist
+    interface_type: robot_interface           #Communication framework for agent
+    idle_task_default: idle_courier           #Default task to run (module.TaskDef.idle_task_default)
+    new_task_default: transportation_courier  #Default task to run (module.TaskDef.new_task_default)
+
+  - setup: &setup_01
+    manager: RobotManager
+    tasks:
+    - module: transportation
+      role: courier
+    interface_type: robot_interface
+    new_task_default: transportation_courier
+  - setup: &setup_02
+    manager: PickerManager
+    tasks:
+    - module: transportation
+      role: picker
+    interface_type: car_app
+    new_task_default: transportation_picker
+    physical: True #False to mean virtual picker (default true is excluded)
+
+  - setup: &setup_03
+    manager: StorageManager
+    tasks:
+    - module: transportation
+      role: storage
+    interface_type: car_app
+    new_task_default: transportation_storage
+
+agent_list:
+  - agent_id: thorvald_001
+    setup: *setup_01
+  - agent_id: thorvald_002
+    setup: *setup_01
+  - agent_id: picker01
+    setup: *setup_02
+  - agent_id: picker02
+    setup: *setup_02
+  - agent_id: storage01
+    setup: *setup_03
+    initial_location: WayPoint69     #OPTIONAL
+    
+active_tasks:
+  - module: transportation
+    properties:
+      wait_loading: 20
+      wait_unloading: 40
+  - module: uv
+#  - module: low_battery
+#    properties:
+#      low_battery_voltage: 0.45
+
+    
+

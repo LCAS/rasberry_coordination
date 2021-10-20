@@ -6,146 +6,96 @@
 # ----------------------------------
 
 import copy
-import operator
 import rospy
 import threading
 import yaml
 
-import std_msgs.msg
-import topological_navigation.route_search2
-import topological_navigation.tmap_utils
+from rasberry_coordination.route_planners.base_planner import BasePlanner
 from rasberry_coordination.coordinator_tools import logmsg
+
 from strands_navigation_msgs.msg import NavRoute
 
-class FragmentPlanner(object):
-    def __init__(self, robot_manager_pointer, picker_manager_pointer, callbacks):
-        """ Copy parameters to properties """
-        self.robot_manager = robot_manager_pointer
-        self.picker_manager = picker_manager_pointer
-        self.callbacks = callbacks
+from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
-        """ Change callback location to modify the FragmentPlanner get_node method"""
-        for agent in self.robot_manager.agent_details.values() + self.picker_manager.agent_details.values():
-            agent.cb['get_node'] = self.get_node
+class FragmentPlanner(BasePlanner):
+    def __init__(self, all_agent_details_pointer, heterogeneous_map):
+        """ Copy parameters to properties
 
-        self.rec_topo_map = False
-        """ Download Topological Map """
-        rospy.Subscriber("topological_map_2", std_msgs.msg.String, self._map_cb)
-        logmsg(msg='FragmentPlanner waiting for Topological map ...')
-        while not self.rec_topo_map:
-            rospy.sleep(rospy.Duration.from_sec(0.1))
-        logmsg(msg='FragmentPlanner received Topological map ...')
-
-    def _map_cb(self, msg):
-        """This function receives the Topological Map
+        Args:
+            all_agent_details_pointer - pointer to coordinator.all_agents_list a dictionary of all agent_details objects
         """
-        self.topo_map = yaml.safe_load(msg.data)
-        self.rec_topo_map = True
+        super(FragmentPlanner, self).__init__(all_agent_details_pointer, heterogeneous_map)
+        self.task_lock = threading.Lock()
 
-    def get_agent_nodes(self, accuracy=False):
-        """ get the list of nodes occupied by all agents
-        When current node of an agent is none, the closest node of the agent is taken.
+    def update_available_tmap(self, agent):
+        """remove incoming edges to the list of agent nodes in the available_tmap
+        and update the available_route_search object with the new map
+        :param agent_nodes: list of nodes occupied by other agents, list
         """
-        agent_nodes = []
+        # Nothing to do if restrictions are not used
+        if 'navigation_restrictions' not in agent.properties: return
 
-        """Extract lists of current and closest nodes to the robots and pickers"""
-        if not (hasattr(self, 'robot_manager') and hasattr(self, 'picker_manager')):
-            return
+        available_tmap = copy.deepcopy(agent.navigation['tmap'])
 
-        for picker in self.picker_manager.agent_details.values():
-            picker_node = picker._get_start_node(accuracy)
-            if picker_node not in agent_nodes:
-                agent_nodes.append(picker_node)
+        for node in available_tmap["nodes"]:
+            to_pop = []
+            for i in range(len(node["node"]["edges"])):
+                if node["node"]["edges"][i]["node"] in self.occupied_nodes:
+                    to_pop.append(i)
+            if to_pop:
+                to_pop.reverse()
+                for j in to_pop:
+                    node["node"]["edges"].pop(j)
 
-        for robot in self.robot_manager.agent_details.values():
-            robot_node = robot._get_start_node(accuracy)
-            if robot_node not in agent_nodes:
-                agent_nodes.append(robot_node)
+        agent.navigation['tmap_available'] = available_tmap
+        self.load_route_search(agent)
 
-        return agent_nodes
-
-    def get_node(self, node):
-        """get_node: Given a node name return its node object.
-        A wrapper for the get_node function in tmap_utils
-
-        Keyword arguments:
-
-        node -- name of the node in topological map"""
-        return topological_navigation.tmap_utils.get_node_from_tmap2(self.topo_map, node)
-
-    def get_distance_between_adjacent_nodes(self, from_node, to_node):
-        """get_distance_between_adjacent_nodes: Given names of two nodes, return the distance of the edge
-        between their node objects. A wrapper for the get_distance_to_node function in tmap_utils.
-        Works only for adjacent nodes.
-
-        Keyword arguments:
-
-        from_node -- name of the starting node
-        to_node -- name of the ending node name"""
-        from_node_obj = self.get_node(from_node)
-        to_node_obj = self.get_node(to_node)
-        return topological_navigation.tmap_utils.get_distance_to_node_tmap2(from_node_obj, to_node_obj)
-
-    def get_edge_distances(self, robot_id):
-        """find and fill distances of all edges of a robot's planned route, if at least one edge is there.
-        the route must contain the goal_node as the last node in the list.
-
-        Keyword arguments:
-            robot_id -- robot_id
+    def unblock_node(self, agent, node_to_unblock):
+        """ unblock a node by adding edges to an occupied node in available_tmap
+        copying from tmap
+        :param node_to_unblock: name of the node to be unblocked, str
         """
-        robot = self.robot_manager.agent_details[robot_id]
-        robot.route_dists = []
-        if len(robot.route_edges) >= 1:
-            for i in range (len(robot.route) - 1):
-                robot.route_dists.append(self.get_distance_between_adjacent_nodes(robot.route[i], robot.route[i+1]))
+        nodes_to_append = []
+        edges_to_append = []
 
-    def get_route_distance_to_node(self, robot_id, node_id):
-        """get the total distance to a node in a robot's route
+        """ for each edge in network, if edge connects to a node to unblock, add to list """
+        for node in agent.navigation['tmap']["nodes"]:
+            for edge in node["node"]["edges"]:
+                if edge["node"] == node_to_unblock:
+                    nodes_to_append.append(node["node"]["name"])
+                    edges_to_append.append(edge)
 
-        Keyword arguments:
-            robot_id -- id of the robot to be checked
-            node_id -- node being checked
-        """
-        dist = 0.0
-        adding_ok = False
-        robot = self.robot_manager.agent_details[robot_id]
-        if len(robot.route_edges) > 1:
-            for i in range(len(robot.route)):
-                if robot.route[i] == node_id:
-                    break
-                # add edge_distance only if the source node is not the one we look for
-                # also make sure we start adding from current/closest node
-                if not adding_ok:
-                    if robot.current_node is not None:
-                        if robot.current_node == robot.route[i]:
-                            adding_ok = True
-                    elif robot.closest_node is not None:
-                        if robot.closest_node == robot.route[i]:
-                            adding_ok = True
-                if adding_ok:
-                    dist += robot.route_dists[i]
-        return dist
+        """ for each node in empty map, if node is to be unblocked, add a extra edge """
+        for node in agent.navigation['tmap_available']["nodes"]:
+            if node["node"]["name"] in nodes_to_append:
+                ind_to_append = nodes_to_append.index(node["node"]["name"])
+                node["node"]["edges"].append(edges_to_append[ind_to_append])
+
+        # update the route_search object
+        agent.navigation['available_route_search'] = TopologicalRouteSearch(agent.navigation['tmap_available'])
 
     def critical_points(self, ):
         """find points where agent's path cross with those of active robots.
         also find active robots which cross paths at these critical points.
         """
-        active_robots = self.robot_manager.active_list()
-        charging_robots = self.robot_manager.charging_robots()
+        active_agents = [agent.agent_id for agent in self.agent_details.values() if agent.goal()]
         critical_points = {}  # {[route: critical point]} each route which contains a critical point
-        critical_robots = {}  # {[critical_point: robot_ids]} all robots touching a critical point
+        critical_agents = {}  # {[critical_point: robot_ids]} all robots touching a critical point
 
         """for each agent"""
-        for agent in self.robot_manager.agent_details.values() + self.picker_manager.agent_details.values():
+        for agent in self.agent_details.values():
+        # for agent in self.robot_manager.agent_details.values() + self.picker_manager.agent_details.values():
             agent_id = agent.agent_id
             r_outer = agent.route
             critical_points[str(r_outer)] = set([])
 
             """for each active robot excluding the agent"""
-            for robot_id in active_robots + charging_robots:
-                robot = self.robot_manager.agent_details[robot_id]
-                if agent_id == robot_id:
+            for robot_id in active_agents:
+                if robot_id == agent_id:
                     continue
+
+                robot = self.agent_details[robot_id]
+                # robot = self.robot_manager.agent_details[robot_id]
 
                 """if the agent route is not the same as the robot route"""
                 r_inner = robot.route
@@ -161,50 +111,37 @@ class FragmentPlanner(object):
                         #critical_robots['Waypoint106'] <- [thorvald_001, thorvald_002]
 
                         """add the active robot to the list of agents involved in the conflict"""
-                        if conflicted_node_id not in critical_robots:
-                            critical_robots[conflicted_node_id] = [robot_id]
-                        elif robot_id not in critical_robots[conflicted_node_id]:
-                            critical_robots[conflicted_node_id].append(robot_id)
+                        if conflicted_node_id not in critical_agents:
+                            critical_agents[conflicted_node_id] = [robot_id]
+                        elif robot_id not in critical_agents[conflicted_node_id]:
+                            critical_agents[conflicted_node_id].append(robot_id)
 
                         """add the active agent to the list of agents involved in the conflict"""
-                        if agent_id in active_robots and agent_id not in critical_robots[conflicted_node_id]:
-                            critical_robots[conflicted_node_id].append(agent_id)
+                        if agent_id in active_agents and agent_id not in critical_agents[conflicted_node_id]:
+                            critical_agents[conflicted_node_id].append(agent_id)
 
-        return (critical_points, critical_robots)
-
-    def shortest_route_to_node(self, robot_ids, node_id):
-        """from a list of robot_ids, find the robot with shortest route distance to a given node
-        """
-        dists = {}
-        for robot_id in robot_ids:
-            dists[robot_id] = self.get_route_distance_to_node(robot_id, node_id)
-
-        return sorted(dists.items(), key=operator.itemgetter(1))[0][0]
+        return (critical_points, critical_agents)
 
     def split_critical_paths(self, ):
         """split robot paths at critical points
         """
 
         """identify critical points for each route and the robots which are involved"""
-        c_points, c_robots = self.critical_points()
+        c_points, c_agents = self.critical_points()
 
-#        print (c_points)
-#        print (c_robots)
-#        print ("\n")
-
-        """ remove start node as critical for robots heading to picker """
-        for robot_id in self.robot_manager.active_list():
-            robot = self.robot_manager.agent_details[robot_id]
-            if robot.task_id:
-                goal = robot.goal_node
-                if (robot.task_stage == "go_to_picker" and goal in c_points[str(robot.route)]):
-                    c_points[str(robot.route)].remove(goal)
+        """ remove goal node as critical for robots heading to picker """
+        active_agents = [agent.agent_id for agent in self.agent_details.values() if agent.route_edges]
+        for agent_id in active_agents:
+            agent = self.agent_details[agent_id]
+            goal = agent.goal()
+            if (goal and goal in c_points[str(agent.route)]):
+                c_points[str(agent.route)].remove(goal)
 
         allowed_cpoints = []  #
         res_routes = {}  #
 
         """ for each agent populate res_routes with partial routes"""
-        for agent in self.robot_manager.agent_details.values() + self.picker_manager.agent_details.values():
+        for agent in self.agent_details.values():
             agent_id = agent.agent_id #TODO: test swapping this and above for performance gains
             allowed_to_pass = False
             r = agent.route
@@ -218,7 +155,7 @@ class FragmentPlanner(object):
                 if v in c_points[str(r)]:
 
                     """identify robot closest to the node"""
-                    nearest_robot = self.shortest_route_to_node(c_robots[v], v)
+                    nearest_agent = self.shortest_route_to_node(c_agents[v], v)
 
                     """
                     each critical vertice can be given to 1 robot
@@ -226,7 +163,7 @@ class FragmentPlanner(object):
                     prevent it being taken again by adding it to
                     allowed_cpoints,
                     """
-                    if (agent_id == nearest_robot and v not in allowed_cpoints):
+                    if (agent_id == nearest_agent and v not in allowed_cpoints):
                         """ if vertice is unassigned, and is best assigned to this robot, assign it so"""
                         """also enable the chosen robot to take the remaining nodes using allowed_to_pass"""
                         partial_route.append(v)
@@ -255,368 +192,133 @@ class FragmentPlanner(object):
             res_routes[agent_id] = collective_route
 
         """ for each agent, apply their route fragments """
-        for agent in self.robot_manager.agent_details.values() + self.picker_manager.agent_details.values():
+        for agent in self.agent_details.values():
             if agent.agent_id in res_routes:
                 agent.route_fragments = res_routes[agent.agent_id]
 
-        res_edges = {}
-        # split the edges as per the route_fragmentsf
-        """ for each active robot """
-        charging_robots = self.robot_manager.charging_robots()
+        logmsg(category="route", msg="    - All fragments identified")
+        for a in self.agent_details.values():
+            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,a.route_fragments))
 
-        for robot_id in set(self.robot_manager.active_list()+charging_robots):
-            robot = self.robot_manager.agent_details[robot_id]
+        res_edges = {}
+        # split the edges as per the route_fragments
+        """ for each active robot """
+        for agent_id in active_agents:
+            agent = self.agent_details[agent_id]
 
             """ if the robot has route fragments """
-            if robot.route_fragments:
+            if agent.route_fragments:
 
                 """ remove goal node from final fragment """
-                robot.route_fragments[-1].pop(-1)
+                agent.route_fragments[-1].pop(-1)
 
                 # if start and goal nodes are different, there will be at least one node remaining and an edge
                 """ move the last node of all fragments to the start of next fragment """
-                for i in range(len(robot.route_fragments) - 1):
-                    robot.route_fragments[i+1].insert(0, robot.route_fragments[i][-1])
-                    robot.route_fragments[i].pop(-1)
+                for i in range(len(agent.route_fragments) - 1):
+                    agent.route_fragments[i+1].insert(0, agent.route_fragments[i][-1])
+                    agent.route_fragments[i].pop(-1)
 
                 """ split the edges """
-                res_edges[robot_id] = []
-                for i in range(len(robot.route_fragments)):
-                    res_edges[robot_id].append(robot.route_edges[:len(robot.route_fragments[i])])
-                    robot.route_edges = robot.route_edges[len(robot.route_fragments[i]):]
+                res_edges[agent_id] = []
+                for i in range(len(agent.route_fragments)):
+                    res_edges[agent_id].append(agent.route_edges[:len(agent.route_fragments[i])])
+                    agent.route_edges = agent.route_edges[len(agent.route_fragments[i]):]
             else:
-                robot.route_fragments = []
-                res_edges[robot_id] = []
+                agent.route_fragments = []
+                res_edges[agent_id] = []
+
+        logmsg(category="route", msg="    - All fragments formatted")
+        for a in self.agent_details.values():
+            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,a.route_fragments))
 
         """ for each agent, apply their route edges """
         # self.route_edges = res_edges
-        for agent in self.robot_manager.agent_details.values() + self.picker_manager.agent_details.values():
+        for agent in self.agent_details.values():
             if agent.agent_id in res_edges:
                 agent.route_edges = res_edges[agent.agent_id]
 
+        logmsg(category="route", msg="    - All fragment edges formatted")
+        for a in self.agent_details.values():
+            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,a.route_edges))
+
     def find_routes(self, ):
-        """replan - find indiviual paths, find critical points in these paths, and fragment the
+        """find_routes - find indiviual paths, find critical points in these paths, and fragment the
         paths at critical points - whenever triggered
         """
-        agent_nodes = self.get_agent_nodes(accuracy=True)
+        super(FragmentPlanner, self).find_routes()
 
-        """ find routes for all robots which need one in empty map"""
-        for robot in self.robot_manager.agent_details.values():
-            robot_id = robot.robot_id
+        logmsg(category="route", id="COORDINATOR", msg="Finding routes for Active agents")
+        [logmsg(category="route", msg="    - %s:%s"%(a.agent_id, a.goal())) for a in self.agent_details.values()]
+        actives =   [a for a in self.agent_details.values() if a.goal()]  # agents with an active goal (navigation)
+        inactives = [a for a in self.agent_details.values() if not a.goal()]  # agents without an active goal (idle)
+        logmsg(category="route", msg="actives --- "+str([a.agent_id for a in actives]))
+        logmsg(category="route", msg="inactives - "+str([a.agent_id for a in inactives]))
 
-            """for each active robot"""
-            if robot.active and robot.can_do("transportation"):
+        need_route = [a for a in self.agent_details.values() if a().route_required]
+        logmsg(category="route", msg="Agents requiring routes:")
+        for a in need_route:
+            logmsg(category="route", msg="    - {%s: %s}" % (a.agent_id, a.task_stage_list))
 
-                """if waiting set goal as current node, generate route, and exit"""
-                if robot.task_stage in ["wait_loading", "wait_unloading"]:
-                    # loading and unloading robots should finish those stages first
-                    # put the current node of the idle robots as their route - to avoid other robots planning routes through those nodes
-                    robot.route = [robot._get_start_node()]
-                    robot.route_edges = []
-                    self.get_edge_distances(robot_id)
-                    continue
+        """find unblocked routes for all agents which need one"""
+        self.load_occupied_nodes()
+        for agent in actives:
+            agent_id = agent.agent_id
+            agent().route_found = False
 
-                """get start node and goal node"""
-                start_node = robot._get_start_node(accuracy=True)
-                if start_node is None:
-                    logmsg(category="robot", id=robot_id, msg='not localised. ignoring routing')
-                    continue
-                goal_node = robot._get_goal_node() #TODO: improve this function
+            """get start node and goal node"""
+            start_node = agent.location(accurate=False)
+            goal_node  = agent.goal()
+            logmsg(category="route", msg="Finding route for %s: %s -> %s" % (agent_id, start_node, goal_node))
 
-                """if current node is goal node, generate empty route and set task as finished"""
-                if start_node == goal_node:
+            """if current node is goal node, mark agent as inactive"""
+            if start_node == goal_node: #should _query should have handled this by this point?
+                inactives += [agent]
+                continue
 
-                    # this is a moving robot, so must be in a go_to_task stage (picker, storage or base)
-                    task_stage = robot.task_stage
-                    robot._finish_transportation_task_stage(robot.task_stage)
+            """take copy of empty map"""
+            self.update_available_tmap(agent)
+            self.unblock_node(agent, start_node)
+            # self.unblock_node(agent, goal_node)  # TODO: is this needed?
+            self.load_route_search(agent)
 
-                    if task_stage == "go_to_picker":
-                        robot._reached_picker()
-                        self.callbacks['publish_task_state'](robot.task_id, robot_id, "ARRIVED")
-                        #logmsg(category="note", msg='publish_task_state callback within fragment planner should be removed')
-                    elif task_stage == "go_to_storage":
-                        robot._reached_storage()
-                    elif task_stage == "go_to_base":
-                        self.callbacks['send_robot_to_base'](robot_id)
-                        #logmsg(category="note", msg='send_robot_to_base callback within fragment planner should be removed')
+            """generate route from start node to goal node"""
+            route = None
+            if start_node and goal_node:
+                route = self.get_available_optimum_route(agent, start_node, goal_node)
+            route_nodes = []
+            route_edges = []
 
-                        logmsg(category="list", msg='idle robots: %s' % (str(self.robot_manager.idle_list())))
+            """ If failed to find route, set robot as inactive and mark navigation as failed """
+            if route is None:
+                logmsg(level="warn", category="route", id=agent.agent_id, msg="failed to find route, waiting idle")
+                logmsg(level="warn", category="route", msg="modify here for wait_node addition")
+                self.no_route_found(agent)
+                inactives += [agent]
+                continue
 
-                    # reset routes and route_edges
-                    robot.route = [start_node]
-                    robot.route_edges = []
-                    self.get_edge_distances(robot_id)
-                    continue
+            route_nodes = route.source + [goal_node] # add goal_node as it could be a critical point
+            route_edges = route.edge_id
+            agent.no_route_found_notification = True
 
-                # update the robot's available_tmap2
-                robot.update_available_tmap2(agent_nodes)
+            """save route details"""
+            agent.route = route_nodes
+            agent.route_edges = route_edges
+            agent().route_found = True #ReplanTrigger #todo: is this really right here?
+            logmsg(category="route", id=agent.agent_id, msg="Route has been found, marking as such")
 
-                """unblock means to add an additional edge into and out of any potentially conjected nodes"""
-                """unblock nodes for robot starting point"""
-                robot.unblock_node(start_node)
+            self.get_edge_distances(agent_id)
 
-                """unblock nodes for picker location so robots can reach them if needed"""
-                if robot.task_stage == "go_to_picker":
-                    robot.unblock_node(goal_node)
-
-                """generate route from start node to goal node"""
-                route = None
-                if start_node and goal_node:
-                    logmsg(category="robot", id=robot_id, msg='finding route for [start_node: %s | goal_node: %s]' % (start_node, goal_node))
-                    route = robot.get_available_optimum_route(start_node, goal_node)
-#                    print(route)
-
-                route_nodes = []
-                route_edges = []
-
-                """if there is no route to the goal_node, replan route to wait node"""
-                if (route is None and
-                    robot.task_stage == "go_to_storage" and
-                    robot.wait_node is not None and
-                    robot.wait_node != robot.current_node):
-                    logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
-                    goal_node = robot.wait_node
-                    route = robot.get_available_optimum_route(start_node, goal_node)
-                elif (route == NavRoute() and
-                    robot.task_stage == "go_to_storage" and
-                    robot.wait_node is not None and
-                    robot.wait_node != robot.current_node):
-                    logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
-                    goal_node = robot.wait_node
-                    route = robot.get_available_optimum_route(start_node, goal_node)
-
-                """if still no route to wait node or goal node"""
-                if route is None:
-                    if robot.no_route_found_notification:
-                        logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
-                        robot.no_route_found_notification = False
-                    if start_node is None:
-                        robot._dump(filename='no route found from None')
-                    if start_node == "none":
-                        robot._dump(filename='no route found from none')
-
-                    #TODO: see how we could improve this by generating wait_node dynamically based on map activity
-
-                elif route == NavRoute():
-                    # empty route -> do not add last node
-                    if robot.no_route_found_notification:
-                        logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
-                        robot.no_route_found_notification = False
-                    if start_node is None:
-                        robot._dump(filename='no route found from None')
-                    if start_node == "none":
-                        robot._dump(filename='no route found from none')
-
-                else:
-                    route_nodes = route.source
-                    route_edges = route.edge_id
-                    # add goal_node to route_nodes as it could be a critical point
-                    route_nodes.append(goal_node)
-                    robot.no_route_found_notification = True
-
-                """save route details"""
-                robot.route = route_nodes
-                robot.route_edges = route_edges
-                self.get_edge_distances(robot_id)
-
-
-            # datacollection
-            elif robot.active and robot.can_do("datacollection"):
-
-                """if waiting set goal as current node, generate route, and exit"""
-                if robot.task_stage in ["wait_at_dc_node"]:
-                    # waiting robots should finish those stages first
-                    # put the current node of the idle robots as their route - to avoid other robots planning routes through those nodes
-                    robot.route = [robot._get_start_node()]
-                    robot.route_edges = []
-                    self.get_edge_distances(robot_id)
-                    continue
-
-                """get start node and goal node"""
-                start_node = robot._get_start_node(accuracy=True)
-                if start_node is None:
-                    logmsg(category="robot", id=robot_id, msg='not localised. ignoring routing')
-                    continue
-                goal_node = robot._get_goal_node() #TODO: improve this function
-
-                """if current node is goal node, generate empty route and set task as finished"""
-                if start_node == goal_node:
-
-                    # this is a moving robot, so must be in a go_to_task stage (picker, storage or base)
-                    task_stage = robot.task_stage
-                    robot._finish_node_dc_task_stage(robot.task_stage)
-
-                    if task_stage == "go_to_dc_node":
-                        robot._reached_dc_node()
-                        #logmsg(category="note", msg='publish_task_state callback within fragment planner should be removed')
-                    elif task_stage == "go_to_base":
-                        self.callbacks['send_robot_to_base'](robot_id)
-                        #logmsg(category="note", msg='send_robot_to_base callback within fragment planner should be removed')
-
-                        logmsg(category="list", msg='idle robots: %s' % (str(self.robot_manager.idle_list())))
-
-                    # reset routes and route_edges
-                    robot.route = [start_node]
-                    robot.route_edges = []
-                    self.get_edge_distances(robot_id)
-                    continue
-
-                # update the robot's available_tmap2
-                robot.update_available_tmap2(agent_nodes)
-
-                """unblock means to add an additional edge into and out of any potentially conjected nodes"""
-                """unblock nodes for robot starting point"""
-                robot.unblock_node(start_node)
-
-                """generate route from start node to goal node"""
-                route = None
-                if start_node and goal_node:
-                    logmsg(category="robot", id=robot_id, msg='finding route for [start_node: %s | goal_node: %s]' % (start_node, goal_node))
-                    route = robot.get_available_optimum_route(start_node, goal_node)
-#                    print(route)
-
-                route_nodes = []
-                route_edges = []
-
-                """if still no route to wait node or goal node"""
-                if route is None:
-                    if robot.no_route_found_notification:
-                        logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
-                        robot.no_route_found_notification = False
-                    if start_node is None:
-                        robot._dump(filename='no route found from None')
-                    if start_node == "none":
-                        robot._dump(filename='no route found from none')
-
-                    #TODO: see how we could improve this by generating wait_node dynamically based on map activity
-
-                elif route == NavRoute():
-                    # empty route -> do not add last node
-                    if robot.no_route_found_notification:
-                        logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
-                        robot.no_route_found_notification = False
-                    if start_node is None:
-                        robot._dump(filename='no route found from None')
-                    if start_node == "none":
-                        robot._dump(filename='no route found from none')
-
-                else:
-                    route_nodes = route.source
-                    route_edges = route.edge_id
-                    # add goal_node to route_nodes as it could be a critical point
-                    route_nodes.append(goal_node)
-                    robot.no_route_found_notification = True
-
-                """save route details"""
-                robot.route = route_nodes
-                robot.route_edges = route_edges
-                self.get_edge_distances(robot_id)
-
-            # charging robots
-            elif robot.charging:
-                if robot.current_node is not robot.charging_node:
-                    start_node = robot._get_start_node(accuracy=True)
-                    if start_node is None:
-                        logmsg(category="robot", id=robot_id, msg='not localised. ignoring routing')
-                        continue
-                    goal_node = robot._get_goal_node() #TODO: improve this function
-                    if start_node == goal_node:
-                        rospy.loginfo("%s is charging now" %(robot.agent_id))
-                        robot.route = [start_node]
-                        robot.route_edges = []
-                        self.get_edge_distances(robot_id)
-                    else:
-                        # update the robot's available_tmap2
-                        robot.update_available_tmap2(agent_nodes)
-
-                        """unblock means to add an additional edge into and out of any potentially conjected nodes"""
-                        """unblock nodes for robot starting point"""
-                        robot.unblock_node(start_node)
-
-                        route = None
-                        print start_node, goal_node
-                        print robot.current_node, robot.previous_node, robot.closest_node
-                        print robot.charging_node
-
-                        if start_node and goal_node:
-                            logmsg(category="robot", id=robot_id, msg='finding route for [start_node: %s | goal_node: %s]' % (start_node, goal_node))
-                            route = robot.get_available_optimum_route(start_node, goal_node)
-                            rospy.loginfo(route)
-
-                        route_nodes = []
-                        route_edges = []
-
-                        """if route is not available, replan route to wait node"""
-                        if (route is None and
-                            robot.wait_node is not None and
-                            robot.wait_node != robot.current_node):
-                            logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
-                            goal_node = robot.wait_node
-                            print start_node, goal_node
-                            route = robot.get_available_optimum_route(start_node, goal_node)
-                            rospy.loginfo(route)
-                        elif (route == NavRoute() and
-                            robot.wait_node is not None and
-                            robot.wait_node != robot.current_node):
-                            logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
-                            goal_node = robot.wait_node
-                            print start_node, goal_node
-                            route = robot.get_available_optimum_route(start_node, goal_node)
-                            rospy.loginfo(route)
-
-                        """if still no route to wait node or goal node"""
-                        if route is None:
-                            if robot.no_route_found_notification:
-                                logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
-                                robot.no_route_found_notification = False
-                            if start_node is None:
-                                robot._dump(filename='no route found from None')
-                            if start_node == "none":
-                                robot._dump(filename='no route found from none')
-
-                            #TODO: see how we could improve this by generating wait_node dynamically based on map activity
-
-
-                        elif route == NavRoute():
-                            # empty route -> do not add last node
-                            if robot.no_route_found_notification:
-                                logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
-                                robot.no_route_found_notification = False
-                            if start_node is None:
-                                robot._dump(filename='no route found from None')
-                            if start_node == "none":
-                                robot._dump(filename='no route found from none')
-
-                        else:
-                            route_nodes = route.source
-                            route_edges = route.edge_id
-                            # add goal_node to route_nodes as it could be a critical point
-                            route_nodes.append(goal_node)
-                            robot.no_route_found_notification = True
-
-                        """save route details"""
-                        robot.route = route_nodes
-                        robot.route_edges = route_edges
-                        rospy.loginfo(robot.route_edges)
-
-                        self.get_edge_distances(robot_id)
-                pass
-
-            else:
-                """if robot is inactive, mark current node as route so as to not interfere with robot"""
-                robot.route = [robot._get_start_node()] #TODO: sometimes unregistered robot is between 2 nodes
-                robot.route_edges = []
-                self.get_edge_distances(robot_id)
-
-        """for each picker/virtual picker, mark current position as node to make routing not interfere"""
-        for agent in self.picker_manager.agent_details.values():
-            if agent.current_node is not None:
-                agent.route = [agent.current_node]
-            elif agent.previous_node is not None:
-                agent.route = [agent.previous_node]
-            else:
-                agent.route = [agent.closest_node]
+        """secure locations for each inactive agent, to make routing not interfere"""
+        for agent in inactives:
+            agent.route = [agent.location(accurate=True)] #consider previous_node before closest_node
             agent.route_edges = []
+            self.get_edge_distances(agent.agent_id)
+
+        logmsg(category="route", msg="    - All agents assigned routes")
+        for a in self.agent_details.values():
+            logmsg(category="route", msg="        - %s:%s" % (a.agent_id, a.route))
 
         # find critical points and fragment routes to avoid critical point collistions
         self.split_critical_paths()
+
+        rospy.sleep(1)

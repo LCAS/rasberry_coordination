@@ -13,11 +13,12 @@ import csv
 import time
 import datetime
 import threading
+from pprint import pprint
 
 import rospy
+from rospy import Subscriber, Publisher
 
-import std_msgs.msg
-import std_srvs.srv
+from std_msgs.msg import Empty
 import strands_executive_msgs.msg
 import strands_executive_msgs.srv
 import strands_navigation_msgs.msg
@@ -27,1476 +28,618 @@ import topological_navigation.route_search
 import topological_navigation.tmap_utils
 
 import rasberry_coordination.robot
-import rasberry_coordination.msg
 import rasberry_coordination.srv
-import rasberry_coordination.coordinator
-import rasberry_coordination.data_collection_manager
-from rasberry_coordination.coordinator_tools import logmsg, remove, add, move
+from rasberry_coordination.msg import MarkerDetails, KeyValuePair
+from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, remove, add, move
+
+#Route Planning
 from rasberry_coordination.route_planners.route_planners import RouteFinder
 
+#Task Managment
+from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
-class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
+#Agent Management
+from rasberry_coordination.agent_management.agent_manager import AgentManager
+
+class RasberryCoordinator(object):
     """RasberryCoordinator class definition
     """
-    def __init__(self, robot_ids, picker_ids, virtual_picker_ids,
-                 local_storages, cold_storage, use_cold_storage,
-                 base_stations, wait_nodes,
-                 max_task_priorities,
-                 admissible_robot_ids, active_tasks,
-                 base_station_nodes_pool, wait_nodes_pool,
-                 charging_station_nodes,
-                 robot_types, robot_tasks, use_restrictions,
-                 max_load_duration, max_unload_duration,
-                 ns="rasberry_coordination"):
-        """initialise a RasberryCoordinator object
+    def __init__(self, agent_list, base_station_nodes_pool, wait_nodes_pool, planning_format, ns, special_nodes):
+        logmsgbreak(total=1)
+        print("------------------------------------------")
+        logmsg(category="setup", msg='Coordinator initialisation begun')
+        logmsgbreak(total=1)
 
-        Keyword arguments:
-            robot_ids -- list of robot_ids
-            picker_ids-- list of human picker_ids
-            virtual_picker_ids -- list of virtual (DES) picker_ids
-            local_storages -- list of local storage nodes
-            cold_storage -- cold storage node
-            use_cold_storage -- flag to use cold/local storage
-            base_stations -- base station nodes for the robots {robot_id:base_node}
-            wait_nodes -- waiting nodes (if robot cannot go to storage, it could
-                          wait at this node) {robot_id:wait_node}
-            max_task_priorities -- max priority of tasks a robot can be assigned to.
-                                   this is used to set some robots exclusively for
-                                   tasks from human pickers (at higher priority),
-                                   while some robots can be assigned to both human
-                                   and virtual pickers. (To make demos interesting)
-            admissible_robot_ids -- list of robots ids for the robots which are allowed to connect to the system
-            active_tasks -- list of tasks which the system is currently performing
-            base_station_nodes_pool -- pool defining list of all base stations within the system
-            wait_nodes_pool -- pool defining list all waiting nodes
-            robot_types -- type of robot (short/tall)
-            robot_tasks -- task modules and task roles in different tasks supported by the robot
-            use_restrictions -- use toponav2 restrictions
-            max_load_duration -- time to wait until the coordinator forces advancement through LOADING stage
-            max_unload_duration -- time to wait until the coordinator forces advancement through UNLOADING stage
-        """
-
-        self.log_routes = False  # define whether to log route details to console
-
-        super(RasberryCoordinator, self).__init__(robot_ids,
-                                                  picker_ids,
-                                                  virtual_picker_ids,
-                                                  use_restrictions,
-                                                  ns=ns,
-                                                  is_parent=True)
-
-        self.local_storages = local_storages
-        self.cold_storage = cold_storage
-        self.use_cold_storage = use_cold_storage
-
-        # Base station initialisation
-        self.base_station_nodes_pool = set(base_station_nodes_pool)
-        used_base_stations = set(base_stations.values())
-        self.available_base_stations = list(self.base_station_nodes_pool.difference(used_base_stations))
-
-        logmsg(msg='base stations in use: %s' % (base_stations.values()))
-        logmsg(msg='base stations available: %s' % (str(self.available_base_stations)))
-
-        # Wait node initialisation
-        self.wait_nodes_pool = set(wait_nodes_pool)
-        used_wait_nodes = set(wait_nodes.values())
-        self.available_wait_nodes = list(self.wait_nodes_pool.difference(used_wait_nodes))
-
-        self.use_restrictions = use_restrictions
-
-        # Initialise conditions for robot registration
-        self.admissible_robot_ids = admissible_robot_ids
-        self.active_tasks = active_tasks
-        logmsg(msg='active tasks: ' + ', '.join(self.active_tasks))
-
-        # Initialise topics for marker management
-        self.marker_add_pub = rospy.Publisher('/rasberry_coordination/marker_add',
-                                                rasberry_coordination.msg.MarkerDetails, queue_size=5)
-        self.marker_remove_pub = rospy.Publisher('/rasberry_coordination/marker_remove',
-                                                  rasberry_coordination.msg.MarkerDetails, queue_size=5)
-
-        self.task_lock = threading.Lock()
-
-        logs_dir = os.path.join(os.environ["HOME"], "rasberry_coordination_logs")
-        if not os.path.exists(logs_dir):
-            os.makedirs(logs_dir)
-        dt = datetime.datetime.now()
-        self.log_file = open(os.path.join(logs_dir, dt.strftime("%Y%m%d-%H%M%S_coordinator.csv")), "w")
-        self.log_headers = ["id", "time", "datetime", "action_type",
-                            "task_id", "robot_id", "robot_task_stage",
-                            "task_updates", "details", "current_node",
-                            "closest_node", "source", "edge_ids"]
+        """ Meta Fields """
+        self.ns = ns.strip("/") + "/"
+        self.is_parent = True
+        self.trigger_fresh_replan = False #ReplanTrigger
         self.log_count = 0
-        self.log_writer = csv.DictWriter(self.log_file, fieldnames=self.log_headers)
-        self.log_writer.writeheader()
-        self.write_log({"action_type": "starting coordinator"})
 
-        """Robot Detail Manage Initialisation"""
-        self.robot_manager.add_agents(robot_ids, use_restrictions)
-        for robot in self.robot_manager.agent_details.values():
-            robot.base_station = base_stations[robot.robot_id]
-            robot.wait_node = wait_nodes[robot.robot_id]
-            robot.max_task_priority = max_task_priorities[robot.robot_id]
-            robot.set_robot_type(robot_types[robot.robot_id])
-            robot.set_robot_task_types(robot_tasks[robot.robot_id])
 
-        self.robot_types = robot_types
-        self.robot_task_types = robot_tasks
-
-        self.task_pause_pub = rospy.Publisher('/rasberry_coordination/pause_state', std_msgs.msg.Bool, queue_size=5, latch=True)
-        self.task_pause = False
-        self.task_pause_pub.publish(self.task_pause)
-        self.system_paused_robots = []
-        self.trigger_replan = False
-
-        logmsg(msg='robots initialised: ' + ', '.join(self.robot_manager.agent_details.keys()))
-
-#        self.free_charging_nodes = set(["dock-1"])
-        self.free_charging_nodes = set(charging_station_nodes)
-        self.occupied_charging_nodes = set()
-        self.charging_queue = set()
-
-        # node data collection task manager
-        self.node_dc_task_manager = rasberry_coordination.data_collection_manager.NodeDataCollectionManager()
-
-        # calling from the child class
-        self.advertise_services()
-
+        """ Initialise Task Parameters: """ #This should be done within Stages.py programatically
+        """
+        self.active_tasks = active_tasks
         self.max_load_duration = max_load_duration
         self.max_unload_duration = max_unload_duration
-
-        # TODO: This should be updated
-        self.max_node_dc_duration = 5
-
-        logmsg(msg='coordinator initialised')
-
-    def add_to_charging_queue_ros_srv(self, req):
-        """
-        """
-        resp = rasberry_coordination.srv.AgentIDResponse()
-        if ((req.agent_id not in self.charging_queue) and
-            (req.agent_id not in self.robot_manager.charging_robots())):
-            # add robot for charging queue
-            self.charging_queue.add(req.agent_id)
-            # unregister robot - release task
-            self.unregister_robot_release_task_ros_srv(req) # TODO: check the response
-            # set reponse
-            resp.success = 1
-            resp.msg = "%s added to charging queue" %(req.agent_id)
-            rospy.loginfo(resp.msg)
-        else:
-            resp.success = 1
-            resp.msg = "%s is already in the charging queue" %(req.agent_id)
-            rospy.logwarn(resp.msg)
-        return resp
-
-    add_to_charging_queue_ros_srv.type = rasberry_coordination.srv.AgentID
-
-    def finish_charging_ros_srv(self, req):
-        """
-        """
-        resp = rasberry_coordination.srv.AgentIDResponse()
-
-        charging_robots = self.robot_manager.charging_robots()
-
-        if req.agent_id in charging_robots:
-            # make sure the robot has charged enough
-            pass
-            # release the charging_node
-            robot = self.robot_manager.agent_details[req.agent_id]
-            charging_node = robot.charging_node
-            self.occupied_charging_nodes.remove(charging_node)
-            self.free_charging_nodes.add(charging_node)
-            # set robot as not charging
-            robot._set_as_not_charging()
-            # register robot
-            self.register_robot_ros_srv(req) # TODO: check the response
-            # send robot to base
-            self.send_robot_to_base(req.agent_id)
-            # set response
-            resp.success = 1
-            resp.msg = "%s is finished charging and sent to its base" %(req.agent_id)
-            rospy.loginfo(resp.msg)
-        else:
-            resp.success = 0
-            resp.msg = "%s is not finished charging" %(req.agent_id)
-            rospy.logwarn(resp.msg)
-        return resp
-
-    finish_charging_ros_srv.type = rasberry_coordination.srv.AgentID
-
-    def tray_loaded_ros_srv(self, req):
-        """tray_loaded service
-        """
-        self.robot_manager[req.robot_id].tray_loaded = True
-
-        self.write_log({"action_type": "tray_loaded_srv",
-                        "robot_id": req.robot_id,
-                        })
-        return []
-
-    tray_loaded_ros_srv.type = rasberry_coordination.srv.TrayLoaded
-
-    def set_robot_reached_picker_ros_srv(self, req):
-        """Set a robot reached the picker. finish the go_to_picker stage. robot will go to wait_loading
-        """
-        logmsg(category='ROBOT', id=req.robot_id, msg='robot has reached picker')
-
-        resp = rasberry_coordination.srv.TriggerRobotResponse()
-        if req.robot_id not in self.robot_manager.agent_details:
-            resp.success = False
-            resp.message = "Robot - %s is not configured" %(req.robot_id)
-        else:
-            #Identify robot
-            robot = self.robot_manager[req.robot_id]
-
-            if robot.moving and robot.task_stage == "go_to_picker":
-
-                robot._reached_picker()
-                self.publish_task_state(robot.task_id, req.robot_id, "ARRIVED")
-
-                resp.success = True
-                resp.message = "Robot - %s is set to have reached the picker" %(req.robot_id)
-
-            else:
-                resp.success = False
-                resp.message = "Robot - %s is not in moving_robots now" %(req.robot_id)
-
-        self.write_log({"action_type": "set_robot_reached_picker_srv",
-                        "robot_id": req.robot_id,
-                        "details": resp.message,
-                        })
-        return resp
-
-    set_robot_reached_picker_ros_srv.type = rasberry_coordination.srv.TriggerRobot
-
-    def set_robot_reached_storage_ros_srv(self, req):
-        """Set a robot reached the storage. finish the go_to_storage stage. robot will go to wait_unloading
-        """
-        logmsg(category='ROBOT', id=req.robot_id, msg='robot has reached storage')
-
-        resp = rasberry_coordination.srv.TriggerRobotResponse()
-        if req.robot_id not in self.robot_manager.agent_details:
-            resp.success = False
-            resp.message = "Robot - %s is not configured" %(req.robot_id)
-        else:
-            robot = self.robot_manager[req.robot_id]
-
-            if robot.moving and robot.task_stage == "go_to_storage":
-                robot._reached_storage()
-                self.publish_task_state(robot.task_id, req.robot_id, "STORAGE")
-
-                resp.success = True
-                resp.message = "Robot - %s is set to have reached the storage" %(req.robot_id)
-
-            else:
-                resp.success = False
-                resp.message = "Robot - %s is not in moving_robots now" %(req.robot_id)
-
-        self.write_log({"action_type": "set_robot_reached_storage_ros_srv",
-                        "robot_id": req.robot_id,
-                        "details": resp.message
-                        })
-        return resp
-
-    set_robot_reached_storage_ros_srv.type = rasberry_coordination.srv.TriggerRobot
-
-    def connect_robot_ros_srv(self, req):
-        """Add robot to system so the coordinator can see it.
-        Reject if the robot_id is not listed in the map config...
-        or it's viable tasks are not active system tasks...
-        or if the robot is already visible...
-        or if there is no base_station available.
-        """
-        logmsg(category="drm", id=req.agent_id, msg='connecting to system')
-
-        if req.agent_id not in self.admissible_robot_ids:
-            logmsg(level="warn", category="drm", id=req.agent_id, msg='connection failed, robot not in admissible_robot_ids')
-            logmsg(category="drm", msg='admissible robots: ' + ', '.join(self.admissible_robot_ids))
-            return {'success': 0, 'msg': 'robot not in admissible_robot_ids'}
-
-        elif not any([task in self.active_tasks for task in req.tasks]):
-            logmsg(level="warn", category="drm", id=req.agent_id, msg='connection failed, given tasks are not active in system')
-            logmsg(category="drm", msg='active tasks: ' + ', '.join(self.active_tasks))
-            return {'success': 0, 'msg': 'given tasks are not active in system'}
-
-        elif req.agent_id in self.robot_manager.agent_details:
-            logmsg(level="warn", category="drm", id=req.agent_id, msg='connection failed, robot already connected')
-            logmsg(category="drm", msg='connected robots: ' + ', '.join(self.robot_manager.agent_details.keys()))
-
-            robot = self.robot_manager[req.agent_id]
-            if req.register and not robot.registered:
-                logmsg(level="warn", category="drm", id=req.agent_id, msg='robot no longer pending to unregister')
-                self.register_robot_ros_srv(req)
-                self.modify_robot_marker(req.agent_id, color='no_color')
-                return {'success': 1, 'msg': 'robot already connected, no longer pending to unregister'}
-            else:
-                return {'success': 1, 'msg': 'robot already connected'}
-
-        elif len(self.available_base_stations) < 1:
-            logmsg(level="warn", category="drm", id=req.agent_id, msg='connection failed, no base stations available')
-            logmsg(category="drm", msg='base stations in use: ' + ', '.join(self.robot_manager.get_list('base_station')))
-            return {'success': 0, 'msg': 'no base stations available'}
-
-        self.connect_robot(req.agent_id)
-
-        if req.register:
-            self.register_robot_ros_srv(req)
-
-        if self.task_pause and req.register:
-            self.system_paused_robots.extend([self.robot_manager[req.agent_id]])
-
-        if req.register and not self.task_pause:
-            self.modify_robot_marker(req.agent_id, color='no_color')
-        else:
-            self.modify_robot_marker(req.agent_id, color='red')
-
-        # send success response to service
-        return {'success': 1, 'msg': 'robot successfully connected'}
-
-    connect_robot_ros_srv.type = rasberry_coordination.srv.ConnectAgent
-
-    def connect_robot(self, robot_id):
-        """ initialise newly connected agent
-        """
-        self.robot_manager.add_agent(robot_id, self.use_restrictions)
-        robot = self.robot_manager[robot_id]
-        robot.registered = False
-
-        # Set first available base station as taken
-        robot.base_station = remove(self.available_base_stations, self.available_base_stations[-1])
-        robot.wait_node = remove(self.available_wait_nodes, self.available_wait_nodes[-1])
-
-        robot.set_robot_task_type(self.robot_task_types[robot_id])
-        robot.set_robot_type(self.robot_types[robot_id])
-
-        logmsg(category="drm", id=robot_id, msg='assigned to base station %s' % (robot.base_station))
-        logmsg(category="drm", msg='base stations in use: %s' % (str(self.robot_manager.get_list('base_station'))))
-        logmsg(category="drm", msg='base stations available: %s' % (str(self.available_base_stations)))
-        logmsg(category="drm", id=robot_id, msg='connection complete')
-
-    def register_robot_ros_srv(self, req):
-        """Register the robot to enable task assignment.
-        Reject if the robot_id is listed as a registered robot...
-        but only if it is not planned for unregistration.
-        """
-        logmsg(category="drm", id=req.agent_id, msg='registering for task allocation')
-        robot = self.robot_manager[req.agent_id]
-
-        """ Return fail, if robot is not connected or success, if robot is already registered """
-        if not robot:
-            return {'success': 0, 'msg': 'registration failed, robot is not connected'}
-        elif robot.registered:
-            return {'success': 1, 'msg': 'unregistration success, robot is already registered'}
-
-
-        """ When registering, robot can be in 1 of 4 states """
-        if robot.unregistration_type is "pause_task":
-            robot._unpause_robot()
-            #if not robot.task_id and robot._get_start_node() is not robot.base_station: #check empty task list?
-            if not robot.task_stage_list:
-                robot._set_target_base()
-            self.trigger_replan = True
-        elif robot.unregistration_type is "release_task":
-            """ if robot has not started moving to base do that """
-            """ if robot has not reached base do that """
-            """ if robot is at base do nout """
-
-            if robot._get_start_node() is not robot.base_station:
-                robot._set_target_base()
-                self.trigger_replan = True
-        elif robot.unregistration_type is "complete_task":
-            if not robot.task_id:
-                robot.idle = True # TODO: is this error prone?
-
-        elif robot.unregistration_type is "no_task":
-            if not robot.task_id:
-                robot.idle = True
-
-        """Resister robot, change visual to appear without color modifier, return success"""
-        robot.registered = True
-        self.modify_robot_marker(req.agent_id, color='no_color')
-        return {'success': 1, 'msg': 'robot has registered'}
-
-    register_robot_ros_srv.type = rasberry_coordination.srv.AgentID
-
-    def unregister_robot_ros_srv(self, req):
-        """Based on the action included in the request,
-        perform the respective action required to unregister the robot.
+        self.max_task_priority = max_task_priority
         """
 
-        actions = {'complete_task': self.unregister_robot_complete_task_ros_srv,
-                   'pause_task': self.unregister_robot_pause_task_ros_srv,
-                   'release_task': self.unregister_robot_release_task_ros_srv}
-        if req.action in actions:
-            return actions[req.action](req)
-            # return actions[req.action]({'agent_id': req.agent_id})
-        return {'success': 0, 'msg': 'action "%s" not acceptable' % str(req.action)}
+        """ Initialise System Details: """
+        self.special_nodes = special_nodes
+        self.base_station_nodes_pool = base_station_nodes_pool
+        self.wait_nodes_pool = wait_nodes_pool
 
-    unregister_robot_ros_srv.type = rasberry_coordination.srv.UnregisterAgent
-
-    def unregister_robot_complete_task_ros_srv(self, req):
-        """Prevent robot from accepting tasks and set to unregister when its current task completed
-        Reject if robot_id is not listed as an registered robot...
-        or if the robot is already planned for unregistration.
+        # Cold storage node is an agnet now, and should be defined as such
         """
-        logmsg(category="drm", id=req.agent_id, msg='unregistering from task allocation')
-        robot = self.robot_manager[req.agent_id]
-
-        """ Return fail, if robot is not connected or success, if robot is already unregistered """
-        if not robot:
-            return {'success': 0, 'msg': 'unregistration failed, robot is not connected'}
-        elif self.task_pause and robot in self.system_paused_robots: #if robot was paused with the coordinator
-            self.system_paused_robots.remove(robot)
-            return {'success': 1, 'msg': 'coordinator is paused, will not unpause robot with coordinator'}
-        elif not robot.registered:
-            return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
-
-        """Remove ability to take on tasks"""
-        robot.interruptable = False
-        robot.unregistration_type = "no_task"
-        if robot.task_id:
-            robot.unregistration_type = "finish_task"
-
-        """If robot is attempting to disconnect, allow it"""
-        if not robot.disconnect_when_idle:
-            robot.idle = False
-
-        """If robot is attempting to unregister, set to appear red"""
-        robot.registered = False
-        self.modify_robot_marker(req.agent_id, color='red')
-        return {'success': 1, 'msg': 'robot has unregistered'}
-
-    unregister_robot_complete_task_ros_srv.type = rasberry_coordination.srv.AgentID
-
-    def unregister_robot_release_task_ros_srv(self, req):
-        """Prevent robot from accepting tasks and set to unregister
-        and release the active task.
-        Return success if robot is already unregistered (regardless of how)
-        Return failure if robot does not exist.
-        If robt does not have task, call unregister_complete_task.
+        self.use_cold_storage = use_cold_storage
+        self.cold_storage_node = cold_storage_node
         """
 
-        logmsg(category="drm", id=req.agent_id, msg='unregistering from task allocation canceling any active tasks')
-        robot = self.robot_manager[req.agent_id]
+        """ Initialise Agents: """
+        callbacks = {'update_topo_map': None
+                     , 'trigger_replan': self.trigger_replan #ReplanTrigger
+                    }
+        #TODO: redesign for this to be gone
 
-        #TODO: if unregistred already, task will not be removed on this call but robot will be left paused once coordinator resumes
+        #Define Agent Manager
+        self.agent_manager = AgentManager(callbacks)
+        self.agent_manager.add_agents(agent_list)
+        self.AllAgentsList = self.get_all_agents()
 
-        """ Return fail, if robot is not connected or success, if robot is already unregistered """
-        if not robot:
-            return {'success': 0, 'msg': 'unregistration failed, robot is not connected'}
-        elif self.task_pause and robot in self.system_paused_robots: #if robot was paused with the coordinator
-            self.system_paused_robots.remove(robot)
-            return {'success': 0, 'msg': 'coordinator is paused, will not unpause robot with coordinator (retained task)'}
-        elif not robot.registered:  # TODO: Add additional condition to cancel task if unregistered with 'pause_task'
-            return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
-        elif not robot.task_id:
-            return self.unregister_robot_complete_task_ros_srv(req)
 
-        """ Notify relevant picker """
-        if robot.task_stage in ["go_to_picker", "wait_loading"]:
-            self.picker_manager.get_task_handler(robot.task_id).task_abandonded()
+        """ Routing Details """
+        self.route_finder = RouteFinder(planning_format=planning_format, agent_manager=self.agent_manager)
+        self.replan_trigger_cb = Subscriber('/rasberry_coordination/force_replan', Empty, self.trigger_replan, )
 
-        """ Prevent robot from taking new task """
-        robot._drm_release_task()
-        robot.registered = False
+        """ Communications Setup """
+        self.advertise_services()
 
-        """ Set to appear red and return success"""
-        self.modify_robot_marker(req.agent_id, color='red')
-        return {'success': 1, 'msg': 'robot has unregistered'}
+        # Initialise topics for marker management #Combine these into 1 topic
+        self.marker_add_pub = Publisher('/rasberry_coordination/marker_add', MarkerDetails, queue_size=5)
+        self.marker_remove_pub = Publisher('/rasberry_coordination/marker_remove', MarkerDetails, queue_size=5)
 
-    unregister_robot_release_task_ros_srv.type = rasberry_coordination.srv.AgentID
+        """ TOC Communications """
+        self.TOC_Interface = InterfaceDef.TOC_Interface(self)
 
-    def unregister_robot_pause_task_ros_srv(self, req):
-        """Prevent robot from accepting tasks and set to unregister
-        and pause the active task, cancelling any active route.
-        Return success if robot is already unregistered (regardless of how)
-        Return failure if robot does not exist.
-        If robot does not have task, call unregister_complete_task.
+
+        logmsg(category="setup", msg='Coordinator initialisation complete')
+        print("------------------------------------------")
+        logmsgbreak(total=1)
+        return
+    def advertise_services(self):
+        """Adverstise ROS services.
+        Only call at the end of constructor to avoid calls during construction.
+        If this is a parent class, call from child class
         """
-        logmsg(category="drm", id=req.agent_id, msg='unregistering from task allocation pausing active tasks')
-        robot = self.robot_manager[req.agent_id]
-
-        """ Return fail, if robot is not connected or success, if robot is already unregistered """
-        if not robot:
-            return {'success':0, 'msg':'unregistration failed, robot is not connected'}
-        elif self.task_pause and robot in self.system_paused_robots: #if robot was paused with the coordinator
-            self.system_paused_robots.remove(robot)
-            return {'success': 1, 'msg': 'coordinator is paused, will not unpause robot with coordinator'}
-        elif not robot.registered:
-            return {'success': 1, 'msg': 'unregistration success, robot is already unregistered'}
-        elif not robot.task_id and robot.task_stage != "go_to_base":
-            return self.unregister_robot_complete_task_ros_srv(req)
-
-        """ Set to appear red and return success"""
-        robot._pause_task()
-        robot.registered = False
-        self.modify_robot_marker(req.agent_id, color='red')
-        return {'success': 1, 'msg': 'robot has unregistered'}
-
-    unregister_robot_pause_task_ros_srv.type = rasberry_coordination.srv.AgentID
-
-    def disconnect_robot_ros_srv(self, req):
-        """Remove robot from system.
-        Reject if robot_id is not listed as a visible robot.
-        Unregister if required.
-        """
-        logmsg(category="drm", id=req.agent_id, msg='disconnecting from system')
-
-        """Check if robot exists"""
-        if req.agent_id not in self.robot_manager.agent_details:
-            logmsg(level="warn", category="drm", id=req.agent_id, msg='disconnection failed, robot is not connected')
-            logmsg(category="drm", msg='connected robots: ' + ', '.join(self.robot_manager.agent_details.keys()))
-            return {'success': 1, 'msg': 'disconnection success, robot is already not connected'}
-
-        """Identify robot and mark as attempting to disconnect"""
-        robot = self.robot_manager[req.agent_id]
-        robot.disconnect_when_idle = True
-
-        """Unregister robot if registered"""
-        if robot.registered:
-            self.unregister_robot_complete_task_ros_srv(req)
-
-        """If the robot is idle, disconnect it"""
-        if robot.idle:  # TODO: swap out to query if has task_stage
-            self.disconnect_robot(robot.robot_id)
-            return {'success': 1, 'msg': 'robot successfully disconnected'}
-        return {'success': 1, 'msg': 'robot set to disconnect on task completion'}
-
-    disconnect_robot_ros_srv.type = rasberry_coordination.srv.AgentID
-
-    def disconnect_robot(self, robot_id):
-        """remove all record of the robot being a member of the system
-        """
-
-        """Identify robot to remove"""
-        robot = self.robot_manager[robot_id]
-
-        """Extract any useful information"""
-        add(self.available_base_stations, robot.base_station)
-        add(self.available_wait_nodes, robot.wait_node)
-
-        logmsg(category="drm", msg='base station %s added to pool' % (robot.base_station))
-        logmsg(category="drm", msg='base stations in use: ' + ', '.join(self.robot_manager.get_list('base_station')))
-        logmsg(category="drm", msg='base stations available: ' + ', '.join(self.available_base_stations))
-
-        """Remove robot"""
-        self.robot_manager.remove_agent(robot_id)
-
-        """Remove robot marker"""
-        self.clear_robot_marker(robot_id)
-
-        logmsg(category="drm", id=robot_id, msg="disconnection complete")
-
-    def add_picker_ros_srv(self, req):
-        self.picker_manager.add_agent(req.agent_id)
-        return {'success': 1, 'msg': 'new picker registered for task creation'}
-
-    add_picker_ros_srv.type = rasberry_coordination.srv.AgentID
-
-    def pause_coordinator_ros_srv(self, req):
-        logmsg(category="drm", msg='request made to switch pause status of coordinator to pause=%s'%str(req.data))
-        AgentIDRequest = rasberry_coordination.srv.AgentIDRequest
-
-        if req.data and self.task_pause:
-            # already paused and new pause call -> pause any newly registered robots
-            extra_robots = [robot for robot in self.robot_manager.agent_details.values() if robot.registered]
-            [self.unregister_robot_pause_task_ros_srv(AgentIDRequest(r.agent_id)) for r in extra_robots]
-            self.system_paused_robots.extend(extra_robots)
-            logmsg(category="drm", msg='coordinator has been paused')
-            self.task_pause_pub.publish(self.task_pause)
-            return {'success': 1, 'message': 'coordinator paused'}
-        elif req.data:
-            # not paused now and new pause call -> pause all registered robots
-            self.system_paused_robots = [robot for robot in self.robot_manager.agent_details.values() if robot.registered]
-            [self.unregister_robot_pause_task_ros_srv(AgentIDRequest(r.agent_id)) for r in self.system_paused_robots]
-            self.task_pause = True
-            self.task_pause_pub.publish(self.task_pause)
-            logmsg(category="drm", msg='coordinator has been paused')
-            return {'success': 1, 'message': 'coordinator paused'}
-        else:
-            # new unpause call -> unpause all paused robots
-            [self.register_robot_ros_srv(AgentIDRequest(r.agent_id)) for r in self.system_paused_robots]
-            self.task_pause = False
-            self.task_pause_pub.publish(self.task_pause)
-            self.trigger_replan = True
-            logmsg(category="drm", msg='coordinator has been unpaused')
-            return {'success': 1, 'message': 'coordinator unpaused'}
-
-    pause_coordinator_ros_srv.type = std_srvs.srv.SetBool
-
-    def modify_robot_marker(self, robot_id, color=''):
-        """Add/modify marker to display in rviz"""
-        marker = rasberry_coordination.msg.MarkerDetails()
-        marker.type = 'robot'
-        marker.name = robot_id
-        if color == 'no_color':
-            color = ''
-        marker.optional_color = color
-        self.marker_add_pub.publish(marker)
-
-    def clear_robot_marker(self, robot_id):
-        """Modify rviz marker to reflect removal"""
-        marker = rasberry_coordination.msg.MarkerDetails()
-        marker.type = "robot"
-        marker.name = robot_id
-        self.marker_remove_pub.publish(marker)
-
-    def send_robot_to_base(self, robot_id):
-        """send robot to base. very specific goal.
-        happens after task is finished (unloaded trays) or task failed
-        also in replan if goal = start node and task is go_to_base
-        """
-        logmsg(category="robot", id=robot_id, msg='attempting to send to base station')
-
-        robot = self.robot_manager[robot_id]
-        if robot._get_start_node(accuracy=True) == robot.base_station:
-            logmsg(category="robot", id=robot_id, msg='already at base station')
-            # already at base station. set as idle
-            robot._set_as_idle()
-            logmsg(category="list", msg='idle robots: %s' % (str(self.robot_manager.idle_list())))
-        else:
-            logmsg(category="robot", id=robot_id, msg='not at base station, setting as target')
-            robot._set_target_base()
-            logmsg(category="list", msg='active_interruptable_robots: %s' % (str(self.robot_manager.interruptable_list())))
-            self.write_log({"action_type": "robot_update",
-                            "robot_task_stage": "go_to_base_start",
-                            "robot_id": robot_id,
-                            "current_node": robot.current_node,
-                            "closest_node": robot.closest_node,
-                            })
-
-    def send_robot_to_charging_node(self, robot_id):
-        """send robot to base. very specific goal.
-        happens after task is finished (unloaded trays) or task failed
-        also in replan if goal = start node and task is go_to_base
-        """
-        logmsg(category="robot", id=robot_id, msg='attempting to send to charging station')
-
-        robot = self.robot_manager[robot_id]
-        if robot._get_start_node(accuracy=True) == robot.charging_node:
-            logmsg(category="robot", id=robot_id, msg='already at charging station')
-            # already at charging station. set as charging
-            robot.robot_interface.cancel_execpolicy_goal()
-
-    def find_closest_robot(self, location, priority, task_type):
-        """find the robot closest to the task location (picker_node)
-        # assign based on priority (0 - virtual pickers only, >=1 real pickers)
-
-        Keyword arguments:
-            location - task location
-            priority - task priority
-            task_type - type of task
-        """
-        goal_node = location
-        robot_dists = {}
-
-        for robot_id in self.robot_manager.available_robots():
-            robot = self.robot_manager[robot_id]
-
-            # ignore if the robot is not actively accepting tasks
-            if not robot.registered:
-                continue
-
-            # can the robot do the task?
-            if not robot.can_do(task_type):
-                continue
-
-            # ignore if the robot's closest_node and current_node is not yet available
-            if robot.current_node is None and robot.closest_node is None:
-                continue
-
-            # is the goal_node in robot's restricted topomap?
-            if not robot.is_node_in_topomap(goal_node):
-                continue
-
-            # ignore if the task priority is less than the min task priority for the robot
-            # lower the value, higher the priority
-            if priority > robot.max_task_priority:
-                continue
-
-            # use current_node as start_node if available
-            if robot.current_node is not None:
-                start_node = robot.current_node
-            else:
-                start_node = robot.closest_node
-
-            if start_node is None or goal_node is None or start_node is None or goal_node is None:
-                route_dists = [float("inf")]
-            elif start_node != goal_node:
-                route_nodes, route_edges, route_dists = self.get_path_details(start_node, goal_node)
-            else:
-                route_dists = [0]
-
-            if abs(sum(route_dists)) != float("inf"):
-                robot_dists[robot_id] = sum(route_dists)
-
-        if len(robot_dists) == 0 or min(robot_dists.values()) == float("inf"):
-            return None
-
-        return sorted(robot_dists.items(), key=operator.itemgetter(1))[0][0]
-
-    def assign_tasks(self):
-        """assign tasks to idle robots
-        """
-
-        """ if there are unassigned tasks and there robots able to take them on """
-        available_transportation_robots = self.robot_manager.available_robots("transportation")
-        unassigned_transportation_tasks = self.picker_manager.unassigned_tasks()
-        if available_transportation_robots and unassigned_transportation_tasks:
-            logmsg(category="task", msg='unassigned task present, %s robots available' % (len(available_transportation_robots)))
-            logmsg(category="list", msg='available robots: %s' % (str(available_transportation_robots)))
-            # try to assign all tasks
-            rospy.sleep(0.2)
-            self.assign_transportation_tasks()
-
-        """ if there are unassigned tasks and there robots able to take them on """
-        available_datacollection_robots = self.robot_manager.available_robots("datacollection")
-        unassigned_datacollection_tasks = self.node_dc_task_manager.get_unassigned_tasks()
-        if available_datacollection_robots and unassigned_datacollection_tasks:
-            logmsg(category="task", msg='unassigned task present, %s robots available' % (len(available_datacollection_robots)))
-            logmsg(category="list", msg='available robots: %s' % (str(available_datacollection_robots)))
-            # try to assign all tasks
-            rospy.sleep(0.2)
-            self.assign_node_data_collection_tasks()
-
-    def assign_transportation_tasks(self, ):
-        """assign transporation tasks to idle robots
-        high priority tasks are assigned first
-        among equal priority tasks, low task_id is assigned first
-        """
-        locked = self.task_lock.acquire(False)
-
-        if locked:
-            trigger_replan = False
-
-            """ get list of unassigned tasks """
-            tasks = self.picker_manager.get_unassigned_tasks_ordered()
-            if tasks:
-                logmsg(category="task", msg='Tasks to Assign:')
-                [logmsg(category="task", msg='    - %s' % task) for task in tasks]
-            else:
-                logmsg(level='warn', category="task", msg='No tasks found but called to assign_transportation_tasks')
-
-            """ for each task, assign the most effective robot """
-            for task_id in tasks:
-                picker = self.picker_manager.get_task_handler(task_id)
-
-                """ identify most promising robot """
-                robot_id = self.find_closest_robot(picker.task_location, picker.task_priority, picker.task_type) #swap out to use picker.location
-                if robot_id is None:
-                    continue
-                robot = self.robot_manager[robot_id]
-
-                logmsg(category="robot", id=robot_id, msg='assigned task %s'%(task_id))
-                logmsg(category="list", msg='interruptable robots: %s'%(str(self.robot_manager.interruptable_list())))
-                logmsg(category="list", msg='idle robots: %s'%(str(self.robot_manager.idle_list())))
-
-                """ enable planing for task """
-                trigger_replan = True
-
-                """ prepare robot to take task """
-                robot._begin_transportation_task(task_id)
-
-                # self.processing_tasks[task_id] = picker.task_backup
-                robot.goal_node = picker.task_location
-
-                self.update_current_storage(robot_id)
-
-                self.publish_task_state(task_id, robot_id, "ACCEPT")
-
-                self.write_log({"action_type": "robot_update",
-                                "robot_task_stage": "go_to_picker_start",
-                                "task_id": task_id,
-                                "robot_id": robot_id,
-                                "details": "to %s" %(picker.task_location),
-                                "current_node": robot.current_node,
-                                "closest_node": robot.closest_node,
-                                })
-
-                # update trigger_replan after each type of task assignment
-                self.trigger_replan = self.trigger_replan or trigger_replan
-
-            self.task_lock.release()
-
-    def assign_node_data_collection_tasks(self, ):
-        """assign node data collection tasks to idle robots
-        high priority tasks are assigned first
-        among equal priority tasks, low task_id is assigned first
-        """
-        locked = self.task_lock.acquire(False)
-
-        if locked:
-            trigger_replan = False
-
-            """ get list of unassigned tasks """
-            tasks = self.node_dc_task_manager.get_unassigned_tasks()
-            if tasks:
-                logmsg(category="task", msg='Tasks to Assign:')
-                [logmsg(category="task", msg='    - %s' % task) for task in tasks]
-            else:
-                logmsg(level='warn', category="task", msg='No tasks found but called to assign_node_data_collection_tasks')
-
-            """ for each task, assign the most effective robot """
-            for task_id in tasks:
-
-                """ identify most promising robot """
-                robot_id = self.find_closest_robot(self.node_dc_task_manager.task_nodes[task_id],
-                                                   self.node_dc_task_manager.task_priority[task_id],
-                                                   self.node_dc_task_manager.task_type[task_id]) #swap out to use picker.location
-                if robot_id is None:
-                    continue
-                robot = self.robot_manager[robot_id]
-
-                logmsg(category="robot", id=robot_id, msg='assigned task %s'%(task_id))
-                logmsg(category="list", msg='interruptable robots: %s'%(str(self.robot_manager.interruptable_list())))
-                logmsg(category="list", msg='idle robots: %s'%(str(self.robot_manager.idle_list())))
-
-                """ enable planing for task """
-                trigger_replan = True
-
-                """ prepare robot to take task """
-                robot._begin_node_dc_task(task_id)
-
-                # self.processing_tasks[task_id] = picker.task_backup
-                robot.goal_node = self.node_dc_task_manager.task_nodes[task_id]
-
-                self.node_dc_task_manager.assign_robot(task_id, robot_id)
-
-                # update trigger_replan after each type of task assignment
-                self.trigger_replan = self.trigger_replan or trigger_replan
-
-            self.task_lock.release()
-
-    def update_current_storage(self, robot_id):
-        """set the current_storage node of the robot. If the robot is idle,
-        this is None. If use_cold_storage is set, it is cold_storage node.
-        Else, it is the local storage nearest  to the picker_node
-
-        Keyword arguments:
-            robot_id -- robot_id
-        """
-        robot = self.robot_manager[robot_id]
-        if not robot.active:
-            robot.current_storage = None
-        elif self.use_cold_storage:
-            robot.current_storage = self.cold_storage
-        else:
-            # get the closest local storage near the picker location
-            # task = self.processing_tasks[robot.task_id]
-            picker = self.picker_manager.get_task_handler(robot.task_id)
-            picker_node = picker.task_location
-            min_dist = float("inf")
-            for storage in self.local_storages:
-                _, _, dists = self.get_path_details(picker_node, storage)
-                if sum(dists) < min_dist:
-                    robot.current_storage = storage
-
-    def finish_task(self, robot_id):
-        """set the task assigned to the robot as finished whenever trays are unloaded
-        """
-        robot = self.robot_manager[robot_id]
-
-        # move task from processing to completed
-        task_id = robot.task_id
-        self.completed_tasks.append(task_id)
-        robot.goal_node = None
-
-        # mark task as complete
-        robot._tray_unloaded()
-
-        """ Inform TOC of task completion """
-        self.inform_toc_task_ended(task_id=task_id, reason="task_completed", robot_id=robot_id)
-
-        self.write_log({"action_type": "task_update",
-                        "task_updates": "task_finish",
-                        "task_id": task_id,
-                        "robot_id": robot_id,
-                        })
-
-    def task_update(self, update, task_id, details):
-        """ If the pickers location has updated while robot is navigating to them
-        this function is called to update the robots goal and trigger a replan.
-        """
-        if update == "picker_node_update":
-            robot = self.robot_manager.get_task_handler(task_id)
-            if robot: #and robot.task_stage == "go_to_picker":
-                robot.goal_node = details
-            self.trigger_replan = True
-
-    # def set_task_failed(self, task_id):
-    #     """set task state as failed
-    #     """
-    #     # remove(self.failed_tasks, task_id)
-    #     robot = self.robot_manager.get_task_handler(task_id)
-    #     robot.goal_node = None
-    #
-    #     self.write_log({"action_type": "task_update",
-    #                     "task_updates": "task_failed",
-    #                     "task_id": task_id,
-    #                     "details": "Assigned robot failed to complete task after reaching picker",
-    #                     })
-
-    def publish_task_state(self, task_id, robot_id, state):
-        """publish the state of task (or picker) in CAR
-        """
-        self.picker_manager.task_updates(picker_id='',task_id=task_id,robot_id=robot_id,state=state)
-        rospy.sleep(0.01)
-
-        self.write_log({"action_type": "car_update",
-                        "task_updates": state,
-                        "task_id": task_id,
-                        "robot_id": robot_id,
-                        })
-
-    def readd_transportation_task(self, task_id):
-        """if robot assigned to a task fails before reaching the picker, the task can be
-        reassigned. so readd into the task queue.
-        """
-
-        """ Identify handlers for task """
-        robot = self.robot_manager.get_task_handler(task_id)
-        picker = self.picker_manager.get_task_handler(task_id)
-
-        """ Readd task back to queue if not cancelled """
-        # if cancelled, no picker will be found by get task handler as cancelling task removes the task details
-        if picker: #TODO: this needs through testing
-            logmsg(category="task", id=task_id, msg='picker still requires task completion, task added back to queue')
-            logmsg(category="robot", id=robot.agent_id, msg='failed to reach picker')
-            robot.goal_node = None
-
-            self.publish_task_state(task_id, "", "ABANDONED")
-
-            self.write_log({"action_type": "task_update",
-                            "task_updates": "readd_task",
-                            "task_id": task_id,
-                            "details": "Assigned robot failed to reach picker, adding the task back into the queue",
-                            })
-
-        rospy.sleep(0.01)
-
-    def readd_node_data_collection_task(self, task_id):
-        """if robot assigned to a task fails before reaching the data collection node, the task can be
-        reassigned. so readd into the task queue.
-        """
-
-        """ Identify handlers for task """
-        robot = self.robot_manager.get_task_handler(task_id)
-
-        """ Readd task back to queue if not cancelled """
-        pass
-
-    def handle_transportation_tasks(self):
-        """update task execution progress for all transportation robots
-        """
-        # trigger replan if there is a new task assignment, a robot waiting completed
-        # or task update from a robot
-        trigger_replan = False
-
-        for robot_id in self.robot_manager.active_list("transportation"):
-            robot = self.robot_manager[robot_id]
-            task_id = robot.task_id
-
-            if robot.moving:
-                # topo nav stage
-                # if any robot has finished its current goal, remove the finished goal from the robot's route
-                if robot.robot_interface.execpolicy_result is None:
-                    # task/fragment not finished
-                    continue
-
-                # check for robots which are moving, not waiting before a critical point
-                if robot.robot_interface.execpolicy_result.success:
-
-                    """ Trigger replan whenever a segment is completed """
-                    trigger_replan = True
-
-                    """ Robot has reached goal_node or wait_node """
-                    if robot._get_start_node() == robot._get_goal_node():
-
-                        # identify completed stage
-                        completed_stage = robot.task_stage
-
-                        # set robot to finish stage
-                        if completed_stage in ["go_to_picker", "go_to_storage", "go_to_base"]:
-                            logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
-
-                        # set picker to finish the stage
-                        if completed_stage == "go_to_picker":
-                            robot._reached_picker()
-                            self.publish_task_state(task_id, robot_id, "ARRIVED")
-
-                        elif completed_stage == "go_to_storage":
-                            robot._reached_storage()
-                            self.publish_task_state(task_id, robot_id, "STORAGE")
-
-                        elif completed_stage == "go_to_base":
-                            robot._end_task()
-                            logmsg(category="list", msg='idle robots: %s' % (str(self.robot_manager.idle_list())))
-                            if robot.disconnect_when_idle:
-                                self.disconnect_robot(robot_id)
-                    elif robot._get_start_node() == robot.wait_node:
-                        # finished only a fragment. may have to wait for clearance
-                        robot._finish_route_fragment()
-                    else:
-                        robot._finish_route_fragment()
-
-                else:
-                    #if robot is idle and hasnt completed its task stage
-                    logmsg(category="robot", id=robot_id, msg='execpolicy_result is not success or None (%s)'%(robot.robot_interface.execpolicy_result))
-                    logmsg(category="robot", id=robot_id, msg='current task stage: %s'%(robot.task_stage))
-
-                    #if robot has failed to complete task
-                    trigger_replan = True
-                    if robot.task_stage == "paused":
-                        logmsg(category="robot", id=robot_id, msg='unpausing task at stage %s'%(robot.task_stage_list[0]))
-                    else:
-                        logmsg(category="robot", id=robot_id, msg='failed to complete task %s at stage %s' % (task_id, robot.task_stage))
-
-                    # robot has either failed to complete its task, or it has paused its task
-                    if robot.task_stage == "paused":
-                        logmsg(category="robot", id=robot_id, msg='task unpaused')
-                        robot._unpause_task()
-
-                    elif robot.task_stage == "go_to_picker":
-                        # task is good enough to be assigned to another robot
-                        self.readd_transportation_task(task_id)
-                        self.send_robot_to_base(robot_id)
-
-                    elif robot.task_stage == "go_to_base":
-                        # robot failed exececute_policy_mode goal. retry going to base
-                        self.send_robot_to_base(robot_id)
-                        # another option is to leave the robot out there with a request for help. (# TODO)
-                        # in that case, remove robot from active_robots and don't add to idle_robots.
-
-                    else:
-                        # set the task as failed as it cannot be readded at this stage
-                        if task_id not in self.cancelled_tasks or task_id not in self.failed_tasks :
-                            self.set_task_failed(task_id)
-                            logmsg(msg='set task as failed')
-                        self.send_robot_to_base(robot_id)
-
-            else:
-
-                # robot has either failed to complete its task, or it has paused its task
-                if robot.task_stage == "paused":
-                    logmsg(category="robot", id=robot_id, msg='task unpaused')
-                    robot._unpause_task()
-
-                # wait_loading or wait_unloading
-                elif robot.task_stage == "wait_loading":
-                    """ If conditions are satisfied, finish waiting """
-                    tray_loaded = False
-
-                    """ If wait timeout has expired complete task """  # abandon task?
-                    if rospy.get_rostime() - robot.start_time > self.max_load_duration:
-                        tray_loaded = True
-
-                    """ Update task completeness of robot """
-                    picker = self.picker_manager.get_task_handler(robot.task_id)
-                    if picker and picker.task_stage in ["LOADED"]:
-                        tray_loaded = True
-
-                    """ If the robot has been loaded """
-                    if tray_loaded:
-                        logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
-                        self.publish_task_state(task_id, robot_id, "LOADED")    #update picker
-                        robot._tray_loaded() #update robot
-                        trigger_replan = True
-
-                        """ Release picker from task """
-                        if picker:
-                            picker.task_finished()
-
-                elif robot.task_stage == "wait_unloading":
-                    """ If conditions are satisfied, finish waiting """
-                    tray_unloaded = True
-
-                    """ If wait timeout has expired, complete task """
-                    if rospy.get_rostime() - robot.start_time > self.max_unload_duration:
-                        tray_unloaded = False
-                    # else:  # TODO: should we really be including artificial delay in the coordination?
-                    #     rospy.sleep(0.5)
-
-                    """ If the robot has been unloaded """
-                    if not tray_unloaded:
-                        logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
-                        self.publish_task_state(task_id, robot_id, "DELIVERED")
-                        robot._tray_unloaded()
-                        self.inform_toc_task_ended(task_id=task_id, robot_id=robot_id, reason="task_completed")
-
-                        trigger_replan = True
-
-                else:
-                    # robot is waiting before a critical point
-                    if self.robot_manager.moving_robots_exist():
-                        # no other moving robots - replan
-                        trigger_replan = True
-                    else:
-                        # wait for a moving robot to finish its route fragment
-                        pass
-
-        self.trigger_replan = self.trigger_replan or trigger_replan
-
-    def handle_node_data_collection_tasks(self):
-        """update task execution progress for all node data collection robots
-        """
-        # trigger replan if there is a new task assignment, a robot waiting completed
-        # or task update from a robot
-        trigger_replan = False
-
-        for robot_id in self.robot_manager.active_list("datacollection"):
-            robot = self.robot_manager[robot_id]
-            task_id = robot.task_id
-
-            if robot.moving:
-                # topo nav stage
-                # if any robot has finished its current goal, remove the finished goal from the robot's route
-                if robot.robot_interface.execpolicy_result is None:
-                    print "here"
-                    # task/fragment not finished
-                    continue
-
-                # check for robots which are moving, not waiting before a critical point
-                if robot.robot_interface.execpolicy_result.success:
-
-                    """ Trigger replan whenever a segment is completed """
-                    trigger_replan = True
-
-                    """ Robot has reached goal_node or wait_node """
-                    if robot._get_start_node() == robot._get_goal_node():
-
-                        # identify completed stage
-                        completed_stage = robot.task_stage
-
-                        # set robot to finish stage
-                        if completed_stage in ["go_to_dc_node", "go_to_base"]:
-                            logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
-
-                        # set picker to finish the stage
-                        if completed_stage == "go_to_dc_node":
-                            robot._reached_dc_node()
-
-                        elif completed_stage == "go_to_base":
-                            robot._end_task()
-                            logmsg(category="list", msg='idle robots: %s' % (str(self.robot_manager.idle_list())))
-                            if robot.disconnect_when_idle:
-                                self.disconnect_robot(robot_id)
-
-                    elif robot._get_start_node() == robot.wait_node:
-                        # finished only a fragment. may have to wait for clearance
-                        robot._finish_route_fragment()
-
-                    else:
-                        robot._finish_route_fragment()
-
-                else:
-                    #if robot is idle and hasnt completed its task stage
-                    logmsg(category="robot", id=robot_id, msg='execpolicy_result is not success or None (%s)'%(robot.robot_interface.execpolicy_result))
-                    logmsg(category="robot", id=robot_id, msg='current task stage: %s'%(robot.task_stage))
-
-                    #if robot has failed to complete task
-                    trigger_replan = True
-                    if robot.task_stage == "paused":
-                        logmsg(category="robot", id=robot_id, msg='unpausing task at stage %s'%(robot.task_stage_list[0]))
-                    else:
-                        logmsg(category="robot", id=robot_id, msg='failed to complete task %s at stage %s' % (task_id, robot.task_stage))
-
-                    # robot has either failed to complete its task, or it has paused its task
-                    if robot.task_stage == "paused":
-                        logmsg(category="robot", id=robot_id, msg='task unpaused')
-                        robot._unpause_task()
-
-                    elif robot.task_stage == "go_to_dc_node":
-                        # task is good enough to be assigned to another robot
-                        self.readd_node_data_collection_task(task_id)
-                        self.send_robot_to_base(robot_id)
-
-                    elif robot.task_stage == "go_to_base":
-                        # robot failed exececute_policy_mode goal. retry going to base
-                        self.send_robot_to_base(robot_id)
-                        # another option is to leave the robot out there with a request for help. (# TODO)
-                        # in that case, remove robot from active_robots and don't add to idle_robots.
-
-                    else:
-                        # set the task as failed as it cannot be readded at this stage
-                        if task_id not in self.cancelled_tasks or task_id not in self.failed_tasks :
-                            self.set_task_failed(task_id)
-                            logmsg(msg='set task as failed')
-                        self.send_robot_to_base(robot_id)
-
-            else:
-
-                # robot has either failed to complete its task, or it has paused its task
-                if robot.task_stage == "paused":
-                    logmsg(category="robot", id=robot_id, msg='task unpaused')
-                    robot._unpause_task()
-
-                # wait_loading or wait_unloading
-                elif robot.task_stage == "wait_at_dc_node":
-                    """ If conditions are satisfied, finish waiting """
-                    node_dc_completed = False
-
-                    """ If wait timeout has expired complete task """  # abandon task?
-                    print rospy.get_rostime() - robot.start_time
-                    print robot.start_time
-                    print rospy.Duration(secs=self.max_node_dc_duration), "\n"
-                    if rospy.get_rostime() - robot.start_time > rospy.Duration(secs=self.max_node_dc_duration):
-                        node_dc_completed = True
-
-                    """ Update task completeness of robot when data collection action returns results"""
-                    pass
-                    if not True:
-                        node_dc_completed = True
-
-                    """ If the robot has been loaded """
-                    if node_dc_completed:
-                        logmsg(category="robot", id=robot_id, msg='%s stage is finished' % (robot.task_stage))
-                        robot._node_dc_finished() #update robot
-                        trigger_replan = True
-
-                        self.node_dc_task_manager.set_task_finished(task_id)
-
-                else:
-                    # robot is waiting before a critical point
-                    if self.robot_manager.moving_robots_exist():
-                        # no other moving robots - replan
-                        trigger_replan = True
-                    else:
-                        # wait for a moving robot to finish its route fragment
-                        pass
-
-        self.trigger_replan = self.trigger_replan or trigger_replan
-
-    def handle_charging(self):
-        """
-        """
-        trigger_replan = False
-        # if there is an occupied charging_node, check the battery voltage of the robot
-        # if battery is > a threshold, finish_charging
-        charging_robots = self.robot_manager.charging_robots()
-        if self.occupied_charging_nodes:
-            for robot_id in charging_robots:
-                robot = self.robot_manager.agent_details[robot_id]
-                if not robot.battery_data.battery_data:
-                    continue
-                if robot.battery_data.battery_data[0].battery_voltage > robot.max_voltage:
-                    req = rasberry_coordination.srv.AgentIDRequest()
-                    req.agent_id = robot_id
-                    self.finish_charging_ros_srv(req) # TODO: check response
-                    robot._set_as_not_charging()
-                    trigger_replan = True
-        else:
-            trigger_replan = True
-
-        # if there is a robot in the queue, send it for charging
-        to_remove = [] # track processed robots from the queue
-        if self.charging_queue and self.free_charging_nodes:
-            # max number of possible charging allocations
-            max_robots = min(len(self.charging_queue), len(self.free_charging_nodes))
-            for robot_id in self.charging_queue:
-                to_remove.append(robot_id)
-                robot = self.robot_manager.agent_details[robot_id]
-                charging_node = self.free_charging_nodes.pop()
-                self.occupied_charging_nodes.add(charging_node)
-                # send robot to charging node
-                robot._set_as_charging(charging_node)
-                self.send_robot_to_charging_node(robot_id)
-                trigger_replan = True
-                max_robots -= 1
-                if max_robots == 0: break
-        # remove robots sent to charging from the charging queue
-        for robot_id in to_remove:
-            self.charging_queue.remove(robot_id)
-
-        # if any robot is waiting for a free path, send it to its charging node
-        for robot_id in charging_robots:
-            robot = self.robot_manager[robot_id]
-
-            if robot.moving:
-                # topo nav stage
-                # if any robot has finished its current goal, remove the finished goal from the robot's route
-                if robot.robot_interface.execpolicy_result is None:
-                    # task/fragment not finished
-                    continue
-
-                # check for robots which are moving, not waiting before a critical point
-                if robot.robot_interface.execpolicy_result.success:
-
-                    """ Trigger replan whenever a segment is completed """
-                    trigger_replan = True
-
-                    """ Robot has reached goal_node or wait_node """
-                    if robot._get_start_node() == robot._get_goal_node():
-                        # robot has reached its goal node. finish the fragment?
-                        robot._finish_route_fragment()
-                    elif robot._get_start_node() == robot.wait_node:
-                        # finished only a fragment. may have to wait for clearance at wait node?
-                        robot._finish_route_fragment()
-                    else:
-                        robot._finish_route_fragment()
-
-                else:
-                    #if robot is idle and hasnt completed its task stage
-                    logmsg(category="robot", id=robot_id, msg='execpolicy_result is not success or None (%s)'%(robot.robot_interface.execpolicy_result))
-                    logmsg(category="robot", id=robot_id, msg='current task stage: %s'%(robot.task_stage))
-
-                    #if robot has failed to complete task
-                    trigger_replan = True
-
-                    # TODO: Not sure what to do here
-                    # asking to go to base is problematic as the action will be completed and robot
-                    # will be at goal node
-                    pass
-#                    self.send_robot_to_base(robot_id)
-
-            else:
-                # robot is waiting before a critical point
-                if self.robot_manager.moving_robots_exist():
-                    # no other moving robots - replan
-                    trigger_replan = True
-                else:
-                    # wait for a moving robot to finish its route fragment
-                    pass
-
-        self.trigger_replan = self.trigger_replan or trigger_replan
-
-    def set_execute_policy_routes(self, ):
-        """find connecting edges for each fragment in route_fragments and set
-        the corresponding route object (with source and edge_id)
-        """
-        charging_robots = self.robot_manager.charging_robots()
-        all_moving_robots = set(self.robot_manager.active_list() + charging_robots)
-
-#        for robot_id in self.robot_manager.active_list():
-        for robot_id in all_moving_robots:
-            robot = self.robot_manager[robot_id]
-            goal = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
-            if robot.route_fragments:
-                goal.route.source = robot.route_fragments[0]
-                goal.route.edge_id = robot.route_edges[0]
-
-            if goal != robot.robot_interface.execpolicy_goal:
-                same_route = True
-
-                if goal.route.source and robot.robot_interface.execpolicy_goal.route.source:
-                    # if there is at least one source node
-                    if goal.route.edge_id[-1] != robot.robot_interface.execpolicy_goal.route.edge_id[-1]:
-                        # goal edge_ids are different
-                        same_route = False
-                    else:
-                        # loop from new start source node to end source node
-                        new_start_node = goal.route.source[0]
-
-                        # look for new_start_node in previous goal
-                        idx = 0
-                        change_idx = False
-                        for i in range(len(robot.robot_interface.execpolicy_goal.route.source)):
-                            if new_start_node == robot.robot_interface.execpolicy_goal.route.source[i]:
-                                # found current start source node in previous source nodes
-                                if len(robot.robot_interface.execpolicy_goal.route.source) - i != len(goal.route.source):
-                                    # remaining nodes in the routes are different => different route
-                                    same_route = False
-                                    break
-                                change_idx = True # enable comparing source nodes here onwards
-
-                            if change_idx:
-                                if goal.route.source[idx] != robot.robot_interface.execpolicy_goal.route.source[i]:
-                                    # different node => different route
-                                    same_route = False
-                                    break
-                                else:
-                                    # check next node
-                                    idx += 1
-                else:
-                    # either new or old source nodes are empty
-                    same_route = False
-
-                if not same_route:
-                    # publish new route only if different
-                    if self.log_routes:
-                        logmsg(category="robot", id=robot_id, msg='new route %s, previous route was %s' % (goal, robot.robot_interface.execpolicy_goal))
-
-                    self.write_log({"action_type": "robot_update",
-                            "details": "new_route",
-                            "source": str(goal.route.source),
-                            "edge_ids": str(goal.route.edge_id),
-                            "robot_id": robot_id,
-                            "current_node": robot.current_node,
-                            "closest_node": robot.closest_node,
-                            })
-
-                    robot.robot_interface.set_execpolicy_goal(goal)
-
-                    """ if a route exists, mark robot as moving"""
-                    if goal.route.edge_id:
-                        robot.moving = True
-
-
-    def run(self, planning_type='fragment_planner'):
-        """the main loop of the coordinator
-        """
-        routing_cb = {'publish_task_state': self.publish_task_state,
-                      'send_robot_to_base': self.send_robot_to_base}
-        self.route_finder = RouteFinder(planning_type=planning_type,
-                                        robots=self.robot_manager,
-                                        pickers=self.picker_manager,
-                                        callbacks=routing_cb)
-
-        #TOC callback timeout
-        iterations = 100
-
-        while not rospy.is_shutdown():
-            rospy.sleep(0.01)  # TODO: look into methods to remove the artificial delay
-            if self.task_pause: continue
-
-            """ update TOC with latest tasks states """
-            iterations=iterations-1
-            if iterations < 0:
-                self.inform_toc_active_tasks()
-                iterations = 100
-
-            self.assign_tasks()
-
-            """ check progress of transportation tasks"""
-            self.handle_transportation_tasks()
-
-            """ check progress of data collection tasks"""
-            self.handle_node_data_collection_tasks()
-
-            # check progress of charging robots
-            self.handle_charging()
-
-            """ replan if needed """
-            if self.trigger_replan:
-                self.route_finder.find_routes()
-
-                self.trigger_replan = False
-
-                # assign first fragment of each robot
-                self.set_execute_policy_routes()
-
-    def write_log(self, field_vals):
-        """write given fileds to the log file
-        """
-        time_now = time.time()
-        dt = datetime.datetime.fromtimestamp(time_now)
-        row = {"id": self.log_count,
-               "time":time_now,
-               "datetime": dt.strftime("%Y%m%d-%H%M%S"),
-               }
-        row.update(field_vals)
-        if not self.log_file.closed:
-            self.log_writer.writerow(row)
-            self.log_count += 1
-
+        # advertise ros services
+        logmsg(category="null")
+        logmsg(category="setup", msg="Advertising services:")
+        for attr in dir(self):
+            if attr.endswith("_ros_srv"):
+                service = getattr(self, attr)
+                rospy.Service(
+                    self.ns+attr[:-8],
+                    service.type,
+                    service
+                )
+                logmsg(category="setup", msg="    - %s%s" % (self.ns, attr[:-8]))
     def on_shutdown(self, ):
         """on shutdown cancel all goals
         """
-        self.write_log({"action_type":"shutdown coordinator"})
-        self.log_file.close()
-
         logmsg(level='warn', msg='shutting down all actions')
-        for robot in self.robot_manager.agent_details.values():
-            if robot.active:
-                robot.robot_interface.cancel_execpolicy_goal()
-                robot.robot_interface.cancel_toponav_goal()
+
+
+    """ Main loop for task progression """
+    def run(self, planning_type='fragment_planner'):
+        # Remappings to simplify function
+        offer_service   = self.offer_service
+        l               = self.log_minimal
+        find_routes     = self.route_finder.find_routes
+        publish_route   = self.execute_policy_route
+        get_agents      = self.get_agents
+        interrupt_task  = self.interrupt_task
+        TOC             = self.TOC_Interface
+        trigger_routing = self.trigger_routing
+        def lognull(): logmsg(category="null")
+
+        A = get_agents()
+        self.enable_task_logging = True
+        self.task_progression_log = '/home/jheselden/task_progression.csv'
+        self.log_routes = True
+        self.timestep = 0
+        self.iteration = 0
+        self.previous_log_iteration = ""
+        self.current_log_iteration = ""
+
+        from time import time as Now
+        Ut = Now(); #time_since_TOC_update
+        def Update_TOC(A, TOC, Ut):
+            if any([a().new_stage for a in A]) or (Now() - Ut > 5):
+                TOC.UpdateTaskList();
+                return Now();
+            return Ut
+
+        l(-1)
+        while not rospy.is_shutdown():
+            interrupt_task()     if any([a.interruption for a in A]) else None;    """ Interrupt Stage Execution """
+            A = get_agents()
+
+            lognull() if any([not a.task_stage_list for a in A]) else None
+            [a.start_next_task() for a in A if not a.task_stage_list];             """ Start Buffered Task """
+            l(0);
+
+            lognull() if any([a().new_stage for a in A]) else None
+            Ut = Update_TOC(A, TOC, Ut);                                           """ Update TOC """
+            [a.start_stage()     for a in A if a().new_stage];                     """ Start Stage """
+            lognull() if any([a().action_required for a in A]) else None
+            [offer_service(a)    for a in A if a().action_required];               """ Offer Service """
+            l(2)
+
+            if trigger_routing(A): find_routes();                                  """ Find Routes """
+            [publish_route(a)    for a in A if a().route_found];                   """ Publish Routes """
+            l(3)
+
+            [a()._query()        for a in A];                                      """ Query """
+            l(4)
+
+            lognull() if any([a().stage_complete for a in A]) else None
+            E=[a.end_stage()     for a in A if a().stage_complete];                """ End Stage """
+            TOC.EndTask(E) if any(E) else None;                                    """ Update TOC with Ended Tasks """
+            l(-2)
+
+    def get_all_agents(self):
+        return self.agent_manager.agent_details.copy() #TODO: is copy needed?
+    def get_agents(self):
+        self.AllAgentsList = self.get_all_agents()
+        return self.AllAgentsList.values()
+
+    """ Services offerd by Coordinator to assist with tasks """
+    def offer_service(self, agent):
+        action_type =       agent().action['action_type']
+        action_style =      agent().action['action_style']
+
+        responses = {'find_agent':self.find_agent,
+                     'find_node': self.find_node,
+                     'find_agent_from_list': self.find_agent_from_list}  # ROOM TO EXPAND
+
+        action_deets = agent().action.copy()
+        del action_deets['action_type']
+        del action_deets['action_style']
+        del action_deets['response_location']
+        logmsg(category="action", id=agent.agent_id, msg="Perfoming %s(%s) - details: %s" % (action_type, action_style, action_deets))
+
+        agent().action['response_location'] = responses[action_type](agent)
+
+        if agent().action['response_location']:
+            logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
+            agent().action_required = False
+
+    """ Action Category """
+    def find_agent(self, agent):
+        action_style = agent().action['action_style']
+        agent_type =   agent().action['agent_type']
+
+        A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (agent_type in a.roles)}
+
+        responses = {"closest": self.find_closest_agent}  # TODO: ROOM TO EXPAND
+        return responses[action_style](agent, A)
+    def find_node(self, agent):
+        action_style =      agent().action['action_style']
+        descriptor =        agent().action['descriptor']
+        rl='response_location'
+        AExcl = [a for _id,a in self.AllAgentsList.items()  if (_id is not agent.agent_id)]
+        logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
+
+
+        # t1 = [a.current_node for a in AExcl if a.current_node]
+        # t2 = [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]
+        # t3 = [a.goal() for a in AExcl if a.goal()]
+        # logmsg(level='error', category='action', msg='Physically Occupied Nodes: %s'%t1, speech=True)
+        # logmsg(level='error', category='action', msg='Reservered Nodes: %s'%t2, speech=True)
+        # logmsg(level='error', category='action', msg='Goal Nodes: %s'%t3, speech=True)
+
+        taken = [a.current_node for a in AExcl if a.current_node] #Check if node is occupied
+        taken += [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]  # TackleSharedTarget
+        taken += [a.goal() for a in AExcl if a.goal()]
+        logmsg(category='action', msg='Occupied Nodes: %s'%taken)
+
+
+
+        N = {n['id']:n for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in taken)}
+        logmsg(category='action', msg='Nodes to Compare Against:')
+        [logmsg(category='action', msg="    - %s: %s"%(n,N[n])) for n in N]
+
+        responses = {"closest": self.find_closest_node}  # ROOM TO EXPAND
+        return responses[action_style](agent, N)
+    def find_agent_from_list(self, agent):
+        action_style =      agent().action['action_style']
+        agent_list =        agent().action['list']
+
+        A = {agent_id:self.AllAgentsList[agent_id] for agent_id in agent_list} #convert list to set()
+
+        responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
+        return responses[action_style](agent, A)
+
+    """ Action Style """
+    def find_closest_agent(self, agent, agent_list):
+        """ Find the closest agent (via optimal route) to the given agent.
+
+        :param agent: The agent to query against.
+        :param agent_list: The list of agents to query.
+        :return: The agent_details object closest to the agent querying against.
+        """
+        loc = agent.location()
+        dist_list = {a.agent_id:self.dist(loc, a.location()) for a in agent_list.values() if a.registration and a.is_node_restricted(loc)}
+
+        [logmsg(category="action", msg="Localisation: %s(%s|%s|%s)"%(a.agent_id, a.current_node, a.closest_node, a.previous_node)) for a in agent_list.values()]
+
+
+        logmsg(category="action", msg="Finding closest in: %s" % dist_list)
+        if dist_list:
+            return agent_list[min(dist_list, key=dist_list.get)]
+        return None
+    def find_closest_node(self, agent, node_list):
+        """ Find the closest node (via optimal route) to the given agent.
+
+        :param agent: The agent to query against.
+        :param node_list: The list of nodes to query.
+        :return: The node_id closest to the agent querying against.
+        """
+        loc = agent.location()
+        dist_list = {n:self.dist(loc,n) for n in node_list}
+        logmsg(category="action", msg="Finding closest in:")
+        [logmsg(category='action', msg="    - %s: %s"%(n,dist_list[n])) for n in dist_list]
+        return min(dist_list, key=dist_list.get)
+    """ Find Distance """
+    def dist(self, start_node, goal_node):
+        _,_,route_dists = self.get_path_details(start_node, goal_node)
+        return sum(route_dists)
+
+
+    """ Interrupt Task """
+    def interrupt_task(self):
+        from time import sleep; sleep(0.5) #TODO: preventing log overwriting from interrupt attachments
+        interrupts = {'pause': self.pause, 'resume': self.resume, 'reset': self.reset}
+        logmsg(category="null")
+        logmsg(category="DTM", msg="Interrupt detected!", speech=False);
+        [logmsg(category="DTM", msg="    | %s : %s" % (a.agent_id, a.interruption[0])) for a in self.AllAgentsList.values() if a.interruption]
+        [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption[0] in interrupts]
+    def pause(self, agent):
+        """ Agent pausing works as follows:
+        1. Put the active stage into a suspended state (so once active again it will be restarted)
+        2. Add an additional pause stage which queries self.agent.registration
+        """
+        agent()._suspend() #suspend active stage
+
+        scope = agent.interruption[3]
+        if agent().get_class() != "base.Pause":
+            agent.task_stage_list.insert(0, StageDef.Pause(agent, self.agent_manager.format_agent_marker)) #add paused stage
+        agent().pause_state[scope] = True
+        logmsg(category="DTM", msg="      | pause trigger ['%s'] set to True" % scope)
+        logmsg(category="DTM", msg="      | stage state: %s" % agent().__repr__())
+
+        agent.interruption = None  # reset interruption trigger
+        self.agent_manager.format_agent_marker(agent.agent_id, style='red')
+    def resume(self, agent):
+        """ Agent unpausing works as follows:
+        1. Set the flag to end the pause stage (self.agent.registration)
+        """
+        logmsg(category="DTM", id=agent.agent_id, msg="Task advancement resumed.")
+
+        scope = agent.interruption[3]
+        # agent.registration = True  # enable generic query success condition
+        if agent().get_class() == "base.Pause":
+            agent().pause_state[scope] = False
+            logmsg(category="DTM", msg="      | pause trigger ['%s'] set to False" % scope)
+            logmsg(category="DTM", msg="      | stage state: %s" % agent().__repr__())
+
+        agent.interruption = None  # reset interruption trigger
+        # self.agent_manager.format_agent_marker(agent.agent_id, style='')
+    def reset(self, agent):
+        """ Reset task works as follows:
+        If the reset request comes from the initiator:
+        - initiator deletes task
+        - responder deletes task
+        If the reset request comes from the responder:
+        - initiator restarts task
+        - responder deletes task
+        """
+        logmsg(category="DTM", msg="Request made to reset task: %s" % agent['task_id'])
+        init, resp, tid = agent.initiator_id, agent.responder_id, agent['task_id']
+
+        logmsg(category="DTM", msg="If the request came from TOC, it needs to release both?")
+
+        if agent.agent_id == init:
+            TaskDef.release_task(self.agent_manager[init])
+            self.unregister(init)
+        elif agent.agent_id == resp:
+            TaskDef.restart_task(self.agent_manager[init])
+            self.unregister(resp)
+        self.agent_manager[init].interruption = None  # reset interruption trigger
+
+        if resp and resp in self.agent_manager.agent_details:
+            TaskDef.release_task(self.agent_manager[resp])
+            self.agent_manager[resp].interruption = None  # reset interruption trigger
+
+        self.TOC_Interface.EndTask([tid])
+    def unregister(self, agent_id):
+        logmsg(category="DTM", msg="    | unregistering agent: %s"%agent_id)
+        self.agent_manager[agent_id].registration = False
+        self.agent_manager.format_agent_marker(self.agent_manager[agent_id], style='red')
+    # def delete_agent(self, agent):
+    #     logmsg(level="error", category="DRM", id=agent.agent_id,
+    #            msg="Agent has been removed from the scope of the coordinator.")
+    #     logmsg(level="error", category="DRM", msg="    - Coordinator is no longer recieving location data")
+    #     logmsg(level="error", category="DRM", msg="    - Agent is no longer reserving a node in the network")
+    #     logmsg(level="error", category="DRM", msg="    - Ensure agent is moved away")
+    #     self.agent_manager.agent_details.pop(agent.agent_id)
+
+
+
+    """ Publish route if different from current """
+    def execute_policy_route(self, agent):
+        logmsg(category="route", id=agent.agent_id, msg="Attempting to publish route.")
+
+        """ Publish ExecutePolicyModeGoal if different from current policy """
+        policy = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
+
+        """ Define route, if no new route is generated, dont do anything. """
+        policy.route.source = agent.route_fragments[0] if agent.route_fragments else None
+        policy.route.edge_id = agent.route_edges[0] if agent.route_edges else None
+
+
+        """ Flag to identify if new route is the same and should not be re-published """
+        publish_route = True #assume route is identical
+        logmsg(level='warn', category="route", msg="check_route label 1")
+
+        """ Identify key elements in routes. """
+        old_node = agent.temp_interface.execpolicy_goal.route.source
+        old_edge = agent.temp_interface.execpolicy_goal.route.edge_id
+        new_node = policy.route.source
+        new_edge = policy.route.edge_id
+        # logmsg(category="ROB_PY", id=agent.agent_id, msg="    - route to join {0} and {1}"%(old_node, new_node))
+
+        """ If no new route is generated, dont do anything. """
+        if (not new_node) or (not new_edge): return
+
+        """ If old route exists, check against it """
+        if old_node:
+            publish_route = False  #addume new route is the same
+
+            """ Identify key elements in routes. """
+            old_start_edge = old_edge[0]
+            old_target_edge = old_node[-1]
+            new_start_edge = new_edge[0]
+            new_target_edge = new_node[-1]
+
+            """ Do lists have different entrances to the target node? """
+            # old: R========T
+            # new:          T=====R
+            if not publish_route and new_target_edge != old_target_edge:
+                logmsg(level='warn', category="route", msg="check_route label 2")
+                publish_route = True #route is different
+
+            """ Do lists have different lengths? """
+            # old: R========T
+            # new:     R====T
+            if not publish_route and len(new_edge) != len(old_edge):
+                logmsg(level='warn', category="route", msg="check_route label 3")
+                # If new_route is larger, routes are different
+                if len(new_edge) > len(old_edge):
+                    publish_route = True #route is different
+                else:
+                    """ Go backwards from target till smaller route is used up. """
+                    # old: R========T
+                    # new:     R====T
+                    old_edge_crop=[]
+                    for i, e in enumerate(list(zip(*(old_start_edge[::-1],new_start_edge[::-1])))):
+                        old_edge_crop.append(e[0])
+                    old_edge_crop.reverse()
+                    old_edge = old_edge_crop
+
+            """ Do same-sized routes differ? """
+            # old: ****R====T
+            # new:     R=-_=T
+            if not publish_route:
+                logmsg(level='warn', category="route", msg="check_route label 4")
+                for i, e in enumerate(list(zip(*(old_edge,new_edge)))):
+                    if e[0] != e[1]:
+                        logmsg(category="route", id=agent.agent_id, msg="New route different from existing route")
+                        publish_route = True #route is different
+                        break
+
+        """ If check_route is false, routes are different """
+        if publish_route:
+            logmsg(level='warn', category="route", msg="check_route label 5")
+            if self.log_routes:
+                logmsg(category="route", id=agent.agent_id, msg='New route generated:\n%s' % policy)
+                logmsg(category="route", msg='Previous route:\n%s' % agent.temp_interface.execpolicy_goal)
+
+            logmsg(category="test", msg="publish route::cancel_execpolicy_goal")
+            agent.temp_interface.cancel_execpolicy_goal()
+            agent.temp_interface.set_execpolicy_goal(policy)
+
+            agent().route_required = False #ReplanTrigger
+            logmsg(level='warn', category="route", id=agent.agent_id, msg="route published")
+        agent().route_found = False  # ReplanTrigger?
+        logmsg(level='warn', category="route", id=agent.agent_id, msg="route publish attempt complete")
+        rospy.sleep(1)
+    def get_path_details(self, start_node, goal_node):
+        """get route_nodes, route_edges and route_distance from start_node to goal_node
+
+        Keyword arguments:
+
+        start_node -- name of the starting node
+        goal_node -- name of the goal node
+        """
+        route_distance = []
+        route = self.route_finder.planner.route_search.search_route(start_node, goal_node)
+        if route is None:
+            if start_node == goal_node:
+                logmsg(category="route", msg='start_node %s is goal_node %s' % (start_node, goal_node))
+                return ([], [], [0])
+            else:
+                logmsg(category="route", msg='no route between %s and %s' % (start_node, goal_node))
+                return ([], [], [float("inf")])
+        route_nodes = route.source
+        route_nodes.append(goal_node)
+        route_edges = route.edge_id
+
+        for i in range(len(route_nodes) - 1):
+            route_distance.append(self.route_finder.planner.get_distance_between_adjacent_nodes(route_nodes[i], route_nodes[i + 1]))
+
+        return (route_nodes, route_edges, route_distance)
+    def trigger_replan(self, msg=None):
+        logmsg(category="route", msg="A route has been completed, refreshing routes")
+        self.trigger_fresh_replan = True #ReplanTrigger
+    def trigger_routing(self, A):
+        """
+        route_required => agent is doing navigation task
+        route_found => agent has been assigned a route
+
+        # a.Navigation:  REQUIRED=true
+        # replan:        TRIGGER=true
+        #
+        # find\REQUIRED: FOUND=true
+        #     |TRIGGER:  TRIGGER=false
+        #
+        # publish\FOUND: FOUND=false,
+        #                REQUIRED=false
+        """
+
+        if any([a().route_required for a in A]):
+            return True
+        elif self.trigger_fresh_replan:
+            logmsg(category="route", msg="Replanning is triggered")
+            self.trigger_fresh_replan = False #ReplanTrigger
+            return True
+        return False
+
+
+    """ Task Stage Logging """
+    def log_linebreak(self):
+        dash_lengths = [13, 13, 36, 20, 3]
+        dashes = []
+        dashes += [',|,'.join(['-'*dl for dl in dash_lengths[:3]])]
+        dashes += [',|,'.join(['-'*dash_lengths[3] for a in range(len(self.AllAgentsList))])]
+        dashes += ['-' *dash_lengths[4]]
+        return dashes
+    def log_init(self):
+        with open(self.task_progression_log, 'w+') as log:
+            log.write(' ,'*5+"|,Agents:\n")
+
+        return ['Timestep','Iteration','Stage']+[a.agent_id for a in self.AllAgentsList.values()]
+    def log_break(self):
+        return ['' for a in range(3+len(self.AllAgentsList))]
+    def log_iteration(self):
+        return ['%s','%s']+['' for a in range(1 + len(self.AllAgentsList))]
+
+    def log_value(self, detail):
+        return ['','']+[a[detail] for a in self.AllAgentsList.values()]
+    def log_not_none(self, detail):
+        return ['', ''] + [a[detail] is not None for a in self.AllAgentsList.values()]
+
+    def log_stage(self):
+        stages = []
+        for a in self.AllAgentsList.values():
+            if a.task_stage_list:
+                stages += [a().get_class()]
+            else:
+                stages += [None]
+        return ['', ''] + stages
+    def log_new_stage(self):
+        stages = []
+        for a in self.AllAgentsList.values():
+            if a.task_stage_list:
+                stages += [a().new_stage]
+            else:
+                stages += [None]
+        return ['', ''] + stages
+    def log_task(self):
+        return ['', ''] + [a.task_name for a in self.AllAgentsList.values()]
+
+    def log_summary(self, detail):
+        lst=[]
+        for a in self.AllAgentsList.values():
+            switch = {'_start':a().new_stage,
+                      '_notify_start':a().new_stage,
+                      '_action':a().action_required,
+                      '_query':a().stage_complete,
+                      '_notify_end':a().stage_complete,
+                      '_del':a().stage_complete}
+            if switch[detail]:
+                lst += [a().summary[detail]]
+            else:
+                lst += ['-']
+        return ['','']+lst
+
+    def log_data(self, switches, detail=None, linebreak=False):
+        if not self.enable_task_logging:
+            return
+
+        switch_group_empty = {'init':self.log_init,
+                              'break':self.log_break,
+                              'iteration':self.log_iteration, #Make timestep query if time since last post has exceeded T
+                              'task':self.log_task,
+                              'stage': self.log_stage,
+                              'new_stage':self.log_new_stage,
+                              'linebreak': self.log_linebreak}
+        switch_group_value = {'route':self.log_not_none,          #('route')
+                              'action_required':self.log_value,   #('action_required')
+                              'route_required':self.log_value,    #('route_required')
+                              'stage_complete':self.log_value}    #('stage_complete')
+        switch_group_summary = {'_start':self.log_summary,        #('_start')
+                                '_notify_start':self.log_summary, #('_notify_start')
+                                '_action':self.log_summary,       #('_action')
+                                '_query':self.log_summary,        #('_query')
+                                '_notify_end':self.log_summary,   #('_notify_end')
+                                '_del':self.log_summary}          #('_del')
+
+
+        for switch in switches:
+            details = switch_group_empty[switch]() if switch in switch_group_empty else None
+            details = switch_group_value[switch](switch) if switch in switch_group_value else details
+            details = switch_group_summary[switch](switch) if switch in switch_group_summary else details
+
+            for idx, item in enumerate(details[2:]):
+                if item in [False, None]:
+                    details[idx+2] = '-'
+
+            if switch in ["break", "iteration"]:
+                details.insert(2,'')
+            elif switch in ["init", "linebreak"]:
+                pass
+            else:
+                details.insert(2, switch)
+                details += ['']
+            details = [str(d) for d in details]
+            self.current_log_iteration += "%s\n" % ',|,'.join(details)
+    def publish_log(self):
+        #TODO: add extra flag to set is ANY log returns a value? or query against empty log?
+        if self.enable_task_logging:
+            if self.previous_log_iteration != self.current_log_iteration:
+                with open(self.task_progression_log, 'a') as log:
+                    log.write(self.current_log_iteration % (self.timestep, self.iteration)) #use rospy.Time.now() ?
+                    self.iteration += 1
+                    logmsgbreak()
+                    logmsg(category="log", msg="Updating log")
+                    print('------------------------------------------')
+
+            self.previous_log_iteration = self.current_log_iteration
+            self.current_log_iteration = ""
+
+    def log_minimal(self, idx):
+        switch = {-2: self.publish_log,
+                  -1:['init'],
+                  0: ['linebreak', 'iteration', 'task', 'stage', 'new_stage', 'break'],
+                  1: ['_start', '_notify_start', 'break'],
+                  2: ['_action', 'break'],
+                  3: ['route_required'],
+                  4: ['route', 'break'],
+                  5: ['_query', 'break', '_notify_end', '_del']}
+
+        if idx == min(switch):
+            switch[idx]()
+        else:
+            self.log_data(switch[idx])

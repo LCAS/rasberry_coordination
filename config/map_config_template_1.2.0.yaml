@@ -1,0 +1,30 @@
+#If updated, ensure simple_task_executor_node.py/validate_types() is updated accordingly
+version: 1.2.0
+use_sim: BOOLEAN  # is this a simulated environment
+
+#TOPOLOGY (Node Descriptors)
+special_nodes:
+  - id: NODE_ID
+    descriptors:
+      - base_station
+      - wait_node
+      - charging_station
+
+#ROUTING
+planning_type: STR # method used for coordinating routes
+
+#ROBOTS
+low_battery_voltage: FLOAT # battery_voltage threshold to set robot as unhealthy
+
+#INITIALISATION
+agent_list:
+  - default: null  #REQUIRED
+  
+  # Example
+  - agent_id: thorvald_001           #REQUIRED
+    agent_type: robotic_courier      #REQUIRED
+    interface_type: robot_interface  #REQUIRED
+    new_task_default: default        #OPTIONAL
+    idle_task_default: default       #OPTIONAL
+    initial_location: NODE_ID        #OPTIONAL
+

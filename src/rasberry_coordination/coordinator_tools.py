@@ -5,6 +5,7 @@
 # @date:
 # ----------------------------------
 
+import os
 import rospy
 
 
@@ -19,7 +20,7 @@ def logmsgbreak(total=3):
         logmsg(category="null")
 
 
-def logmsg(level="info", category="OTHER", id="empty", msg=''):
+def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speech=False): #msg_color=default
     """ Print formatted log messages to console.
 
     Functionality offered:
@@ -49,13 +50,14 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
     :param msg: message to display
     :return: None
     """
+    # if category == "DTM": speech=True
+
     quick_print = False
     if quick_print:
-        if category == "null":
-            print("\n")
-            return
-        print(category + " | " + str(id) + " | " + msg)
+        if category == "null": print("\n")
+        else: print(category + " | " + str(id) + " | " + msg)
         return
+
     use_custom_formatting = True
     disable_ros_time_printout = True  # Can cause visual issues on console such as below:
     # [INFO] [1605509085.140152]: OTHER  | var: 1	#output as false
@@ -63,23 +65,24 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
     # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
     # TODO: include padding at end of msg
 
-    reject_tags = ["ROBNAV"]
-    if category.upper() in reject_tags:
-        return
+    reject_tags = ["START", "COMMS", "RVIZ"]
+    if category.upper() in reject_tags: return
 
     if use_custom_formatting:
 
         ros_time = ''
         if disable_ros_time_printout:
-            ros_time = '\b' * 21
+            ros_time = '\b' * 21  # TODO: swap out using \u001b[{n}D
 
         """ Define id and/or category to highlight """
-        color_id = ["thorvald_001", "thorvald_002"]
-        color_category = ["DRM"]  # TODO move these out of this definition and into some config file
+        color_id = {"storage01":'\033[01;31m', "thorvald_001":'\033[01;32m', "thorvald_002":'\033[01;33m', "picker01":'\033[01;34m', "picker02":'\033[01;35m', "thorvald_014":'\033[01;36m'}
+        color_category = ["TEST", "TOC1", "DRM1", "START1", "OTHER1", "DTM1"]
+        # TODO move these out of this definition and into some config file
+        # TODO: moving them outside the funciton will set on import logmsg? if so, we can grab from param server?
         # (load from parameter server in launch file?)
 
         """ Format category portion of message """
-        valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "PSM", "ROB_PY", "EXEC", "FOLLOW", "LIST", "DRM", "NOTE"]
+        valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "ROB_PY", "ROUTE", "ACTION", "LOG", "STAGE", "SETUP", "RVIZ", "ROBNAV", "DRM", "DTM", "TOC", "START", "COMMS", "TEST"]
         total_pad_space = max([len(_category) + 1 for _category in valid_categories])
         if category.upper() in valid_categories:
             category_padding = total_pad_space - len(category)
@@ -93,12 +96,11 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
 
         """ Format ID with conditions for when category or id is empty """
         ids = " " * (13 - len(str(id))) + str(id) + ":"
-        if id == "empty":
-            ids = " " * 14
+        if id == "empty": ids = " " * 14
 
-        """ Define color values for printing """
+        """ Define color values for printing """ #TODO: optimise this with re.sub(r'\[.*\]','[]',line)
         reset = '\033[00m'
-        info_color = '\033[38;5;231m'
+        info_color = '\033[38;5;231m\033[0m'
         warn_color = '\033[38;5;136m'
         err_color = '\033[38;5;1m'
         green_highlight = '\033[01;32m'
@@ -122,27 +124,30 @@ def logmsg(level="info", category="OTHER", id="empty", msg=''):
         if str(category).upper() in color_category:
             c1 = yellow_highlight
         if str(id) in color_id:
-            c3 = green_highlight
+            c3 = color_id[str(id)]
+            # c3 = green_highlight
 
-        # log in different manners based on the severity level
-        color_set = "%s%s%s|%s%s %s%s%s" % (c1, cat, c2, c3, ids, c4, msg, reset)
-        if level == "info":
-            rospy.loginfo(ros_time + color_set)
-        elif level == "warn":
-            rospy.logwarn(ros_time + color_set)
-        else:
-            rospy.logerr(ros_time + color_set)
-
+        basic_msg = msg
+        msg = ros_time + "%s%s%s|%s%s %s%s%s" % (c1, cat, c2, c3, ids, c4, msg, reset)
     else:
-        if category == "null":
-            return
+        if category == "null": return
         msg = category + " | " + str(id) + " | " + msg
-        if level == "info":
-            rospy.loginfo(msg)
-        elif level == "warn":
-            rospy.logwarn(msg)
-        else:
-            rospy.logerr(msg)
+
+    # log in different manners based on the severity level and throttling
+    if throttle:
+        throttles = {"info": rospy.loginfo_throttle,
+                     "warn": rospy.logwarn_throttle,
+                     "error": rospy.logerr_throttle}
+        throttles[level](throttle, msg)
+    else:
+        logs = {"info": rospy.loginfo,
+                "warn": rospy.logwarn,
+                "error": rospy.logerr}
+        logs[level](msg)
+
+
+    if id=="empty": id='';
+    if speech: os.system('spd-say "%s, %s" -r 10 -t female2 -w'%(id, basic_msg));
 
 
 def remove(collection, item):

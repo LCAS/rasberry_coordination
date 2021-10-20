@@ -6,183 +6,68 @@
 # ----------------------------------
 
 import rospy
-import rasberry_coordination.base_frame_publisher
+from rasberry_coordination.base_frame_publisher import PoseBaseFramePublisher, PoseStampedBaseFramePublisher
 import rasberry_coordination.markers as markers
 import rasberry_coordination.msg
 import sys
 import rasberry_des.config_utils
 import geometry_msgs.msg
 from std_msgs.msg import String
+from rasberry_coordination.msg import MarkerDetails
+from rasberry_coordination.coordinator_tools import logmsg
+
+
+class AgentMarker:
+    def __init__(self, msg):
+        self.type = msg.type
+        self.agent_id = msg.agent_id
+        self.color = msg.optional_color
+
+        models = {'short_robot': markers.ColoredThorvaldMarkerPublisher,
+                  'tall_robot':  markers.ColoredTallThorvaldMarkerPublisher,
+                  'human':       markers.HumanMarkerPublisher}
+        self.marker = models[self.type](self.agent_id, self.color)
+
+        topics = {"short_robot": ["/%s/robot_pose",   PoseBaseFramePublisher],
+                  "tall_robot":  ["/%s/robot_pose",   PoseBaseFramePublisher],
+                  "human":       ["/%s/posestamped", PoseStampedBaseFramePublisher]}
+        self.base_frame_publisher = topics[self.type][1](self.agent_id, topics[self.type][0]%self.agent_id)
+
+    def publish_marker(self): self.marker.publish()
 
 
 class MarkerPublisher:
+    def __init__(self):
+        self.agents = dict()
+        self.marker_set_sub = rospy.Subscriber('/rasberry_coordination/set_marker', MarkerDetails, self.set_marker_cb)
 
-    def __init__(self, config):
-        self.config = config
-
-        # Initialise variables
-        self.robot_ids = [self.config_get('robot_id', config=robot) for robot in self.config_get('spawn_list')[1:]]
-        self.robot_types = {self.config_get('robot_id', config=robot):self.config_get('type', config=robot) for robot in self.config_get('spawn_list')[1:]}
-        self.picker_ids = [] + self.config_get("picker_ids")
-        self.virtual_picker_ids = [] + self.config_get("virtual_picker_ids")
-
-        self.thorvald_marker_publishers = {}
-        self.picker_marker_publishers = {}
-        self.virtual_picker_marker_publishers = {}
-        self.base_frame_publishers = {}
-
-        # add markers defined in config file
-        self.startup_markers()
-
-        # Listen for additional markers to be added
-        self.marker_add_sub = rospy.Subscriber('/rasberry_coordination/marker_add',
-                                               rasberry_coordination.msg.MarkerDetails,
-                                               self.add_marker_cb)
-        self.marker_remove_sub = rospy.Subscriber('/rasberry_coordination/marker_remove',
-                                                  rasberry_coordination.msg.MarkerDetails,
-                                                  self.remove_marker_cb)
-
-    # Return item from config if exists
-    def config_get(self, item, config=None):
-        if config is None:
-            config = self.config
-        if item in config:
-            return config[item]
+    def set_marker_cb(self, msg):
+        logmsg(category="rviz", id=msg.agent_id, msg="Setting %s %s(%s)"%(msg.type, msg.agent_id, msg.optional_color))
+        if msg.optional_color == 'remove':
+            # Remove Agent from RViZ
+            self.agents.pop(msg.agent_id)
         else:
-            return []
+            # Add Agent to RViZ if same color agent is not already present
+            if (msg.agent_id not in self.agents) or (self.agents[msg.agent_id].color != msg.optional_color):
+                self.agents[msg.agent_id] = AgentMarker(msg)
 
-    # Add the markers which were defined in the map_config file
-    def startup_markers(self):
-        for robot_id in self.robot_ids:
-            print(self.robot_ids)
-            print("Adding robot " + robot_id)
-            self.add_robot(robot_id)
-        for picker_id in self.picker_ids:
-            print("Adding picker " + picker_id)
-            self.add_picker(picker_id)
-        for virtual_picker_id in self.virtual_picker_ids:
-            print("Adding virtual picker " + virtual_picker_id)
-            self.add_virtual_picker(virtual_picker_id)
-
-    # Marker add callback
-    def add_marker_cb(self, msg):
-        print("Adding " + msg.type + " " + msg.name)
-        if msg.type == "robot":
-            self.robot_ids.append(msg.name)
-            self.add_robot(msg.name, msg.optional_color)
-            print(self.thorvald_marker_publishers.keys())
-        elif msg.type == "picker":
-            self.picker_ids.append(msg.name)
-            self.add_picker(msg.name)
-            print(self.picker_marker_publishers.keys())
-        elif msg.type == "virtual_picker":
-            self.virtual_picker_ids.append(msg.name)
-            self.add_virtual_picker(msg.name)
-            print(self.virtual_picker_marker_publishers.keys())
-        return 0
-
-    # add correct robot marker
-    def add_robot(self, id, color=''):
-        if id not in self.robot_types:
-            self.add_short_robot(id, color)
-        elif self.robot_types[id] == 'short':
-            self.add_short_robot(id, color)
-        elif self.robot_types[id] == 'tall':
-            self.add_tall_robot(id, color)
-        else:
-            self.add_short_robot(id, color)
-
-    # Setup short robot marker
-    def add_short_robot(self, id, color=''):
-        if id in self.thorvald_marker_publishers:
-            self.thorvald_marker_publishers.pop(id)
-            self.base_frame_publishers.pop(id)
-
-        self.thorvald_marker_publishers[id] = markers.ColoredThorvaldMarkerPublisher(id, color)
-        topic = "/" + id + "/robot_pose"
-        pub = rasberry_coordination.base_frame_publisher.PoseBaseFramePublisher(id, topic)
-        self.base_frame_publishers[id] = pub
-
-    # Setup tall robot marker
-    def add_tall_robot(self, id, color=''):
-        if id in self.thorvald_marker_publishers:
-            self.thorvald_marker_publishers.pop(id)
-            self.base_frame_publishers.pop(id)
-
-        self.thorvald_marker_publishers[id] = markers.ColoredTallThorvaldMarkerPublisher(id, color)
-        topic = "/" + id + "/robot_pose"
-        pub = rasberry_coordination.base_frame_publisher.PoseBaseFramePublisher(id, topic)
-        self.base_frame_publishers[id] = pub
-
-    # Setup picker marker
-    def add_picker(self, id):
-        self.picker_marker_publishers[id] = markers.HumanMarkerPublisher(id)
-        topic = "/" + id + "/pose_stamped"
-        pub = rasberry_coordination.base_frame_publisher.PoseStampedBaseFramePublisher(id, topic)
-        self.base_frame_publishers[id] = pub
-
-    # Setup virtual picker marker
-    def add_virtual_picker(self, id):
-        self.virtual_picker_marker_publishers[id] = markers.HumanMarkerPublisher(id)
-        topic = "/" + id + "/pose_stamped"
-        pub = rasberry_coordination.base_frame_publisher.PoseStampedBaseFramePublisher(id, topic)
-        self.base_frame_publishers[id] = pub
-
-    # Marker remove callback
-    def remove_marker_cb(self, msg):
-        print("Removing " + msg.type + " " + msg.name)
-        if msg.type == "robot":
-            self.thorvald_marker_publishers.pop(msg.name, None)
-            self.robot_ids.remove(msg.name)
-            print(self.thorvald_marker_publishers.keys())
-        elif msg.type == "picker":
-            self.picker_marker_publishers.pop(msg.name, None)
-            self.picker_ids.remove(msg.name)
-            print(self.picker_marker_publishers.keys())
-        elif msg.type == "virtual_picker":
-            self.virtual_picker_marker_publishers.pop(msg.name, None)
-            self.virtual_picker_ids.remove(msg.name)
-            print(self.virtual_picker_marker_publishers.keys())
-        self.base_frame_publishers.pop(msg.name, None)
-        return 0
-
-    # Spawn markers in rviz
+    # Spawn markers in RViZ
     def run(self):
         while not rospy.is_shutdown():
-            [pub.publish() for pub in self.thorvald_marker_publishers.values()]
-            [pub.publish() for pub in self.picker_marker_publishers.values()]
-            [pub.publish() for pub in self.virtual_picker_marker_publishers.values()]
-            rospy.sleep(1.0)
+            for agent in self.agents.values():
+                agent.publish_marker()
+            rospy.sleep(0.5)
 
 
 if __name__ == "__main__":
-
-    # Ensure config file path passed to script
-    if len(sys.argv) < 2:
-        raise Exception("usage: visualise_agent_markers.py <config_file>")
-    else:
-        config_file = sys.argv[1]
-
-    # Read config data
-    config_data = rasberry_des.config_utils.get_config_data(config_file)
-    config_keys = rasberry_des.config_utils.get_config_keys(config_file)
-
-    # Check for required parameters
-    req_params = ["spawn_list", "picker_ids"]
-    for key in config_keys:
-        if key in req_params:
-            req_params.remove(key)
-
-    if len(req_params) != 0:
-        raise Exception("not all required keys are set in the config file")
-    elif config_data["spawn_list"].__class__ != list:
-        raise Exception("robot_ids should be a list in the config file")
-    elif len(config_data["spawn_list"]) == 0:
-        raise Exception("robot_ids should not be an empty list in the config file")
-
     # Start node
     rospy.init_node("visualise_agent_markers")
 
+    logmsg(level="error", category="rviz", msg="Error message because I will probably forget.")
+    logmsg(level="error", category="rviz", msg="  | we need to ping the coordinator when this is started")
+    logmsg(level="error", category="rviz", msg="  | to retrieve the active state of agents")
+    logmsg(level="error", category="rviz", msg="If we want storage node publishing, we need to give it a location.")
+
     # Run marker publisher
-    MP = MarkerPublisher(config_data)
+    MP = MarkerPublisher()
     MP.run()
