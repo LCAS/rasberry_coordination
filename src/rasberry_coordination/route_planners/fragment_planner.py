@@ -257,7 +257,7 @@ class FragmentPlanner(BasePlanner):
         need_route = [a for a in self.agent_details.values() if a().route_required]
         logmsg(category="route", msg="Agents requiring routes:")
         for a in need_route:
-            logmsg(category="route", msg="    - {%s: %s}" % (a.agent_id, a.task_stage_list))
+            logmsg(category="route", msg="    - {%s: %s}" % (a.agent_id, a()))
 
         """find unblocked routes for all agents which need one"""
         self.load_occupied_nodes()

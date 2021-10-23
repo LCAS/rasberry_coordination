@@ -5,7 +5,6 @@
 # @date:
 # ----------------------------------
 
-# from abc import ABCMeta, abstractmethod
 import copy
 from pprint import pprint
 import yaml
@@ -18,11 +17,12 @@ from std_srvs.srv import Trigger, TriggerResponse
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.srv import AddAgent, AgentNodePair
 from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef, PropertiesDef
 
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
-""" Agent Details """
+
 class AgentManager(object):
 
     """ Initialisation """
@@ -127,7 +127,6 @@ class AgentManager(object):
         self.set_marker_pub.publish(marker)
 
 
-""" Agent Management """
 class AgentDetails(object):
     """ Fields:
     - agent_id, agent_type
@@ -140,7 +139,7 @@ class AgentDetails(object):
     """ Initialisations """
     def __init__(self, agent_dict, callbacks):
         self.agent_id = agent_dict['agent_id']
-        self.int = -1
+        # self.int = -1
         self.cb = callbacks
         from copy import deepcopy
         setup = deepcopy(agent_dict['setup'])
@@ -152,14 +151,10 @@ class AgentDetails(object):
         self.navigation = dict()
 
         #Task Defaults
-        self.action = dict()
-        self.task_name = None
-        self.task_module = None
-        self.task_details = {}
-        self.task_contacts = {}
-        self.task_stage_list = []
-        self.task_buffer = []
         self.total_tasks = 0
+        self.task = Task(default=True)
+        self.task_buffer = []
+
         self.interruption = None
         self.registration = True
         self.properties = setup['properties']
@@ -175,11 +170,9 @@ class AgentDetails(object):
             self.interfaces[task['module']] = definition(agent=self)
 
         #Location and Callbacks
-        self.has_presence = True if setup['has_presence'] == 1 else False #used for routing
-        self.current_node = agent_dict['initial_location'] if 'initial_location' in agent_dict else None
-        self.previous_node = None
-        self.closest_node = None
+        self.location = Location(presence=setup['has_presence'], initial_location=agent_dict['initial_location'])
 
+        #Start Task Progression
         self.add_init_task()
 
     """ Task Starters """
@@ -214,59 +207,22 @@ class AgentDetails(object):
             else: self.task_buffer.insert(index, [task])
 
             if quiet:
-                logmsg(category="DTM", msg="    | buffering %s to task_buffer[%i]" % (task['name'], index or len(self.task_buffer)))
+                logmsg(category="DTM", msg="    | buffering %s to task_buffer[%i]" % (task.name, index or len(self.task_buffer)))
             else:
                 logmsg(category="null")
-                logmsg(category="TASK", id=self.agent_id, msg="Buffering %s to position %i of task_buffer, task stage list:" % (task['name'], index or len(self.task_buffer)))
-                [logmsg(category="TASK", msg='    - %s'%t) for t in task['stage_list']]
+                logmsg(category="TASK", id=self.agent_id, msg="Buffering %s to position %i of task_buffer, task stage list:" % (task.name, index or len(self.task_buffer)))
+                [logmsg(category="TASK", msg='    - %s'%t) for t in task.stage_list]
     def start_next_task(self, idx=0):
         # if self.disconnect_on_task_completion: return #TODO: this condition not nescessary anymore
         if len(self.task_buffer) < 1: self.add_idle_task()
         if len(self.task_buffer) <= idx: return
+        self.task = self.task_buffer.pop(idx)
 
-        task = self.task_buffer.pop(idx)
-        TaskDef.load_task(self, task)
+        logmsg(category="null")
+        logmsg(category="TASK", id=self.agent_id, msg="Active task: %s" % self['name'], speech=False)
+        logmsg(category="TASK", msg="Task details:")
+        [logmsg(category="TASK", msg="    - %s" % stage) for stage in self['stage_list']]
 
-    """ Localisation """
-    def current_node_cb(self, msg):
-        self.previous_node = self.current_node if self.current_node else self.previous_node
-        self.current_node = None if msg.data == "none" else msg.data
-    def closest_node_cb(self, msg):
-        self.closest_node = None if msg.data == "none" else msg.data
-    def location(self, accurate=False):
-        if accurate:
-            return self.current_node or self.previous_node or self.closest_node
-        return self.current_node or self.closest_node or self.previous_node
-    def goal(self):
-        return self().target
-    def set_location_srv(self, req):
-        """ Manual override to take control of picker's current location. (Debugging Tool)
-        Callback for "picker_id/move_current_node"
-
-        Unregisters from current_node subscriber and pulishes message to its callback.
-        If a node is not given, it reanables the automonous localisation.
-
-        :param node: String containing fake current_node
-        :return: None
-        """
-        r = AgentNodePairResponse()
-        r.success = False
-
-        if req.node_id: #set location to given node
-            self.subs['current_node'].unregister()
-            self.subs['closest_node'].unregister()
-            msg = Str(req.node_id)
-            self._current_node_cb(msg)
-            self._closest_node_cb(msg)
-            r.success = True ; r.msg = "Node Set" ;
-
-        else:
-            self.previous_node, self.current_node, self.closest_node = None, None, None
-            self.subs['current_node'] = Sub(self.picker_id + "/current_node", Str, self.current_node_cb)
-            self.subs['closest_node'] = Sub(self.picker_id + "/closest_node", Str, self.closest_node_cb)
-            r.success = True ; r.msg = "Localisation resumed" ;
-
-        return resp
 
     """ Navigation """
     def map_cb(self, msg):
@@ -281,67 +237,12 @@ class AgentDetails(object):
         :param node_id: name of the node, str
         """
         return ('tmap_node_list' in self.navigation and node_id in self.navigation['tmap_node_list'])
-    # def update_available_tmap(self, agent_nodes=[]):
-    #     """remove incoming edges to the list of agent nodes in the available_tmap
-    #     and update the available_route_search object with the new map
-    #     :param agent_nodes: list of nodes occupied by other agents, list
-    #     """
-    #     # Nothing to do if restrictions are not used
-    #     if 'navigation_restrictions' not in self.agent.properties: return
-    #
-    #     available_tmap = copy.deepcopy(self.navigation['tmap'])
-    #
-    #     for node in available_tmap["nodes"]:
-    #         to_pop = []
-    #         for i in range(len(node["node"]["edges"])):
-    #             if node["node"]["edges"][i]["node"] in agent_nodes:
-    #                 to_pop.append(i)
-    #         if to_pop:
-    #             to_pop.reverse()
-    #             for j in to_pop:
-    #                 node["node"]["edges"].pop(j)
-    #
-    #     self.navigation['tmap_available'] = available_tmap
-    #     self.navigation['available_route_search'] = TopologicalRouteSearch(self.agent.navigation['tmap_available'])
-    # def unblock_node(self, node_to_unblock):
-    #     """ unblock a node by adding edges to an occupied node in available_tmap
-    #     copying from tmap
-    #     :param node_to_unblock: name of the node to be unblocked, str
-    #     """
-    #     nodes_to_append = []
-    #     edges_to_append = []
-    #
-    #     """ for each edge in network, if edge connects to a node to unblock, add to list """
-    #     for node in self.navigation['tmap']["nodes"]:
-    #         for edge in node["node"]["edges"]:
-    #             if edge["node"] == node_to_unblock:
-    #                 nodes_to_append.append(node["node"]["name"])
-    #                 edges_to_append.append(edge)
-    #
-    #     """ for each node in empty map, if node is to be unblocked, add a extra edge """
-    #     for node in self.navigation['tmap_available']["nodes"]:
-    #         if node["node"]["name"] in nodes_to_append:
-    #             ind_to_append = nodes_to_append.index(node["node"]["name"])
-    #             node["node"]["edges"].append(edges_to_append[ind_to_append])
-    #
-    #     # update the route_search object
-    #     self.navigation['available_route_search'] = TopologicalRouteSearch(self.navigation['tmap_available'])
-    # def get_available_optimum_route(self, start_node, goal_node):
-    #     """ find and return a route from start_node to goal_node on the available_tmap
-    #     :param start_node: name of the node from which route should be planned, str
-    #     :param goal_node: name of the node to which route should be planned, str
-    #     :return: route from start_node to goal_node
-    #     """
-    #     route = None or self.navigation['available_route_search'].search_route(start_node, goal_node)
-    #     return route
+    def goal(self): return self().target
 
-    """ Conveniences """
-    def __call__(A, index=0):
-        return A.task_stage_list[index] if len(A.task_stage_list) > index else None
-    def __getitem__(A, key):
-        return A.task_details[key] if key in A.task_details else None
-    def __setitem__(A, key, val):
-        A.task_details[key] = val
+    """ Conveniences for Active Task """
+    def __call__(A, index=0): return A.task.stage_list[index] if len(A.task.stage_list) > index else None
+    def __getitem__(A, key):  return A.task[key] if A.task else None
+    def __setitem__(A, key, val):    A.task[key] = val
 
     """ Standard Task Interactions """
     def start_stage(self):
@@ -352,11 +253,11 @@ class AgentDetails(object):
         self.interface.publish(state)
     def end_stage(self):
         from time import sleep; sleep(0.2) #TODO: this can be removed once add task to buffer is removed from async
-        logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self.task_stage_list[0])
+        logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self['stage_list'][0])
         self()._notify_end()
         self()._end()
-        self.task_stage_list.pop(0)
-        return None if self.task_stage_list else self['task_id']
+        self['stage_list'].pop(0)
+        return None if self['stage_list'] else self['id']
 
     """ Task Interruption """
     def set_interrupt(self, type, module, task_id, scope, quiet=False):

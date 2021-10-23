@@ -117,12 +117,12 @@ class BasePlanner(object):
 
     def get_agents(self):
         # Filter out agents with no physical presence
-        self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.has_presence}
+        self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.location.has_presence}
 
     def load_occupied_nodes(self):
         """ get the list of nodes occupied by all agents
         """
-        self.occupied_nodes = list(set([a.location(accurate=False) for a in self.agent_manager.agent_details.values() if a.has_presence]))
+        self.occupied_nodes = list(set([a.location(accurate=False) for a in self.agent_manager.agent_details.values() if a.location.has_presence]))
 
     def no_route_found(self, agent):
         logmsg(level='error', category='route', id=agent.agent_id, msg='Route not found, executing recovery behaviour:')
@@ -135,7 +135,7 @@ class BasePlanner(object):
             recovery_stages.reverse()
             for stage in recovery_stages:
                 logmsg(category="DTM", msg="        - " + str(stage))
-                agent.task_stage_list.insert(0, stage)
+                agent['stage_list'].insert(0, stage)
 
     @abstractmethod
     def __init__(self, agent_manager, heterogeneous_map):
@@ -147,7 +147,7 @@ class BasePlanner(object):
 
         # Filter out agents with no physical presence
         self.agent_manager = agent_manager
-        self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.has_presence}
+        self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.location.has_presence}
 
         """ Download Topological Map """
         self.heterogeneous_map = heterogeneous_map

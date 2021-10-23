@@ -49,6 +49,7 @@ class Robot(object):
         self.topo_map = None
         self.rec_topo_map = False
         self.route_search = None
+        self.route_publisher = rospy.Publisher("%s/current_route" %(self.robot_id), Path, latch=True, queue_size=5)
 
         rospy.Subscriber("/topological_map_2", String, self._map_cb)
         logmsg(category="rob_py", id=self.robot_id, msg='waiting for Topological map 2...')
@@ -56,7 +57,6 @@ class Robot(object):
         logmsg(category="rob_py", id=self.robot_id, msg='received Topological map 2')
 
         self.route_search = TopologicalRouteSearch(self.topo_map)
-        self.route_publisher = rospy.Publisher("%s/current_route" %(self.robot_id), Path, latch=True, queue_size=5)
         self.publish_route()
 
         self.topo_route_sub = rospy.Subscriber("/%s/topological_navigation/Route" %(self.robot_id), TopologicalRoute,

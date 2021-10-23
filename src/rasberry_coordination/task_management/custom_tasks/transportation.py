@@ -1,6 +1,9 @@
+from copy import deepcopy
 from std_msgs.msg import String as Str
-from rasberry_coordination.coordinator_tools import logmsg
 from rospy import Time, Duration, Subscriber, Publisher, Time
+
+from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
 from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef
 from rasberry_coordination.robot import Robot as RobotInterface_Old
@@ -12,8 +15,8 @@ class InterfaceDef(object):
 
     class transportation_picker(IDef.AgentInterface):
         def __init__(self, agent, sub='/car_client/get_states', pub='/car_client/set_states'):
-            self.release_triggers = ['self', 'toc']
-            self.restart_triggers = ['thorvald']
+            # self.release_triggers = ['self', 'toc']
+            # self.restart_triggers = ['thorvald']
 
             responses = {'CALLED': self.called, 'LOADED': self.loaded, 'INIT': self.reset}
             super(InterfaceDef.transportation_picker, self).__init__(agent, responses, sub=sub, pub=pub)
@@ -21,7 +24,7 @@ class InterfaceDef(object):
             self.notify("INIT")
 
         def called(self):
-            logmsg(msg="picker called called")
+            logmsg(category="TPTask", id=self.agent.agent_id, msg="Request for courier")
             self.agent.add_task(task_name='transportation_request_courier')
             self.agent['start_time'] = Time.now()
 
@@ -30,9 +33,11 @@ class InterfaceDef(object):
             self.agent['has_tray'] = False #picker no longer has the tray
 
         def reset(self):
-            logmsg(msg="picker called reset")
-            if self.agent['task_id'] and self.agent.task_name=='transportation_request_courier':
-                self.agent.set_interrupt('reset', 'transportation', self.agent['task_id'], "Task")
+            logmsg(category="TPTask", id=self.agent.agent_id, msg="Reset-task requested")
+            if self.agent['id'] and self.agent['name']=='transportation_request_courier':
+                self.agent.set_interrupt('reset', 'transportation', self.agent['id'], "Task")
+            else:
+                logmsg(level="error", msg="task request cancelled but we only check for if task is active")
 
         # def on_cancel(self, task_id, contact_id, force_release=False):
         #     old_id = super(InterfaceDef.transportation_picker, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
@@ -51,9 +56,9 @@ class InterfaceDef(object):
             #TODO: These need a new home (do we need a robot core_task_module?)
             self.agent.temp_interface = RobotInterface_Old(self.agent.agent_id)
 
-        def pause(self): self.agent.set_interrupt('pause', 'transportation', self.agent['task_id'])
-        def unpause(self): self.agent.set_interrupt('unpause', 'transportation', self.agent['task_id'])
-        def release(self): self.agent.set_interrupt('reset', 'transportation', self.agent['task_id'])
+        def pause(self): self.agent.set_interrupt('pause', 'transportation', self.agent['id'])
+        def unpause(self): self.agent.set_interrupt('unpause', 'transportation', self.agent['id'])
+        def release(self): self.agent.set_interrupt('reset', 'transportation', self.agent['id'])
 
     class transportation_storage(IDef.AgentInterface):
         def __init__(self, agent, sub='/uar/get_states', pub='/uar/set_states'):
@@ -75,7 +80,7 @@ class InterfaceDef(object):
 
 class TaskDef(object):
 
-    """ Initialisation Verification """
+    """ Initialisation """
     @classmethod
     def transportation_courier_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         return TDef.robot_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
@@ -108,82 +113,86 @@ class TaskDef(object):
             return TaskDef.transportation_storage(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
             return TaskDef.idle_storage_def(agent=agent, task_id=task_id, details=details, contacts=contacts)
-    @classmethod
-    def idle_storage_def(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "idle_storage",
-                'details': TDef.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'transportation',
-                'initiator_id': agent.agent_id,
-                'responder_id': "",
-                'stage_list': [
-                    SDef.StartTask(agent, task_id),
-                    StageDef.IdleStorage(agent)
-                ]})
 
 
-    """ Picker Logistics Transportation """
+    """ Picker Tasks """
     @classmethod
     def transportation_request_courier(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "transportation_request_courier",
-                'details': TDef.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'transportation',
-                'initiator_id': agent.agent_id,
-                'responder_id': "",
-                'stage_list': [
-                    SDef.StartTask(agent, task_id),
-                    StageDef.AssignCourier(agent),
-                    StageDef.AwaitCourier(agent),
-                    StageDef.LoadCourier(agent),
-                ]})
+        return(Task(id = task_id,
+                    module = 'transportation',
+                    name = "transportation_request_courier",
+                    details = deepcopy(details),
+                    contacts = contacts.copy(),
+                    initiator_id = agent.agent_id,
+                    responder_id = "",
+                    stage_list = [
+                        SDef.StartTask(agent, task_id),
+                        StageDef.AssignCourier(agent),
+                        StageDef.AwaitCourier(agent),
+                        StageDef.LoadCourier(agent),
+                    ]))
+
+    """ Courier Tasks """
     @classmethod
     def transportation_retrieve_load(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "transportation_retrieve_load",
-                'details': TDef.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'transportation',
-                'initiator_id': initiator_id,
-                'responder_id': agent.agent_id,
-                'stage_list': [
-                    SDef.StartTask(agent, task_id),
-                    StageDef.NavigateToPicker(agent),
-                    StageDef.Loading(agent)
-                ]})
+        return(Task(id = task_id,
+                    module = 'transportation',
+                    name = "transportation_retrieve_load",
+                    details = deepcopy(details),
+                    contacts = contacts.copy(),
+                    initiator_id = initiator_id,
+                    responder_id = agent.agent_id,
+                    stage_list = [
+                        SDef.StartTask(agent, task_id),
+                        StageDef.NavigateToPicker(agent),
+                        StageDef.Loading(agent)
+                    ]))
     @classmethod
     def transportation_deliver_load(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "transportation_deliver_load",
-                'details': TDef.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'transportation',
-                'initiator_id': agent.agent_id,
-                'responder_id': "",
-                'stage_list': [
-                    SDef.StartTask(agent, task_id),
-                    StageDef.AssignStorage(agent),
-                    SDef.AssignWaitNode(agent),
-                    StageDef.AwaitStoreAccess(agent),
-                    StageDef.NavigateToStorage(agent),
-                    StageDef.Unloading(agent)
-                ]})
+        return(Task(id = task_id,
+                    module = 'transportation',
+                    name = "transportation_deliver_load",
+                    details = deepcopy(details),
+                    contacts = contacts.copy(),
+                    initiator_id = agent.agent_id,
+                    responder_id = "",
+                    stage_list = [
+                        SDef.StartTask(agent, task_id),
+                        StageDef.AssignStorage(agent),
+                        SDef.AssignWaitNode(agent),
+                        StageDef.AwaitStoreAccess(agent),
+                        StageDef.NavigateToStorage(agent),
+                        StageDef.Unloading(agent)
+                    ]))
+
+    """ Storage Tasks """
+    @classmethod
+    def idle_storage_def(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+        return(Task(id = task_id,
+                    module = 'transportation',
+                    name = "idle_storage_def",
+                    details = deepcopy(details),
+                    contacts = contacts.copy(),
+                    initiator_id = agent.agent_id,
+                    responder_id = "",
+                    stage_list = [
+                        SDef.StartTask(agent, task_id),
+                        StageDef.IdleStorage(agent)
+                    ]))
     @classmethod
     def transportation_storage(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "transportation_storage",
-                'details': TDef.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'transportation',
-                'initiator_id': "",
-                'responder_id': agent.agent_id,
-                'stage_list': [
-                    StageDef.AcceptCourier(agent),
-                    StageDef.AwaitCourier(agent),
-                    StageDef.UnloadCourier(agent)
-                ]})
+        return(Task(id = task_id,
+                    module = 'transportation',
+                    name = "transportation_storage",
+                    details = deepcopy(details),
+                    contacts = contacts.copy(),
+                    initiator_id = "",
+                    responder_id = agent.agent_id,
+                    stage_list = [
+                        StageDef.AcceptCourier(agent),
+                        StageDef.AwaitCourier(agent),
+                        StageDef.UnloadCourier(agent)
+                    ]))
 
 
 class StageDef(object):
@@ -218,13 +227,13 @@ class StageDef(object):
             given details pertaining to its completion. This is done explicitly.
             """
             super(StageDef.AssignCourier, self)._end()
-            self.agent.task_contacts['courier'] = self.action['response_location']
-            self.agent.task_contacts['courier'].add_task(task_name='transportation_retrieve_load',
-                                                         task_id=self.agent['task_id'],
+            self.agent['contacts']['courier'] = self.action['response_location']
+            self.agent['contacts']['courier'].add_task(task_name='transportation_retrieve_load',
+                                                         task_id=self.agent['id'],
                                                          details={},
                                                          contacts={'picker': self.agent},
                                                          initiator_id=self.agent.agent_id)
-            self.agent.responder_id = self.agent.task_contacts['courier'].agent_id
+            self.agent.responder_id = self.agent['contacts']['courier'].agent_id
 
         def _summary(self):
             super(StageDef.AssignCourier, self)._summary()
@@ -241,9 +250,9 @@ class StageDef(object):
             self.action['response_location'] = None
         def _end(self):
             super(StageDef.AssignStorage, self)._end()
-            self.agent.task_contacts['storage'] = self.action['response_location']
-            self.agent.task_contacts['storage'].request_admittance.append(self.agent.agent_id)
-            self.agent.responder_id = self.agent.task_contacts['storage'].agent_id
+            self.agent['contacts']['storage'] = self.action['response_location']
+            self.agent['contacts']['storage'].request_admittance.append(self.agent.agent_id)
+            self.agent.responder_id = self.agent['contacts']['storage'].agent_id
 
         def _summary(self):
             super(StageDef.AssignStorage, self)._summary()
@@ -259,11 +268,11 @@ class StageDef(object):
             self.action['response_location'] = None
         def _end(self):
             super(StageDef.AcceptCourier, self)._end()
-            self.agent.task_contacts['courier'] = self.action['response_location']
-            logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent.task_contacts['courier'].agent_id, self.agent.request_admittance))
+            self.agent['contacts']['courier'] = self.action['response_location']
+            logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent['contacts']['courier'].agent_id, self.agent.request_admittance))
             logmsg(category="stage", msg="AcceptCourier: stage_complete=%s" % self.stage_complete)
-            self.agent.request_admittance.remove(self.agent.task_contacts['courier'].agent_id)
-            self.agent.initiator_id = self.agent.task_contacts['courier'].agent_id
+            self.agent.request_admittance.remove(self.agent['contacts']['courier'].agent_id)
+            self.agent.initiator_id = self.agent['contacts']['courier'].agent_id
         def _summary(self):
             super(StageDef.AcceptCourier, self)._summary()
             self.summary['_start'] = "setup action to find admittant"
@@ -273,12 +282,12 @@ class StageDef(object):
     """ Idle Actions for Pending Actions """
     class AwaitCourier(SDef.Idle):   #PICKER + STORAGE
         def __repr__(self):
-            if 'courier' in self.agent.task_contacts:
-                return "%s(%s)"%(self.get_class(), self.agent.task_contacts['courier'].agent_id)
+            if 'courier' in self.agent['contacts']:
+                return "%s(%s)"%(self.get_class(), self.agent['contacts']['courier'].agent_id)
             else:
                 return "%s()" % (self.get_class())
         def _query(self):
-            success_conditions = [self.agent.task_contacts['courier'].location(accurate=True) == self.agent.location()]
+            success_conditions = [self.agent['contacts']['courier'].location(accurate=True) == self.agent.location()]
             self._flag(any(success_conditions))
         def _notify_end(self):
             self.agent.interfaces['transportation'].notify("ARRIVED")
@@ -290,8 +299,8 @@ class StageDef(object):
         #While waiting for store access, move to a wait_node
         # (ideally this should be identified by the coordinator and assigned dynamically)
         def __repr__(self):
-            if 'storage' in self.agent.task_contacts:
-                return "%s(%s)"%(self.get_class(), self.agent.task_contacts['storage'].agent_id)
+            if 'storage' in self.agent['contacts']:
+                return "%s(%s)"%(self.get_class(), self.agent['contacts']['storage'].agent_id)
             else:
                 return "%s()" % (self.get_class())
         def _start(self):
@@ -300,7 +309,7 @@ class StageDef(object):
             # Despite moving to a wait node, dont end task on arrival #huh?
         def _query(self):
             """ If a courier is assigned as the contact to the storage contact, check if it is this stage's owner """
-            storage = self.agent.task_contacts['storage']
+            storage = self.agent['contacts']['storage']
             if 'courier' not in storage.task_contacts: return
             courier = storage.task_contacts['courier']
             success_conditions = [courier.agent_id == self.agent.agent_id]
@@ -327,7 +336,7 @@ class StageDef(object):
             self._flag(any(success_conditions))
         def _end(self):
             super(StageDef.LoadModifier, self)._end()
-            self.agent.task_contacts['courier']['has_tray'] = not self.end_requirement
+            self.agent['contacts']['courier']['has_tray'] = not self.end_requirement
     class LoadCourier(LoadModifier): #PICKER
         def __init__(self, agent):
             super(StageDef.LoadCourier, self).__init__(agent, end_requirement=False, wait_timeout=PDef['transportation']['wait_loading'])

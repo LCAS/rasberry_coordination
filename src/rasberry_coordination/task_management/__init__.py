@@ -21,7 +21,7 @@ def def_tasks(clean_task_list):
         task_list.insert(0, 'rasberry_coordination.task_management.base')
 
     logmsg(category="START",  msg="Collecting Interface, Task, and Stage Definitions for modules: ")
-    [logmsg(category="START", msg="    - %s" % module) for module in clean_task_list]
+    [logmsg(category="START", msg="    | %s" % module) for module in clean_task_list]
 
     # For each task, import the TaskDef, StageDef, and InterfaceDef to the respective dictionaries
     task_definitions = dict()
@@ -39,8 +39,8 @@ def def_tasks(clean_task_list):
     InterfaceDef = type('InterfaceDef', tuple(interface_definitions.values()), dict())
 
     logmsg(category="START",  msg="Interfaces: ")
-    [logmsg(category="START", msg="    - %s" % interface) for interface in dir(InterfaceDef) if not interface.startswith('__')]
+    [logmsg(category="START", msg="    | %s" % interface) for interface in dir(InterfaceDef) if not interface.startswith('__')]
     logmsg(category="START",  msg="Tasks: ")
-    [logmsg(category="START", msg="    - %s" % task) for task in dir(TaskDef) if not task.startswith('__')]
+    [logmsg(category="START", msg="    | %s" % task) for task in dir(TaskDef) if not task.startswith('__')]
     logmsg(category="START",  msg="Stages: ")
-    [logmsg(category="START", msg="    - %s" % stage) for stage in dir(StageDef) if not stage.startswith('__')]
+    [logmsg(category="START", msg="    | %s" % stage) for stage in dir(StageDef) if not stage.startswith('__')]

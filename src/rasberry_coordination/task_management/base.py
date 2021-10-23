@@ -118,7 +118,7 @@ Rules for Custom Stages:
 Notes:
 - __init__ is called when the task stages are added to an agent
 - __repr__ can be overloaded to include more information
-- _start is called once when the stask is at the head of task_stage_list
+- _start is called once when the stask is at the head of task stage_list
 - _start can be called a second time by setting Stage.new_stage to True
 - _query is called on every iteration of Coordinator.run, except when task_progression is paused
 - 
@@ -130,9 +130,12 @@ Notes:
 
 from copy import deepcopy
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
+
 from std_msgs.msg import Bool, String as Str
 import strands_executive_msgs.msg
+
 from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 from rasberry_coordination.srv import AgentNodePair
 
@@ -140,6 +143,7 @@ from topological_navigation.route_search2 import TopologicalRouteSearch2 as Topo
 
 
 class InterfaceDef(object):
+
 
     class TOC_Interface(object):
         def __init__(self, coordinator):
@@ -184,19 +188,19 @@ class InterfaceDef(object):
             for agent in self.coordinator.get_agents():
 
                 # If a task exists
-                if agent['task_id']:
+                if agent['id']:
 
                     # If task is already added, move on
-                    if agent['task_id'] in [T.task_id for T in task_list.tasks]: continue
+                    if agent['id'] in [T.task_id for T in task_list.tasks]: continue
 
                     # Get task details
                     task = SingleTaskDetails()
-                    task.task_id = agent['task_id']
+                    task.task_id = agent['id']
                     task.state = agent().__repr__().replace('()','').split('.')[-1]
 
                     # Assign agents to the task
-                    task.initiator_id = agent.initiator_id
-                    task.responder_id = agent.responder_id
+                    task.initiator_id = agent['initiator_id']
+                    task.responder_id = agent['responder_id']
 
                     # Add task to list
                     task_list.tasks.append(task)
@@ -222,39 +226,40 @@ class InterfaceDef(object):
             if m.scope in [0, "Coord", "Coordinator"]:
                 # Modify all tasks
                 logmsg(category="DTM", msg="    - to affect all agents.")
-                # [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
+                # [a.set_interrupt(m.interrupt, a.module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
 
                 if m.interrupt == "reset":
                     for a in A.values():
                         if a['task_id'] and a.agent_id == a.initiator_id:
                             logmsg(category="DTM", msg="      | release")
-                            a.set_interrupt("reset", a.task_module, a['task_id'], m.scope, quiet=True)
+                            a.set_interrupt("reset", a.module, a['task_id'], m.scope, quiet=True)
                 else:
-                    [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
+                    [a.set_interrupt(m.interrupt, a.module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
 
 
             elif m.scope in [1, "Task"]:
                 # Modify all agents on specific task
                 logmsg(category="DTM", msg="    - to affect task: %s." % m.target)
-                # [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
+                # [a.set_interrupt(m.interrupt, a.module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
 
                 if m.interrupt == "reset":
                     for a in A.values():
                         if (a['task_id']) and (a['task_id'] == m.target) and (a.agent_id == a.initiator_id):
                             logmsg(category="DTM", msg="      | release")
-                            a.set_interrupt("reset", a.task_module, a['task_id'], m.scope, quiet=True)
+                            a.set_interrupt("reset", a.module, a['task_id'], m.scope, quiet=True)
                 else:
-                    [a.set_interrupt(m.interrupt, a.task_module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
+                    [a.set_interrupt(m.interrupt, a.module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
 
 
 
             elif m.scope in [2, "Agent"]:
                 # Modify specific agent's task
                 logmsg(category="DTM", msg="    - to affect agent: %s." % m.target)
-                A[m.target].set_interrupt(m.interrupt, A[m.target].task_module, A[m.target]['task_id'], m.scope, quiet=True)
+                A[m.target].set_interrupt(m.interrupt, A[m.target].module, A[m.target]['task_id'], m.scope, quiet=True)
 
             else:
                 print(m)
+
 
     class AgentInterface(object):
         def __init__(self, agent, responses, sub, pub):
@@ -263,7 +268,6 @@ class InterfaceDef(object):
             self.pub = Publisher(pub, Str, queue_size=5)
             self.sub = Subscriber(sub, Str, self.callback, agent.agent_id)
         def callback(self, msg, agent_id):  # Look into sub/feature
-            # print("callback recieved for %s with %s" % (agent_id, msg))
             msg = eval(msg.data)
             if "states" in msg: return # car callback sends two msgs, this filters second #TODO: remove this
             if msg['user'] == agent_id:
@@ -274,149 +278,94 @@ class InterfaceDef(object):
             logmsg(category="COMMS", msg="Publishing: (%s)" % msg)
             self.pub.publish(msg)
 
-        # def on_cancel(self, task_id, contact_id, force_release=False):
-        #     logmsg(category='DTM', id=self.agent.agent_id, msg="    : Request made by %s to cancel task: %s" % (contact_id,task_id))
-        #
-        #     # If the task is in the buffer, remove it
-        #     try:
-        #         if task_id in [task.task_id for task in self.agent.task_buffer]:
-        #             logmsg(category='DTM', msg="    - removing task from task_buffer")
-        #             self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_id != task_id]
-        #             return None
-        #     except:
-        #         logmsg(level="error", category='DTM', msg="    :    - task_id not attribute in item in task_buffer?")
-        #         print(self.agent.task_buffer)
-        #         #TODO: it seems as though restart task does not retain a task id
-        #
-        #     # If task is active, perform appropriate cancellations for contacts
-        #     old_id = self.agent['task_id']
-        #     if self.agent['task_id'] == task_id:
-        #         if force_release:
-        #            TaskDef.release_task(self.agent)
-        #         else:
-        #             if any([contact_id.startswith(option) for option in self.release_triggers]): TaskDef.release_task(self.agent)
-        #             if any([contact_id.startswith(option) for option in self.restart_triggers]): TaskDef.restart_task(self.agent)
-        #     return old_id
-
 
 class TaskDef(object):
-    """ Runtime Method for Custom Task Definitions """
-    @classmethod
-    def load_details(cls, details):
-        c=deepcopy(details)
-        return c
-    @classmethod
-    def load_task(cls, agent, task):
-        agent['task_id'] = task['id']
-        agent.task_name = task['name']
-        agent.task_details = deepcopy(task['details'])
-        agent.task_contacts = task['contacts'].copy()
-        agent.task_module = task['task_module']
-        agent.task_stage_list = task['stage_list']
-        agent.initiator_id = task['initiator_id'] if 'initiator_id' in task else ""
-        agent.responder_id = task['responder_id'] if 'responder_id' in task else ""
-
-
-        logmsg(category="null")
-        logmsg(category="TASK", id=agent.agent_id, msg="Active task: %s" % task['name'], speech=False)
-        logmsg(category="TASK", msg="Task details:")
-        [logmsg(category="TASK", msg="    - %s" % stage) for stage in task['stage_list']]
-    @classmethod
-    def clear_active_task(cls, agent):
-        # print("i gots no way to send msg to TOC to cancel /shrug")
-        agent.task_name = None
-        agent.action = dict()
-        agent.task_details = {}
-        agent.task_contacts = {}
-        agent.initiator_id = ""
-        agent.responder_id = ""
-        agent.task_module = None
-        agent.task_stage_list = []
-
 
     """ Runtime Method for Init Task Definitions """
     @classmethod
     def robot_localisation(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "robot_localisation",
-                'details': cls.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'base',
-                'initiator_id': agent.agent_id,
-                'responder_id': "",
-                'stage_list': [
-                    StageDef.StartTask(agent, task_id),
-                    StageDef.WaitForLocalisation(agent),
-                    StageDef.WaitForMap(agent)
-                ]})
+        return(Task(id = task_id,
+                    module = 'base',
+                    name = "robot_localisation",
+                    details = deepcopy(details),
+                    contacts = contacts.copy(),
+                    initiator_id = agent.agent_id,
+                    responder_id = "",
+                    stage_list = [
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.SetUnregister(agent),
+                        StageDef.WaitForLocalisation(agent),
+                        StageDef.WaitForMap(agent),
+                        StageDef.SetRegister(agent)
+                    ]))
     @classmethod
     def human_localisation(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "human_localisation",
-                'details': cls.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'base',
-                'initiator_id': agent.agent_id,
-                'responder_id': "",
-                'stage_list': [
-                    StageDef.StartTask(agent, task_id),
-                    StageDef.WaitForLocalisation(agent)
-                ]})
+        return(Task(id = task_id,
+                    module = 'base',
+                    name = "human_localisation",
+                    details = deepcopy(details),
+                    contacts = contacts.copy(),
+                    initiator_id = agent.agent_id,
+                    responder_id = "",
+                    stage_list = [
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.WaitForLocalisation(agent)
+                    ]))
 
 
     """ Runtime Method for Idle Task Definitions """
     @classmethod
     def idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "idle",
-                'details': cls.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'base',
-                'initiator_id': agent.agent_id,
-                'responder_id': "",
-                'stage_list': [
-                    StageDef.StartTask(agent, task_id),
-                    StageDef.Idle(agent)
-                ]})
+        return(Task(id = task_id,
+                    module = 'base',
+                    name = "idle",
+                    details = deepcopy(details),
+                    contacts = contacts.copy(),
+                    initiator_id = agent.agent_id,
+                    responder_id = "",
+                    stage_list = [
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.Idle(agent)
+                    ]))
     @classmethod
     def wait_at_base(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "wait_at_base",
-                'details': cls.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'base', # TODO: setup common task to replace this
-                'initiator_id': agent.agent_id,
-                'responder_id': "",
-                'stage_list': [
-                    StageDef.StartTask(agent, task_id),
-                    StageDef.AssignBaseNode(agent),
-                    StageDef.NavigateToBaseNode(agent),
-                    StageDef.Idle(agent)
-                ]})
+        return(Task(id = task_id,
+                    module = 'base',
+                    name = "wait_at_base",
+                    details = deepcopy(details),
+                    contacts = contacts.copy(),
+                    initiator_id = agent.agent_id,
+                    responder_id = "",
+                    stage_list = [
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.AssignBaseNode(agent),
+                        StageDef.NavigateToBaseNode(agent),
+                        StageDef.Idle(agent)
+                    ]))
     @classmethod
     def exit_at_node(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "exit_at_node",
-                'details': cls.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'base',
-                'initiator_id': agent.agent_id,
-                'responder_id': "",
-                'stage_list': [
-                    StageDef.NavigateToExitNode(agent),
-                    StageDef.Exit(agent)
-                ]})
+        return(Task(id = task_id,
+                    module = 'base',
+                    name = "exit_at_node",
+                    details = deepcopy(details),
+                    contacts = contacts.copy(),
+                    initiator_id = agent.agent_id,
+                    responder_id = "",
+                    stage_list = [
+                        StageDef.NavigateToExitNode(agent),
+                        StageDef.Exit(agent)
+                    ]))
 
     """ Dynamic Task Management """
     @classmethod
     def release_task(cls, agent):
-        logmsg(category="DTM", msg="    | releasing task %s" % (agent.task_name))
-        cls.clear_active_task(agent)
+        logmsg(category="DTM", msg="    | releasing task %s" % (agent['name']))
+        agent.task = None
     @classmethod
     def restart_task(cls, agent):
-        logmsg(category="DTM", msg="    | restarting task %s" % (agent.task_name))
-        agent.add_task(task_name=agent.task_name, task_id=agent['task_id'], index=0, quiet=True)
-        cls.clear_active_task(agent)
+        logmsg(category="DTM", msg="    | restarting task %s" % (agent['name']))
+        agent.add_task(task_name=agent['name'], task_id=agent['id'], index=0, quiet=True)
+        agent.task = None
 
 
 class StageDef(object):
@@ -477,7 +426,7 @@ class StageDef(object):
         unique key on condition that agents each have UUIDs for agent_id. No lock is
         required for this to fuction.
 
-        Once this becomes the active task in the task_stage_list, the task_id is
+        Once this becomes the active task in the task stage_list, the task_id is
         adopted by the agent as the active task_id.
 
         This stage completes without any conditions.
@@ -489,7 +438,7 @@ class StageDef(object):
         def _start(self):
             self.agent.task_details = {}
             super(StageDef.StartTask, self)._start()
-            self.agent['task_id'] = self.task_id #Set task_id as active_task_id for agent
+            self.agent['id'] = self.task_id #Set task_id as active_task_id for agent
             self.agent['start_time'] = Time.now()
         def _query(self):
             self._flag(True)
@@ -497,12 +446,18 @@ class StageDef(object):
             super(StageDef.StartTask, self)._summary()
             self.summary['_start'] = "adopt active task_id"
             self.summary['_query'] = "return true"
+    class SetUnregister(StageBase):
+        def _start(self):
+            self.agent.registration = False
+            self.agent.cb['format_agent_marker'](self.agent, style='red')
+        def _query(self):
+            self._flag(True)
     class WaitForLocalisation(StageBase):
         def _start(self):
-            agent, agent_id = self.agent, self.agent.agent_id
-            self.agent.subs['current_node'] = Subscriber('/%s/current_node' % agent_id, Str, agent.current_node_cb)
-            self.agent.subs['closest_node'] = Subscriber('/%s/closest_node' % agent_id, Str, agent.closest_node_cb)
-            self.agent.subs['set_location'] = Service('/%s/set_location' % agent_id, AgentNodePair, agent.set_location_srv)
+            agent_id, loc = self.agent.agent_id, self.agent.location
+            loc.current_node_sub = Subscriber('/%s/current_node' % agent_id, Str, loc.current_node_cb)
+            loc.closest_node_sub = Subscriber('/%s/closest_node' % agent_id, Str, loc.closest_node_cb)
+            loc.set_location_srv = Service(   '/%s/set_location' % agent_id, AgentNodePair, loc.set_location_srv)
         def _query(self):
             success_conditions = [self.agent.location() is not None]
             self._flag(any(success_conditions))
@@ -525,6 +480,12 @@ class StageDef(object):
         def _end(self):
             super(StageDef.WaitForMap, self)._end()
             logmsg(category="stage", msg="Map achieved %s" % self.agent.location())
+    class SetRegister(StageBase):
+        def _start(self):
+            self.agent.registration = True
+            self.agent.cb['format_agent_marker'](self.agent, style='')
+        def _query(self):
+            self._flag(True)
 
     """ Idle """
     class Idle(StageBase):
@@ -561,7 +522,7 @@ class StageDef(object):
             self.action['descriptor'] = 'base_node'
             self.action['response_location'] = None
         def _end(self):
-            self.agent.task_contacts['base_node'] = self.action['response_location']
+            self.agent['contacts']['base_node'] = self.action['response_location']
 
     """ Navigation Controllers for Courier """
     class Navigation(StageBase):
@@ -587,11 +548,11 @@ class StageDef(object):
     class NavigateToAgent(Navigation):
         def _start(self):
             super(StageDef.NavigateToAgent, self)._start()
-            self.target = self.agent.task_contacts[self.association].location(accurate=True)
+            self.target = self.agent['contacts'][self.association].location(accurate=True)
     class NavigateToNode(Navigation):
         def _start(self):
             super(StageDef.NavigateToNode, self)._start()
-            self.target = self.agent.task_contacts[self.association]
+            self.target = self.agent['contacts'][self.association]
 
     """ Navigation SubSubclasses """
     class NavigateToBaseNode(NavigateToNode):
@@ -614,7 +575,7 @@ class StageDef(object):
             self.action['descriptor'] = 'wait_node'
             self.action['response_location'] = None
         def _end(self):
-            self.agent.task_contacts['wait_node'] = self.action['response_location']
+            self.agent['contacts']['wait_node'] = self.action['response_location']
     class NavigateToWaitNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToWaitNode, self).__init__(agent, association='wait_node')
 
@@ -645,7 +606,7 @@ class StageDef(object):
             super(StageDef.Exit, self)._start()
             self.agent.registration = False
             for task in self.agent.task_buffer:
-                self.agent.set_interrupt('force_cancel_task', task['task_module'], task['id'])
+                self.agent.set_interrupt('force_cancel_task', task['module'], task['id'])
         def _query(self):
             success_conditions = [len(self.agent.task_buffer) == 0];
             self._flag(any(success_conditions))

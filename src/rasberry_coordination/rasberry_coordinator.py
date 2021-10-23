@@ -30,7 +30,7 @@ import topological_navigation.tmap_utils
 import rasberry_coordination.robot
 import rasberry_coordination.srv
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
-from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, remove, add, move
+from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
 
 #Route Planning
 from rasberry_coordination.route_planners.route_planners import RouteFinder
@@ -147,6 +147,7 @@ class RasberryCoordinator(object):
         self.enable_task_logging = True
         self.task_progression_log = '/home/jheselden/task_progression.csv'
         self.log_routes = True
+        self.action_print = True
         self.timestep = 0
         self.iteration = 0
         self.previous_log_iteration = ""
@@ -165,14 +166,14 @@ class RasberryCoordinator(object):
             interrupt_task()     if any([a.interruption for a in A]) else None;    """ Interrupt Stage Execution """
             A = get_agents()
 
-            lognull() if any([not a.task_stage_list for a in A]) else None
-            [a.start_next_task() for a in A if not a.task_stage_list];             """ Start Buffered Task """
+            lognull() if any([not a['stage_list'] for a in A]) else None
+            [a.start_next_task() for a in A if not a['stage_list']];          """ Start Buffered Task """
             l(0);
 
             lognull() if any([a().new_stage for a in A]) else None
             Ut = Update_TOC(A, TOC, Ut);                                           """ Update TOC """
             [a.start_stage()     for a in A if a().new_stage];                     """ Start Stage """
-            lognull() if any([a().action_required for a in A]) else None
+            if self.action_print: lognull() if any([a().action_required for a in A]) else None
             [offer_service(a)    for a in A if a().action_required];               """ Offer Service """
             l(2)
 
@@ -207,13 +208,22 @@ class RasberryCoordinator(object):
         del action_deets['action_type']
         del action_deets['action_style']
         del action_deets['response_location']
-        logmsg(category="action", id=agent.agent_id, msg="Perfoming %s(%s) - details: %s" % (action_type, action_style, action_deets))
+        if self.action_print: logmsg(category="action", id=agent.agent_id, msg="Perfoming %s(%s) - details: %s" % (action_type, action_style, action_deets))
 
         agent().action['response_location'] = responses[action_type](agent)
 
         if agent().action['response_location']:
+            #for better logging but worse code:
+            self.action_print = True
+            logmsg(category="null")
+            logmsg(category="action", id=agent.agent_id, msg="Perfoming %s(%s) - details: %s" % (action_type, action_style, action_deets))
+            responses[action_type](agent)
+
             logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
             agent().action_required = False
+        else:
+            if self.action_print: logmsg(category="action", msg="No response found, continuing in background, will update log when successful.")
+            self.action_print = False
 
     """ Action Category """
     def find_agent(self, agent):
@@ -232,14 +242,14 @@ class RasberryCoordinator(object):
         logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
 
 
-        # t1 = [a.current_node for a in AExcl if a.current_node]
+        # t1 = [a.location.current_node for a in AExcl if a.location.current_node]
         # t2 = [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]
         # t3 = [a.goal() for a in AExcl if a.goal()]
         # logmsg(level='error', category='action', msg='Physically Occupied Nodes: %s'%t1, speech=True)
         # logmsg(level='error', category='action', msg='Reservered Nodes: %s'%t2, speech=True)
         # logmsg(level='error', category='action', msg='Goal Nodes: %s'%t3, speech=True)
 
-        taken = [a.current_node for a in AExcl if a.current_node] #Check if node is occupied
+        taken = [a.location.current_node for a in AExcl if a.location.current_node] #Check if node is occupied
         taken += [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]  # TackleSharedTarget
         taken += [a.goal() for a in AExcl if a.goal()]
         logmsg(category='action', msg='Occupied Nodes: %s'%taken)
@@ -272,10 +282,8 @@ class RasberryCoordinator(object):
         loc = agent.location()
         dist_list = {a.agent_id:self.dist(loc, a.location()) for a in agent_list.values() if a.registration and a.is_node_restricted(loc)}
 
-        [logmsg(category="action", msg="Localisation: %s(%s|%s|%s)"%(a.agent_id, a.current_node, a.closest_node, a.previous_node)) for a in agent_list.values()]
-
-
-        logmsg(category="action", msg="Finding closest in: %s" % dist_list)
+        if self.action_print: [logmsg(category="action", msg="    | %s location: [ %s | %s | %s ]"%(a.agent_id, a.location.current_node, a.location.closest_node, a.location.previous_node)) for a in agent_list.values()]
+        if self.action_print: logmsg(category="action", msg="Finding closest in: %s" % dist_list)
         if dist_list:
             return agent_list[min(dist_list, key=dist_list.get)]
         return None
@@ -314,7 +322,7 @@ class RasberryCoordinator(object):
 
         scope = agent.interruption[3]
         if agent().get_class() != "base.Pause":
-            agent.task_stage_list.insert(0, StageDef.Pause(agent, self.agent_manager.format_agent_marker)) #add paused stage
+            agent['stage_list'].insert(0, StageDef.Pause(agent, self.agent_manager.format_agent_marker)) #add paused stage
         agent().pause_state[scope] = True
         logmsg(category="DTM", msg="      | pause trigger ['%s'] set to True" % scope)
         logmsg(category="DTM", msg="      | stage state: %s" % agent().__repr__())
@@ -345,8 +353,8 @@ class RasberryCoordinator(object):
         - initiator restarts task
         - responder deletes task
         """
-        logmsg(category="DTM", msg="Request made to reset task: %s" % agent['task_id'])
-        init, resp, tid = agent.initiator_id, agent.responder_id, agent['task_id']
+        logmsg(category="DTM", msg="Request made to reset task: %s" % agent['id'])
+        init, resp, tid = agent['initiator_id'], agent['responder_id'], agent['id']
 
         logmsg(category="DTM", msg="If the request came from TOC, it needs to release both?")
 
@@ -374,7 +382,6 @@ class RasberryCoordinator(object):
     #     logmsg(level="error", category="DRM", msg="    - Agent is no longer reserving a node in the network")
     #     logmsg(level="error", category="DRM", msg="    - Ensure agent is moved away")
     #     self.agent_manager.agent_details.pop(agent.agent_id)
-
 
 
     """ Publish route if different from current """
@@ -543,7 +550,7 @@ class RasberryCoordinator(object):
     def log_stage(self):
         stages = []
         for a in self.AllAgentsList.values():
-            if a.task_stage_list:
+            if a['stage_list']:
                 stages += [a().get_class()]
             else:
                 stages += [None]
@@ -551,13 +558,13 @@ class RasberryCoordinator(object):
     def log_new_stage(self):
         stages = []
         for a in self.AllAgentsList.values():
-            if a.task_stage_list:
+            if a['stage_list']:
                 stages += [a().new_stage]
             else:
                 stages += [None]
         return ['', ''] + stages
     def log_task(self):
-        return ['', ''] + [a.task_name for a in self.AllAgentsList.values()]
+        return ['', ''] + [a['name'] for a in self.AllAgentsList.values()]
 
     def log_summary(self, detail):
         lst=[]
