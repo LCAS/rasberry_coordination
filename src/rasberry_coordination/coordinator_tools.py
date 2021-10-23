@@ -19,8 +19,7 @@ def logmsgbreak(total=3):
     for i in range(total):
         logmsg(category="null")
 
-
-def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speech=False): #msg_color=default
+def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speech=False):
     """ Print formatted log messages to console.
 
     Functionality offered:
@@ -30,19 +29,19 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
     > Ability to filter out certain categories
 
     In order to retain speed and simplicity, properties are preset internally here for:
-    :attr reject_tags: list of tags to ignore (useful for managing debugging tools)
-    :attr color_id: list of id's to color
-    :attr color_category: list of categories to color
+    :attr reject_categories: list of tags to ignore (useful for managing debugging tools)
+    :attr colour_id: list of id's to colour
+    :attr colour_categories: list of categories to colour
     :attr valid_categories: list of accepted categories (used to define column widths)
     :attr quick_print: boolean to define if logging should default to use print()
     :attr use_custom_formatting: boolean to define if logging should use basic rospy.logmsg or formatted variant
     :attr disable_ros_time_printout: boolean to define if logging should omit the rospy.Time.now() in logging (slower)
-    :attr reset: text color to return to after logmsg
-    :attr info_color: color for rospy log info
-    :attr warn_color: color for rospy log warn
-    :attr err_color: color for rospy log error
-    :attr green_highlight: highlight color for color_id
-    :attr yellow_highlight: highlight color for color_categories
+    :attr reset: text colour to return to after logmsg
+    :attr info_colour: colour for rospy log info
+    :attr warn_colour: colour for rospy log warn
+    :attr err_colour: colour for rospy log error
+    :attr green_highlight: highlight colour for colour_id
+    :attr yellow_highlight: highlight colour for colour_categories
 
     :param level: level of verbosity [info, warn, error] [fatal and bug/debug not included]
     :param category: type of logging [robot, picker, task, note]
@@ -65,8 +64,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
     # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
     # TODO: include padding at end of msg
 
-    reject_tags = ["START", "COMMS", "RVIZ"]
-    if category.upper() in reject_tags: return
+    if category.upper() in reject_categories: return
 
     if use_custom_formatting:
 
@@ -74,15 +72,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
         if disable_ros_time_printout:
             ros_time = '\b' * 21  # TODO: swap out using \u001b[{n}D
 
-        """ Define id and/or category to highlight """
-        color_id = {"storage01":'\033[01;31m', "thorvald_001":'\033[01;32m', "thorvald_002":'\033[01;33m', "picker01":'\033[01;34m', "picker02":'\033[01;35m', "thorvald_014":'\033[01;36m'}
-        color_category = ["TEST", "TOC1", "DRM1", "START1", "OTHER1", "DTM1"]
-        # TODO move these out of this definition and into some config file
-        # TODO: moving them outside the funciton will set on import logmsg? if so, we can grab from param server?
-        # (load from parameter server in launch file?)
-
         """ Format category portion of message """
-        valid_categories = ["ROBOT", "PICKER", "TASK", "OTHER", "ROB_PY", "ROUTE", "ACTION", "LOG", "STAGE", "SETUP", "RVIZ", "ROBNAV", "DRM", "DTM", "TOC", "START", "COMMS", "TEST"]
         total_pad_space = max([len(_category) + 1 for _category in valid_categories])
         if category.upper() in valid_categories:
             category_padding = total_pad_space - len(category)
@@ -98,34 +88,33 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
         ids = " " * (13 - len(str(id))) + str(id) + ":"
         if id == "empty": ids = " " * 14
 
-        """ Define color values for printing """ #TODO: optimise this with re.sub(r'\[.*\]','[]',line)
+        """ Define colour values for printing """ #TODO: optimise this with re.sub(r'\[.*\]','[]',line)
         reset = '\033[00m'
-        info_color = '\033[38;5;231m\033[0m'
-        warn_color = '\033[38;5;136m'
-        err_color = '\033[38;5;1m'
+        info_colour = '\033[38;5;231m\033[0m'
+        warn_colour = '\033[38;5;136m'
+        err_colour = '\033[38;5;1m'
         green_highlight = '\033[01;32m'
         yellow_highlight = '\033[01;33m'
 
-        # identify base color for message
+        # identify base colour for message
         if level == "warn":
-            base_color = warn_color
+            base_colour = warn_colour
         elif level == "error":
-            base_color = err_color
+            base_colour = err_colour
         else:
-            base_color = info_color
+            base_colour = info_colour
 
-        # define colors for output base
-        c1 = reset + base_color
-        c2 = reset + base_color
-        c3 = reset + base_color
-        c4 = reset + base_color
+        # define colours for output base
+        c1 = reset + base_colour
+        c2 = reset + base_colour
+        c3 = reset + base_colour
+        c4 = reset + base_colour
 
         # highlight id and/or category based on definitions
-        if str(category).upper() in color_category:
+        if str(category).upper() in colour_categories:
             c1 = yellow_highlight
-        if str(id) in color_id:
-            c3 = color_id[str(id)]
-            # c3 = green_highlight
+        if str(id) in colour_id:
+            c3 = colour_id[str(id)]
 
         basic_msg = msg
         msg = ros_time + "%s%s%s|%s%s %s%s%s" % (c1, cat, c2, c3, ids, c4, msg, reset)
@@ -150,65 +139,18 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
     if speech: os.system('spd-say "%s, %s" -r 10 -t female2 -w'%(id, basic_msg));
 
 
-def remove(collection, item):
-    """ Removes and returns a given item if it is found within a given collection
 
-    :param collection: The collection to remove an item from
-    :param item: The item to find and remove
-    :return: The item removed
-    """
-    if item in collection:
-        dt = str(collection.__class__)
-        if dt in ["<type 'list'>", "<type 'set'>"]:
-            collection.remove(item)
-            return item
-        elif dt in ["<type 'dict'>"]:
-            return collection.pop(item)
+import subprocess
+import rasberry_des.config_utils
 
+result = subprocess.check_output('rospack find rasberry_coordination', shell=True)
+config_file = result[:-1]+"/src/rasberry_coordination/logging_config/logmsg.yaml"
+config_data = rasberry_des.config_utils.get_config_data(config_file)
 
-def add(collection, item):
-    """ Adds a given item if it is not found within a given collection
+valid_categories =  [D['name'] for D in config_data['categories'] if not 'reject' in D]
+reject_categories = [D['name'] for D in config_data['categories'] if 'reject' in D]
+colour_categories =  [D['name'] for D in config_data['categories'] if (not 'reject' in D) and ('colour' in D) and D['colour']]
 
-    :param collection: The collection to remove an item from
-    :param item: The item to add
-    :return: None
-    """
-    if item is None:
-        return
-    dt = str(collection.__class__)
-    if dt in ["<type 'dict'>"]:
-        collection[item[0]] = item[1]
-    else:
-        if item not in collection:
-            if dt in ["<type 'list'>"]:
-                collection.append(item)
-            elif dt in ["<type 'set'>"]:
-                collection.add(item)
+colour_id = {D['name']:'\033[01;%s'%D['colour'] for D in config_data['ids']}
 
 
-def move(item, old, new):
-    """ Move a given item from an old collection (if it exists in that collection),
-    and add it to a new collection (if it is not in the new collection).
-
-    :param item: The item to add
-    :param old: The collection to remove an item from
-    :param new: The collection to add an item to
-    :return: None
-    """
-    if str(new.__class__) == "<type 'dict'>":
-        val = remove(collection=old, item=item)
-        add(collection=new, item=[item, val])
-    else:
-        add(collection=new, item=remove(collection=old, item=item))
-
-
-if __name__ == '__main__':
-    """ Example of how move works. """
-
-    d1 = {'a': 1, 'b': 2, 'c': 3}
-    d2 = {'d': 4, 'e': 5}
-
-    move(item='d', old=d2, new=d1)
-
-    print(str(d1))
-    print(str(d2))

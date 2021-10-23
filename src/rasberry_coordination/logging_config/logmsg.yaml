@@ -1,0 +1,48 @@
+categories:
+  #Core
+  - name: "ROBOT"
+  - name: "PICKER"
+  - name: "TASK"
+    colour: true
+  - name: "STAGE"
+
+  #Interruptions
+  - name: "DRM"
+  - name: "DTM"
+  - name: "TOC"
+  - name: "COMMS"
+    reject: True
+  - name: "RVIZ"
+    reject: True
+
+  #Navigation
+  - name: "ROB_PY"
+  - name: "ROUTE"
+  - name: "ROBNAV"
+
+  #Debug
+  - name: "OTHER"
+  - name: "START"
+  - name: "SETUP"
+  - name: "LOG"
+  - name: "TEST"
+
+  #Task-Generic
+  - name: "ACTION"
+    reject: true
+
+  #Task Specific
+  - name: "TPTASK"
+  - name: "UVTASK"
+
+ids:
+  - name: "storage01"
+    colour: '31m'
+  - name: "thorvald_001"
+    colour: '32m'
+  - name: "thorvald_002"
+    colour: '33m'
+  - name: "picker01"
+    colour: '34m'
+  - name: "picker02"
+    colour: '35m'
