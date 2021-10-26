@@ -1,39 +1,20 @@
-echo "    - Iranaphor_RAS rasberry_coordination/.runcom" | awk '{ gsub("Iranaphor_RAS",  "\033[1;31m&\033[0m"); print }' ;
+echo "    - Sourced: \$rasberry_coordination/.runcom" | awk '{ gsub("\$rasberry_coordination",  "\033[1;33m&\033[0m"); print }' ;
+export rasberry_coordination=$(dirname "${BASH_SOURCE[0]}")
+
 
 #Dynamic Task Interruption
-function can ()  { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_cancel',  target: '$1'}" -1 ; }
-function pau ()  { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_pause',   target: '$1'}" -1 ; }
-function upau () { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_unpause', target: '$1'}" -1 ; }
+#function can ()  { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_cancel',  target: '$1'}" -1 ; }
+#function pau ()  { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_pause',   target: '$1'}" -1 ; }
+#function upau () { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_unpause', target: '$1'}" -1 ; }
 
 #Dynamic Fleet Management
-echo "        - dont forget to add second arg to rem"
-function rem () { rosservice call /rasberry_coordination/dfm/remove_agent "{agent_id: 'thorvald_002', node_id: '$1'}" ; }
+function rem () { rosservice call /rasberry_coordination/dfm/remove_agent "{agent_id: '$1', node_id: '$2'}" ; }
 function add () { rosrun rasberry_coordination add_agent.py ; }
 
 #Dummy Functions
-function start_coordinator () { roslaunch rasberry_coordination new_simple_task_coordinator.launch config_file:=$TASK_COORD_CONFIG ; }
-function reset_picker () { rostopic pub /car_client/set_states std_msgs/String data:"{\"user\":\"$1\", \"state\": \"INIT\"}" -1 ; }
-function set_battery () { rostopic pub /$1/dummy_battery_data thorvald_base/BatteryArray "header:
-  seq: 0
-  stamp:
-    secs: 0
-    nsecs: 0
-  frame_id: ''
-battery_data:
-- battery_id: 0
-  battery_state: 0
-  temperatures: [0]
-  battery_alarms: {over_voltage_protection: false, under_voltage_protection: false,
-    over_temperature_protection: false, under_temperature_protection: false, over_charge_current: false,
-    over_discharge_current: false, can_communication_fail: false, cell_voltage_sensing_fault: false,
-    bms_fail: false, short_circuit_discharge: false, temperature_sensing_fault: false,
-    over_voltage_fault: false, under_voltage_fault: false, pack_voltage_sensing_fault: false}
-  charge_fet_on: false
-  discharge_fet_on: false
-  battery_voltage: $2
-  battery_current: 0.0
-  state_of_charge: 0
-  state_of_health: 0
-  cycle_count: 0
-  battery_capacity: 0" -1
+#function start_coordinator () { roslaunch rasberry_coordination new_simple_task_coordinator.launch config_file:=$TASK_COORD_CONFIG ; }
+#function reset_picker () { rostopic pub /car_client/set_states std_msgs/String data:"{\"user\":\"$1\", \"state\": \"INIT\"}" -1 ; }
+function set_battery () { rostopic pub /$1/dummy_battery_data thorvald_base/BatteryArray "battery_data:
+- battery_voltage: $2" -1
 }
+
