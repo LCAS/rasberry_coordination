@@ -175,20 +175,21 @@ class Robot(object):
         if feedback_cb is None:
             feedback_cb = self._fb_execpolicy_cb
 
-#        print ("%s goal: " %(self.robot_id), goal)
         self.publish_route(goal.route.source, goal.route.edge_id)
 
         self.execpolicy_goal = goal
         self.execpolicy_current_wp = None
         self.execpolicy_result = None
         self.execpolicy_status = None
-        if self.execpolicy_goal == ExecutePolicyModeGoal():
+        if goal == ExecutePolicyModeGoal():
             # sending empty route will cause error in the action server. avoid it by cancelling it
             logmsg(category="rob_py", msg="Empty route in action server cancelled.")
-            logmsg(category="test", msg="empty route action server::cancel_execpolicy_goal")
+            print(goal)
+            logmsg(level="error", category="test", msg="empty route action server::cancel_execpolicy_goal")
             self.cancel_execpolicy_goal()
         else:
             logmsg(category="rob_py", msg="Route published: _exec_policy.send_goal")
+            print(goal)
             self._exec_policy.send_goal(goal, done_cb=done_cb, active_cb=active_cb, feedback_cb=feedback_cb)
 #        self._exec_policy.wait_for_result()
 

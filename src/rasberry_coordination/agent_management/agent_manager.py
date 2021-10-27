@@ -161,10 +161,10 @@ class AgentDetails(object):
 
         # Define interface for each role given #TODO: what about differentiating between Device and App?
         self.tasks = setup['tasks']
-        # self.roles = []
+        self.roles = []
         self.interfaces = dict()
         for task in self.tasks:
-            # self.roles += [task['role']]
+            self.roles += [task['role']]
             interface_name = '%s_%s' % (task['module'], task['role'])
             definition = getattr(InterfaceDef, interface_name) #TODO: add catch for module not found
             self.interfaces[task['module']] = definition(agent=self)

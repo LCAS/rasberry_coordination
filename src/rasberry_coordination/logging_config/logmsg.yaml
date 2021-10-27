@@ -3,7 +3,7 @@ categories:
   - name: "ROBOT"
   - name: "PICKER"
   - name: "TASK"
-    colour: true
+    colour: false
   - name: "STAGE"
 
   #Interruptions
@@ -11,12 +11,13 @@ categories:
   - name: "DTM"
   - name: "TOC"
   - name: "COMMS"
-    reject: True
+    reject: true
   - name: "RVIZ"
-    reject: True
+    reject: true
 
   #Navigation
   - name: "ROB_PY"
+    colour: true
   - name: "ROUTE"
   - name: "ROBNAV"
 
