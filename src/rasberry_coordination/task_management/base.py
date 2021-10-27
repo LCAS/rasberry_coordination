@@ -296,6 +296,7 @@ class TaskDef(object):
                         StageDef.SetUnregister(agent),
                         StageDef.WaitForLocalisation(agent),
                         StageDef.WaitForMap(agent),
+                        # StageDef.WaitForTaskDetails(agent),
                         StageDef.SetRegister(agent)
                     ]))
     @classmethod
@@ -480,6 +481,32 @@ class StageDef(object):
         def _end(self):
             super(StageDef.WaitForMap, self)._end()
             logmsg(category="stage", msg="Map achieved %s" % self.agent.location())
+    # class WaitForTaskModules(StageBase):
+    #     def _start(self):
+    #
+    #         # self.agent.active_modules = TaskModules(tasks = setup['tasks'], roles = [], interfaces = dict())
+    #         # class TaskModules(object):
+    #         #     def __init__(self, tasks=setup['tasks'], roles=[], interfaces=dict()):
+    #         #         self.tasks = tasks
+    #         #         self.roles = roles
+    #         #         self.interfaces = interfaces
+    #         topic = "/%s/active_modules"%self.agent.agent_id
+    #         self.agent.subs['modules'] = Subscriber(topic, TaskModules, self.agent.init_task_cb, queue_size=5)
+    #
+    #         """
+    #         tasks:
+    #         - module: transportation
+    #           role: storage
+    #         """
+    #
+    #     def _query(self):
+    #         success_conditions = []
+    #         self._flag(any(success_conditions))
+    #
+    #     def _end(self):
+    #         super(StageDef.WaitForTaskModules, self)._end()
+    #         logmsg(category="stage", msg="Task Moduels Identified %s" % self.agent.location())
+
     class SetRegister(StageBase):
         def _start(self):
             self.agent.registration = True

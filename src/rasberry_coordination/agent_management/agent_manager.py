@@ -161,10 +161,10 @@ class AgentDetails(object):
 
         # Define interface for each role given #TODO: what about differentiating between Device and App?
         self.tasks = setup['tasks']
-        self.roles = []
+        # self.roles = []
         self.interfaces = dict()
         for task in self.tasks:
-            self.roles += [task['role']]
+            # self.roles += [task['role']]
             interface_name = '%s_%s' % (task['module'], task['role'])
             definition = getattr(InterfaceDef, interface_name) #TODO: add catch for module not found
             self.interfaces[task['module']] = definition(agent=self)
@@ -176,6 +176,19 @@ class AgentDetails(object):
         self.add_init_task()
 
     """ Task Starters """
+    # def init_task_cb(self, msg):
+    #     for task in msg:
+    #         # self.roles += [task['role']]
+    #         interface_name = '%s_%s' % (task['module'], task['role'])
+    #         definition = getattr(InterfaceDef, interface_name)  # TODO: add catch for module not found
+    #         self.interfaces[task['module']] = definition(agent=self)
+    #         self.add_init_task(task=task)
+    # def add_init_task(self, task=None):
+    #     if task:
+    #         self.add_task(task_name='%s_%s_init' % (task.module, task.role))
+    #     else:
+    #         for task in self.tasks: self.add_task(task_name='%s_%s_init' % (task['module'], task['role']))
+
     def add_init_task(self):
         for task in self.tasks:
             self.add_task(task_name='%s_%s_init' % (task['module'], task['role']))
