@@ -1,10 +1,13 @@
+from copy import deepcopy
 from std_msgs.msg import String as Str
-from rasberry_coordination.coordinator_tools import logmsg
 from rospy import Time, Duration, Subscriber, Publisher, Time
+
+from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
+
 from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef
 from thorvald_base.msg import BatteryArray as Battery
-
 
 
 class InterfaceDef(object):
@@ -18,7 +21,7 @@ class InterfaceDef(object):
         def _battery_data_cb(self, msg):
             total_voltage = sum(battery.battery_voltage for battery in msg.battery_data)
             self.agent.properties['battery_level'] = total_voltage
-            if self.battery_critical() and self.agent.task_name is not "charge_at_charging_station":  # Only add charging task if battery level critical and active task is not charging
+            if self.battery_critical() and self.agent['task_name'] is not "charge_at_charging_station":  # Only add charging task if battery level critical and active task is not charging
                 self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_name != "charge_at_charging_station"]  # Remove any low-battery tasks in buffer
                 self.agent.add_task(task_name="charge_at_charging_station", index=0)  # Add critical battery task to the buffer head
 
@@ -49,19 +52,19 @@ class TaskDef(object):
 
     @classmethod
     def charge_at_charging_station(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return({'id': task_id,
-                'name': "charge_at_charging_station",
-                'details': TDef.load_details(details),
-                'contacts': contacts.copy(),
-                'task_module': 'health_monitoring',
-                'initiator_id': agent.agent_id,
-                'responder_id': "",
-                'stage_list': [
-                    StageDef.StartChargeTask(agent),
-                    StageDef.AssignChargeNode(agent),
-                    StageDef.NavigateToChargeNode(agent),
-                    StageDef.Charge(agent)
-                ]})
+        return(Task(id = task_id,
+                    module='health_monitoring',
+                    name = "charge_at_charging_station",
+                    details = deepcopy(details),
+                    contacts = contacts.copy(),
+                    initiator_id = agent.agent_id,
+                    responder_id = "",
+                    stage_list = [
+                        StageDef.StartChargeTask(agent),
+                        StageDef.AssignChargeNode(agent),
+                        StageDef.NavigateToChargeNode(agent),
+                        StageDef.Charge(agent)
+                    ]))
 
 
 class StageDef(object):
@@ -79,8 +82,8 @@ class StageDef(object):
             self.action['descriptor'] = 'charging_station'
             self.action['response_location'] = None
         def _end(self):
-            self.agent.task_contacts['charging_station'] = self.action['response_location']
-            # self.agent.responder_id = self.agent.task_contacts['charging_station'] #TODO: is we want this, add another field to TOC (m.location)
+            self.agent['contacts']['charging_station'] = self.action['response_location']
+            # self.agent.responder_id = self.agent['contacts']['charging_station'] #TODO: is we want this, add another field to TOC (m.location)
 
     class NavigateToChargeNode(SDef.NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')

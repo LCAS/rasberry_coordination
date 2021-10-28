@@ -5,6 +5,7 @@ from rospy import Time, Duration, Subscriber, Publisher, Time
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
+
 from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef
 from rasberry_coordination.robot import Robot as RobotInterface_Old
 
@@ -310,8 +311,8 @@ class StageDef(object):
         def _query(self):
             """ If a courier is assigned as the contact to the storage contact, check if it is this stage's owner """
             storage = self.agent['contacts']['storage']
-            if 'courier' not in storage.task_contacts: return
-            courier = storage.task_contacts['courier']
+            if 'courier' not in storage['contacts']: return
+            courier = storage['contacts']['courier']
             success_conditions = [courier.agent_id == self.agent.agent_id]
             self._flag(any(success_conditions))
 
@@ -363,4 +364,3 @@ class StageDef(object):
             super(StageDef.Unloading, self)._end()
             self.agent.properties['load'] = 0
             # logmsg(level='warn', category='STAGE', id=self.agent.agent_id, msg="Total load: %s" % self.agent.properties['load'])
-
