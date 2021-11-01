@@ -234,7 +234,7 @@ class StageDef(object):
                                                          details={},
                                                          contacts={'picker': self.agent},
                                                          initiator_id=self.agent.agent_id)
-            self.agent.responder_id = self.agent['contacts']['courier'].agent_id
+            self.agent['responder_id'] = self.agent['contacts']['courier'].agent_id
 
         def _summary(self):
             super(StageDef.AssignCourier, self)._summary()
@@ -253,7 +253,7 @@ class StageDef(object):
             super(StageDef.AssignStorage, self)._end()
             self.agent['contacts']['storage'] = self.action['response_location']
             self.agent['contacts']['storage'].request_admittance.append(self.agent.agent_id)
-            self.agent.responder_id = self.agent['contacts']['storage'].agent_id
+            self.agent['responder_id'] = self.agent['contacts']['storage'].agent_id
 
         def _summary(self):
             super(StageDef.AssignStorage, self)._summary()
@@ -273,7 +273,7 @@ class StageDef(object):
             logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent['contacts']['courier'].agent_id, self.agent.request_admittance))
             logmsg(category="stage", msg="AcceptCourier: stage_complete=%s" % self.stage_complete)
             self.agent.request_admittance.remove(self.agent['contacts']['courier'].agent_id)
-            self.agent.initiator_id = self.agent['contacts']['courier'].agent_id
+            self.agent['initiator_id'] = self.agent['contacts']['courier'].agent_id
         def _summary(self):
             super(StageDef.AcceptCourier, self)._summary()
             self.summary['_start'] = "setup action to find admittant"

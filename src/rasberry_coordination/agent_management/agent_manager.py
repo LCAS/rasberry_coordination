@@ -43,8 +43,7 @@ class AgentManager(object):
         for agent in agent_list: self.add_agent(agent)
     def add_agent(self, agent_dict):
         self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
-        # self.agent_details[agent_dict['agent_id']].int = len(self.agent_details)*2 #TODO: remove this once TOC accepts string tasks
-        self.format_agent_marker(self.agent_details[agent_dict['agent_id']], style='')
+        self.format_agent_marker(self.agent_details[agent_dict['agent_id']], style='red')
 
     """ Dynamic Fleet Management """
     def add_agent_ros_srv(self, agent_obj):
@@ -139,7 +138,6 @@ class AgentDetails(object):
     """ Initialisations """
     def __init__(self, agent_dict, callbacks):
         self.agent_id = agent_dict['agent_id']
-        # self.int = -1
         self.cb = callbacks
         from copy import deepcopy
         setup = deepcopy(agent_dict['setup'])

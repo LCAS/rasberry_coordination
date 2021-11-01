@@ -230,7 +230,7 @@ class InterfaceDef(object):
 
                 if m.interrupt == "reset":
                     for a in A.values():
-                        if a['task_id'] and a.agent_id == a.initiator_id:
+                        if a['task_id'] and a.agent_id == a['initiator_id']:
                             logmsg(category="DTM", msg="      | release")
                             a.set_interrupt("reset", a.module, a['task_id'], m.scope, quiet=True)
                 else:
@@ -244,7 +244,7 @@ class InterfaceDef(object):
 
                 if m.interrupt == "reset":
                     for a in A.values():
-                        if (a['task_id']) and (a['task_id'] == m.target) and (a.agent_id == a.initiator_id):
+                        if (a['task_id']) and (a['task_id'] == m.target) and (a.agent_id == a['initiator_id']):
                             logmsg(category="DTM", msg="      | release")
                             a.set_interrupt("reset", a.module, a['task_id'], m.scope, quiet=True)
                 else:

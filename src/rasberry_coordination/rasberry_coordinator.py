@@ -354,6 +354,7 @@ class RasberryCoordinator(object):
         - responder deletes task
         """
         logmsg(category="DTM", msg="Request made to reset task: %s" % agent['id'])
+        logmsg(category="DTM", msg="    | Task Details: %s" % agent.task)
         init, resp, tid = agent['initiator_id'], agent['responder_id'], agent['id']
 
         logmsg(category="DTM", msg="If the request came from TOC, it needs to release both?")
@@ -366,9 +367,13 @@ class RasberryCoordinator(object):
             self.unregister(resp)
         self.agent_manager[init].interruption = None  # reset interruption trigger
 
-        if resp and resp in self.agent_manager.agent_details:
+        if resp and resp in self.agent_manager.agent_details.keys():
+            logmsg(category="DTM", msg="    | responder exists: %s" % (resp))
             TaskDef.release_task(self.agent_manager[resp])
             self.agent_manager[resp].interruption = None  # reset interruption trigger
+        else:
+            logmsg(category="DTM", msg="    | responder does not exist: %s" % (resp))
+            print()
 
         self.TOC_Interface.EndTask([tid])
     def unregister(self, agent_id):
