@@ -147,9 +147,15 @@ result = subprocess.check_output('rospack find rasberry_coordination', shell=Tru
 config_file = result[:-1]+"/src/rasberry_coordination/logging_config/logmsg.yaml"
 config_data = rasberry_des.config_utils.get_config_data(config_file)
 
-valid_categories =  [D['name'] for D in config_data['categories'] if not 'reject' in D]
-reject_categories = [D['name'] for D in config_data['categories'] if 'reject' in D]
-colour_categories =  [D['name'] for D in config_data['categories'] if (not 'reject' in D) and ('colour' in D) and D['colour']]
+def is_rejected(data): #return true if d is rejected
+    if 'reject' in data: return data['reject']
+    else: return False
+def is_not_rejected(data):  return not is_rejected(data)
+def is_coloured(data):      return ('colour' in data and data['colour'])
+
+valid_categories =  [D['name'] for D in config_data['categories'] if is_not_rejected(D)]
+reject_categories = [D['name'] for D in config_data['categories'] if is_rejected(D)]
+colour_categories =  [D['name'] for D in config_data['categories'] if is_not_rejected(D) and is_coloured(D)]
 
 colour_id = {D['name']:'\033[01;%s'%D['colour'] for D in config_data['ids']}
 

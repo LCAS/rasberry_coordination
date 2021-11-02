@@ -17,20 +17,22 @@ categories:
 
   #Navigation
   - name: "ROB_PY"
-    colour: true
+    colour: false
   - name: "ROUTE"
   - name: "ROBNAV"
 
   #Debug
   - name: "OTHER"
   - name: "START"
+    reject: true
   - name: "SETUP"
   - name: "LOG"
   - name: "TEST"
 
   #Task-Generic
   - name: "ACTION"
-    reject: true
+    reject: false
+    colour: true
 
   #Task Specific
   - name: "TPTASK"
