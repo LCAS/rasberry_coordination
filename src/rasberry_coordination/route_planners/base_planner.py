@@ -59,10 +59,13 @@ class BasePlanner(object):
         #tall-t1-r
         #split(name.replace(row_prefix, ''), '-c')[0]
 
-        return set([node["node"]["name"].split('-c')[0]
-                    for node in agent.navigation['tmap']["nodes"]
-                    if node["node"]["name"].startswith(row_prefix)])
+        row_ids = set([int(node["node"]["name"].replace(row_prefix, '').split('-c')[0])
+                       for node in agent.navigation['tmap']["nodes"]
+                       if node["node"]["name"].startswith(row_prefix)])
 
+        x = ["%s%s"%(row_prefix, row_id) for row_id in row_ids]
+        print(x)
+        return x
 
     def get_distance_between_adjacent_nodes(self, from_node, to_node):
         """get_distance_between_adjacent_nodes: Given names of two nodes, return the distance of the edge

@@ -197,6 +197,7 @@ class StageDef(object):
 
 
     class FindRows(SDef.AssignNode):
+        def __repr__(self): return "%s(%s)" % (self.get_class(), self.tunnel)
         def __init__(self, agent, tunnel):
             super(StageDef.FindRows, self).__init__(agent)
             self.tunnel = tunnel
@@ -211,8 +212,10 @@ class StageDef(object):
             logmsg(category="stage", msg="UV Task to treat %s rows:" % len(self.action['response_location']))
             [logmsg(category="stage", msg="    - row: %s" % row) for row in self.action['response_location']]
             for row in self.action['response_location']:
+                self.agent.add_task(task_name='wait_at_base')
                 self.agent.add_task(task_name='uv_treat_row', details={'row':row})
     class FindUVRowEnds(SDef.AssignNode):
+        def __repr__(self): return "%s(%s)"%(self.get_class(), self.row)
         def __init__(self, agent, row):
             super(StageDef.FindUVRowEnds, self).__init__(agent)
             self.row = row
@@ -227,6 +230,11 @@ class StageDef(object):
             self.agent['contacts']['row_ends'] = self.action['response_location']
             logmsg(category="stage", msg="UV Task to treat from %s to %s" % (self.action['response_location'][0], self.action['response_location'][1]))
     class FindUVStartNode(SDef.AssignNode):
+        def __repr__(self):
+            if 'row_ends'in self.agent['contacts'] and self.agent['contacts']['row_ends']:
+                return "%s(%s)" % (self.get_class(), self.agent['contacts']['row_ends'])
+            else:
+                return self.get_class()
         def __init__(self, agent, nodes=[]):
             super(StageDef.FindUVStartNode, self).__init__(agent)
             self.agent['contacts']['row_ends'] = nodes
