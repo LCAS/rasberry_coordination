@@ -149,7 +149,7 @@ class AgentDetails(object):
         self.task_buffer = []
 
         self.interruption = None
-        self.registration = True
+        self.registration = False
         self.properties = setup['properties']
 
         # Define interface for each role given #TODO: what about differentiating between Device and App?

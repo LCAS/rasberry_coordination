@@ -310,7 +310,9 @@ class TaskDef(object):
                     responder_id = "",
                     stage_list = [
                         StageDef.StartTask(agent, task_id),
-                        StageDef.WaitForLocalisation(agent)
+                        StageDef.SetUnregister(agent),
+                        StageDef.WaitForLocalisation(agent),
+                        StageDef.SetRegister(agent)
                     ]))
 
 

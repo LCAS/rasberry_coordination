@@ -27,9 +27,10 @@ class InterfaceDef(object):
             self.agent.temp_interface = RobotInterface_Old(self.agent.agent_id)
 
         def edge(self, msg):
-            msg.data = "tall-t1-r3-c1_tall-t1-r3-c0"
-            logmsg(category="UVTask", id=self.agent.agent_id, msg="Request to treat edge")
-            self.agent.add_task(task_name='uv_treat_edge', details={"nodes": msg.data.split('_')})
+            if self.agent.registration:
+                msg.data = "tall-t1-r3-c1_tall-t1-r3-c0"
+                logmsg(category="UVTask", id=self.agent.agent_id, msg="Request to treat edge")
+                self.agent.add_task(task_name='uv_treat_edge', details={"nodes": msg.data.split('_')})
 
 
     # class uv_controller(IDef.AgentInterface):
