@@ -74,6 +74,7 @@ add_message_files(
   TaskRole.msg
   TasksDetails.msg
   TaskUpdates.msg
+  TopoLocation.msg
 )
 
 ## Generate services in the 'srv' folder

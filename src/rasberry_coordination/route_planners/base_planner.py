@@ -40,6 +40,17 @@ class BasePlanner(object):
         node -- name of the node in topological map"""
         return GetNode(self.topo_map, node)
 
+    def get_row_ends(self, agent, row_id):
+        row_start = "%s-c0"%row_id
+
+        row_nodes = [int(node["node"]["name"].replace("%s-c"%row_id, ''))
+                     for node in agent.navigation['tmap']["nodes"]
+                     if node["node"]["name"].startswith(row_id)]
+
+        row_end = "%s-c%s"%(row_id, max(row_nodes))
+
+        return [row_start, row_end]
+
     def get_distance_between_adjacent_nodes(self, from_node, to_node):
         """get_distance_between_adjacent_nodes: Given names of two nodes, return the distance of the edge
         between their node objects. A wrapper for the get_distance_to_node function in tmap_utils.

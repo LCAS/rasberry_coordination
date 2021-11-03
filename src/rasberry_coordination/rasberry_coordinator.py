@@ -257,28 +257,32 @@ class RasberryCoordinator(object):
 
 
         if 'descriptor' in agent().action:
-            descriptor = agent().action['descriptor']
-            rl='response_location'
-            AExcl = [a for _id,a in self.AllAgentsList.items()  if (_id is not agent.agent_id)]
-            logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
+            if agent().action['action_style'] == "row_ends":
+                N = agent().action['descriptor']
+                logmsg(category='action', msg='Finding ends to row: %s'%N)
+            else:
+                descriptor = agent().action['descriptor']
+                rl='response_location'
+                AExcl = [a for _id,a in self.AllAgentsList.items()  if (_id is not agent.agent_id)]
+                logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
 
-            occupied = [a.location.current_node for a in AExcl if a.location.current_node] #Check if node is occupied
-            occupied += [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]  # TackleSharedTarget
-            occupied += [a.goal() for a in AExcl if a.goal()]
-            logmsg(category='action', msg='Occupied Nodes: %s'%occupied)
+                occupied = [a.location.current_node for a in AExcl if a.location.current_node] #Check if node is occupied
+                occupied += [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]  # TackleSharedTarget
+                occupied += [a.goal() for a in AExcl if a.goal()]
+                logmsg(category='action', msg='Occupied Nodes: %s'%occupied)
 
-            N2 = {n['id']:n for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)}
-            N = [n['id'] for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)]
-            logmsg(category='action', msg='Nodes to Compare Against:')
-            [logmsg(category='action', msg="    - %s: %s"%(n,N2[n])) for n in N2]
-
+                N2 = {n['id']:n for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)}
+                N = [n['id'] for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)]
+                logmsg(category='action', msg='Nodes to Compare Against:')
+                [logmsg(category='action', msg="    - %s: %s"%(n,N2[n])) for n in N2]
         else:
             N = agent().action['list']
             logmsg(category='action', msg='Nodes to Compare Against:')
             [logmsg(category='action', msg="    - %s"%n) for n in N]
 
 
-        responses = {"closest": self.find_closest_node}  # ROOM TO EXPAND
+        responses = {"closest": self.find_closest_node,
+                     "row_ends": self.find_row_ends}  # ROOM TO EXPAND
         return responses[action_style](agent, N)
 
     """ Action Style """
@@ -309,6 +313,10 @@ class RasberryCoordinator(object):
         logmsg(category="action", msg="Finding closest in:")
         [logmsg(category='action', msg="    - %s: %s"%(n,dist_list[n])) for n in dist_list]
         return min(dist_list, key=dist_list.get)
+    def find_row_ends(self, agent, row_id):
+        return self.route_finder.planner.get_row_ends(agent, row_id)
+
+
     """ Find Distance """
     def dist(self, start_node, goal_node):
         _,_,route_dists = self.get_path_details(start_node, goal_node)
