@@ -51,6 +51,19 @@ class BasePlanner(object):
 
         return [row_start, row_end]
 
+
+    def get_rows(self, agent, tunnel_id):
+        row_prefix = "%s-r"%tunnel_id
+
+        #tall-t1-r4-c5
+        #tall-t1-r
+        #split(name.replace(row_prefix, ''), '-c')[0]
+
+        return set([node["node"]["name"].split('-c')[0]
+                    for node in agent.navigation['tmap']["nodes"]
+                    if node["node"]["name"].startswith(row_prefix)])
+
+
     def get_distance_between_adjacent_nodes(self, from_node, to_node):
         """get_distance_between_adjacent_nodes: Given names of two nodes, return the distance of the edge
         between their node objects. A wrapper for the get_distance_to_node function in tmap_utils.

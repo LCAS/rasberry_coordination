@@ -260,6 +260,9 @@ class RasberryCoordinator(object):
             if agent().action['action_style'] == "row_ends":
                 N = agent().action['descriptor']
                 logmsg(category='action', msg='Finding ends to row: %s'%N)
+            elif agent().action['action_style'] == "rows":
+                N = agent().action['descriptor']
+                logmsg(category='action', msg='Finding rows in tunnel: %s'%N)
             else:
                 descriptor = agent().action['descriptor']
                 rl='response_location'
@@ -282,7 +285,8 @@ class RasberryCoordinator(object):
 
 
         responses = {"closest": self.find_closest_node,
-                     "row_ends": self.find_row_ends}  # ROOM TO EXPAND
+                     "row_ends": self.find_row_ends,
+                     "rows": self.find_rows}  # ROOM TO EXPAND
         return responses[action_style](agent, N)
 
     """ Action Style """
@@ -315,6 +319,8 @@ class RasberryCoordinator(object):
         return min(dist_list, key=dist_list.get)
     def find_row_ends(self, agent, row_id):
         return self.route_finder.planner.get_row_ends(agent, row_id)
+    def find_rows(self, agent, tunnel_id):
+        return self.route_finder.planner.get_rows(agent, tunnel_id)
 
 
     """ Find Distance """

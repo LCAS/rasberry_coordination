@@ -23,35 +23,39 @@ class InterfaceDef(object):
             # self.sub_follow   = Subscriber('/%s/initiate_task/follow'   % agent.agent_id, Str, self.follow)
             self.sub_edge     = Subscriber('/%s/initiate_task/edge'     % agent.agent_id, TopoLocation, self.edge)
             self.sub_row      = Subscriber('/%s/initiate_task/row'      % agent.agent_id, TopoLocation, self.row)
-            # self.sub_tunnel   = Subscriber('/%s/initiate_task/tunnel'   % agent.agent_id, TopoLocation, self.tunnel)
+            self.sub_tunnel   = Subscriber('/%s/initiate_task/tunnel'   % agent.agent_id, TopoLocation, self.tunnel)
             # self.sub_schedule = Subscriber('/%s/initiate_task/schedule' % agent.agent_id, Str, self.schedule)
 
             self.agent.temp_interface = RobotInterface_Old(self.agent.agent_id)
 
         def edge(self, msg):
             if self.agent.registration:
-                msg.type = "tall"
-                msg.tunnel = 1
-                msg.row = 3
-                msg.edge_nodes = [0,1]
+                # msg.type = "tall"
+                # msg.tunnel = 1
+                # msg.row = 3
+                # msg.edge_nodes = [0,1]
                 nodeA = "%s-t%s-r%s-c%s"%(msg.type, msg.tunnel, msg.row, msg.edge_node[0])
                 nodeB = "%s-t%s-r%s-c%s"%(msg.type, msg.tunnel, msg.row, msg.edge_node[1])
 
                 logmsg(category="UVTask", id=self.agent.agent_id, msg="Request to treat edge")
                 self.agent.add_task(task_name='uv_treat_edge', details={"nodes": [nodeA, nodeB]})
-
-
         def row(self, msg):
+            if self.agent.registration:
+                # msg.type = "tall"
+                # msg.tunnel = 1
+                # msg.row = 3
+                row = "%s-t%s-r%s"%(msg.type, msg.tunnel, msg.row)
+
+                logmsg(category="UVTask", id=self.agent.agent_id, msg="Request to treat row")
+                self.agent.add_task(task_name='uv_treat_row', details={"row": row})
+        def tunnel(self, msg):
             if self.agent.registration:
                 msg.type = "tall"
                 msg.tunnel = 1
-                msg.row = 3
-                row = "%s-t%s-r%s"%(msg.type, msg.tunnel, msg.row)
+                tunnel = "%s-t%s"%(msg.type, msg.tunnel)
 
-                print("should we find out the list of nodes here for navigation?")
-                # for row in tunnel(add_task)?
                 logmsg(category="UVTask", id=self.agent.agent_id, msg="Request to treat row")
-                self.agent.add_task(task_name='uv_treat_row', details={"row": row})
+                self.agent.add_task(task_name='uv_treat_tunnel', details={"tunnel": tunnel})
 
 
         # def tunnel(self, msg):
@@ -137,6 +141,19 @@ class TaskDef(object):
                          StageDef.NavigateToUVEndNode(agent),
                          StageDef.DisableUVLight(agent)
                      ]))
+    @classmethod
+    def uv_treat_tunnel(cls, agent, task_id=None, details={'tunnel':''}, contacts={}, initiator_id=""):
+        return (Task(id=task_id,
+                     module='uv',
+                     name="uv_treat_tunnel",
+                     details=deepcopy(details),
+                     contacts=contacts.copy(),
+                     initiator_id=initiator_id,
+                     responder_id="",
+                     stage_list=[
+                         SDef.StartTask(agent, task_id),
+                         StageDef.FindRows(agent, details['tunnel'])
+                     ]))
 
 
 # @classmethod
@@ -178,6 +195,23 @@ class TaskDef(object):
 
 class StageDef(object):
 
+
+    class FindRows(SDef.AssignNode):
+        def __init__(self, agent, tunnel):
+            super(StageDef.FindRows, self).__init__(agent)
+            self.tunnel = tunnel
+        def _start(self):
+            super(StageDef.FindRows, self)._start()
+            self.action['action_type'] = 'find_node'
+            self.action['action_style'] = 'rows'
+            self.action['descriptor'] = self.tunnel
+            self.action['response_location'] = None
+        def _end(self):
+            super(StageDef.FindRows, self)._end()
+            logmsg(category="stage", msg="UV Task to treat %s rows:" % len(self.action['response_location']))
+            [logmsg(category="stage", msg="    - row: %s" % row) for row in self.action['response_location']]
+            for row in self.action['response_location']:
+                self.agent.add_task(task_name='uv_treat_row', details={'row':row})
     class FindUVRowEnds(SDef.AssignNode):
         def __init__(self, agent, row):
             super(StageDef.FindUVRowEnds, self).__init__(agent)
