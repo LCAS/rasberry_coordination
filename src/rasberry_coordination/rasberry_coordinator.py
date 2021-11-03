@@ -195,14 +195,20 @@ class RasberryCoordinator(object):
         self.AllAgentsList = self.get_all_agents()
         return self.AllAgentsList.values()
 
+
+
+
+
+
+
+
     """ Services offerd by Coordinator to assist with tasks """
     def offer_service(self, agent):
         action_type =       agent().action['action_type']
         action_style =      agent().action['action_style']
 
         responses = {'find_agent':self.find_agent,
-                     'find_node': self.find_node,
-                     'find_agent_from_list': self.find_agent_from_list}  # ROOM TO EXPAND
+                     'find_node': self.find_node}
 
         action_deets = agent().action.copy()
         del action_deets['action_type']
@@ -226,50 +232,54 @@ class RasberryCoordinator(object):
             self.action_print = False
 
     """ Action Category """
+
+
+
     def find_agent(self, agent):
         action_style = agent().action['action_style']
-        agent_type =   agent().action['agent_type']
 
-        A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (agent_type in a.roles)}
+        if 'list' in agent().action:
+            agent_list = agent().action['list']
+            A = {agent_id:self.AllAgentsList[agent_id] for agent_id in agent_list}
+        else:
+            agent_type = agent().action['agent_type']
+            A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (agent_type in a.roles())}
 
         responses = {"closest": self.find_closest_agent}  # TODO: ROOM TO EXPAND
         return responses[action_style](agent, A)
+
+
+
+
+
     def find_node(self, agent):
         action_style =      agent().action['action_style']
-        descriptor =        agent().action['descriptor']
-        rl='response_location'
-        AExcl = [a for _id,a in self.AllAgentsList.items()  if (_id is not agent.agent_id)]
-        logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
 
 
-        # t1 = [a.location.current_node for a in AExcl if a.location.current_node]
-        # t2 = [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]
-        # t3 = [a.goal() for a in AExcl if a.goal()]
-        # logmsg(level='error', category='action', msg='Physically Occupied Nodes: %s'%t1, speech=True)
-        # logmsg(level='error', category='action', msg='Reservered Nodes: %s'%t2, speech=True)
-        # logmsg(level='error', category='action', msg='Goal Nodes: %s'%t3, speech=True)
+        if 'descriptor' in agent().action:
+            descriptor = agent().action['descriptor']
+            rl='response_location'
+            AExcl = [a for _id,a in self.AllAgentsList.items()  if (_id is not agent.agent_id)]
+            logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
 
-        taken = [a.location.current_node for a in AExcl if a.location.current_node] #Check if node is occupied
-        taken += [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]  # TackleSharedTarget
-        taken += [a.goal() for a in AExcl if a.goal()]
-        logmsg(category='action', msg='Occupied Nodes: %s'%taken)
+            occupied = [a.location.current_node for a in AExcl if a.location.current_node] #Check if node is occupied
+            occupied += [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]  # TackleSharedTarget
+            occupied += [a.goal() for a in AExcl if a.goal()]
+            logmsg(category='action', msg='Occupied Nodes: %s'%occupied)
 
+            N2 = {n['id']:n for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)}
+            N = [n['id'] for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)]
+            logmsg(category='action', msg='Nodes to Compare Against:')
+            [logmsg(category='action', msg="    - %s: %s"%(n,N2[n])) for n in N2]
 
+        else:
+            N = agent().action['list']
+            logmsg(category='action', msg='Nodes to Compare Against:')
+            [logmsg(category='action', msg="    - %s"%n) for n in N]
 
-        N = {n['id']:n for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in taken)}
-        logmsg(category='action', msg='Nodes to Compare Against:')
-        [logmsg(category='action', msg="    - %s: %s"%(n,N[n])) for n in N]
 
         responses = {"closest": self.find_closest_node}  # ROOM TO EXPAND
         return responses[action_style](agent, N)
-    def find_agent_from_list(self, agent):
-        action_style =      agent().action['action_style']
-        agent_list =        agent().action['list']
-
-        A = {agent_id:self.AllAgentsList[agent_id] for agent_id in agent_list} #convert list to set()
-
-        responses = {"closest": self.find_closest_agent}  # ROOM TO EXPAND
-        return responses[action_style](agent, A)
 
     """ Action Style """
     def find_closest_agent(self, agent, agent_list):
@@ -303,6 +313,14 @@ class RasberryCoordinator(object):
     def dist(self, start_node, goal_node):
         _,_,route_dists = self.get_path_details(start_node, goal_node)
         return sum(route_dists)
+
+
+
+
+
+
+
+
 
 
     """ Interrupt Task """
@@ -403,7 +421,7 @@ class RasberryCoordinator(object):
 
         """ Flag to identify if new route is the same and should not be re-published """
         publish_route = True #assume route is identical
-        logmsg(level='warn', category="route", msg="check_route label 1")
+        logmsg(level='warn', category="route", msg="    - check_route label 1")
 
         """ Identify key elements in routes. """
         old_node = agent.temp_interface.execpolicy_goal.route.source
@@ -417,7 +435,8 @@ class RasberryCoordinator(object):
 
         """ If old route exists, check against it """
         if old_node:
-            publish_route = False  #addume new route is the same
+            publish_route = False  #assume new route is the same
+            reason_failed_to_publish = "Routes are same."
 
             """ Identify key elements in routes. """
             old_start_edge = old_edge[0]
@@ -429,14 +448,16 @@ class RasberryCoordinator(object):
             # old: R========T
             # new:          T=====R
             if not publish_route and new_target_edge != old_target_edge:
-                logmsg(level='warn', category="route", msg="check_route label 2")
+                logmsg(level='warn', category="route", msg="    - check_route label 2")
                 publish_route = True #route is different
+            if not publish_route:
+                reason_failed_to_publish = "Old route comes from same direction as new route."
 
             """ Do lists have different lengths? """
             # old: R========T
             # new:     R====T
             if not publish_route and len(new_edge) != len(old_edge):
-                logmsg(level='warn', category="route", msg="check_route label 3")
+                logmsg(level='warn', category="route", msg="    - check_route label 3")
                 # If new_route is larger, routes are different
                 if len(new_edge) > len(old_edge):
                     publish_route = True #route is different
@@ -449,34 +470,80 @@ class RasberryCoordinator(object):
                         old_edge_crop.append(e[0])
                     old_edge_crop.reverse()
                     old_edge = old_edge_crop
+            if not publish_route:
+                reason_failed_to_publish = "New route is longer then what remains of the old route."
 
             """ Do same-sized routes differ? """
             # old: ****R====T
             # new:     R=-_=T
             if not publish_route:
-                logmsg(level='warn', category="route", msg="check_route label 4")
+                logmsg(level='warn', category="route", msg="    - check_route label 4")
                 for i, e in enumerate(list(zip(*(old_edge,new_edge)))):
                     if e[0] != e[1]:
-                        logmsg(category="route", id=agent.agent_id, msg="New route different from existing route")
+                        logmsg(category="route", msg="    - new route different from existing route")
                         publish_route = True #route is different
                         break
+                if not publish_route:
+                    reason_failed_to_publish = "Old route uses same path as new route."
 
         """ If check_route is false, routes are different """
         if publish_route:
-            logmsg(level='warn', category="route", msg="check_route label 5")
+            logmsg(level='warn', category="route", msg="    - check_route label 5")
             if self.log_routes:
-                logmsg(category="route", id=agent.agent_id, msg='New route generated:\n%s' % policy)
-                logmsg(category="route", msg='Previous route:\n%s' % agent.temp_interface.execpolicy_goal)
+                logmsg(category="route", msg="    - new route generated:\n%s" % policy)
+                logmsg(category="route", msg="    - previous route:\n%s" % agent.temp_interface.execpolicy_goal)
 
             logmsg(category="test", msg="publish route::cancel_execpolicy_goal")
             agent.temp_interface.cancel_execpolicy_goal()
             agent.temp_interface.set_execpolicy_goal(policy)
 
             agent().route_required = False #ReplanTrigger
-            logmsg(level='warn', category="route", id=agent.agent_id, msg="route published")
+            logmsg(level='warn', category="route", id=agent.agent_id, msg="    - route published")
         agent().route_found = False  # ReplanTrigger?
-        logmsg(level='warn', category="route", id=agent.agent_id, msg="route publish attempt complete")
+        logmsg(level='warn', category="route", id=agent.agent_id, msg="    - route publish attempt complete")
         rospy.sleep(1)
+    # def new_execute_policy_route(self, agent):
+    #     logmsg(category="route", id=agent.agent_id, msg="Attempting to publish route.")
+    #
+    #     # Define route to send
+    #     policy = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
+    #     policy.route.source = agent.route_fragments[0] if agent.route_fragments else None
+    #     policy.route.edge_id = agent.route_edges[0] if agent.route_edges else None
+    #
+    #     # Return if new route is empty
+    #     if (not policy.route.source) or (not policy.route.edge_id): return
+    #
+    #     # Identify Old and New routes
+    #     old_route_edges = agent.temp_interface.execpolicy_goal.route.edge_id; old_route_edges.reverse()
+    #     new_route_edges = policy.route.edge_id; new_route_edges.reverse()
+    #     publish_route = False
+    #
+    #     # Identify if either is empty
+    #     route_contents = [int(not old_route_edges), int(not new_route_edges)];
+    #     publish_route = (sum(route_contents) == 1)  #we cant itterate an empty list, but new route might be empty
+    #
+    #     # Itterate through edges to see if there is a difference
+    #     for i in range(1, min([len(old_route_edges), len(new_route_edges)])):
+    #         o = old_route_edges[i]
+    #         n = new_route_edges[i]
+    #         if o != n:
+    #             publish_route = True
+    #             break
+    #
+    #     # Publish goal
+    #     if publish_route:
+    #         agent.temp_interface.cancel_execpolicy_goal()
+    #         agent.temp_interface.set_execpolicy_goal(policy)
+    #         agent().route_required = False
+    #         resp = "successful"
+    #     else:
+    #         resp = "unsuccessful, new route is not significantly different"
+    #     logmsg(category="route", msg="    - publish attempt %s" % resp)
+    #
+    #     agent().route_found = False  # Used to trigger replanning
+    #
+    #     #Put a delay in route searching, we dont need new attempts every ms
+    #     rospy.sleep(1)
     def get_path_details(self, start_node, goal_node):
         """get route_nodes, route_edges and route_distance from start_node to goal_node
 

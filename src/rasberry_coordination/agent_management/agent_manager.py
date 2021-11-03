@@ -6,6 +6,7 @@
 # ----------------------------------
 
 import copy
+from copy import deepcopy
 from pprint import pprint
 import yaml
 
@@ -17,8 +18,8 @@ from std_srvs.srv import Trigger, TriggerResponse
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.srv import AddAgent, AgentNodePair
 from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
-from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef, PropertiesDef
+from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module
+from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
@@ -128,18 +129,12 @@ class AgentManager(object):
 
 class AgentDetails(object):
     """ Fields:
-    - agent_id, agent_type
-    - idle_task_definition, new_task_definition
-    - interface
-    - task_stage_list, task_details
-    - (subs) current_node, closest_node, previous_node
     """
 
     """ Initialisations """
     def __init__(self, agent_dict, callbacks):
         self.agent_id = agent_dict['agent_id']
         self.cb = callbacks
-        from copy import deepcopy
         setup = deepcopy(agent_dict['setup'])
 
         #Subscriptions
@@ -159,46 +154,33 @@ class AgentDetails(object):
 
         # Define interface for each role given #TODO: what about differentiating between Device and App?
         self.tasks = setup['tasks']
-        self.roles = []
-        self.interfaces = dict()
-        for task in self.tasks:
-            self.roles += [task['role']]
-            interface_name = '%s_%s' % (task['module'], task['role'])
-            definition = getattr(InterfaceDef, interface_name) #TODO: add catch for module not found
-            self.interfaces[task['module']] = definition(agent=self)
+        self.modules={task['module']: Module(agent=self, name=task['module'], role=task['role']) for task in self.tasks}
 
         #Location and Callbacks
         self.location = Location(presence=setup['has_presence'], initial_location=agent_dict['initial_location'])
 
         #Start Task Progression
-        self.add_init_task()
+        # self.add_init_task()
+
 
     """ Task Starters """
-    # def init_task_cb(self, msg):
-    #     for task in msg:
-    #         # self.roles += [task['role']]
-    #         interface_name = '%s_%s' % (task['module'], task['role'])
-    #         definition = getattr(InterfaceDef, interface_name)  # TODO: add catch for module not found
-    #         self.interfaces[task['module']] = definition(agent=self)
-    #         self.add_init_task(task=task)
-    # def add_init_task(self, task=None):
-    #     if task:
-    #         self.add_task(task_name='%s_%s_init' % (task.module, task.role))
-    #     else:
-    #         for task in self.tasks: self.add_task(task_name='%s_%s_init' % (task['module'], task['role']))
-
-    def add_init_task(self):
-        for task in self.tasks:
-            self.add_task(task_name='%s_%s_init' % (task['module'], task['role']))
-    def add_idle_task(self):
-        for task in self.tasks:
-            self.add_task(task_name='%s_%s_idle' % (task['module'], task['role']))
+    def init_task_cb(self, msg):
+        """ Task details launched as lached topics from agent, so we
+        need to lisen for and add these programatically in the cb
+        """
+        for module in msg:
+            if task['module'] in self.modules:
+                logmsg(level="error", id=self.agent_id, msg="Module already initialised: ignoring")
+            else:
+                self.modules[task['module']] = Module(agent=self, name=task['module'], role=task['role'])
+    def add_idle_tasks(self):
+        [module.add_idle_task() for module in self.modules.values()]
         if not self.task_buffer:
-            logmsg(level="error", category="task", id=self.agent_id, msg="WARNING! Agent has no idle tasks.")
-            logmsg(level="error", category="task",                   msg="    | All agents must be assigned a module.")
-            logmsg(level="error", category="task",                   msg="    | Each module must have an idle task for each agent.")
-            logmsg(level="error", category="task",                   msg="    \ Agent to be assigned a basic idle task.")
-            self.add_task(task_name='idle')
+            logmsg(level="error", category="task", id=agent.agent_id, msg="WARNING! Agent has no idle tasks.")
+            logmsg(level="error", category="task", msg="    | All agents must be assigned a module.")
+            logmsg(level="error", category="task", msg="    | Each module must have an idle task for each agent.")
+            logmsg(level="error", category="task", msg="    \ Agent to be assigned a basic idle task.")
+            agent.add_task(task_name='idle')
     def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None, quiet=False, initiator_id=""):
 
         """ Called by task stages, used to buffer new tasks for the agent """
@@ -224,8 +206,7 @@ class AgentDetails(object):
                 logmsg(category="TASK", id=self.agent_id, msg="Buffering %s to position %i of task_buffer, task stage list:" % (task.name, index or len(self.task_buffer)))
                 [logmsg(category="TASK", msg='    - %s'%t) for t in task.stage_list]
     def start_next_task(self, idx=0):
-        # if self.disconnect_on_task_completion: return #TODO: this condition not nescessary anymore
-        if len(self.task_buffer) < 1: self.add_idle_task()
+        if len(self.task_buffer) < 1: self.add_idle_tasks()
         if len(self.task_buffer) <= idx: return
         self.task = self.task_buffer.pop(idx)
 
@@ -235,13 +216,17 @@ class AgentDetails(object):
         [logmsg(category="TASK", msg="    - %s" % stage) for stage in self['stage_list']]
 
 
+    """ Roles """
+    def roles(self):
+        return [m.role for m in self.modules.values()]
+
     """ Navigation """
     def map_cb(self, msg):
         """topological map callback
         """
         self.navigation['tmap'] = yaml.safe_load(msg.data)
         self.navigation['tmap_node_list'] = [node["node"]["name"] for node in self.navigation['tmap']['nodes']]
-        self.navigation['tmap_available'] = copy.deepcopy(self.navigation['tmap'])
+        self.navigation['tmap_available'] = deepcopy(self.navigation['tmap'])
         self.navigation['available_route_search'] = TopologicalRouteSearch(self.navigation['tmap_available'])
     def is_node_restricted(self, node_id):
         """checks if a given node is in the robot's restricted tmap2
@@ -250,18 +235,18 @@ class AgentDetails(object):
         return ('tmap_node_list' in self.navigation and node_id in self.navigation['tmap_node_list'])
     def goal(self): return self().target
 
+
     """ Conveniences for Active Task """
     def __call__(A, index=0): return A.task.stage_list[index] if len(A.task.stage_list) > index else None
     def __getitem__(A, key):  return A.task[key] if A.task else None
     def __setitem__(A, key, val):    A.task[key] = val
+
 
     """ Standard Task Interactions """
     def start_stage(self):
         self()._start()
         self()._notify_start()
         self().new_stage = False
-    def notify(self, state):
-        self.interface.publish(state)
     def end_stage(self):
         from time import sleep; sleep(0.2) #TODO: this can be removed once add task to buffer is removed from async
         logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self['stage_list'][0])
@@ -269,6 +254,7 @@ class AgentDetails(object):
         self()._end()
         self['stage_list'].pop(0)
         return None if self['stage_list'] else self['id']
+
 
     """ Task Interruption """
     def set_interrupt(self, type, module, task_id, scope, quiet=False):
@@ -278,12 +264,10 @@ class AgentDetails(object):
         else:
             logmsg(category="DTM", msg="Interrupt attached to %s of type: (%s,%s,%s)." % (self.agent_id, type, module, task_id))
 
+
     """ Logging """
     def __repr__(self):
         return "%s(%s)" % (self.get_class(), self.agent_id)
     def get_class(self):
         return str(self.__class__).replace("<class 'rasberry_coordination.agent_management.agent_manager.", "").replace("'>", "")
 
-    """ Disconnection """
-    def __del__(self):
-        logmsg(level="error", agent=self.agent_id, msg="Identify why this does not get called.", speech=True)

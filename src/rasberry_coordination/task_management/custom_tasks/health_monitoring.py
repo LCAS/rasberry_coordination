@@ -47,7 +47,7 @@ class TaskDef(object):
 
         # Low battery is added here as new task once idle
         # Critical battery is forced into next task when identified
-        if agent.interfaces['health_monitoring'].battery_low():
+        if agent.modules['health_monitoring'].interface.battery_low():
             return TaskDef.charge_at_charging_station(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
     @classmethod
@@ -83,7 +83,7 @@ class StageDef(object):
             self.action['response_location'] = None
         def _end(self):
             self.agent['contacts']['charging_station'] = self.action['response_location']
-            # self.agent.responder_id = self.agent['contacts']['charging_station'] #TODO: is we want this, add another field to TOC (m.location)
+            # self.agent.responder_id = self.agent['contacts']['charging_station'] #TODO: if we want this, add another field to TOC (m.location)
 
     class NavigateToChargeNode(SDef.NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')

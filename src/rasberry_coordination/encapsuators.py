@@ -1,10 +1,13 @@
 from copy import deepcopy
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
+
 from std_msgs.msg import Bool, String as Str
 import strands_executive_msgs.msg
+
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 from rasberry_coordination.srv import AgentNodePair
+
 
 
 class LocationObj(object):
@@ -41,7 +44,6 @@ class LocationObj(object):
         return resp
 
 
-
 class TaskObj(object):
 
     def __repr__(self):
@@ -71,4 +73,87 @@ class TaskObj(object):
 
         self.stage_list = []
 
-        self.action = dict()
+        self.action = None
+
+class ModuleObj(object):
+
+    def __repr__(self):
+        return "Module( name:%s | role:%s | interface:%s )" % (self.name, self.role, self.interface!=None)
+
+    def __init__(self, agent, name, role):
+        self.agent = agent
+        self.name = name
+        self.role = role
+
+        interface_name = '%s_%s' % (name, role)
+        from rasberry_coordination.task_management.__init__ import InterfaceDef, PropertiesDef
+        definition = getattr(InterfaceDef, interface_name)
+
+        self.interface = definition(agent=agent)
+        self.properties = PropertiesDef[name]
+
+        self.init_task_name = '%s_init' % (interface_name)
+        self.idle_task_name = '%s_idle' % (interface_name)
+
+        self.add_init_task()
+
+    def add_init_task(self):
+        self.agent.add_task(task_name=self.init_task_name)
+
+    def add_idle_task(self):
+        self.agent.add_task(task_name=self.idle_task_name)
+
+
+# class ActionObj(object):
+#     def __init__(self, agent, type, style, descriptor, response_location):
+#         self.type = 'find_node'
+#         self.style = 'closest'
+#         self.descriptor = 'charging_station'
+#         self.response_location = None
+#
+#         pass
+#
+#     def respond(self, value):
+#         self.response_location = value
+#
+#
+#
+#     class AssignChargeNode(SDef.AssignNode):
+#         def _start(self):
+#             super(StageDef.AssignChargeNode, self)._start()
+#             self.action['action_type'] = 'find_node'
+#             self.action['action_style'] = 'closest'
+#             self.action['descriptor'] = 'charging_station'
+#             self.action['response_location'] = None
+#         def _end(self):
+#             self.agent['contacts']['charging_station'] = self.action['response_location']
+#
+#
+#
+#     class AssignChargeNode(SDef.AssignNode):
+#         def _start(self):
+#             super(StageDef.AssignChargeNode, self)._start()
+#             self.agent().action = Action(type='find_closest_node', property='charging_station')
+#         def _end(self):
+#             self.agent['contacts']['charging_station'] = self.agent().action.response_location
+#
+#
+#
+#     class AcceptCourier(SDef.AssignAgent):
+#         def _start(self):
+#             self.action['action_type'] = 'find_agent_from_list'
+#             self.action['action_style'] = 'closest'
+#             self.action['list'] = self.agent.request_admittance
+#             self.action['response_location'] = None
+#         def _end(self):
+#             self.agent['contacts']['courier'] = self.action['response_location']
+
+
+
+
+
+
+
+
+
+

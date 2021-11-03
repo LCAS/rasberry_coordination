@@ -296,7 +296,7 @@ class TaskDef(object):
                         StageDef.SetUnregister(agent),
                         StageDef.WaitForLocalisation(agent),
                         StageDef.WaitForMap(agent),
-                        # StageDef.WaitForTaskDetails(agent),
+                        # StageDef.WaitForModules(agent),
                         StageDef.SetRegister(agent)
                     ]))
     @classmethod
@@ -481,32 +481,19 @@ class StageDef(object):
         def _end(self):
             super(StageDef.WaitForMap, self)._end()
             logmsg(category="stage", msg="Map achieved %s" % self.agent.location())
-    # class WaitForTaskModules(StageBase):
-    #     def _start(self):
-    #
-    #         # self.agent.active_modules = TaskModules(tasks = setup['tasks'], roles = [], interfaces = dict())
-    #         # class TaskModules(object):
-    #         #     def __init__(self, tasks=setup['tasks'], roles=[], interfaces=dict()):
-    #         #         self.tasks = tasks
-    #         #         self.roles = roles
-    #         #         self.interfaces = interfaces
-    #         topic = "/%s/active_modules"%self.agent.agent_id
-    #         self.agent.subs['modules'] = Subscriber(topic, TaskModules, self.agent.init_task_cb, queue_size=5)
-    #
-    #         """
-    #         tasks:
-    #         - module: transportation
-    #           role: storage
-    #         """
-    #
-    #     def _query(self):
-    #         success_conditions = []
-    #         self._flag(any(success_conditions))
-    #
-    #     def _end(self):
-    #         super(StageDef.WaitForTaskModules, self)._end()
-    #         logmsg(category="stage", msg="Task Moduels Identified %s" % self.agent.location())
+    class WaitForModules(StageBase):
+        def _start(self):
+            topic = "/%s/active_modules"%self.agent.agent_id
+            self.agent.subs['modules'] = Subscriber(topic, TaskModules, self.agent.init_task_cb, queue_size=5)
 
+        def _query(self):
+            success_conditions = [len(self.agent.modules) > 0]
+            self._flag(any(success_conditions))
+
+        def _end(self):
+            super(StageDef.WaitForModules, self)._end()
+            self.agent.subs['modules'].unregister()
+            logmsg(category="stage", msg="Task Moduels Identified %s" % self.agent.modules.keys())
     class SetRegister(StageBase):
         def _start(self):
             self.agent.registration = True
@@ -520,8 +507,10 @@ class StageDef(object):
             if self.agent: return "%s(%s)" % (self.get_class(), self.agent.location())
             return self.get_class()
         def _query(self):
+            health = 'health_monitoring' in self.agent.modules
+
             success_conditions = [len(self.agent.task_buffer) > 0,
-                                  self.agent.interfaces['health_monitoring'].battery_low() if 'health_monitoring' in self.agent.interfaces else False] #this needs to be removed
+                                  self.agent.modules['health_monitoring'].interface.battery_low() if health else False]
             self._flag(any(success_conditions))
         def _summary(self):
             # logmsg(level='error', id=self.agent.agent_id, msg=self.agent.properties, speech=False)
@@ -563,8 +552,8 @@ class StageDef(object):
             self.target = None
         def _start(self):
             super(StageDef.Navigation, self)._start()
-            self.route_found = False
-            self.route_required = True
+            # self.route_found = False  # Has route been identified?
+            self.route_required = True  # Has route been published
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is begun." % (self.agent.location(accurate=True), self.target))
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
@@ -580,18 +569,15 @@ class StageDef(object):
         def _start(self):
             super(StageDef.NavigateToNode, self)._start()
             self.target = self.agent['contacts'][self.association]
+        def _query(self):
+            success_conditions = [self.agent.location(accurate=True) == self.target]
+            self._flag(any(success_conditions))
 
     """ Navigation SubSubclasses """
     class NavigateToBaseNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToBaseNode, self).__init__(agent, association='base_node')
-        def _query(self):
-            success_conditions = [self.agent.location(accurate=True) == self.target]
-            self._flag(any(success_conditions))
     class NavigateToExitNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToExitNode, self).__init__(agent, association='exit_node')
-        def _query(self):
-            success_conditions = [self.agent.location(accurate=True) == self.target]
-            self._flag(any(success_conditions))
 
     """ Routing Recovery Behviour """
     class AssignWaitNode(AssignNode):

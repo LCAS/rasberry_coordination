@@ -62,6 +62,7 @@ def validate_types(file, config):
 
 
 if __name__ == '__main__':
+    print("Recommended to set 'force_color_prompt=yes' on line 46 of .bashrc.")
 
     if len(sys.argv) < 2:
         usage = "rosrun rasberry_coordination simple_task_executor_node.py config_file.yaml"

@@ -83,17 +83,17 @@ class TaskDef(object):
 
     """ Initialisation """
     @classmethod
-    def transportation_courier_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return TDef.robot_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
-    @classmethod
     def transportation_picker_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         return TDef.human_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
+    @classmethod
+    def transportation_courier_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+        return TDef.robot_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
 
     """ Initial Task Stages for Transportation Agents """
     @classmethod
     def transportation_picker_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        agent.interfaces['transportation'].notify("INIT")
+        agent.modules['transportation'].interface.notify("INIT")
         return TDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
     def transportation_courier_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
@@ -221,7 +221,7 @@ class StageDef(object):
             self.action['agent_type'] = 'courier'
             self.action['response_location'] = None
         def _notify_end(self):
-            self.agent.interfaces['transportation'].notify("ACCEPT")
+            self.agent.modules['transportation'].interface.notify("ACCEPT")
         def _end(self):
             """ On completion of assign courier, a courier should have been identified.
             As a result of the completion, the couier should be assigned a task, and be
@@ -263,7 +263,7 @@ class StageDef(object):
     class AcceptCourier(SDef.AssignAgent):
         def _start(self):
             super(StageDef.AcceptCourier, self)._start()
-            self.action['action_type'] = 'find_agent_from_list'
+            self.action['action_type'] = 'find_agent'
             self.action['action_style'] = 'closest'
             self.action['list'] = self.agent.request_admittance
             self.action['response_location'] = None
@@ -291,7 +291,7 @@ class StageDef(object):
             success_conditions = [self.agent['contacts']['courier'].location(accurate=True) == self.agent.location()]
             self._flag(any(success_conditions))
         def _notify_end(self):
-            self.agent.interfaces['transportation'].notify("ARRIVED")
+            self.agent.modules['transportation'].interface.notify("ARRIVED")
         def _summary(self):
             super(StageDef.AwaitCourier, self)._summary()
             self.summary['_query'] = "courier @ agent"
@@ -342,7 +342,7 @@ class StageDef(object):
         def __init__(self, agent):
             super(StageDef.LoadCourier, self).__init__(agent, end_requirement=False, wait_timeout=PDef['transportation']['wait_loading'])
         def _notify_end(self):
-            self.agent.interfaces['transportation'].notify("INIT")
+            self.agent.modules['transportation'].interface.notify("INIT")
     class UnloadCourier(LoadModifier): #STORAGE
         def __init__(self, agent):
             super(StageDef.UnloadCourier, self).__init__(agent, end_requirement=True, wait_timeout=PDef['transportation']['wait_unloading'])

@@ -168,7 +168,7 @@ class Robot(object):
     def set_execpolicy_goal(self, goal, done_cb=None, active_cb=None, feedback_cb=None):
         """send_goal to execute_policy_mode action client
         """
-        logmsg(category="rob_py", id=self.robot_id, msg='execpolicy goal set')
+        logmsg(category="rob_py", id=self.robot_id, msg="    - execpolicy goal set")
 
         if done_cb is None:
             done_cb = self._done_execpolicy_cb
@@ -183,12 +183,12 @@ class Robot(object):
         self.execpolicy_status = None
         if goal == ExecutePolicyModeGoal():
             # sending empty route will cause error in the action server. avoid it by cancelling it
-            logmsg(category="rob_py", msg="Empty route in action server cancelled.")
+            logmsg(category="rob_py", msg="    - empty route in action server cancelled.")
             print(goal)
-            logmsg(level="error", category="test", msg="empty route action server::cancel_execpolicy_goal")
+            logmsg(level="error", category="test", msg="    - empty route action server::cancel_execpolicy_goal")
             self.cancel_execpolicy_goal()
         else:
-            logmsg(category="rob_py", msg="Route published: _exec_policy.send_goal")
+            logmsg(category="rob_py", msg="    - route published: _exec_policy.send_goal")
             print(goal)
             self._exec_policy.send_goal(goal, done_cb=done_cb, active_cb=active_cb, feedback_cb=feedback_cb)
 #        self._exec_policy.wait_for_result()
