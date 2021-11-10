@@ -5,6 +5,7 @@ def set_properties(task_dict):
     from rasberry_coordination.coordinator_tools import logmsg
     global PropertiesDef
     PropertiesDef = {M['module']:M['properties'] for M in task_dict}
+    PropertiesDef.update({'base':{}})
 
     logmsg(category="START",  msg="Properties: ")
     for module in task_dict:

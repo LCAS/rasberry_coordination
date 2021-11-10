@@ -82,15 +82,15 @@ class InterfaceDef(object):
 class TaskDef(object):
 
     """ Initialisation """
-    @classmethod
-    def transportation_picker_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return TDef.human_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
-    @classmethod
-    def transportation_courier_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        return TDef.robot_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
+    # @classmethod
+    # def transportation_picker_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    #     return TDef.human_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
+    # @classmethod
+    # def transportation_courier_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    #     return TDef.robot_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
 
-    """ Initial Task Stages for Transportation Agents """
+    """ Idle Task Stages for Transportation Agents """
     @classmethod
     def transportation_picker_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         agent.modules['transportation'].interface.notify("INIT")
@@ -99,12 +99,9 @@ class TaskDef(object):
     def transportation_courier_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         AP = agent.properties
 
-        #If agent can carry more, wait at base
-        #Otherwise deliver load
+        #If agent is at max capacity deliver load
         agent.properties['load'] = int(agent.properties['load'])
-        if AP['load'] < int(AP['max_load']):
-            return TDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
-        else:
+        if AP['load'] >= int(AP['max_load']):
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
     def transportation_storage_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):

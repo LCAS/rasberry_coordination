@@ -1,7 +1,7 @@
 from copy import deepcopy
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
 
-from std_msgs.msg import Bool, String as Str
+from std_msgs.msg import Bool, String as Str, Empty as Emp
 import strands_executive_msgs.msg
 
 from rasberry_coordination.coordinator_tools import logmsg
@@ -11,37 +11,42 @@ from rasberry_coordination.srv import AgentNodePair
 
 
 class LocationObj(object):
+
     def __init__(self, presence = True, initial_location = None):
         self.has_presence = presence
         self.current_node = initial_location
         self.previous_node = None
         self.closest_node = None
+        
+    def enable_location_monitoring(self, agent_id):
+        # callback are enabled in base.StageDef.WaitForLocalisation._start()
+        self.current_node_sub = Subscriber('/%s/current_node'    % agent_id, Str, self.current_node_cb)
+        self.closest_node_sub = Subscriber('/%s/closest_node'    % agent_id, Str, self.closest_node_cb)
+        self.disable_loc = Subscriber('/%s/localisation/disable' % agent_id, Str, self.disable_localisation)
+        self.enable_loc  = Subscriber('/%s/localisation/enable'  % agent_id, Emp, self.enable_localisation)
+
     def __call__(self, accurate=False):
         if accurate:
             return self.current_node or self.previous_node or self.closest_node
         return self.current_node or self.closest_node or self.previous_node
+
     def current_node_cb(self, msg):
         self.previous_node = self.current_node if self.current_node else self.previous_node
         self.current_node = None if msg.data == "none" else msg.data
+
     def closest_node_cb(self, msg):
         self.closest_node = None if msg.data == "none" else msg.data
-    def set_location_srv(self, req):
-        r = AgentNodePairResponse()
-        r.success = False
 
-        if req.node_id:  # set location to given node
-            self.current_node_sub.unregister()
-            self.closest_node_sub.unregister()
-            msg = Str(req.node_id)
-            self.current_node_cb(msg)
-            self.closest_node_cb(msg)
-            r.success = True ; r.msg = "Node Set"
-        else:
-            self.previous_node, self.current_node, self.closest_node = None, None, None
-            self.current_node_sub = Sub(self.picker_id + "/current_node", Str, self.current_node_cb)
-            self.closest_node_sub = Sub(self.picker_id + "/closest_node", Str, self.closest_node_cb)
-            r.success = True ; r.msg = "Localisation Resumed"
-        return resp
+    def disable_localisation(self, msg):
+        self.current_node_sub.unregister()
+        self.closest_node_sub.unregister()
+        self.current_node_cb(msg.data)
+        self.closest_node_cb(msg.data)
+
+    def enable_localisation(self, msg):
+        self.previous_node, self.current_node, self.closest_node = None, None, None
+        self.current_node_sub = Sub(self.picker_id + "/current_node", Str, self.current_node_cb)
+        self.closest_node_sub = Sub(self.picker_id + "/closest_node", Str, self.closest_node_cb)
 
 
 class TaskObj(object):
@@ -75,6 +80,7 @@ class TaskObj(object):
 
         self.action = None
 
+
 class ModuleObj(object):
 
     def __repr__(self):
@@ -90,7 +96,7 @@ class ModuleObj(object):
         definition = getattr(InterfaceDef, interface_name)
 
         self.interface = definition(agent=agent)
-        self.properties = PropertiesDef[name]
+        self.properties = PropertiesDef[name] if name in PropertiesDef else dict()
 
         self.init_task_name = '%s_init' % (interface_name)
         self.idle_task_name = '%s_idle' % (interface_name)
@@ -102,53 +108,6 @@ class ModuleObj(object):
 
     def add_idle_task(self):
         self.agent.add_task(task_name=self.idle_task_name)
-
-
-# class ActionObj(object):
-#     def __init__(self, agent, type, style, descriptor, response_location):
-#         self.type = 'find_node'
-#         self.style = 'closest'
-#         self.descriptor = 'charging_station'
-#         self.response_location = None
-#
-#         pass
-#
-#     def respond(self, value):
-#         self.response_location = value
-#
-#
-#
-#     class AssignChargeNode(SDef.AssignNode):
-#         def _start(self):
-#             super(StageDef.AssignChargeNode, self)._start()
-#             self.action['action_type'] = 'find_node'
-#             self.action['action_style'] = 'closest'
-#             self.action['descriptor'] = 'charging_station'
-#             self.action['response_location'] = None
-#         def _end(self):
-#             self.agent['contacts']['charging_station'] = self.action['response_location']
-#
-#
-#
-#     class AssignChargeNode(SDef.AssignNode):
-#         def _start(self):
-#             super(StageDef.AssignChargeNode, self)._start()
-#             self.agent().action = Action(type='find_closest_node', property='charging_station')
-#         def _end(self):
-#             self.agent['contacts']['charging_station'] = self.agent().action.response_location
-#
-#
-#
-#     class AcceptCourier(SDef.AssignAgent):
-#         def _start(self):
-#             self.action['action_type'] = 'find_agent_from_list'
-#             self.action['action_style'] = 'closest'
-#             self.action['list'] = self.agent.request_admittance
-#             self.action['response_location'] = None
-#         def _end(self):
-#             self.agent['contacts']['courier'] = self.action['response_location']
-
-
 
 
 

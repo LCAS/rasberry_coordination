@@ -35,8 +35,6 @@ class AgentManager(object):
 
         # Setup Services for Dynamic Fleet Management
         Service('/rasberry_coordination/dfm/add_agent',    AddAgent, self.add_agent_ros_srv)
-        Service('/rasberry_coordination/dfm/remove_agent', AgentNodePair, self.remove_agent_ros_srv)
-        Service('/rasberry_coordination/reenable_localisation', Trigger, self.reset_location_srv)
 
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
 
@@ -55,24 +53,6 @@ class AgentManager(object):
             return {'success': 1, 'msg': 'agent added'}
         else:
             return {'success': 0, 'msg': 'agent unable to be added'}
-    def remove_agent_ros_srv(self, srv):
-        ### option 1. we create a disconnect task
-        ### option 2. we create a callback called in task assignment
-        # optino 3. we add a condition in start_next_task against a flag
-        #    - how do we delete agent though?
-        # optino 4. we add a condition in start_next_task to add a disconnect interrupt
-        # option 5. we add check in run against task empty and disconnect flag
-        # option 6. we attach a new base task called exit_at_node Navigation, Exit
-        #    - if passed an invalid waypoint it will stop here it starts or go to base node
-
-        if srv.agent_id in self.agent_details:
-            task_location = ""  # TODO: find a persistant reference for this?
-            srv.node_id = srv.node_id or task_location or self[srv.agent_id].location(accurate=True)
-            self[srv.agent_id].add_task('exit_at_node', contacts={'exit_node':srv.node_id})
-            return {'success': 1, 'msg': 'exit_at_node task added for %s'%srv.node_id}
-        return {'success': 0, 'msg': 'agent not found'}
-
-    """ New Agent Validation """
     def validate_dict(self, agent_dict): return True #TODO: setup validation system
     def format_dict(self, agent_dict):
         if  agent_dict['initial_location'] == '':
@@ -91,21 +71,6 @@ class AgentManager(object):
     """ Conveniences """
     def __getitem__(self, key):
         return self.agent_details[key] if key in self.agent_details else None
-
-    """ Localisation Ovveride """
-    def reset_location_srv(self, req):
-        """ Call to reanable automonous localisation for each robot.
-
-        :param node: String containing fake current_node
-        :return: None
-        """
-        r = TriggerResponse()
-        r.success = False
-        for agent in self.agent_details:
-            resp = agent.set_location_srv(AgentNodePairResponse())
-        r.success = True
-        r.msg = "Localisation resumed for all agents"
-        return resp
 
     """ Visuals """
     def format_agent_marker(self, agent, style):
@@ -152,35 +117,29 @@ class AgentDetails(object):
         self.registration = False
         self.properties = setup['properties']
 
-        # Define interface for each role given #TODO: what about differentiating between Device and App?
+        # Define interface for each role
+        # self.tasks, self.modules = Module.init_modules(self, setup['tasks'])
         self.tasks = setup['tasks']
-        self.modules={task['module']: Module(agent=self, name=task['module'], role=task['role']) for task in self.tasks}
+        self.modules = {t['module']: Module(agent=self, name=t['module'], role=t['role']) for t in self.tasks}
+
 
         #Location and Callbacks
         self.location = Location(presence=setup['has_presence'], initial_location=agent_dict['initial_location'])
 
-        #Start Task Progression
-        # self.add_init_task()
-
 
     """ Task Starters """
-    def init_task_cb(self, msg):
-        """ Task details launched as lached topics from agent, so we
-        need to lisen for and add these programatically in the cb
-        """
-        for module in msg:
-            if task['module'] in self.modules:
-                logmsg(level="error", id=self.agent_id, msg="Module already initialised: ignoring")
-            else:
-                self.modules[task['module']] = Module(agent=self, name=task['module'], role=task['role'])
     def add_idle_tasks(self):
-        [module.add_idle_task() for module in self.modules.values()]
+        [module.add_idle_task() for module in self.modules.values() if module.name is not 'base']
+        if 'base' in self.modules: self.modules['base'].add_idle_task()
+
         if not self.task_buffer:
-            logmsg(level="error", category="task", id=agent.agent_id, msg="WARNING! Agent has no idle tasks.")
+            logmsg(level="error", category="task", id=self.agent_id, msg="WARNING! Agent has no idle tasks.")
             logmsg(level="error", category="task", msg="    | All agents must be assigned a module.")
-            logmsg(level="error", category="task", msg="    | Each module must have an idle task for each agent.")
+            logmsg(level="error", category="task", msg="    | Should each module have an idle task for each agent?")
             logmsg(level="error", category="task", msg="    \ Agent to be assigned a basic idle task.")
-            agent.add_task(task_name='idle')
+            self.add_task(task_name='idle')
+
+
     def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None, quiet=False, initiator_id=""):
 
         """ Called by task stages, used to buffer new tasks for the agent """
@@ -188,10 +147,10 @@ class AgentDetails(object):
             logmsg(level="warn", category="TASK", id=self.agent_id, msg="Task %s not found." % task_name)
             return
 
-        #picker.interface.called(): self.agent.add_task('transportation_request_courier')
-        1. #find TaskDef
-        2. #task = TaskDef()
-        3. #buffer += [task] OR buffer.insert(0, [task])
+        # #picker.interface.called(): self.agent.add_task('transportation_request_courier')
+        # 1. #find TaskDef
+        # 2. #task = TaskDef()
+        # 3. #buffer += [task] OR buffer.insert(0, [task])
 
         task_def = getattr(TaskDef, task_name)
         task = task_def(self, task_id=task_id, details=details, contacts=contacts, initiator_id=initiator_id)
@@ -270,4 +229,36 @@ class AgentDetails(object):
         return "%s(%s)" % (self.get_class(), self.agent_id)
     def get_class(self):
         return str(self.__class__).replace("<class 'rasberry_coordination.agent_management.agent_manager.", "").replace("'>", "")
+
+    """ GC """
+    def delete_known_references(self, coordinator):
+        import gc
+
+        for m in self.modules.values():
+            m.agent = None
+            m.interface.agent = None
+
+        coordinator.agent_manager.agent_details.pop(self.agent_id)  # Remove from agent manager
+        coordinator.route_finder.planner.agent_details.pop(self.agent_id)  # Remove from route planner
+        self.subs['tmap'].unregister()
+        coordinator.AllAgentsList.pop(self.agent_id)  # Remove from coordinator
+
+        gc.collect()
+
+        import weakref ; a = weakref.ref(self) ; del self
+        logmsg(category="DRM", msg="References remaining: (%s/1)" % len(gc.get_referrers(a())))
+        if len(gc.get_referrers(a())) > 1:
+            logmsg(level="error", category="DRM", msg="Remove unhandled refs in place or in AgentDetails.delete_known_references()")
+        [logmsg(category="DRM", msg="    - (%s) %s" % (i+1, r)) for i, r in enumerate(gc.get_referrers(a()))]
+
+    def __del__(self):
+        logmsg(level="warn", category="DRM", id=self.agent_id, msg="Agent handler is deleted.")
+        logmsg(level="warn", category="DRM", msg="Here, we must identify and unregister every subscriber")
+
+
+
+
+
+
+
 

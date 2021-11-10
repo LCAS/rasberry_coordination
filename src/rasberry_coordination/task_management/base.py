@@ -134,16 +134,17 @@ from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceP
 from std_msgs.msg import Bool, String as Str
 import strands_executive_msgs.msg
 
-from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 from rasberry_coordination.srv import AgentNodePair
+
+from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
+from rasberry_coordination.robot import Robot as RobotInterface_Old
 
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
 
 class InterfaceDef(object):
-
 
     class TOC_Interface(object):
         def __init__(self, coordinator):
@@ -279,14 +280,31 @@ class InterfaceDef(object):
             self.pub.publish(msg)
 
 
+    class base_robot(object):
+        def __init__(self, agent):
+            self.agent = agent
+            self.agent.temp_interface = RobotInterface_Old(self.agent.agent_id)
+            self.disconnect_sub = Subscriber('/%s/base/disconnect' % agent.agent_id, Str, self.disconnect)
+        def disconnect(self, msg):
+            logmsg(category="Task", id=self.agent.agent_id, msg="Request to disconnect")
+            node_id = msg.data or self.agent.goal or self.agent.location(accurate=True)
+            self.agent.add_task(task_name='exit_at_node', contacts={"exit_node":node_id}, index=0)
+
+            pass
+
+    class base_human(object):
+        def __init__(self, agent):
+            self.agent = agent
+
+
 class TaskDef(object):
 
     """ Runtime Method for Init Task Definitions """
     @classmethod
-    def robot_localisation(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def base_robot_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         return(Task(id = task_id,
                     module = 'base',
-                    name = "robot_localisation",
+                    name = "base_robot_init",
                     details = deepcopy(details),
                     contacts = contacts.copy(),
                     initiator_id = agent.agent_id,
@@ -300,10 +318,10 @@ class TaskDef(object):
                         StageDef.SetRegister(agent)
                     ]))
     @classmethod
-    def human_localisation(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def base_human_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         return(Task(id = task_id,
                     module = 'base',
-                    name = "human_localisation",
+                    name = "base_human_init",
                     details = deepcopy(details),
                     contacts = contacts.copy(),
                     initiator_id = agent.agent_id,
@@ -315,6 +333,13 @@ class TaskDef(object):
                         StageDef.SetRegister(agent)
                     ]))
 
+    """ Idle Tasks """
+    @classmethod
+    def base_robot_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+        return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
+    @classmethod
+    def base_human_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+        return TaskDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
     """ Runtime Method for Idle Task Definitions """
     @classmethod
@@ -341,6 +366,7 @@ class TaskDef(object):
                     responder_id = "",
                     stage_list = [
                         StageDef.StartTask(agent, task_id),
+                        # StageDef.Exit(agent)
                         StageDef.AssignBaseNode(agent),
                         StageDef.NavigateToBaseNode(agent),
                         StageDef.Idle(agent)
@@ -355,6 +381,7 @@ class TaskDef(object):
                     initiator_id = agent.agent_id,
                     responder_id = "",
                     stage_list = [
+                        StageDef.SetUnregister(agent),
                         StageDef.NavigateToExitNode(agent),
                         StageDef.Exit(agent)
                     ]))
@@ -457,10 +484,7 @@ class StageDef(object):
             self._flag(True)
     class WaitForLocalisation(StageBase):
         def _start(self):
-            agent_id, loc = self.agent.agent_id, self.agent.location
-            loc.current_node_sub = Subscriber('/%s/current_node' % agent_id, Str, loc.current_node_cb)
-            loc.closest_node_sub = Subscriber('/%s/closest_node' % agent_id, Str, loc.closest_node_cb)
-            loc.set_location_srv = Service(   '/%s/set_location' % agent_id, AgentNodePair, loc.set_location_srv)
+            self.agent.location.enable_location_monitoring(self.agent.agent_id)
         def _query(self):
             success_conditions = [self.agent.location() is not None]
             self._flag(any(success_conditions))
@@ -483,19 +507,17 @@ class StageDef(object):
         def _end(self):
             super(StageDef.WaitForMap, self)._end()
             logmsg(category="stage", msg="Map achieved %s" % self.agent.location())
-    class WaitForModules(StageBase):
-        def _start(self):
-            topic = "/%s/active_modules"%self.agent.agent_id
-            self.agent.subs['modules'] = Subscriber(topic, TaskModules, self.agent.init_task_cb, queue_size=5)
-
-        def _query(self):
-            success_conditions = [len(self.agent.modules) > 0]
-            self._flag(any(success_conditions))
-
-        def _end(self):
-            super(StageDef.WaitForModules, self)._end()
-            self.agent.subs['modules'].unregister()
-            logmsg(category="stage", msg="Task Moduels Identified %s" % self.agent.modules.keys())
+    # class WaitForModules(StageBase):
+    #     def _start(self):
+    #         topic = "/%s/active_modules"%self.agent.agent_id
+    #         self.agent.subs['modules'] = Subscriber(topic, TaskModules, self.agent.init_task_cb, queue_size=5)
+    #     def _query(self):
+    #         success_conditions = [len(self.agent.modules) > 0]
+    #         self._flag(any(success_conditions))
+    #     def _end(self):
+    #         super(StageDef.WaitForModules, self)._end()
+    #         self.agent.subs['modules'].unregister()
+    #         logmsg(category="stage", msg="Task Moduels Identified %s" % self.agent.modules.keys())
     class SetRegister(StageBase):
         def _start(self):
             self.agent.registration = True
@@ -541,6 +563,68 @@ class StageDef(object):
             self.action['response_location'] = None
         def _end(self):
             self.agent['contacts']['base_node'] = self.action['response_location']
+
+    """ Identification of Navigation Targets """
+    class FindRows(AssignNode):
+        def __repr__(self): return "%s(%s)" % (self.get_class(), self.tunnel)
+        def __init__(self, agent, tunnel, response_task):
+            super(StageDef.FindRows, self).__init__(agent)
+            self.tunnel = tunnel
+            self.response_task = response_task
+        def _start(self):
+            super(StageDef.FindRows, self)._start()
+            self.action['action_type'] = 'find_node'
+            self.action['action_style'] = 'rows'
+            self.action['descriptor'] = self.tunnel
+            self.action['response_location'] = None
+        def _end(self):
+            super(StageDef.FindRows, self)._end()
+            logmsg(category="stage", msg="Task to use %s rows:" % len(self.action['response_location']))
+            [logmsg(category="stage", msg="    - row: %s" % row) for row in self.action['response_location']]
+            for row in self.action['response_location']:
+                # self.agent.add_task(task_name='wait_at_base')
+                self.agent.add_task(task_name=self.response_task, details={'row': row})
+    class FindRowEnds(AssignNode):
+        def __repr__(self): return "%s(%s)" % (self.get_class(), self.row)
+        def __init__(self, agent, row):
+            super(StageDef.FindRowEnds, self).__init__(agent)
+            self.row = row
+        def _start(self):
+            super(StageDef.FindRowEnds, self)._start()
+            self.action['action_type'] = 'find_node'
+            self.action['action_style'] = 'row_ends'
+            self.action['descriptor'] = self.row
+            self.action['response_location'] = None
+        def _end(self):
+            super(StageDef.FindRowEnds, self)._end()
+            self.agent['contacts']['row_ends'] = self.action['response_location']
+            logmsg(category="stage", msg="Task to move from %s to %s" % (
+            self.action['response_location'][0], self.action['response_location'][1]))
+    class FindStartNode(AssignNode):
+        def __repr__(self):
+            if 'row_ends' in self.agent['contacts'] and self.agent['contacts']['row_ends']:
+                return "%s(%s)" % (self.get_class(), self.agent['contacts']['row_ends'])
+            else:
+                return self.get_class()
+        def __init__(self, agent, nodes=[]):
+            super(StageDef.FindStartNode, self).__init__(agent)
+            self.agent['contacts']['row_ends'] = nodes
+
+        def _start(self):
+            super(StageDef.FindStartNode, self)._start()
+            self.action['action_type'] = 'find_node'
+            self.action['action_style'] = 'closest'
+            self.action['list'] = self.agent['contacts']['row_ends']
+            self.action['response_location'] = None
+
+        def _end(self):
+            super(StageDef.FindStartNode, self)._end()
+            self.agent['contacts']['start_node'] = self.action['response_location']
+
+            self.agent['contacts']['row_ends'].remove(self.action['response_location'])
+            self.agent['contacts']['end_node'] = self.agent['contacts']['row_ends'][0]
+
+            logmsg(category="stage", msg="Task to move from %s to %s" % (self.agent['contacts']['start_node'], self.agent['contacts']['end_node']))
 
     """ Navigation Controllers for Courier """
     class Navigation(StageBase):
@@ -594,6 +678,20 @@ class StageDef(object):
     class NavigateToWaitNode(NavigateToNode):
         def __init__(self, agent): super(StageDef.NavigateToWaitNode, self).__init__(agent, association='wait_node')
 
+    """ Communications """
+    class NotifyTrigger(StageBase):
+        def __init__(self, agent, trigger, msg, colour):
+            self.trigger, self.msg, self.colour = trigger, msg, colour
+            super(StageDef.NotifyTrigger, self).__init__(agent)
+        def _notify_start(self):
+            self.interface = self.agent.modules[self.agent['module']].interface
+            self.interface.notify(self.msg)
+            self.agent.cb['format_agent_marker'](self.agent, style=self.colour)
+            self.interface[self.trigger] = True  # PSEUDO
+        def _query(self):
+            success_conditions = [self.interface[self.trigger]]
+            self._flag(any(success_conditions))
+
     """ Meta Stages """
     class Pause(StageBase):
         def __repr__(self):
@@ -621,11 +719,21 @@ class StageDef(object):
             super(StageDef.Exit, self)._start()
             self.agent.registration = False
             for task in self.agent.task_buffer:
-                self.agent.set_interrupt('force_cancel_task', task['module'], task['id'])
+                self.agent.set_interrupt('reset', task['module'], task['id'], "Task")
         def _query(self):
             success_conditions = [len(self.agent.task_buffer) == 0];
             self._flag(any(success_conditions))
         def _end(self):
             super(StageDef.Exit, self)._end()
-            self.agent.cb['format_agent_marker'](self.agent.agent_id, 'black')
-            self.agent.set_interrupt('delete_agent', '', '')
+            self.agent.cb['format_agent_marker'](self.agent, 'black')
+            self.agent.set_interrupt('disconnect', 'base', self.agent['id'], "Task")
+
+
+
+
+
+
+
+
+
+

@@ -41,13 +41,15 @@ class BasePlanner(object):
         return GetNode(self.topo_map, node)
 
     def get_row_ends(self, agent, row_id):
-        row_start = "%s-c0"%row_id
 
         row_nodes = [int(node["node"]["name"].replace("%s-c"%row_id, ''))
                      for node in agent.navigation['tmap']["nodes"]
                      if node["node"]["name"].startswith(row_id)]
+        if not row_nodes:
+            logmsg(level="error", msg="No row ends found for row_id(%s): %s"%(row_id,row_nodes))
 
-        row_end = "%s-c%s"%(row_id, max(row_nodes))
+        row_start = "%s-c%s"%(row_id, 0)
+        row_end   = "%s-c%s"%(row_id, max(row_nodes))
 
         return [row_start, row_end]
 
@@ -55,17 +57,11 @@ class BasePlanner(object):
     def get_rows(self, agent, tunnel_id):
         row_prefix = "%s-r"%tunnel_id
 
-        #tall-t1-r4-c5
-        #tall-t1-r
-        #split(name.replace(row_prefix, ''), '-c')[0]
-
         row_ids = set([int(node["node"]["name"].replace(row_prefix, '').split('-c')[0])
                        for node in agent.navigation['tmap']["nodes"]
                        if node["node"]["name"].startswith(row_prefix)])
 
-        x = ["%s%s"%(row_prefix, row_id) for row_id in row_ids]
-        print(x)
-        return x
+        return ["%s%s"%(row_prefix, row_id) for row_id in row_ids]
 
     def get_distance_between_adjacent_nodes(self, from_node, to_node):
         """get_distance_between_adjacent_nodes: Given names of two nodes, return the distance of the edge

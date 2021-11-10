@@ -13,6 +13,9 @@ import csv
 import time
 import datetime
 import threading
+import gc
+import sys
+import weakref
 from pprint import pprint
 
 import rospy
@@ -31,6 +34,7 @@ import rasberry_coordination.robot
 import rasberry_coordination.srv
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
+from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module
 
 #Route Planning
 from rasberry_coordination.route_planners.route_planners import RouteFinder
@@ -96,8 +100,8 @@ class RasberryCoordinator(object):
         self.advertise_services()
 
         # Initialise topics for marker management #Combine these into 1 topic
-        self.marker_add_pub = Publisher('/rasberry_coordination/marker_add', MarkerDetails, queue_size=5)
-        self.marker_remove_pub = Publisher('/rasberry_coordination/marker_remove', MarkerDetails, queue_size=5)
+        # self.marker_add_pub = Publisher('/rasberry_coordination/marker_add', MarkerDetails, queue_size=5)
+        # self.marker_remove_pub = Publisher('/rasberry_coordination/marker_remove', MarkerDetails, queue_size=5)
 
         """ TOC Communications """
         self.TOC_Interface = InterfaceDef.TOC_Interface(self)
@@ -153,6 +157,8 @@ class RasberryCoordinator(object):
         self.previous_log_iteration = ""
         self.current_log_iteration = ""
 
+        self.dc_agent = None
+
         from time import time as Now
         Ut = Now(); #time_since_TOC_update
         def Update_TOC(A, TOC, Ut):
@@ -160,14 +166,15 @@ class RasberryCoordinator(object):
                 TOC.UpdateTaskList();
                 return Now();
             return Ut
-
+        self.dc = False
         l(-1)
         while not rospy.is_shutdown():
-            interrupt_task()     if any([a.interruption for a in A]) else None;    """ Interrupt Stage Execution """
-            A = get_agents()
+            interrupts = [a.interruption for a in A] ; a = None; del A
+            interrupt_task()     if any(interrupts) else None;                     """ Interrupt Stage Execution """
 
+            A = get_agents()
             lognull() if any([not a['stage_list'] for a in A]) else None
-            [a.start_next_task() for a in A if not a['stage_list']];          """ Start Buffered Task """
+            [a.start_next_task() for a in A if not a['stage_list']];               """ Start Buffered Task """
             l(0);
 
             lognull() if any([a().new_stage for a in A]) else None
@@ -194,13 +201,6 @@ class RasberryCoordinator(object):
     def get_agents(self):
         self.AllAgentsList = self.get_all_agents()
         return self.AllAgentsList.values()
-
-
-
-
-
-
-
 
     """ Services offerd by Coordinator to assist with tasks """
     def offer_service(self, agent):
@@ -232,9 +232,6 @@ class RasberryCoordinator(object):
             self.action_print = False
 
     """ Action Category """
-
-
-
     def find_agent(self, agent):
         action_style = agent().action['action_style']
 
@@ -247,11 +244,6 @@ class RasberryCoordinator(object):
 
         responses = {"closest": self.find_closest_agent}  # TODO: ROOM TO EXPAND
         return responses[action_style](agent, A)
-
-
-
-
-
     def find_node(self, agent):
         action_style =      agent().action['action_style']
 
@@ -322,29 +314,23 @@ class RasberryCoordinator(object):
     def find_rows(self, agent, tunnel_id):
         return self.route_finder.planner.get_rows(agent, tunnel_id)
 
-
     """ Find Distance """
     def dist(self, start_node, goal_node):
         _,_,route_dists = self.get_path_details(start_node, goal_node)
         return sum(route_dists)
 
-
-
-
-
-
-
-
-
-
     """ Interrupt Task """
     def interrupt_task(self):
         from time import sleep; sleep(0.5) #TODO: preventing log overwriting from interrupt attachments
-        interrupts = {'pause': self.pause, 'resume': self.resume, 'reset': self.reset}
+        interrupts = {'pause': self.pause, 'resume': self.resume, 'reset': self.reset, 'disconnect':self.disconnect}
         logmsg(category="null")
         logmsg(category="DTM", msg="Interrupt detected!", speech=False);
         [logmsg(category="DTM", msg="    | %s : %s" % (a.agent_id, a.interruption[0])) for a in self.AllAgentsList.values() if a.interruption]
-        [interrupts[a.interruption[0]](a) for a in self.AllAgentsList.values() if a.interruption and a.interruption[0] in interrupts]
+
+        A = self.AllAgentsList
+        interrupt_ids = [a.agent_id for a in A.values() if a.interruption and a.interruption[0] in interrupts]
+        for aid in interrupt_ids: interrupts[A[aid].interruption[0]](A[aid])
+
     def pause(self, agent):
         """ Agent pausing works as follows:
         1. Put the active stage into a suspended state (so once active again it will be restarted)
@@ -412,13 +398,22 @@ class RasberryCoordinator(object):
         logmsg(category="DTM", msg="    | unregistering agent: %s"%agent_id)
         self.agent_manager[agent_id].registration = False
         self.agent_manager.format_agent_marker(self.agent_manager[agent_id], style='red')
-    # def delete_agent(self, agent):
-    #     logmsg(level="error", category="DRM", id=agent.agent_id,
-    #            msg="Agent has been removed from the scope of the coordinator.")
-    #     logmsg(level="error", category="DRM", msg="    - Coordinator is no longer recieving location data")
-    #     logmsg(level="error", category="DRM", msg="    - Agent is no longer reserving a node in the network")
-    #     logmsg(level="error", category="DRM", msg="    - Ensure agent is moved away")
-    #     self.agent_manager.agent_details.pop(agent.agent_id)
+    def disconnect(self, agent):
+        a = weakref.ref(agent) ; del agent
+        logmsg(level="error", category="DRM", id=a().agent_id, msg="Agent has been removed from coordinator.")
+        logmsg(level="error", category="DRM", msg="    - Coordinator is no longer recieving location data")
+        logmsg(level="error", category="DRM", msg="    - Agent is no longer reserving a node in the network")
+        logmsg(level="error", category="DRM", msg="    - Ensure agent is moved away")
+        a().delete_known_references(self)
+
+    # def check_dc_agents(self, expected, keep=False):
+    #     if self.dc_agent:
+    #         agent, self.dc_agent = self.dc_agent, None
+    #         gc.collect()
+    #         logmsg(category="DRM", msg="References remaining: (%s/%s)" % (len(gc.get_referrers(agent)),expected))
+    #         [logmsg(category="DRM", msg="    - (%s) %s" % (i+1, r)) for i, r in enumerate(gc.get_referrers(agent))]
+    #         if keep: self.dc_agent = agent
+    #         del agent
 
 
     """ Publish route if different from current """
