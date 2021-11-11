@@ -131,7 +131,7 @@ if __name__ == '__main__':
     modules_to_load = set([t['module'] for t in config_data['active_tasks']])
 
     # Start ROSNode
-    rospy.init_node('abstract_task_coordinator', anonymous=False)
+    rospy.init_node('abstract_task_coordinator', anonymous=False)#, log_level=rospy.DEBUG)
 
     # Initialise task manager to store all task and stage definitions in single objects for later access
     import rasberry_coordination.task_management.__init__ as task_init
@@ -151,6 +151,29 @@ if __name__ == '__main__':
 
     rospy.on_shutdown(coordinator.on_shutdown)
     rospy.sleep(1)  # give a second to let everything settle
+
+
+    """ INSPECTION """
+    from rasberry_coordination.srv import StringSrv as StringRequest, StringSrvResponse as StringResponse
+    def root_inspector_srv(req):
+        resp = StringResponse()
+        resp.success = True
+
+        root = req.data
+        # rosservice call /rasberry_coordination/root_inspector "data: 'coordinator.agent_manager.agent_details[*thorvald_001*].task.id'"
+
+        d = root.split('.')[1:]
+        tree = coordinator
+        for k in d:
+            k = k.replace('*]', '').split('[*')
+            tree = tree.__getattribute__(k[0])
+            if len(k) > 1:
+                print(k[1])
+                tree = tree[k[1]]
+        resp.msg = str(tree)
+        return resp
+
+    rospy.Service('/rasberry_coordination/root_inspector', StringRequest, root_inspector_srv)
 
     # Run the coordinator
     coordinator.run()
