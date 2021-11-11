@@ -53,10 +53,7 @@ class InterfaceDef(object):
 
             responses={'PAUSE':self.pause, 'UNPAUSE':self.unpause, 'RELEASE':self.release}
             super(InterfaceDef.transportation_courier, self).__init__(agent, responses, sub=sub, pub=pub)
-
-            #TODO: These need a new home (do we need a robot core_task_module?)
-            self.agent.temp_interface = RobotInterface_Old(self.agent.agent_id)
-
+            
         def pause(self): self.agent.set_interrupt('pause', 'transportation', self.agent['id'])
         def unpause(self): self.agent.set_interrupt('unpause', 'transportation', self.agent['id'])
         def release(self): self.agent.set_interrupt('reset', 'transportation', self.agent['id'])
@@ -94,7 +91,6 @@ class TaskDef(object):
     @classmethod
     def transportation_picker_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         agent.modules['transportation'].interface.notify("INIT")
-        return TDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
     def transportation_courier_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
         AP = agent.properties

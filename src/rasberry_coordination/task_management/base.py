@@ -176,6 +176,7 @@ class InterfaceDef(object):
             if self.previous_task_list != task_list and task_list.tasks:
                 self.previous_task_list = task_list
                 self.publish_task_list(task_list)
+                return True
         def EndTask(self, E):
             task_list = self.generate_active_tasks_list();
             task_list.tasks = [t for t in task_list.tasks if t.task_id not in E]
@@ -212,9 +213,10 @@ class InterfaceDef(object):
             task.state = "CANCELLED"
             return task
         def publish_task_list(self, task_list):
+            logmsg(level="info", category="SECT", id="SECTION", msg="\033[01;04;92mTOC\033[38;5;231m\033[0m")
             logmsg(category="TOC", msg="Active Tasks:")
             [logmsg(category="TOC", msg="    | %s\t-- %s [%s,%s]" % (t.task_id, t.state, t.initiator_id, t.responder_id)) for t in task_list.tasks]
-            logmsg(category="null")
+            # logmsg(category="null")
             self.active_tasks_pub.publish(task_list)
 
         """ Dynamic Task Management """
@@ -276,7 +278,7 @@ class InterfaceDef(object):
                     self.responses[msg['state']]()
         def notify(self, state):
             msg = Str('{\"user\":\"%s\", \"state\":\"%s\"}' % (self.agent.agent_id, state))
-            logmsg(category="COMMS", msg="Publishing: (%s)" % msg)
+            logmsg(category="COMMS", msg="        - Publishing: (%s)" % msg)
             self.pub.publish(msg)
 
 
@@ -478,21 +480,24 @@ class StageDef(object):
             self.summary['_query'] = "return true"
     class SetUnregister(StageBase):
         def _start(self):
+            super(StageDef.SetUnregister, self)._start()
             self.agent.registration = False
             self.agent.cb['format_agent_marker'](self.agent, style='red')
         def _query(self):
             self._flag(True)
     class WaitForLocalisation(StageBase):
         def _start(self):
+            super(StageDef.WaitForLocalisation, self)._start()
             self.agent.location.enable_location_monitoring(self.agent.agent_id)
         def _query(self):
             success_conditions = [self.agent.location() is not None]
             self._flag(any(success_conditions))
         def _end(self):
             super(StageDef.WaitForLocalisation, self)._end()
-            logmsg(category="stage", msg="Localisation achieved %s" % self.agent.location())
+            logmsg(category="stage", msg="    - localisation achieved %s" % self.agent.location())
     class WaitForMap(StageBase):
         def _start(self):
+            super(StageDef.WaitForMap, self)._start()
             self.agent.navigation['tmap'] = None
             self.agent.navigation['tmap_node_list'] = None
             self.agent.navigation['tmap_available'] = {}
@@ -509,6 +514,7 @@ class StageDef(object):
             logmsg(category="stage", msg="Map achieved %s" % self.agent.location())
     # class WaitForModules(StageBase):
     #     def _start(self):
+    #         super(StageDef.WaitForModules, self)._start()
     #         topic = "/%s/active_modules"%self.agent.agent_id
     #         self.agent.subs['modules'] = Subscriber(topic, TaskModules, self.agent.init_task_cb, queue_size=5)
     #     def _query(self):
@@ -520,6 +526,7 @@ class StageDef(object):
     #         logmsg(category="stage", msg="Task Moduels Identified %s" % self.agent.modules.keys())
     class SetRegister(StageBase):
         def _start(self):
+            super(StageDef.SetRegister, self)._start()
             self.agent.registration = True
             self.agent.cb['format_agent_marker'](self.agent, style='')
         def _query(self):
@@ -684,6 +691,7 @@ class StageDef(object):
             self.trigger, self.msg, self.colour = trigger, msg, colour
             super(StageDef.NotifyTrigger, self).__init__(agent)
         def _notify_start(self):
+            super(StageDef.NotifyTrigger, self)._start()
             self.interface = self.agent.modules[self.agent['module']].interface
             self.interface.notify(self.msg)
             self.agent.cb['format_agent_marker'](self.agent, style=self.colour)
@@ -703,6 +711,7 @@ class StageDef(object):
             self.pause_state = {'Coord':False, 'Task':False, 'Agent':False}
             self.format_agent_marker = format_agent_marker
         def _start(self):
+            super(StageDef.Pause, self)._start()
             logmsg(category="test", msg="pause::cancel_execpolicy_goal")
             if hasattr(self.agent, 'temp_interface'): self.agent.temp_interface.cancel_execpolicy_goal()
             #TODO: set an agent function for generic definition of pausing?

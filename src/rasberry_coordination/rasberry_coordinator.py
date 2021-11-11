@@ -146,6 +146,12 @@ class RasberryCoordinator(object):
         TOC             = self.TOC_Interface
         trigger_routing = self.trigger_routing
         def lognull(): logmsg(category="null")
+        def logbreak(section, condition):
+            if any(condition):
+                lognull()
+                b = '\033[01;04;92m'
+                a = '\033[38;5;231m\033[0m'
+                logmsg(level="info", category="SECT", id="SECTION", msg="%s%s%s"%(b,section,a))
 
         A = get_agents()
         self.enable_task_logging = True
@@ -157,44 +163,53 @@ class RasberryCoordinator(object):
         self.previous_log_iteration = ""
         self.current_log_iteration = ""
 
-        self.dc_agent = None
-
         from time import time as Now
         Ut = Now(); #time_since_TOC_update
         def Update_TOC(A, TOC, Ut):
             if any([a().new_stage for a in A]) or (Now() - Ut > 5):
+                # logbreak("TOC", [a().new_stage for a in A])
                 TOC.UpdateTaskList();
                 return Now();
             return Ut
-        self.dc = False
+
         l(-1)
         while not rospy.is_shutdown():
+
             interrupts = [a.interruption for a in A] ; a = None; del A
+            logbreak("INTERRUPTS", interrupts)
             interrupt_task()     if any(interrupts) else None;                     """ Interrupt Stage Execution """
 
             A = get_agents()
-            lognull() if any([not a['stage_list'] for a in A]) else None
+
+            logbreak("START TASK", [not a['stage_list'] for a in A])
             [a.start_next_task() for a in A if not a['stage_list']];               """ Start Buffered Task """
             l(0);
 
-            lognull() if any([a().new_stage for a in A]) else None
             Ut = Update_TOC(A, TOC, Ut);                                           """ Update TOC """
+
+            logbreak("START STAGE", [a().new_stage for a in A])
             [a.start_stage()     for a in A if a().new_stage];                     """ Start Stage """
-            if self.action_print: lognull() if any([a().action_required for a in A]) else None
+
+            if self.action_print: logbreak("ACTION", [a().action_required for a in A])
             [offer_service(a)    for a in A if a().action_required];               """ Offer Service """
             l(2)
 
+            logbreak("ROUTE FIND", [trigger_routing(A)])
             if trigger_routing(A): find_routes();                                  """ Find Routes """
+
+            logbreak("ROUTE PUBLISH", [a().route_found for a in A])
             [publish_route(a)    for a in A if a().route_found];                   """ Publish Routes """
             l(3)
 
             [a()._query()        for a in A];                                      """ Query """
             l(4)
 
-            lognull() if any([a().stage_complete for a in A]) else None
+            logbreak("END", [a().stage_complete for a in A])
             E=[a.end_stage()     for a in A if a().stage_complete];                """ End Stage """
+
             TOC.EndTask(E) if any(E) else None;                                    """ Update TOC with Ended Tasks """
-            l(-2)
+
+            l(-2) #PUBLISH LOG
 
     def get_all_agents(self):
         return self.agent_manager.agent_details.copy() #TODO: is copy needed?
@@ -214,21 +229,24 @@ class RasberryCoordinator(object):
         del action_deets['action_type']
         del action_deets['action_style']
         del action_deets['response_location']
-        if self.action_print: logmsg(category="action", id=agent.agent_id, msg="Perfoming %s(%s) - details: %s" % (action_type, action_style, action_deets))
 
+        s, self.action_print = self.action_print, False
         agent().action['response_location'] = responses[action_type](agent)
+        self.action_print = s
 
         if agent().action['response_location']:
             #for better logging but worse code:
             self.action_print = True
-            logmsg(category="null")
             logmsg(category="action", id=agent.agent_id, msg="Perfoming %s(%s) - details: %s" % (action_type, action_style, action_deets))
             responses[action_type](agent)
-
             logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
+
             agent().action_required = False
         else:
+            if self.action_print: logmsg(category="action", id=agent.agent_id, msg="Perfoming %s(%s) - details: %s" % (action_type, action_style, action_deets))
+            responses[action_type](agent)
             if self.action_print: logmsg(category="action", msg="No response found, continuing in background, will update log when successful.")
+
             self.action_print = False
 
     """ Action Category """
@@ -251,29 +269,29 @@ class RasberryCoordinator(object):
         if 'descriptor' in agent().action:
             if agent().action['action_style'] == "row_ends":
                 N = agent().action['descriptor']
-                logmsg(category='action', msg='Finding ends to row: %s'%N)
+                if self.action_print: logmsg(category='action', msg='Finding ends to row: %s'%N)
             elif agent().action['action_style'] == "rows":
                 N = agent().action['descriptor']
-                logmsg(category='action', msg='Finding rows in tunnel: %s'%N)
+                if self.action_print: logmsg(category='action', msg='Finding rows in tunnel: %s'%N)
             else:
                 descriptor = agent().action['descriptor']
                 rl='response_location'
                 AExcl = [a for _id,a in self.AllAgentsList.items()  if (_id is not agent.agent_id)]
-                logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
+                if self.action_print: logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
 
                 occupied = [a.location.current_node for a in AExcl if a.location.current_node] #Check if node is occupied
                 occupied += [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]  # TackleSharedTarget
                 occupied += [a.goal() for a in AExcl if a.goal()]
-                logmsg(category='action', msg='Occupied Nodes: %s'%occupied)
+                if self.action_print: logmsg(category='action', msg='Occupied Nodes: %s'%occupied)
 
                 N2 = {n['id']:n for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)}
                 N = [n['id'] for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)]
-                logmsg(category='action', msg='Nodes to Compare Against:')
-                [logmsg(category='action', msg="    - %s: %s"%(n,N2[n])) for n in N2]
+                if self.action_print: logmsg(category='action', msg='Nodes to Compare Against:')
+                if self.action_print: [logmsg(category='action', msg="    - %s: %s"%(n,N2[n])) for n in N2]
         else:
             N = agent().action['list']
-            logmsg(category='action', msg='Nodes to Compare Against:')
-            [logmsg(category='action', msg="    - %s"%n) for n in N]
+            if self.action_print: logmsg(category='action', msg='Nodes to Compare Against:')
+            if self.action_print: [logmsg(category='action', msg="    - %s"%n) for n in N]
 
 
         responses = {"closest": self.find_closest_node,
@@ -283,17 +301,13 @@ class RasberryCoordinator(object):
 
     """ Action Style """
     def find_closest_agent(self, agent, agent_list):
-        """ Find the closest agent (via optimal route) to the given agent.
-
-        :param agent: The agent to query against.
-        :param agent_list: The list of agents to query.
-        :return: The agent_details object closest to the agent querying against.
-        """
         loc = agent.location()
         dist_list = {a.agent_id:self.dist(loc, a.location()) for a in agent_list.values() if a.registration and a.is_node_restricted(loc)}
+        lst = {a.agent_id:[loc, a.location(), self.dist(loc, a.location()), a.registration, a.is_node_restricted(loc)] for a in agent_list.values()}
 
         if self.action_print: [logmsg(category="action", msg="    | %s location: [ %s | %s | %s ]"%(a.agent_id, a.location.current_node, a.location.closest_node, a.location.previous_node)) for a in agent_list.values()]
         if self.action_print: logmsg(category="action", msg="Finding closest in: %s" % dist_list)
+        if self.action_print: logmsg(category="action", msg="Deets: %s" % lst)
         if dist_list:
             return agent_list[min(dist_list, key=dist_list.get)]
         return None
@@ -306,8 +320,8 @@ class RasberryCoordinator(object):
         """
         loc = agent.location()
         dist_list = {n:self.dist(loc,n) for n in node_list}
-        logmsg(category="action", msg="Finding closest in:")
-        [logmsg(category='action', msg="    - %s: %s"%(n,dist_list[n])) for n in dist_list]
+        if self.action_print: logmsg(category="action", msg="Finding closest in:")
+        if self.action_print: [logmsg(category='action', msg="    - %s: %s"%(n,dist_list[n])) for n in dist_list]
         return min(dist_list, key=dist_list.get)
     def find_row_ends(self, agent, row_id):
         return self.route_finder.planner.get_row_ends(agent, row_id)
@@ -324,7 +338,7 @@ class RasberryCoordinator(object):
         from time import sleep; sleep(0.5) #TODO: preventing log overwriting from interrupt attachments
         interrupts = {'pause': self.pause, 'resume': self.resume, 'reset': self.reset, 'disconnect':self.disconnect}
         logmsg(category="null")
-        logmsg(category="DTM", msg="Interrupt detected!", speech=False);
+        logmsg(category="DTM", msg="Interrupt detected!", speech=False)
         [logmsg(category="DTM", msg="    | %s : %s" % (a.agent_id, a.interruption[0])) for a in self.AllAgentsList.values() if a.interruption]
 
         A = self.AllAgentsList
@@ -405,15 +419,6 @@ class RasberryCoordinator(object):
         logmsg(level="error", category="DRM", msg="    - Agent is no longer reserving a node in the network")
         logmsg(level="error", category="DRM", msg="    - Ensure agent is moved away")
         a().delete_known_references(self)
-
-    # def check_dc_agents(self, expected, keep=False):
-    #     if self.dc_agent:
-    #         agent, self.dc_agent = self.dc_agent, None
-    #         gc.collect()
-    #         logmsg(category="DRM", msg="References remaining: (%s/%s)" % (len(gc.get_referrers(agent)),expected))
-    #         [logmsg(category="DRM", msg="    - (%s) %s" % (i+1, r)) for i, r in enumerate(gc.get_referrers(agent))]
-    #         if keep: self.dc_agent = agent
-    #         del agent
 
 
     """ Publish route if different from current """
@@ -711,7 +716,7 @@ class RasberryCoordinator(object):
                     log.write(self.current_log_iteration % (self.timestep, self.iteration)) #use rospy.Time.now() ?
                     self.iteration += 1
                     logmsgbreak()
-                    logmsg(category="log", msg="Updating log")
+                    # logmsg(category="log", msg="Updating log")
                     print('------------------------------------------')
 
             self.previous_log_iteration = self.current_log_iteration

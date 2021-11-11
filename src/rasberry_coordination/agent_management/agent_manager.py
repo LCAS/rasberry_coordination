@@ -43,6 +43,7 @@ class AgentManager(object):
     def add_agent(self, agent_dict):
         self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
         self.format_agent_marker(self.agent_details[agent_dict['agent_id']], style='red')
+        logmsg(category="null")
 
     """ Dynamic Fleet Management """
     def add_agent_ros_srv(self, agent_obj):
@@ -120,8 +121,9 @@ class AgentDetails(object):
         # Define interface for each role
         # self.tasks, self.modules = Module.init_modules(self, setup['tasks'])
         self.tasks = setup['tasks']
-        self.modules = {t['module']: Module(agent=self, name=t['module'], role=t['role']) for t in self.tasks}
 
+        logmsg(category="MODULE", id=self.agent_id, msg="Initialising Module Interfaces:")
+        self.modules = {t['module']: Module(agent=self, name=t['module'], role=t['role']) for t in self.tasks}
 
         #Location and Callbacks
         self.location = Location(presence=setup['has_presence'], initial_location=agent_dict['initial_location'])
@@ -129,8 +131,8 @@ class AgentDetails(object):
 
     """ Task Starters """
     def add_idle_tasks(self):
-        [module.add_idle_task() for module in self.modules.values() if module.name is not 'base']
-        if 'base' in self.modules: self.modules['base'].add_idle_task()
+        [self.add_task(task_name=m.idle_task_name) for m in self.modules.values() if m.name != "base"]
+        if 'base' in self.modules: self.add_task(task_name=self.modules['base'].idle_task_name)
 
         if not self.task_buffer:
             logmsg(level="error", category="task", id=self.agent_id, msg="WARNING! Agent has no idle tasks.")
@@ -141,38 +143,47 @@ class AgentDetails(object):
 
 
     def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None, quiet=False, initiator_id=""):
-
         """ Called by task stages, used to buffer new tasks for the agent """
-        if task_name not in dir(TaskDef):
-            logmsg(level="warn", category="TASK", id=self.agent_id, msg="Task %s not found." % task_name)
-            return
-
         # #picker.interface.called(): self.agent.add_task('transportation_request_courier')
         # 1. #find TaskDef
         # 2. #task = TaskDef()
         # 3. #buffer += [task] OR buffer.insert(0, [task])
 
+        # logmsg(category="TASK", id=self.agent_id, msg="Attempting to add task: %s" % task_name)
+        # logmsg(category="TASK", msg="    | Adding task: %s" % task_name)
+
+        if task_name not in dir(TaskDef):
+            logmsg(category="TASK", msg="    | %s (not found)"%task_name)
+            return
+
         task_def = getattr(TaskDef, task_name)
         task = task_def(self, task_id=task_id, details=details, contacts=contacts, initiator_id=initiator_id)
-        if task:
-            if not index: self.task_buffer += [task]
-            else: self.task_buffer.insert(index, [task])
 
-            if quiet:
-                logmsg(category="DTM", msg="    | buffering %s to task_buffer[%i]" % (task.name, index or len(self.task_buffer)))
-            else:
-                logmsg(category="null")
-                logmsg(category="TASK", id=self.agent_id, msg="Buffering %s to position %i of task_buffer, task stage list:" % (task.name, index or len(self.task_buffer)))
-                [logmsg(category="TASK", msg='    - %s'%t) for t in task.stage_list]
+        if not task:
+            logmsg(category="TASK", msg="    | %s (empty)"%task_name)
+            return
+
+        task_name = task_name if task.name == task_name else "%s/%s"%(task_name,task.name)
+
+        if not index: self.task_buffer += [task]
+        else: self.task_buffer.insert(index, [task])
+
+        if quiet:
+            logmsg(category="DTM", msg="    |    | buffering %s to task_buffer[%i]" % (task_name, index or len(self.task_buffer)))
+        else:
+            logmsg(category="TASK",  msg="    | Buffering %s to task_buffer[%i]:" % (task_name, index or len(self.task_buffer)))
+            [logmsg(category="TASK", msg="    |    | %s"%t) for t in task.stage_list]
+
     def start_next_task(self, idx=0):
+        logmsg(category="TASK", id=self.agent_id, msg="Beginning next task", speech=False)
+
         if len(self.task_buffer) < 1: self.add_idle_tasks()
         if len(self.task_buffer) <= idx: return
         self.task = self.task_buffer.pop(idx)
 
-        logmsg(category="null")
-        logmsg(category="TASK", id=self.agent_id, msg="Active task: %s" % self['name'], speech=False)
-        logmsg(category="TASK", msg="Task details:")
-        [logmsg(category="TASK", msg="    - %s" % stage) for stage in self['stage_list']]
+        logmsg(category="TASK",  msg="- Active task: %s" % self['name'], speech=False)
+        logmsg(category="TASK",  msg="  Task details:")
+        [logmsg(category="TASK", msg="      | %s" % stage) for stage in self['stage_list']]
 
 
     """ Roles """
@@ -191,7 +202,9 @@ class AgentDetails(object):
         """checks if a given node is in the robot's restricted tmap2
         :param node_id: name of the node, str
         """
-        return ('tmap_node_list' in self.navigation and node_id in self.navigation['tmap_node_list'])
+        if 'navigation_restrictions' in self.properties:
+            return ('tmap_node_list' in self.navigation and node_id in self.navigation['tmap_node_list'])
+        return True
     def goal(self): return self().target
 
 

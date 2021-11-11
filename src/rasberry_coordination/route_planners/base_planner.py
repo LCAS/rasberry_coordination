@@ -167,6 +167,7 @@ class BasePlanner(object):
         Args:
             agent_manager - pointer to coordinator.agent_manager a dictionary of all agent_details objects
         """
+        logmsg(category="route", id="PLANNER", msg='Route Planner Initialisation')
 
         # Filter out agents with no physical presence
         self.agent_manager = agent_manager
@@ -177,11 +178,10 @@ class BasePlanner(object):
         self.rec_topo_map = False
         Subscriber("topological_map_2", String, self._map_cb)
 
-        logmsgbreak(total=1)
-        logmsg(category="route", msg='Route Planner waiting for Topological map ...')
+        logmsg(category="route", msg='    | awaiting topomap')
         while not self.rec_topo_map:
             rospy.sleep(rospy.Duration.from_sec(0.1))
-        logmsg(category="route", msg='Route Planner received Topological map.')
+        logmsg(category="route", msg='    | received topomap')
         self.available_topo_map = copy.deepcopy(self.topo_map)  # empty map used to measure routes
 
         """ Change callback location to modify the FragmentPlanner available topomap """

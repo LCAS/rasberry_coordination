@@ -63,16 +63,6 @@ class InterfaceDef(object):
 class TaskDef(object):
     """ Constructors for UV Tasks """
 
-    # """ Initialisation Verification """
-    # @classmethod
-    # def uv_treatment_phototherapist_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-    #     return TDef.robot_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
-
-    # """ Idle Tasks """
-    # @classmethod
-    # def uv_treatment_phototherapist_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-    #     return TDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
-
     """ Tasks """
     @classmethod
     def uv_treatment_treat_edge(cls, agent, task_id=None, details={'nodes':[]}, contacts={}, initiator_id=""):

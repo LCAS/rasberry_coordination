@@ -87,6 +87,7 @@ class ModuleObj(object):
         return "Module( name:%s | role:%s | interface:%s )" % (self.name, self.role, self.interface!=None)
 
     def __init__(self, agent, name, role):
+        logmsg(category="module", msg="%s (%s)"%(name.upper(),role.upper()))
         self.agent = agent
         self.name = name
         self.role = role
@@ -106,8 +107,10 @@ class ModuleObj(object):
     def add_init_task(self):
         self.agent.add_task(task_name=self.init_task_name)
 
-    def add_idle_task(self):
-        self.agent.add_task(task_name=self.idle_task_name)
+    # def add_idle_task(self):
+    #     if getattr(TaskDef, self.idle_task_name):
+    #         self.agent.add_task(task_name=self.idle_task_name)
+
 
 
 

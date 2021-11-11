@@ -8,8 +8,9 @@
 import actionlib
 import rospy
 import yaml
+from time import sleep
 
-from std_msgs.msg import String
+from std_msgs.msg import String, Empty
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
 
@@ -31,6 +32,8 @@ class Robot(object):
 
         robot_id - id of robot
         """
+        logmsg(category="rob_py", msg="    | Starting Robot.py:")
+
         self.robot_id = robot_id
         self.ns = "/%s/" %(robot_id)
 
@@ -51,10 +54,13 @@ class Robot(object):
         self.route_search = None
         self.route_publisher = rospy.Publisher("%s/current_route" %(self.robot_id), Path, latch=True, queue_size=5)
 
+        self.total_fails = 0
+        self.force_replan = rospy.Publisher("/rasberry_coordination/force_replan", Empty, queue_size=5)
+
         rospy.Subscriber("/topological_map_2", String, self._map_cb)
-        logmsg(category="rob_py", id=self.robot_id, msg='waiting for Topological map 2...')
+        logmsg(category="rob_py", msg='    |    | awaiting topomap2')
         while not self.rec_topo_map: rospy.sleep(rospy.Duration.from_sec(0.1))
-        logmsg(category="rob_py", id=self.robot_id, msg='received Topological map 2')
+        logmsg(category="rob_py", msg='    |    | received topomap2')
 
         self.route_search = TopologicalRouteSearch(self.topo_map)
         self.publish_route()
@@ -204,6 +210,20 @@ class Robot(object):
         """done callback
         """
         logmsg(category='rob_py', id=self.robot_id, msg='_done_execpolicy_cb, route completed: {%s}'%(result))
+
+        if result.success == False:
+            self.total_fails += 1
+            logmsg(level='error', category='rob_py', msg='_done_execpolicy_cb, failed to complete route')
+            if self.total_fails > 5:
+                logmsg(level='error', category='rob_py', msg='self.total_fails > 5')
+            else:
+                logmsg(level='error', category='rob_py', msg='publishing to force replan')
+                sleep(5)
+                self.force_replan.publish(Empty())
+        else:
+            logmsg(level='error', category='rob_py', msg='route success')
+            self.total_fails = 0
+
         self.execpolicy_status = status
         self.execpolicy_result = result
         self.execpolicy_goal = ExecutePolicyModeGoal()
