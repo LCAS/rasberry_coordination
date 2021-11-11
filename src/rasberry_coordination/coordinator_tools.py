@@ -90,6 +90,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
 
         """ Define colour values for printing """ #TODO: optimise this with re.sub(r'\[.*\]','[]',line)
         reset = '\033[00m'
+        colour_template = '\033[01;%s'
         info_colour = '\033[38;5;231m\033[0m'
         warn_colour = '\033[38;5;136m'
         err_colour = '\033[38;5;1m'
@@ -112,7 +113,8 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
 
         # highlight id and/or category based on definitions
         if str(category).upper() in colour_categories:
-            c1 = yellow_highlight
+            catcol = colour_categories[str(category).upper()]
+            c1 = colour_template%catcol if catcol else yellow_highlight
         if str(id) in colour_id:
             c3 = colour_id[str(id)]
 
@@ -124,14 +126,18 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
 
     # log in different manners based on the severity level and throttling
     if throttle:
-        throttles = {"info": rospy.loginfo_throttle,
+        throttles = {"debug": rospy.logdebug_throttle,
+                     "info": rospy.loginfo_throttle,
                      "warn": rospy.logwarn_throttle,
-                     "error": rospy.logerr_throttle}
+                     "error": rospy.logerr_throttle,
+                     "fatal": rospy.logfatal_throttle}
         throttles[level](throttle, msg)
     else:
-        logs = {"info": rospy.loginfo,
+        logs = {"debug": rospy.logdebug,
+                "info": rospy.loginfo,
                 "warn": rospy.logwarn,
-                "error": rospy.logerr}
+                "error": rospy.logerr,
+                "fatal": rospy.logfatal}
         logs[level](msg)
 
 
@@ -152,11 +158,12 @@ def is_rejected(data): #return true if d is rejected
     else: return False
 def is_not_rejected(data):  return not is_rejected(data)
 def is_coloured(data):      return ('colour' in data and data['colour'])
+def colour(data):
+    if data in ["true", "True", "TRUE", True]: return False
+    else: return '\033[01;%s'%data
 
 valid_categories =  [D['name'] for D in config_data['categories'] if is_not_rejected(D)]
 reject_categories = [D['name'] for D in config_data['categories'] if is_rejected(D)]
-colour_categories =  [D['name'] for D in config_data['categories'] if is_not_rejected(D) and is_coloured(D)]
+colour_categories =  {D['name']:colour(D['colour']) for D in config_data['categories'] if is_not_rejected(D) and is_coloured(D)}
 
-colour_id = {D['name']:'\033[01;%s'%D['colour'] for D in config_data['ids']}
-
-
+colour_id = {D['name']:colour(D['colour']) for D in config_data['ids']}

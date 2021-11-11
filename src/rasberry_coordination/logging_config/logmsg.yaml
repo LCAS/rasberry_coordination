@@ -5,6 +5,7 @@ categories:
   - name: "TASK"
     colour: false
   - name: "STAGE"
+  - name: "MODULE"
 
   #Interruptions
   - name: "DRM"
@@ -13,7 +14,7 @@ categories:
   - name: "COMMS"
     reject: true
   - name: "RVIZ"
-    reject: true
+    reject: false
 
   #Navigation
   - name: "ROB_PY"
@@ -32,17 +33,26 @@ categories:
   #Task-Generic
   - name: "ACTION"
     reject: false
-    colour: true
+    colour: false
 
   #Task Specific
   - name: "TPTASK"
   - name: "UVTASK"
 
+  - name: "SECT"
+    colour: '04;92m'
+
 ids:
+  - name: "COORDINATOR"
+    colour: '42m'
+#  - name: "PLANNER"
+#    colour: '42m'
+  - name: "SECTION"
+    colour: '04;92m'
   - name: "storage01"
     colour: '31m'
   - name: "thorvald_001"
-    colour: '32m'
+    colour: '36m'
   - name: "thorvald_002"
     colour: '33m'
   - name: "picker01"
