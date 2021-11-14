@@ -15,7 +15,7 @@ from rospy import Subscriber, Publisher, Service, Time
 from std_msgs.msg import String as Str
 from std_srvs.srv import Trigger, TriggerResponse
 
-from rasberry_coordination.msg import MarkerDetails, KeyValuePair
+from rasberry_coordination.msg import AgentDetails as AgentDetailsMsg, MarkerDetails, KeyValuePair
 from rasberry_coordination.srv import AddAgent, AgentNodePair
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module
@@ -31,43 +31,31 @@ class AgentManager(object):
         self.agent_details = {}
         self.cb = callback_dict
         self.cb['format_agent_marker'] = self.format_agent_marker
-        self.pause_all = False
 
-        # Setup Services for Dynamic Fleet Management
-        Service('/rasberry_coordination/dfm/add_agent',    AddAgent, self.add_agent_ros_srv)
+        # Setup Connection for Dynamic Fleet
+        self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', AgentDetailsMsg, self.add_agent_cb)
 
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
 
+
+    """ Dynamic Fleet """
     def add_agents(self, agent_list):
         for agent in agent_list: self.add_agent(agent)
     def add_agent(self, agent_dict):
-        self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
-        self.format_agent_marker(self.agent_details[agent_dict['agent_id']], style='red')
-        logmsg(category="null")
+        if agent_dict['agent_id'] not in self.agent_details:
+            self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
+            self.format_agent_marker(self.agent_details[agent_dict['agent_id']], style='red')
+            logmsg(category="null")
+    def add_agent_cb(self, msg):
+        def kvp_list(msg): return {kvp.key: kvp.value for kvp in msg}
+        self.add_agent({'agent_id': msg.agent_id,
+                        'local_properties': kvp_list(msg.local_properties),
+                        'setup': { 'modules': [{'name':m.name,'role':m.role} for m in msg.setup.modules],
+                                   'module_properties': kvp_list(msg.setup.module_properties),
+                                   'navigation_properties': kvp_list(msg.setup.navigation_properties),
+                                   'visualisation_properties': kvp_list(msg.setup.visualisation_properties)
+                                   }})
 
-    """ Dynamic Fleet Management """
-    def add_agent_ros_srv(self, agent_obj):
-        agent_dict = self.agent_dict(agent_obj)
-        if self.validate_dict(agent_dict):
-            self.add_agent(self.format_dict(agent_dict))
-            self.format_agent_marker(agent_dict['agent_id'], "")
-            return {'success': 1, 'msg': 'agent added'}
-        else:
-            return {'success': 0, 'msg': 'agent unable to be added'}
-    def validate_dict(self, agent_dict): return True #TODO: setup validation system
-    def format_dict(self, agent_dict):
-        if  agent_dict['initial_location'] == '':
-            agent_dict['initial_location'] = None
-        return agent_dict
-    def agent_dict(self, agent_obj):
-        agent_dict = dict().copy()
-        agent_dict['agent_id'] = agent_obj.agent_id
-        agent_dict['setup'] = dict().copy()
-        agent_dict['setup']['tasks'] = [{'module': task.module, 'role': task.role} for task in agent_obj.tasks]
-        agent_dict['setup']['properties'] = {prop.key:prop.value for prop in agent_obj.properties}
-        agent_dict['setup']['has_presence'] = agent_obj.has_presence
-        agent_dict['initial_location'] = agent_obj.initial_location
-        return agent_dict
 
     """ Conveniences """
     def __getitem__(self, key):
@@ -83,7 +71,7 @@ class AgentManager(object):
         """
         marker = MarkerDetails()
         marker.agent_id = agent.agent_id
-        marker.type = agent.properties['rviz_type']
+        marker.type = agent.visualisation_properties['rviz_model']
 
         #Define marker color ["remove", "red", "green", "blue", "black", "white", ""]
         marker.optional_color = style
@@ -100,8 +88,19 @@ class AgentDetails(object):
     """ Initialisations """
     def __init__(self, agent_dict, callbacks):
         self.agent_id = agent_dict['agent_id']
+        self.local_properties = agent_dict['local_properties']
+
         self.cb = callbacks
+
         setup = deepcopy(agent_dict['setup'])
+        self.module_properties = setup['module_properties']
+        self.navigation_properties = setup['navigation_properties']
+        self.visualisation_properties = setup['visualisation_properties']
+
+        lp = agent_dict['local_properties']
+        mp = setup['module_properties']
+        np = setup['navigation_properties']
+        vp = setup['visualisation_properties']
 
         #Subscriptions
         self.subs = {}
@@ -116,17 +115,16 @@ class AgentDetails(object):
 
         self.interruption = None
         self.registration = False
-        self.properties = setup['properties']
 
         # Define interface for each role
-        # self.tasks, self.modules = Module.init_modules(self, setup['tasks'])
-        self.tasks = setup['tasks']
-
         logmsg(category="MODULE", id=self.agent_id, msg="Initialising Module Interfaces:")
-        self.modules = {t['module']: Module(agent=self, name=t['module'], role=t['role']) for t in self.tasks}
+        # self.tasks = setup['modules']
+        self.modules = {t['name']: Module(agent=self, name=t['name'], role=t['role']) for t in setup['modules']}
 
         #Location and Callbacks
-        self.location = Location(presence=setup['has_presence'], initial_location=agent_dict['initial_location'])
+        initial_location = lp['initial_location'] if 'initial_location' in lp else ''
+        has_presence = np['has_presence'] if 'has_presence' in np else False
+        self.location = Location(presence=has_presence, initial_location=initial_location)
 
 
     """ Task Starters """
@@ -202,7 +200,7 @@ class AgentDetails(object):
         """checks if a given node is in the robot's restricted tmap2
         :param node_id: name of the node, str
         """
-        if 'navigation_restrictions' in self.properties:
+        if 'restrictions' in self.navigation_properties:
             return ('tmap_node_list' in self.navigation and node_id in self.navigation['tmap_node_list'])
         return True
     def goal(self): return self().target

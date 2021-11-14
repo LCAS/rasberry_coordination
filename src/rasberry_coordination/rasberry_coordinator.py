@@ -717,7 +717,7 @@ class RasberryCoordinator(object):
                     self.iteration += 1
                     logmsgbreak()
                     # logmsg(category="log", msg="Updating log")
-                    print('------------------------------------------')
+                    print('\033[07m------------------------------------------\033[00m')
 
             self.previous_log_iteration = self.current_log_iteration
             self.current_log_iteration = ""

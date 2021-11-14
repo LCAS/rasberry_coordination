@@ -107,12 +107,12 @@ class BasePlanner(object):
                 # add edge_distance only if the source node is not the one we look for
                 # also make sure we start adding from current/closest node
                 if not adding_ok:
-                    adding_ok = agent.route[i] == (agent.current_node or agent.closest_node)
-                    # if agent.current_node != None:
-                    #     if agent.current_node == agent.route[i]:
+                    adding_ok = agent.route[i] == (agent.location.current_node or agent.location.closest_node)
+                    # if agent.location.current_node != None:
+                    #     if agent.location.current_node == agent.route[i]:
                     #         adding_ok = True
-                    # elif agent.closest_node != None:
-                    #     if agent.closest_node == agent.route[i]:
+                    # elif agent.location.closest_node != None:
+                    #     if agent.location.closest_node == agent.route[i]:
                     #         adding_ok = True
                 if adding_ok:
                     dist += agent.route_dists[i]
@@ -133,6 +133,8 @@ class BasePlanner(object):
         :param goal_node: name of the node to which route should be planned, str
         :return: route from start_node to goal_node
         """
+        print(agent.navigation['available_route_search'])
+        print(agent.navigation['available_route_search'].search_route(start_node, goal_node))
         return None or agent.navigation['available_route_search'].search_route(start_node, goal_node)
 
     def load_route_search(self, agent):
@@ -193,6 +195,8 @@ class BasePlanner(object):
 
     @abstractmethod
     def find_routes(self):
+        self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.location.has_presence}
+        for agent in self.agent_details.values(): agent.cb['update_topo_map'] = self.update_available_topo_map
         pass
 
     def update_available_topo_map(self, agent):

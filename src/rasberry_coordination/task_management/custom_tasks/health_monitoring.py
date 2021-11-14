@@ -26,24 +26,25 @@ class InterfaceDef(object):
                 self.agent.add_task(task_name="charge_at_charging_station", index=0)  # Add critical battery task to the buffer head
 
         def battery_critical(self):
-            AP = self.agent.properties
-            if 'battery_level' in AP and AP['battery_level'] < AP['critical_battery_limit']: return True
+            LP = self.agent.local_properties
+            MP = self.agent.module_properties
+            if 'battery_level' in LP and LP['battery_level'] < MP['critical_battery_limit']: return True
         def battery_low(self):
-            AP = self.agent.properties
-            if 'battery_level' in AP and AP['critical_battery_limit'] < AP['battery_level'] <= AP['min_battery_limit']: return True
+            LP = self.agent.local_properties
+            MP = self.agent.module_properties
+            if 'battery_level' in LP and MP['critical_battery_limit'] < LP['battery_level'] <= MP['min_battery_limit']: return True
 
 
 class TaskDef(object):
 
     @classmethod
     def health_monitoring_robot_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        agent.properties['critical_battery_limit'] = PDef['health_monitoring']['critical_battery_limit']
-        agent.properties['min_battery_limit'] = PDef['health_monitoring']['min_battery_limit']
-        agent.properties['max_battery_limit'] = PDef['health_monitoring']['max_battery_limit']
+        agent.module_properties['critical_battery_limit'] = PDef['health_monitoring']['critical_battery_limit']
+        agent.module_properties['min_battery_limit'] = PDef['health_monitoring']['min_battery_limit']
+        agent.module_properties['max_battery_limit'] = PDef['health_monitoring']['max_battery_limit']
 
     @classmethod
     def health_monitoring_robot_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        AP = agent.properties
 
         # Low battery is added here as new task once idle
         # Critical battery is forced into next task when identified
@@ -89,14 +90,14 @@ class StageDef(object):
         def __init__(self, agent): super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target
-                                  ,self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']]
+                                  ,self.agent.local_properties['battery_level'] >= self.agent.module_properties['max_battery_limit']]
             self._flag(any(success_conditions))
 
     class Charge(SDef.StageBase):
         def __repr__(self):
-            return "%s(%s%%)"%(self.get_class(), str(100*self.agent.properties['battery_level']).split('.')[0])
+            return "%s(%s%%)"%(self.get_class(), str(100*self.agent.local_properties['battery_level']).split('.')[0])
         def _query(self):
-            success_conditions = [self.agent.properties['battery_level'] >= self.agent.properties['max_battery_limit']];
+            success_conditions = [self.agent.local_properties['battery_level'] >= self.agent.module_properties['max_battery_limit']];
             self._flag(any(success_conditions))
         def _end(self):
             self.agent.registration = True

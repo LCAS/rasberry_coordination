@@ -53,7 +53,7 @@ class InterfaceDef(object):
 
             responses={'PAUSE':self.pause, 'UNPAUSE':self.unpause, 'RELEASE':self.release}
             super(InterfaceDef.transportation_courier, self).__init__(agent, responses, sub=sub, pub=pub)
-            
+
         def pause(self): self.agent.set_interrupt('pause', 'transportation', self.agent['id'])
         def unpause(self): self.agent.set_interrupt('unpause', 'transportation', self.agent['id'])
         def release(self): self.agent.set_interrupt('reset', 'transportation', self.agent['id'])
@@ -93,11 +93,12 @@ class TaskDef(object):
         agent.modules['transportation'].interface.notify("INIT")
     @classmethod
     def transportation_courier_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
-        AP = agent.properties
+        LP = agent.local_properties
+        MP = agent.module_properties
 
         #If agent is at max capacity deliver load
-        agent.properties['load'] = int(agent.properties['load'])
-        if AP['load'] >= int(AP['max_load']):
+        agent.local_properties['load'] = int(agent.local_properties['load'])
+        if LP['load'] >= int(MP['max_load']):
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
     def transportation_storage_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
@@ -347,7 +348,7 @@ class StageDef(object):
             self._flag(any(success_conditions))
         def _end(self):
             super(StageDef.Loading, self)._end()
-            self.agent.properties['load'] += 1
+            self.agent.local_properties['load'] += 1
             # logmsg(level='warn', category='STAGE', id=self.agent.agent_id, msg="Total load: %s" % self.agent.properties['load'])
     class Unloading(SDef.StageBase):
         def _query(self):
@@ -355,5 +356,5 @@ class StageDef(object):
             self._flag(any(success_conditions))
         def _end(self):
             super(StageDef.Unloading, self)._end()
-            self.agent.properties['load'] = 0
+            self.agent.local_properties['load'] = 0
             # logmsg(level='warn', category='STAGE', id=self.agent.agent_id, msg="Total load: %s" % self.agent.properties['load'])

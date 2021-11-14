@@ -1,15 +1,15 @@
 global TaskDef, StageDef, InterfaceDef, PropertiesDef
 
 
-def set_properties(task_dict):
+def set_properties(module_dict):
     from rasberry_coordination.coordinator_tools import logmsg
     global PropertiesDef
-    PropertiesDef = {M['module']:M['properties'] for M in task_dict}
+    PropertiesDef = {M['name']:M['properties'] for M in module_dict}
     PropertiesDef.update({'base':{}})
 
     logmsg(category="START",  msg="Properties: ")
-    for module in task_dict:
-        logmsg(category="START",  msg="    - %s"%module['module'])
+    for module in module_dict:
+        logmsg(category="START",  msg="    - %s"%module['name'])
         [logmsg(category="START", msg="        | %s -> %s" % (key,val)) for key,val in module['properties'].items()]
 
 

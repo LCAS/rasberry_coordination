@@ -40,31 +40,34 @@ def validate_types(file, config):
     validate_field(file, config, mandatory=True, key='heterogeneous_map', datatype=[bool])
 
     # Setup Definition
-    for setup in [s['setup'] for s in config['agent_setups']]:
-        validate_field(file, setup, mandatory=False,  key='tasks', datatype=[list])
-        for task in setup['tasks']:
-            validate_field(file, task, mandatory=True,  key='module', datatype=[str])
-            validate_field(file, task, mandatory=True,  key='role', datatype=[str])
-        validate_field(file, setup, mandatory=True,   key='has_presence', datatype=[bool])
-        validate_field(file, setup, mandatory=False,  key='properties', datatype=[dict])
+    if 'agent_setups' in config:
+        for setup in [s['setup'] for s in config['agent_setups']]:
+            validate_field(file, setup, mandatory=False,  key='modules', datatype=[list])
+            for module in setup['modules']:
+                validate_field(file, module, mandatory=True,  key='name', datatype=[str])
+                validate_field(file, module, mandatory=True,  key='role', datatype=[str])
+            validate_field(file, setup, mandatory=False, key='module_properties', datatype=[dict])
+            validate_field(file, setup, mandatory=True,  key='navigation_properties', datatype=[dict])
+            validate_field(file, setup, mandatory=True,  key='visualisation_properties', datatype=[dict])
 
     # Agent Initialisation
-    for agent in config['agent_list']:
-        validate_field(file, agent, mandatory=True,  key='agent_id', datatype=[str])
-        validate_field(file, agent, mandatory=True,  key='setup', datatype=[dict])
-        validate_field(file, agent, mandatory=False,  key='initial_location', datatype=[str])
+    if 'agent_list' in config:
+        for agent in config['agent_list']:
+            validate_field(file, agent, mandatory=True,  key='agent_id', datatype=[str])
+            validate_field(file, setup, mandatory=False, key='local_properties', datatype=[dict])
+            validate_field(file, agent, mandatory=True,  key='setup', datatype=[dict])
 
     # Agent Initialisation
-    for task in config['active_tasks']:
-        validate_field(file, task, mandatory=True,  key='module', datatype=[str])
-        validate_field(file, agent, mandatory=False,  key='properties', datatype=[dict])
+    for module in config['active_modules']:
+        validate_field(file, module, mandatory=True,  key='name', datatype=[str])
+        validate_field(file, module, mandatory=False, key='properties', datatype=[dict])
 
 
 if __name__ == '__main__':
     print("Recommended to set 'force_color_prompt=yes' on line 46 of .bashrc.")
 
     if len(sys.argv) < 2:
-        usage = "rosrun rasberry_coordination simple_task_executor_node.py config_file.yaml"
+        usage = "rosrun rasberry_coordination abstract_task_executor_node.py config_file.yaml"
         print("Not enough arguments passed. Correct usage is:\n\t"+usage)
         exit()
 
@@ -84,6 +87,7 @@ if __name__ == '__main__':
 
     # Ensure all required fields are filled with the correct data types
     validate_types(config_file, config_data)
+    print("Config file validated:")
 
     """ TOPOLOGY (Node Descriptors) """
     base_station_nodes_pool = set()
@@ -106,13 +110,16 @@ if __name__ == '__main__':
 
     """ INITIALISATION """
     # load default values for non-mandatory fields
+    if 'agent_list' not in config_data:
+        config_data['agent_list'] = dict()
+
     for agent in config_data['agent_list']:
         if 'default' in agent:
             continue
 
         # if no active tasks given, inform user
-        if len(agent['setup']['tasks']) < 1:
-            print("Agent %s connected with 0 available tasks." % agent['agent_id'])
+        if len(agent['setup']['modules']) < 1:
+            print("Agent %s connected with 0 available modules." % agent['agent_id'])
 
         # Default physical presence to True
         if 'has_presence' not in agent['setup']:
@@ -128,14 +135,14 @@ if __name__ == '__main__':
 
 
     """ ACTIVE TASKS """
-    modules_to_load = set([t['module'] for t in config_data['active_tasks']])
+    modules_to_load = set([t['name'] for t in config_data['active_modules']])
 
     # Start ROSNode
     rospy.init_node('abstract_task_coordinator', anonymous=False)#, log_level=rospy.DEBUG)
 
     # Initialise task manager to store all task and stage definitions in single objects for later access
     import rasberry_coordination.task_management.__init__ as task_init
-    task_init.set_properties(config_data['active_tasks'])
+    task_init.set_properties(config_data['active_modules'])
     task_init.def_tasks(list(modules_to_load))
 
 
@@ -168,8 +175,10 @@ if __name__ == '__main__':
             k = k.replace('*]', '').split('[*')
             tree = tree.__getattribute__(k[0])
             if len(k) > 1:
-                print(k[1])
-                tree = tree[k[1]]
+                if type(tree) == type([]):
+                    tree = tree[int(k[1])]
+                elif type(tree) == type(dict()):
+                    tree = tree[k[1]]
         resp.msg = str(tree)
         return resp
 

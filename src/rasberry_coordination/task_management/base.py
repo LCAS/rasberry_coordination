@@ -503,7 +503,7 @@ class StageDef(object):
             self.agent.navigation['tmap_available'] = {}
             self.agent.navigation['available_route_search'] = TopologicalRouteSearch({"nodes": {}})
             topic = "/topological_map_2"
-            if 'navigation_restrictions' in self.agent.properties:
+            if 'restrictions' in self.agent.navigation_properties:
                 topic = "/%s/restricted_topological_map_2" % self.agent.agent_id
             self.agent.subs['tmap'] = Subscriber(topic, Str, self.agent.map_cb, queue_size=5)
         def _query(self):
@@ -647,6 +647,7 @@ class StageDef(object):
             super(StageDef.Navigation, self)._start()
             # self.route_found = False  # Has route been identified?
             self.route_required = True  # Has route been published
+            # self.state = "" #= "Identified" = "Published"
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is begun." % (self.agent.location(accurate=True), self.target))
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
@@ -656,12 +657,12 @@ class StageDef(object):
             self.agent.cb['trigger_replan']() #ReplanTrigger
     class NavigateToAgent(Navigation):
         def _start(self):
-            super(StageDef.NavigateToAgent, self)._start()
             self.target = self.agent['contacts'][self.association].location(accurate=True)
+            super(StageDef.NavigateToAgent, self)._start()
     class NavigateToNode(Navigation):
         def _start(self):
-            super(StageDef.NavigateToNode, self)._start()
             self.target = self.agent['contacts'][self.association]
+            super(StageDef.NavigateToNode, self)._start()
         def _query(self):
             success_conditions = [self.agent.location(accurate=True) == self.target]
             self._flag(any(success_conditions))

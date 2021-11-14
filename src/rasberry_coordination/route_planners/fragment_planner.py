@@ -33,7 +33,7 @@ class FragmentPlanner(BasePlanner):
         :param agent_nodes: list of nodes occupied by other agents, list
         """
         # Nothing to do if restrictions are not used
-        if 'navigation_restrictions' not in agent.properties: return
+        if 'restrictions' not in agent.navigation_properties: return
 
         available_tmap = copy.deepcopy(agent.navigation['tmap'])
 
@@ -247,9 +247,9 @@ class FragmentPlanner(BasePlanner):
         """
         super(FragmentPlanner, self).find_routes()
 
-        logmsg(category="route", id="COORDINATOR", msg="Finding routes for Active agents")
-        [logmsg(category="route", msg="    - %s:%s"%(a.agent_id, a.goal())) for a in self.agent_details.values()]
-        actives =   [a for a in self.agent_details.values() if a.goal()]  # agents with an active goal (navigation)
+        logmsg(category="route", id="COORDINATOR", msg="Finding routes for Active agents:")
+        [logmsg(category="route", msg="    | %s: %s"%(a.agent_id, a.goal())) for a in self.agent_details.values()]
+        actives =   [a for a in self.agent_details.values() if a.goal()]  # agents with an active nav goal (navigation)
         inactives = [a for a in self.agent_details.values() if not a.goal()]  # agents without an active goal (idle)
         logmsg(category="route", msg="actives --- "+str([a.agent_id for a in actives]))
         logmsg(category="route", msg="inactives - "+str([a.agent_id for a in inactives]))
@@ -257,7 +257,7 @@ class FragmentPlanner(BasePlanner):
         need_route = [a for a in self.agent_details.values() if a().route_required]
         logmsg(category="route", msg="Agents requiring routes:")
         for a in need_route:
-            logmsg(category="route", msg="    - {%s: %s}" % (a.agent_id, a()))
+            logmsg(category="route", msg="    | {%s: %s}" % (a.agent_id, a()))
 
         """find unblocked routes for all agents which need one"""
         self.load_occupied_nodes()
@@ -268,43 +268,59 @@ class FragmentPlanner(BasePlanner):
             """get start node and goal node"""
             start_node = agent.location(accurate=False)
             goal_node  = agent.goal()
-            logmsg(category="route", msg="Finding route for %s: %s -> %s" % (agent_id, start_node, goal_node))
+            logmsg(category="route", id=agent.agent_id, msg="Finding route for %s: %s -> %s" % (agent_id, start_node, goal_node))
 
             """if current node is goal node, mark agent as inactive"""
             if start_node == goal_node: #should _query should have handled this by this point?
                 inactives += [agent]
+                logmsg(category="route", msg="Agent is at goal_node, adding to inactives")
                 continue
 
             """take copy of empty map"""
             self.update_available_tmap(agent)
             self.unblock_node(agent, start_node)
-            # self.unblock_node(agent, goal_node)  # TODO: is this needed?
+            self.unblock_node(agent, goal_node)  # TODO: is this needed?
             self.load_route_search(agent)
 
             """generate route from start node to goal node"""
             route = None
+            print("label if start_node and goal_node:")
             if start_node and goal_node:
                 route = self.get_available_optimum_route(agent, start_node, goal_node)
+                # print("label get_route")
+                # print(start_node)
+                # print(goal_node)
+                # print(route)
+                # print("")
             route_nodes = []
             route_edges = []
 
+            # xxxx = raw_input('Press enter to continue yo! ')
+            # if xxxx == "a":
+            #     import pdb; pdb.set_trace()
+
             """ If failed to find route, set robot as inactive and mark navigation as failed """
             if route is None:
-                logmsg(level="warn", category="route", id=agent.agent_id, msg="failed to find route, waiting idle")
+                logmsg(level="warn", category="route", msg="failed to find route, waiting idle")
                 logmsg(level="warn", category="route", msg="modify here for wait_node addition")
                 self.no_route_found(agent)
                 inactives += [agent]
                 continue
+            # else:
+            #     print("label route_none")
+            #     print(route)
+            #     print("")
+
 
             route_nodes = route.source + [goal_node] # add goal_node as it could be a critical point
             route_edges = route.edge_id
-            agent.no_route_found_notification = True
+            agent.no_route_found_notification = True #TODO: what?
 
             """save route details"""
             agent.route = route_nodes
             agent.route_edges = route_edges
             agent().route_found = True #ReplanTrigger #todo: is this really right here?
-            logmsg(category="route", id=agent.agent_id, msg="Route has been found, marking as such")
+            logmsg(category="route", msg="Route has been found, marking as such")
 
             self.get_edge_distances(agent_id)
 

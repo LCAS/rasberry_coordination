@@ -13,7 +13,7 @@ from rasberry_coordination.srv import AgentNodePair
 class LocationObj(object):
 
     def __init__(self, presence = True, initial_location = None):
-        self.has_presence = presence
+        self.has_presence = bool(presence)
         self.current_node = initial_location
         self.previous_node = None
         self.closest_node = None
