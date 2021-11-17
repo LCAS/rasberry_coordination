@@ -155,7 +155,7 @@ class RasberryCoordinator(object):
 
         A = get_agents()
         self.enable_task_logging = True
-        self.task_progression_log = '/home/jheselden/task_progression.csv'
+        self.task_progression_log = 'task_progression.csv' #logs to $HOME/.ros/task_progression.csv
         self.log_routes = True
         self.action_print = True
         self.timestep = 0
