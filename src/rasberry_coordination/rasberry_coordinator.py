@@ -163,7 +163,7 @@ class RasberryCoordinator(object):
         self.previous_log_iteration = ""
         self.current_log_iteration = ""
 
-        from time import time as Now
+        from time import time as Now, sleep
         Ut = Now(); #time_since_TOC_update
         def Update_TOC(A, TOC, Ut):
             if any([a().new_stage for a in A]) or (Now() - Ut > 5):
@@ -210,6 +210,7 @@ class RasberryCoordinator(object):
             TOC.EndTask(E) if any(E) else None;                                    """ Update TOC with Ended Tasks """
 
             l(-2) #PUBLISH LOG
+            sleep(0.2)
 
     def get_all_agents(self):
         return self.agent_manager.agent_details.copy() #TODO: is copy needed?
