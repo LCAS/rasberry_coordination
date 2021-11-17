@@ -10,7 +10,7 @@ import rasberry_des.config_utils
 if __name__ == '__main__':
 
     # Initialise node
-    rospy.init_node("AddAgent", anonymous=False)
+    rospy.init_node("AddAgent", anonymous=True)
     rospy.sleep(1)
 
     # Collect details
@@ -38,12 +38,15 @@ if __name__ == '__main__':
     agent.setup.navigation_properties =    get_kvp_list(setup_data, 'navigation_properties')
     agent.setup.visualisation_properties = get_kvp_list(setup_data, 'visualisation_properties')
 
-    # print(agent)
+    print("Details of agent being launched:\n%s\n\n"%agent)
 
     # Create publisher
     # pub = rospy.Publisher("/a", AgentDetails, latch=True, queue_size=5)
     pub = rospy.Publisher("/rasberry_coordination/dynamic_fleet/add_agent", AgentDetails, latch=True, queue_size=5)
+    # pub = rospy.Publisher("launch_agent", AgentDetails, latch=True, queue_size=5)
     rospy.sleep(1)
 
     pub.publish(agent)
     rospy.sleep(1)
+
+    rospy.spin()

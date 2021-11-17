@@ -1,5 +1,6 @@
 <?xml version="1.0" ?>
 <launch>
+  <arg name="namespace" default="rasberry_coordination"/>
 
   <arg name="agent_file_id"/>
   <arg name="setup_file_id"/>
@@ -7,7 +8,12 @@
   <arg name="agent_file" value="$(find rasberry_coordination)/config/agent/$(arg agent_file_id).yaml"/>
   <arg name="setup_file" value="$(find rasberry_coordination)/config/setup/$(arg setup_file_id).yaml"/>
 
-  <node pkg="rasberry_coordination" name="add_agent" type="add_agent.py" args="$(arg agent_file) $(arg setup_file)" output="screen"/>
+
+
+  <group ns="/$(arg namespace)">
+    <!-- run communication bridge, topological_navigation bridge and execute_policy_mode bridge -->
+    <node pkg="rasberry_coordination" name="add_agent" type="add_agent.py" args="$(arg agent_file) $(arg setup_file)" output="screen"/>
+  </group>
 
 </launch>
 

@@ -11,6 +11,31 @@ export rasberry_coordination=$(dirname "${BASH_SOURCE[0]}")
 function rem () { rosservice call /rasberry_coordination/dfm/remove_agent "{agent_id: '$1', node_id: '$2'}" ; }
 function add () { rosrun rasberry_coordination add_agent.py ; }
 
+
+function add_agent () {
+  roslaunch rasberry_coordination add_agent.launch \
+    namespace=$1 \
+    agent_file_id:=$2 \
+    setup_file_id:=$3
+}
+function t1 () { add_agent thorvald_001 thorvald_001        courier ; }
+function t2 () { add_agent thorvald_002 thorvald_002_tall   tall    ; }
+function p1 () { add_agent picker01     picker01            picker  ; }
+function p2 () { add_agent picker02     picker02            picker  ; }
+function s1 () { add_agent storage01    storage01           storage ; }
+
+#Convenience
+function tall () {
+  read -p "Press Enter to run $1 for $2 tunnel:$4 row:$5"
+  rostopic pub /$1/$2/initiate_task/$3 rasberry_coordination/TopoLocation "{type: 'tall', tunnel: $4, row: $5}" -1
+}
+
+function leave () {
+  read -p "Press Enter to set $1 to exit at $2"
+  rostopic pub /$1/base/disconnect std_msgs/String "data: '$2'" -1
+}
+
+
 #Dummy Functions
 #function start_coordinator () { roslaunch rasberry_coordination new_simple_task_coordinator.launch config_file:=$TASK_COORD_CONFIG ; }
 #function reset_picker () { rostopic pub /car_client/set_states std_msgs/String data:"{\"user\":\"$1\", \"state\": \"INIT\"}" -1 ; }
