@@ -9,7 +9,6 @@
   <arg name="setup_file" value="$(find rasberry_coordination)/config/setup/$(arg setup_file_id).yaml"/>
 
 
-
   <group ns="$(arg namespace)">
     <!-- run communication bridge, topological_navigation bridge and execute_policy_mode bridge -->
     <node pkg="rasberry_coordination" name="add_agent" type="add_agent.py" args="$(arg agent_file) $(arg setup_file)" output="screen"/>
