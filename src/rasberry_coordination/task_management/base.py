@@ -303,12 +303,12 @@ class TaskDef(object):
 
     """ Runtime Method for Init Task Definitions """
     @classmethod
-    def base_robot_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def base_robot_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id = task_id,
                     module = 'base',
                     name = "base_robot_init",
-                    details = deepcopy(details),
-                    contacts = contacts.copy(),
+                    details = details,
+                    contacts = contacts,
                     initiator_id = agent.agent_id,
                     responder_id = "",
                     stage_list = [
@@ -320,12 +320,12 @@ class TaskDef(object):
                         StageDef.SetRegister(agent)
                     ]))
     @classmethod
-    def base_human_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def base_human_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id = task_id,
                     module = 'base',
                     name = "base_human_init",
-                    details = deepcopy(details),
-                    contacts = contacts.copy(),
+                    details = details,
+                    contacts = contacts,
                     initiator_id = agent.agent_id,
                     responder_id = "",
                     stage_list = [
@@ -337,20 +337,20 @@ class TaskDef(object):
 
     """ Idle Tasks """
     @classmethod
-    def base_robot_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def base_robot_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
-    def base_human_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def base_human_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return TaskDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
     """ Runtime Method for Idle Task Definitions """
     @classmethod
-    def idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id = task_id,
                     module = 'base',
                     name = "idle",
-                    details = deepcopy(details),
-                    contacts = contacts.copy(),
+                    details = details,
+                    contacts = contacts,
                     initiator_id = agent.agent_id,
                     responder_id = "",
                     stage_list = [
@@ -358,12 +358,12 @@ class TaskDef(object):
                         StageDef.Idle(agent)
                     ]))
     @classmethod
-    def wait_at_base(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def wait_at_base(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id = task_id,
                     module = 'base',
                     name = "wait_at_base",
-                    details = deepcopy(details),
-                    contacts = contacts.copy(),
+                    details = details,
+                    contacts = contacts,
                     initiator_id = agent.agent_id,
                     responder_id = "",
                     stage_list = [
@@ -374,12 +374,12 @@ class TaskDef(object):
                         StageDef.Idle(agent)
                     ]))
     @classmethod
-    def exit_at_node(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def exit_at_node(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id = task_id,
                     module = 'base',
                     name = "exit_at_node",
-                    details = deepcopy(details),
-                    contacts = contacts.copy(),
+                    details = details,
+                    contacts = contacts,
                     initiator_id = agent.agent_id,
                     responder_id = "",
                     stage_list = [

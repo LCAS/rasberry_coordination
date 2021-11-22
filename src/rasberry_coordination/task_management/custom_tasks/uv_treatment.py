@@ -65,12 +65,12 @@ class TaskDef(object):
 
     """ Tasks """
     @classmethod
-    def uv_treatment_treat_edge(cls, agent, task_id=None, details={'nodes':[]}, contacts={}, initiator_id=""):
+    def uv_treatment_treat_edge(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return (Task(id=task_id,
                      module='uv_treatment',
                      name="uv_treatment_treat_edge",
-                     details=deepcopy(details),
-                     contacts=contacts.copy(),
+                     details=details,
+                     contacts=contacts,
                      initiator_id=initiator_id,
                      responder_id="",
                      stage_list=[
@@ -82,12 +82,12 @@ class TaskDef(object):
                          StageDef.DisableUVLight(agent)
                      ]))
     @classmethod
-    def uv_treatment_treat_row(cls, agent, task_id=None, details={'row':''}, contacts={}, initiator_id=""):
+    def uv_treatment_treat_row(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return (Task(id=task_id,
                      module='uv_treatment',
                      name="uv_treatment_treat_row",
-                     details=deepcopy(details),
-                     contacts=contacts.copy(),
+                     details=details,
+                     contacts=contacts,
                      initiator_id=initiator_id,
                      responder_id="",
                      stage_list=[
@@ -100,12 +100,12 @@ class TaskDef(object):
                          StageDef.DisableUVLight(agent)
                      ]))
     @classmethod
-    def uv_treatment_treat_tunnel(cls, agent, task_id=None, details={'tunnel':''}, contacts={}, initiator_id=""):
+    def uv_treatment_treat_tunnel(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return (Task(id=task_id,
                      module='uv_treatment',
                      name="uv_treatment_treat_tunnel",
-                     details=deepcopy(details),
-                     contacts=contacts.copy(),
+                     details=details,
+                     contacts=contacts,
                      initiator_id=initiator_id,
                      responder_id="",
                      stage_list=[

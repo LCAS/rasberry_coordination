@@ -39,7 +39,7 @@ class InterfaceDef(object):
 class TaskDef(object):
 
     @classmethod
-    def health_monitoring_robot_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def health_monitoring_robot_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
 
         # Low battery is added here as new task once idle
         # Critical battery is forced into next task when identified
@@ -47,12 +47,12 @@ class TaskDef(object):
             return TaskDef.charge_at_charging_station(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
     @classmethod
-    def charge_at_charging_station(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def charge_at_charging_station(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id = task_id,
                     module='health_monitoring',
                     name = "charge_at_charging_station",
-                    details = deepcopy(details),
-                    contacts = contacts.copy(),
+                    details=details,
+                    contacts = contacts,
                     initiator_id = agent.agent_id,
                     responder_id = "",
                     stage_list = [

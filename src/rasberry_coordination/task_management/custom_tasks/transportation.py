@@ -79,19 +79,19 @@ class TaskDef(object):
 
     """ Initialisation """
     # @classmethod
-    # def transportation_picker_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    # def transportation_picker_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
     #     return TDef.human_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
     # @classmethod
-    # def transportation_courier_init(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    # def transportation_courier_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
     #     return TDef.robot_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
 
     """ Idle Task Stages for Transportation Agents """
     @classmethod
-    def transportation_picker_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def transportation_picker_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         agent.modules['transportation'].interface.notify("INIT")
     @classmethod
-    def transportation_courier_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def transportation_courier_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         LP = agent.local_properties
         MP = agent.module_properties
 
@@ -100,7 +100,7 @@ class TaskDef(object):
         if LP['load'] >= int(MP['max_load']):
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
-    def transportation_storage_idle(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def transportation_storage_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         #If agents are waiting to visit, begin transportation storage
         #Otherwise wait idle
         if len(agent.request_admittance) > 0:
@@ -111,12 +111,12 @@ class TaskDef(object):
 
     """ Picker Tasks """
     @classmethod
-    def transportation_request_courier(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def transportation_request_courier(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id = task_id,
                     module = 'transportation',
                     name = "transportation_request_courier",
-                    details = deepcopy(details),
-                    contacts = contacts.copy(),
+                    details = details,
+                    contacts = contacts,
                     initiator_id = agent.agent_id,
                     responder_id = "",
                     stage_list = [
@@ -128,12 +128,12 @@ class TaskDef(object):
 
     """ Courier Tasks """
     @classmethod
-    def transportation_retrieve_load(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def transportation_retrieve_load(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id = task_id,
                     module = 'transportation',
                     name = "transportation_retrieve_load",
-                    details = deepcopy(details),
-                    contacts = contacts.copy(),
+                    details = details,
+                    contacts = contacts,
                     initiator_id = initiator_id,
                     responder_id = agent.agent_id,
                     stage_list = [
@@ -142,12 +142,12 @@ class TaskDef(object):
                         StageDef.Loading(agent)
                     ]))
     @classmethod
-    def transportation_deliver_load(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def transportation_deliver_load(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id = task_id,
                     module = 'transportation',
                     name = "transportation_deliver_load",
-                    details = deepcopy(details),
-                    contacts = contacts.copy(),
+                    details = details,
+                    contacts = contacts,
                     initiator_id = agent.agent_id,
                     responder_id = "",
                     stage_list = [
@@ -161,12 +161,12 @@ class TaskDef(object):
 
     """ Storage Tasks """
     @classmethod
-    def idle_storage_def(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def idle_storage_def(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id = task_id,
                     module = 'transportation',
                     name = "idle_storage_def",
-                    details = deepcopy(details),
-                    contacts = contacts.copy(),
+                    details = details,
+                    contacts = contacts,
                     initiator_id = agent.agent_id,
                     responder_id = "",
                     stage_list = [
@@ -174,12 +174,12 @@ class TaskDef(object):
                         StageDef.IdleStorage(agent)
                     ]))
     @classmethod
-    def transportation_storage(cls, agent, task_id=None, details={}, contacts={}, initiator_id=""):
+    def transportation_storage(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id = task_id,
                     module = 'transportation',
                     name = "transportation_storage",
-                    details = deepcopy(details),
-                    contacts = contacts.copy(),
+                    details = details,
+                    contacts = contacts,
                     initiator_id = "",
                     responder_id = agent.agent_id,
                     stage_list = [

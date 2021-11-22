@@ -115,7 +115,7 @@ class AgentDetails(object):
 
         #Task Defaults
         self.total_tasks = 0
-        self.task = Task(default=True)
+        self.task = Task()
         self.task_buffer = []
 
         self.interruption = None
