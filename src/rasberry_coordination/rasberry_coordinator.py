@@ -51,6 +51,25 @@ class RasberryCoordinator(object):
     def __init__(self, agent_list, base_station_nodes_pool, wait_nodes_pool, planning_format, ns, special_nodes):
         logmsgbreak(total=1)
         print("------------------------------------------")
+        logmsg(level="error", category="setup", msg='Issue identified with MQTT:')
+        logmsg(level="error", category="setup", msg='    picker01, picker02, storage01 are located on server_uri')
+        logmsg(level="error", category="setup", msg='    thorvald_001, thorvald_002 are located on robots_uri')
+        logmsg(level="error", category="setup", msg='    coordinator setup info for each agent is launched as a latched topic')
+        logmsg(level="error", category="setup", msg='    when multisim is started, each agent in turn publishes their info')
+        logmsg(level="error", category="setup", msg='    the coordinator recieves each message as it is published')
+        logmsg(level="error", category="setup", msg='    if the coordinator is restarted, it reads the collective latched messages')
+        logmsg(level="error", category="setup", msg='    (rostopic echo */add_agent)')
+        logmsg(level="error", category="setup", msg='    when thorvald_002 info is run on startup, it passes through the mqtt')
+        logmsg(level="error", category="setup", msg='    mqtt overrites the last message which was latched for this topic')
+        logmsg(level="error", category="setup", msg='    so thorvald_001 is missing from the rostopic echo, and thus not connected')
+        logmsg(level="error", category="setup", msg='    ')
+        logmsg(level="error", category="setup", msg='Our options:')
+        logmsg(level="error", category="setup", msg='    1, run an agent_info manager node on robots_uri to publish a latchd list of all robots')
+        logmsg(level="error", category="setup", msg='    2, fix mqtt')
+        logmsg(level="error", category="setup", msg='    3, make coordinator query all agent info topics')
+        logmsg(level="error", category="setup", msg='    4, make coordinator query all topics searching for new AgentDetails messages')
+        logmsgbreak(total=1)
+        print("------------------------------------------")
         logmsg(category="setup", msg='Coordinator initialisation begun')
         logmsgbreak(total=1)
 
@@ -137,6 +156,7 @@ class RasberryCoordinator(object):
     """ Main loop for task progression """
     def run(self, planning_type='fragment_planner'):
         # Remappings to simplify function
+        AM              = self.agent_manager
         offer_service   = self.offer_service
         l               = self.log_minimal
         find_routes     = self.route_finder.find_routes
@@ -174,6 +194,10 @@ class RasberryCoordinator(object):
 
         l(-1)
         while not rospy.is_shutdown():
+
+            new_agent_buffer = AM.new_agent_buffer
+            logbreak("NEW AGENTS", new_agent_buffer)
+            if new_agent_buffer: AM.add_agent_from_buffer();                       """ Add New Agents """
 
             interrupts = [a.interruption for a in A] ; a = None; del A
             logbreak("INTERRUPTS", interrupts)
@@ -323,7 +347,8 @@ class RasberryCoordinator(object):
         dist_list = {n:self.dist(loc,n) for n in node_list}
         if self.action_print: logmsg(category="action", msg="Finding closest in:")
         if self.action_print: [logmsg(category='action', msg="    - %s: %s"%(n,dist_list[n])) for n in dist_list]
-        return min(dist_list, key=dist_list.get)
+        if dist_list:
+            return min(dist_list, key=dist_list.get)
     def find_row_ends(self, agent, row_id):
         return self.route_finder.planner.get_row_ends(agent, row_id)
     def find_rows(self, agent, tunnel_id):

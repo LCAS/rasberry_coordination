@@ -34,6 +34,7 @@ class AgentManager(object):
 
         # Setup Connection for Dynamic Fleet
         self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', AgentDetailsMsg, self.add_agent_cb)
+        self.new_agent_buffer = dict()
 
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
 
@@ -43,6 +44,10 @@ class AgentManager(object):
         for agent in agent_list: self.add_agent(agent)
     def add_agent(self, agent_dict):
         if agent_dict['agent_id'] not in self.agent_details:
+            self.new_agent_buffer[agent_dict['agent_id']] = agent_dict
+    def add_agent_from_buffer(self):
+        buffer, self.new_agent_buffer = self.new_agent_buffer, dict()
+        for agent_dict in buffer.values():
             self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
             self.format_agent_marker(self.agent_details[agent_dict['agent_id']], style='red')
             logmsg(category="null")

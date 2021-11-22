@@ -129,7 +129,7 @@ Notes:
 """
 
 from copy import deepcopy
-from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
+from rospy import Time, Duration, Subscriber, Service, Publisher, Time, get_param
 
 from std_msgs.msg import Bool, String as Str
 import strands_executive_msgs.msg

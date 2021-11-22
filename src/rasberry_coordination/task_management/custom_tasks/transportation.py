@@ -5,8 +5,7 @@ from rospy import Time, Duration, Subscriber, Publisher, Time
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
-
-from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef
+from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 from rasberry_coordination.robot import Robot as RobotInterface_Old
 
 from rospy import Time, Duration
@@ -334,12 +333,12 @@ class StageDef(object):
             self.agent['contacts']['courier']['has_tray'] = not self.end_requirement
     class LoadCourier(LoadModifier): #PICKER
         def __init__(self, agent):
-            super(StageDef.LoadCourier, self).__init__(agent, end_requirement=False, wait_timeout=PDef['transportation']['wait_loading'])
+            super(StageDef.LoadCourier, self).__init__(agent, end_requirement=False, wait_timeout=fetch_property('transportation', 'wait_loading'))
         def _notify_end(self):
             self.agent.modules['transportation'].interface.notify("INIT")
     class UnloadCourier(LoadModifier): #STORAGE
         def __init__(self, agent):
-            super(StageDef.UnloadCourier, self).__init__(agent, end_requirement=True, wait_timeout=PDef['transportation']['wait_unloading'])
+            super(StageDef.UnloadCourier, self).__init__(agent, end_requirement=True, wait_timeout=fetch_property('transportation', 'wait_unloading'))
 
     """ Loading Modifiers for Courier """
     class Loading(SDef.StageBase):
