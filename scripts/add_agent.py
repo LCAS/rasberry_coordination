@@ -5,6 +5,7 @@ import rospy
 import rasberry_coordination
 from rasberry_coordination.msg import AgentDetails, Module, KeyValuePair
 import rasberry_des.config_utils
+from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
 
 
 if __name__ == '__main__':
@@ -12,12 +13,16 @@ if __name__ == '__main__':
     # Initialise node
     rospy.init_node("AddAgent", anonymous=True)
     rospy.sleep(1)
+    logmsg(category="DRM", msg="AddAgent Node launched")
 
     # Collect details
     agent_file = sys.argv[1]
     setup_file = sys.argv[2]
 
-    print("\nLoading configurations:\n%s\n%s\n" % (agent_file, setup_file))
+    logmsgbreak()
+    logmsg(category="DRM", msg="Loading configurations:")
+    logmsg(category="DRM", msg="    - agent_file: %s"%agent_file)
+    logmsg(category="DRM", msg="    - setup_file: %s"%setup_file)
 
     # Load config file
     agent_data = rasberry_des.config_utils.get_config_data(agent_file)
@@ -38,7 +43,7 @@ if __name__ == '__main__':
     agent.setup.navigation_properties =    get_kvp_list(setup_data, 'navigation_properties')
     agent.setup.visualisation_properties = get_kvp_list(setup_data, 'visualisation_properties')
 
-    print("Details of agent being launched:\n%s\n\n"%agent)
+    logmsg(category="DRM", msg="Details of Agent being launched:\n%s\n\n"%agent)
 
     # Create publisher
     # pub = rospy.Publisher("/a", AgentDetails, latch=True, queue_size=5)
@@ -46,7 +51,7 @@ if __name__ == '__main__':
     # pub = rospy.Publisher("launch_agent", AgentDetails, latch=True, queue_size=5)
     rospy.sleep(1)
 
-    pub.publish(agent)
-    rospy.sleep(1)
-
-    rospy.spin()
+    while not rospy.is_shutdown():
+        pub.publish(agent)
+        logmsg(category="null", msg="publishing")
+        rospy.sleep(5)
