@@ -19,12 +19,13 @@ class PoseBaseFramePublisher(object):
         """
         self.log = log
         self.agent_name = agent_name
-        self.pose_sub = rospy.Subscriber(pose_topic, geometry_msgs.msg.Pose, self.pose_cb)
         if agent_name == "":
             self.base_frame = "base_link"
         else:
             self.base_frame = self.agent_name + "/base_link"
         self.tf_broadcaster = tf.TransformBroadcaster()
+        
+        self.pose_sub = rospy.Subscriber(pose_topic, geometry_msgs.msg.Pose, self.pose_cb)
 
     def pose_cb(self, msg):
         if self.log:

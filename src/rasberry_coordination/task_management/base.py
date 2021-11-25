@@ -139,7 +139,7 @@ from rasberry_coordination.srv import AgentNodePair
 
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
-from rasberry_coordination.robot import Robot as RobotInterface_Old
+from rasberry_coordination.robot import Robot as RobotInterface, VirtualRobot
 
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
@@ -285,7 +285,7 @@ class InterfaceDef(object):
     class base_robot(object):
         def __init__(self, agent):
             self.agent = agent
-            self.agent.temp_interface = RobotInterface_Old(self.agent.agent_id)
+            self.agent.temp_interface = RobotInterface(self.agent.agent_id)
             self.disconnect_sub = Subscriber('/%s/base/disconnect' % agent.agent_id, Str, self.disconnect)
         def disconnect(self, msg):
             logmsg(category="Task", id=self.agent.agent_id, msg="Request to disconnect")
@@ -293,6 +293,14 @@ class InterfaceDef(object):
             self.agent.add_task(task_name='exit_at_node', contacts={"exit_node":node_id}, index=0)
 
             pass
+
+
+    class base_virtual_robot(object):
+        def __init__(self, agent):
+            self.agent = agent
+            self.agent.temp_interface = VirtualRobot(agent.agent_id, agent)
+
+
 
     class base_human(object):
         def __init__(self, agent):
@@ -304,21 +312,40 @@ class TaskDef(object):
     """ Runtime Method for Init Task Definitions """
     @classmethod
     def base_robot_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return(Task(id = task_id,
-                    module = 'base',
-                    name = "base_robot_init",
-                    details = details,
-                    contacts = contacts,
-                    initiator_id = agent.agent_id,
-                    responder_id = "",
-                    stage_list = [
-                        StageDef.StartTask(agent, task_id),
-                        StageDef.SetUnregister(agent),
-                        StageDef.WaitForLocalisation(agent),
-                        StageDef.WaitForMap(agent),
-                        # StageDef.WaitForModules(agent),
-                        StageDef.SetRegister(agent)
-                    ]))
+        return (Task(id=task_id,
+                     module='base',
+                     name="base_robot_init",
+                     details=details,
+                     contacts=contacts,
+                     initiator_id=agent.agent_id,
+                     responder_id="",
+                     stage_list=[
+                         StageDef.StartTask(agent, task_id),
+                         StageDef.SetUnregister(agent),
+                         StageDef.WaitForMap(agent),
+                         StageDef.WaitForLocalisation(agent),
+                         # StageDef.WaitForModules(agent),
+                         StageDef.SetRegister(agent)
+                     ]))
+
+    @classmethod
+    def base_virtual_robot_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return (Task(id=task_id,
+                     module='base',
+                     name="base_virtual_robot_init",
+                     details=details,
+                     contacts=contacts,
+                     initiator_id=agent.agent_id,
+                     responder_id="",
+                     stage_list=[
+                         StageDef.StartTask(agent, task_id),
+                         StageDef.SetUnregister(agent),
+                         StageDef.WaitForMap(agent),
+                         StageDef.EnableVirtualLocalisation(agent),
+                         StageDef.WaitForLocalisation(agent),
+                         StageDef.SetRegister(agent)
+                     ]))
+
     @classmethod
     def base_human_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id = task_id,
@@ -338,6 +365,9 @@ class TaskDef(object):
     """ Idle Tasks """
     @classmethod
     def base_robot_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
+    @classmethod
+    def base_virtual_robot_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
     def base_human_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
@@ -485,16 +515,6 @@ class StageDef(object):
             self.agent.cb['format_agent_marker'](self.agent, style='red')
         def _query(self):
             self._flag(True)
-    class WaitForLocalisation(StageBase):
-        def _start(self):
-            super(StageDef.WaitForLocalisation, self)._start()
-            self.agent.location.enable_location_monitoring(self.agent.agent_id)
-        def _query(self):
-            success_conditions = [self.agent.location() is not None]
-            self._flag(any(success_conditions))
-        def _end(self):
-            super(StageDef.WaitForLocalisation, self)._end()
-            logmsg(category="stage", msg="    - localisation achieved %s" % self.agent.location())
     class WaitForMap(StageBase):
         def _start(self):
             super(StageDef.WaitForMap, self)._start()
@@ -512,18 +532,23 @@ class StageDef(object):
         def _end(self):
             super(StageDef.WaitForMap, self)._end()
             logmsg(category="stage", msg="Map achieved %s" % self.agent.location())
-    # class WaitForModules(StageBase):
-    #     def _start(self):
-    #         super(StageDef.WaitForModules, self)._start()
-    #         topic = "/%s/active_modules"%self.agent.agent_id
-    #         self.agent.subs['modules'] = Subscriber(topic, TaskModules, self.agent.init_task_cb, queue_size=5)
-    #     def _query(self):
-    #         success_conditions = [len(self.agent.modules) > 0]
-    #         self._flag(any(success_conditions))
-    #     def _end(self):
-    #         super(StageDef.WaitForModules, self)._end()
-    #         self.agent.subs['modules'].unregister()
-    #         logmsg(category="stage", msg="Task Moduels Identified %s" % self.agent.modules.keys())
+    class EnableVirtualLocalisation(StageBase):
+        def _start(self):
+            super(StageDef.EnableVirtualLocalisation, self)._start()
+            self.agent.temp_interface.enable_subscribers()
+        def _query(self):
+            self._flag(True)
+    class WaitForLocalisation(StageBase):
+        def _start(self):
+            super(StageDef.WaitForLocalisation, self)._start()
+            self.agent.location.enable_location_monitoring(self.agent.agent_id)
+        def _query(self):
+            success_conditions = [self.agent.location() is not None]
+            self._flag(any(success_conditions))
+        def _end(self):
+            super(StageDef.WaitForLocalisation, self)._end()
+            logmsg(category="stage", msg="    - localisation achieved %s" % self.agent.location())
+
     class SetRegister(StageBase):
         def _start(self):
             super(StageDef.SetRegister, self)._start()

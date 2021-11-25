@@ -53,7 +53,6 @@ class BasePlanner(object):
 
         return [row_start, row_end]
 
-
     def get_rows(self, agent, tunnel_id):
         row_prefix = "%s-r"%tunnel_id
 

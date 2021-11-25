@@ -202,6 +202,7 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 install(PROGRAMS
+  scripts/publish_virtual_agent_position.py
   scripts/simple_task_executor_node.py
   scripts/visualise_agent_markers.py
   scripts/agent_monitor.py

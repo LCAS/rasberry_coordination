@@ -1,0 +1,15 @@
+modules:
+  - name: base
+    role: virtual_robot
+  - name: health_monitoring
+    role: robot
+  - name: uv_treatment
+    role: phototherapist
+  - name: data_monitoring
+    role: scanner
+navigation_properties:
+    restrictions: intra-row
+    has_presence: true
+visualisation_properties:
+    structure_type: tall
+    rviz_model: tall_robot
