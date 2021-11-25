@@ -45,7 +45,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                  admissible_robot_ids, active_tasks,
                  base_station_nodes_pool, wait_nodes_pool,
                  charging_station_nodes,
-                 robot_types, robot_tasks, use_restrictions,
+                 use_restrictions,
                  max_load_duration, max_unload_duration,
                  ns="rasberry_coordination"):
         """initialise a RasberryCoordinator object
@@ -69,8 +69,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             active_tasks -- list of tasks which the system is currently performing
             base_station_nodes_pool -- pool defining list of all base stations within the system
             wait_nodes_pool -- pool defining list all waiting nodes
-            robot_types -- type of robot (short/tall)
-            robot_tasks -- task modules and task roles in different tasks supported by the robot
             use_restrictions -- use toponav2 restrictions
             max_load_duration -- time to wait until the coordinator forces advancement through LOADING stage
             max_unload_duration -- time to wait until the coordinator forces advancement through UNLOADING stage
@@ -137,11 +135,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
             robot.base_station = base_stations[robot.robot_id]
             robot.wait_node = wait_nodes[robot.robot_id]
             robot.max_task_priority = max_task_priorities[robot.robot_id]
-            robot.set_robot_type(robot_types[robot.robot_id])
-            robot.set_robot_task_types(robot_tasks[robot.robot_id])
-
-        self.robot_types = robot_types
-        self.robot_task_types = robot_tasks
 
         self.task_pause_pub = rospy.Publisher('/rasberry_coordination/pause_state', std_msgs.msg.Bool, queue_size=5, latch=True)
         self.task_pause = False
@@ -366,9 +359,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         # Set first available base station as taken
         robot.base_station = remove(self.available_base_stations, self.available_base_stations[-1])
         robot.wait_node = remove(self.available_wait_nodes, self.available_wait_nodes[-1])
-
-        robot.set_robot_task_type(self.robot_task_types[robot_id])
-        robot.set_robot_type(self.robot_types[robot_id])
 
         logmsg(category="drm", id=robot_id, msg='assigned to base station %s' % (robot.base_station))
         logmsg(category="drm", msg='base stations in use: %s' % (str(self.robot_manager.get_list('base_station'))))
@@ -744,7 +734,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         available_transportation_robots = self.robot_manager.available_robots("transportation")
         unassigned_transportation_tasks = self.picker_manager.unassigned_tasks()
         if available_transportation_robots and unassigned_transportation_tasks:
-            logmsg(category="task", msg='unassigned task present, %s robots available' % (len(available_transportation_robots)))
+            logmsg(category="task", msg='unassigned transportation tasks present, %s robots available' % (len(available_transportation_robots)))
             logmsg(category="list", msg='available robots: %s' % (str(available_transportation_robots)))
             # try to assign all tasks
             rospy.sleep(0.2)
@@ -754,7 +744,7 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
         available_datacollection_robots = self.robot_manager.available_robots("datacollection")
         unassigned_datacollection_tasks = self.node_dc_task_manager.get_unassigned_tasks()
         if available_datacollection_robots and unassigned_datacollection_tasks:
-            logmsg(category="task", msg='unassigned task present, %s robots available' % (len(available_datacollection_robots)))
+            logmsg(category="task", msg='unassigned data-collection tasks present, %s robots available' % (len(available_datacollection_robots)))
             logmsg(category="list", msg='available robots: %s' % (str(available_datacollection_robots)))
             # try to assign all tasks
             rospy.sleep(0.2)
@@ -1152,7 +1142,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                 # topo nav stage
                 # if any robot has finished its current goal, remove the finished goal from the robot's route
                 if robot.robot_interface.execpolicy_result is None:
-                    print "here"
                     # task/fragment not finished
                     continue
 
@@ -1237,9 +1226,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     node_dc_completed = False
 
                     """ If wait timeout has expired complete task """  # abandon task?
-                    print rospy.get_rostime() - robot.start_time
-                    print robot.start_time
-                    print rospy.Duration(secs=self.max_node_dc_duration), "\n"
                     if rospy.get_rostime() - robot.start_time > rospy.Duration(secs=self.max_node_dc_duration):
                         node_dc_completed = True
 
@@ -1285,8 +1271,6 @@ class RasberryCoordinator(rasberry_coordination.coordinator.Coordinator):
                     self.finish_charging_ros_srv(req) # TODO: check response
                     robot._set_as_not_charging()
                     trigger_replan = True
-        else:
-            trigger_replan = True
 
         # if there is a robot in the queue, send it for charging
         to_remove = [] # track processed robots from the queue

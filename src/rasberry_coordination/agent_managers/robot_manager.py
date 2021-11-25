@@ -262,24 +262,20 @@ class RobotDetails(AgentDetails):
         robot.battery_data = Battery()
         robot.battery_data_sub = rospy.Subscriber("/%s/battery_data"%(robot.agent_id), Battery, robot._battery_data_cb)
 
-        robot.type_pub = rospy.Publisher("/%s/type"%(robot.agent_id), Str, latch=True, queue_size=5)
-        robot.task_pub = rospy.Publisher("/%s/task"%(robot.agent_id), Str, latch=True, queue_size=5)
+        robot.robot_type = None
+        robot.task_type = None
+        robot.robot_type_sub = rospy.Subscriber("/%s/robot_type"%(robot.agent_id), Str, robot.robot_type_cb)
+        robot.task_type_sub = rospy.Subscriber("/%s/task_type"%(robot.agent_id), Str, robot.task_type_cb)
 
-    def set_robot_type(robot, robot_type):
+    def robot_type_cb(robot, msg):
         """
         """
-        robot.type = robot_type
-        robot.type_pub.publish(robot.type)
+        robot.robot_type = msg.data
 
-    def set_robot_task_types(robot, task_types):
+    def task_type_cb(robot, msg):
         """
         """
-        robot.task_types = task_types
-        if robot.task_types is None:
-            pass
-        elif robot.task_types.__class__ is list:
-            if len(robot.task_types) != 0:
-                robot.task_pub.publish(robot.task_types[0]["module"])
+        robot.task_type = msg.data
 
     def _battery_data_cb(robot, msg):
         """
@@ -294,16 +290,9 @@ class RobotDetails(AgentDetails):
     def can_do(robot, task_type):
         """check if the robot can execute a task type depending on task modules
         """
-        if robot.task_types is None:
-            return False
-        elif robot.task_types.__class__ is list:
-            if len(robot.task_types) == 0:
-                return False
-            else:
-                for item in robot.task_types:
-                    if item["module"] == task_type:
-                        return True
-                return False
+        if robot.task_type == task_type:
+            return True
+        return False
 
     """tmap2 callback"""
     def tmap2_cb(robot, msg):

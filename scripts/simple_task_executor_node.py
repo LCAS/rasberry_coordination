@@ -67,8 +67,6 @@ def validate_types(file, config):
         validate_field(file, robot, mandatory=False, key='max_task_priority', datatype=[int])
         validate_field(file, robot, mandatory=True, key='base_station_node', datatype=[str])
         validate_field(file, robot, mandatory=False, key='wait_node', datatype=[str])
-        validate_field(file, robot, mandatory=True, key='type', datatype=[str])
-        validate_field(file, robot, mandatory=True, key='tasks', datatype=[list])
 
 
 if __name__ == '__main__':
@@ -127,8 +125,6 @@ if __name__ == '__main__':
     base_stations = {}
     wait_nodes = {}
     max_task_priorities = {}
-    robot_types = {}
-    robot_tasks = {}
     for robot in config_data['spawn_list']:
         if 'default' in robot:
             continue
@@ -146,8 +142,6 @@ if __name__ == '__main__':
         max_task_priorities[robot['robot_id']] = robot['max_task_priority']
         base_stations[robot['robot_id']] = robot['base_station_node']
         wait_nodes[robot['robot_id']] = robot['wait_node']
-        robot_types[robot['robot_id']] = robot['type']
-        robot_tasks[robot['robot_id']] = robot['tasks']
 
     # initialise ROSNode
     rospy.init_node('simple_task_coordinator', anonymous=False)
@@ -170,8 +164,6 @@ if __name__ == '__main__':
                                                     base_station_nodes_pool=base_station_nodes_pool,
                                                     wait_nodes_pool=wait_nodes_pool,
                                                     charging_station_nodes=charging_station_nodes,
-                                                    robot_types=robot_types,
-                                                    robot_tasks=robot_tasks,
                                                     use_restrictions=use_restrictions,
                                                     max_load_duration=rospy.Duration(secs=max_load_duration),
                                                     max_unload_duration=rospy.Duration(secs=max_unload_duration),

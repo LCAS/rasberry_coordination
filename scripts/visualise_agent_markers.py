@@ -22,7 +22,6 @@ class MarkerPublisher:
 
         # Initialise variables
         self.robot_ids = [self.config_get('robot_id', config=robot) for robot in self.config_get('spawn_list')[1:]]
-        self.robot_types = {self.config_get('robot_id', config=robot):self.config_get('type', config=robot) for robot in self.config_get('spawn_list')[1:]}
         self.picker_ids = [] + self.config_get("picker_ids")
         self.virtual_picker_ids = [] + self.config_get("virtual_picker_ids")
 
@@ -30,6 +29,16 @@ class MarkerPublisher:
         self.picker_marker_publishers = {}
         self.virtual_picker_marker_publishers = {}
         self.base_frame_publishers = {}
+
+        self.robot_types = {}
+        self.robot_type_subs = {robot_id:None for robot_id in self.robot_ids}
+        for robot_id in self.robot_ids:
+#            # waiting for message might be too slow
+#            rospy.wait_for_message('/%s/type' %(robot_id), String, timeout=5) # wait for 5 seconds for robot_type message from each robot?
+            self.robot_type_subs[robot_id] = rospy.Subscriber('/%s/robot_type' %(robot_id), String, self.robot_type_cb, callback_args=robot_id)
+
+        # wait for a couple of seconds for the robot type
+        rospy.sleep(2.0)
 
         # add markers defined in config file
         self.startup_markers()
@@ -41,6 +50,21 @@ class MarkerPublisher:
         self.marker_remove_sub = rospy.Subscriber('/rasberry_coordination/marker_remove',
                                                   rasberry_coordination.msg.MarkerDetails,
                                                   self.remove_marker_cb)
+
+
+    def robot_type_cb(self, msg, robot_id):
+        """
+        """
+        if robot_id not in self.robot_types:
+            self.robot_types[robot_id] = msg.data
+            self.add_robot(robot_id)
+        elif self.robot_types[robot_id] != msg.data:
+            self.robot_types[robot_id] = msg.data
+            self.thorvald_marker_publishers.pop(robot_id, None)
+            self.add_robot(robot_id)
+        else:
+            # ignore if stored robot_type is same as what is received now
+            pass
 
     # Return item from config if exists
     def config_get(self, item, config=None):
@@ -54,7 +78,6 @@ class MarkerPublisher:
     # Add the markers which were defined in the map_config file
     def startup_markers(self):
         for robot_id in self.robot_ids:
-            print(self.robot_ids)
             print("Adding robot " + robot_id)
             self.add_robot(robot_id)
         for picker_id in self.picker_ids:
@@ -84,7 +107,8 @@ class MarkerPublisher:
     # add correct robot marker
     def add_robot(self, id, color=''):
         if id not in self.robot_types:
-            self.add_short_robot(id, color)
+            # do not add any markers
+            pass
         elif self.robot_types[id] == 'short':
             self.add_short_robot(id, color)
         elif self.robot_types[id] == 'tall':
@@ -149,6 +173,7 @@ class MarkerPublisher:
     # Spawn markers in rviz
     def run(self):
         while not rospy.is_shutdown():
+            # keep publishing the markers at their latest poses
             [pub.publish() for pub in self.thorvald_marker_publishers.values()]
             [pub.publish() for pub in self.picker_marker_publishers.values()]
             [pub.publish() for pub in self.virtual_picker_marker_publishers.values()]

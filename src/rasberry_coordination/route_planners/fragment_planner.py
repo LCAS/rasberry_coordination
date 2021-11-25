@@ -377,7 +377,7 @@ class FragmentPlanner(object):
                     logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
                     goal_node = robot.wait_node
                     route = robot.get_available_optimum_route(start_node, goal_node)
-                elif (route == NavRoute() and
+                elif (not (route.source and route.edge_id) and
                     robot.task_stage == "go_to_storage" and
                     robot.wait_node is not None and
                     robot.wait_node != robot.current_node):
@@ -397,7 +397,7 @@ class FragmentPlanner(object):
 
                     #TODO: see how we could improve this by generating wait_node dynamically based on map activity
 
-                elif route == NavRoute():
+                elif not (route.source and route.edge_id):
                     # empty route -> do not add last node
                     if robot.no_route_found_notification:
                         logmsg(category="robot", id=robot_id, msg='no route found from %s to %s' % (start_node, goal_node))
@@ -418,7 +418,6 @@ class FragmentPlanner(object):
                 robot.route = route_nodes
                 robot.route_edges = route_edges
                 self.get_edge_distances(robot_id)
-
 
             # datacollection
             elif robot.active and robot.can_do("datacollection"):
@@ -534,10 +533,6 @@ class FragmentPlanner(object):
                         robot.unblock_node(start_node)
 
                         route = None
-                        print start_node, goal_node
-                        print robot.current_node, robot.previous_node, robot.closest_node
-                        print robot.charging_node
-
                         if start_node and goal_node:
                             logmsg(category="robot", id=robot_id, msg='finding route for [start_node: %s | goal_node: %s]' % (start_node, goal_node))
                             route = robot.get_available_optimum_route(start_node, goal_node)
@@ -552,7 +547,6 @@ class FragmentPlanner(object):
                             robot.wait_node != robot.current_node):
                             logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
                             goal_node = robot.wait_node
-                            print start_node, goal_node
                             route = robot.get_available_optimum_route(start_node, goal_node)
                             rospy.loginfo(route)
                         elif (route == NavRoute() and
@@ -560,7 +554,6 @@ class FragmentPlanner(object):
                             robot.wait_node != robot.current_node):
                             logmsg(category="robot", id=robot_id, msg='no route to target %s, moving to wait at %s' % (robot.current_storage, robot.wait_node))
                             goal_node = robot.wait_node
-                            print start_node, goal_node
                             route = robot.get_available_optimum_route(start_node, goal_node)
                             rospy.loginfo(route)
 
