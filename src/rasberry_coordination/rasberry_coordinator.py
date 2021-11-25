@@ -33,7 +33,7 @@ import topological_navigation.tmap_utils
 import rasberry_coordination.robot
 import rasberry_coordination.srv
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
-from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
+from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, Rasberry_Logger
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module
 
 #Route Planning
@@ -51,26 +51,6 @@ class RasberryCoordinator(object):
     def __init__(self, agent_list, base_station_nodes_pool, wait_nodes_pool, planning_format, ns, special_nodes):
         logmsgbreak(total=1)
         print("------------------------------------------")
-        logmsg(level="error", category="setup", msg='Issue identified with MQTT:')
-        logmsg(level="error", category="setup", msg='    picker01, picker02, storage01 are located on server_uri')
-        logmsg(level="error", category="setup", msg='    thorvald_001, thorvald_002 are located on robots_uri')
-        logmsg(level="error", category="setup", msg='    details for each agents setup is launched as a latched topic')
-        logmsg(level="error", category="setup", msg='    when multisim is started, each agent in turn publishes their info')
-        logmsg(level="error", category="setup", msg='    the coordinator recieves each message as it is published')
-        logmsg(level="error", category="setup", msg='    if the coordinator is restarted, it reads the collective latched messages')
-        logmsg(level="error", category="setup", msg='    (rostopic echo */add_agent)')
-        logmsg(level="error", category="setup", msg='    when thorvald_002 info is run on startup, it passes through the mqtt')
-        logmsg(level="error", category="setup", msg='    mqtt overrites the last message which was latched for this topic')
-        logmsg(level="error", category="setup", msg='    so thorvald_001 is missing from the rostopic echo, and thus not connected')
-        logmsg(level="error", category="setup", msg='    ')
-        logmsg(level="error", category="setup", msg='Our options:')
-        logmsg(level="error", category="setup", msg='    1, run an agent_info manager node on robots_uri to publish a latchd list of all robots')
-        logmsg(level="error", category="setup", msg='    2, fix mqtt')
-        logmsg(level="error", category="setup", msg='    3, make coordinator query all agent info topics')
-        logmsg(level="error", category="setup", msg='    4, make coordinator query all topics searching for new AgentDetails messages')
-        logmsg(level="error", category="setup", msg='    5, make details periodically republish')
-        logmsgbreak(total=1)
-        print("------------------------------------------")
         logmsg(category="setup", msg='Coordinator initialisation begun')
         logmsgbreak(total=1)
 
@@ -79,6 +59,8 @@ class RasberryCoordinator(object):
         self.is_parent = True
         self.trigger_fresh_replan = False #ReplanTrigger
         self.log_count = 0
+        self.log_routes = True
+        self.action_print = True
 
 
         """ Initialise Task Parameters: """ #This should be done within Stages.py programatically
@@ -156,16 +138,24 @@ class RasberryCoordinator(object):
 
     """ Main loop for task progression """
     def run(self, planning_type='fragment_planner'):
-        # Remappings to simplify function
-        AM              = self.agent_manager
+
+        # Remappings to for commonly used functions
+        get_agents      = self.get_agents
         offer_service   = self.offer_service
-        l               = self.log_minimal
         find_routes     = self.route_finder.find_routes
         publish_route   = self.execute_policy_route
-        get_agents      = self.get_agents
-        interrupt_task  = self.interrupt_task
-        TOC             = self.TOC_Interface
         trigger_routing = self.trigger_routing
+        interrupt_task  = self.interrupt_task
+        def action_print(): return self.action_print
+
+        # Remappings for commonly referenced objects
+        A   = get_agents()
+        AM  = self.agent_manager
+        TOC = self.TOC_Interface
+        RL  = Rasberry_Logger(enable_task_logging=True)
+
+        # Functions for simpler standard logging
+        def l(idx): RL.log_minimal(idx, self.AllAgentsList)
         def lognull(): logmsg(category="null")
         def logbreak(section, condition):
             if any(condition):
@@ -174,68 +164,67 @@ class RasberryCoordinator(object):
                 a = '\033[38;5;231m\033[0m'
                 logmsg(level="info", category="SECT", id="SECTION", msg="%s%s%s"%(b,section,a))
 
-        A = get_agents()
-        self.enable_task_logging = True
-        self.task_progression_log = 'task_progression.csv' #logs to $HOME/.ros/task_progression.csv
-        self.log_routes = True
-        self.action_print = True
-        self.timestep = 0
-        self.iteration = 0
-        self.previous_log_iteration = ""
-        self.current_log_iteration = ""
-
+        # Timeout function for logging TOC updates
         from time import time as Now, sleep
         Ut = Now(); #time_since_TOC_update
         def Update_TOC(A, TOC, Ut):
             if any([a().new_stage for a in A]) or (Now() - Ut > 5):
-                # logbreak("TOC", [a().new_stage for a in A])
                 TOC.UpdateTaskList();
                 return Now();
             return Ut
 
+        # Begin task progression
         l(-1)
         while not rospy.is_shutdown():
 
+            # Add New Agents
             new_agent_buffer = AM.new_agent_buffer
             logbreak("NEW AGENTS", new_agent_buffer)
-            if new_agent_buffer: AM.add_agent_from_buffer();                       """ Add New Agents """
+            if new_agent_buffer: AM.add_agent_from_buffer();                                      """ Add New Agents """
 
+            # Interrupt Stage Execution
             interrupts = [a.interruption for a in A] ; a = None; del A
             logbreak("INTERRUPTS", interrupts)
-            interrupt_task()     if any(interrupts) else None;                     """ Interrupt Stage Execution """
+            interrupt_task() if any(interrupts) else None;                             """ Interrupt Stage Execution """
 
+            # Update local list of Agents
             A = get_agents()
 
+            # Start Buffered Task
             logbreak("START TASK", [not a['stage_list'] for a in A])
-            [a.start_next_task() for a in A if not a['stage_list']];               """ Start Buffered Task """
-            l(0);
+            [a.start_next_task() for a in A if not a['stage_list']]; l(0);                   """ Start Buffered Task """
 
-            Ut = Update_TOC(A, TOC, Ut);                                           """ Update TOC """
+            # Update TOC
+            Ut = Update_TOC(A, TOC, Ut);                                                              """ Update TOC """
 
+            # Start Stage
             logbreak("START STAGE", [a().new_stage for a in A])
-            [a.start_stage()     for a in A if a().new_stage];                     """ Start Stage """
+            [a.start_stage() for a in A if a().new_stage];                                           """ Start Stage """
 
-            if self.action_print: logbreak("ACTION", [a().action_required for a in A])
-            [offer_service(a)    for a in A if a().action_required];               """ Offer Service """
-            l(2)
+            # Offer Action Services
+            logbreak("ACTION", [a().action_required if action_print() else False for a in A])
+            [offer_service(a) for a in A if a().action_required]; l(2);                            """ Offer Service """
 
+            # Find Routes
             logbreak("ROUTE FIND", [trigger_routing(A)])
-            if trigger_routing(A): find_routes();                                  """ Find Routes """
+            if trigger_routing(A): find_routes();                                                    """ Find Routes """
 
+            # Publish Routes
             logbreak("ROUTE PUBLISH", [a().route_found for a in A])
-            [publish_route(a)    for a in A if a().route_found];                   """ Publish Routes """
-            l(3)
+            [publish_route(a) for a in A if a().route_found]; l(3);                               """ Publish Routes """
 
-            [a()._query()        for a in A];                                      """ Query """
-            l(4)
+            #Perform Stage-Completion Query
+            [a()._query() for a in A]; l(4);                                                               """ Query """
 
+            # End Stage
             logbreak("END", [a().stage_complete for a in A])
-            E=[a.end_stage()     for a in A if a().stage_complete];                """ End Stage """
+            E=[a.end_stage() for a in A if a().stage_complete];                                        """ End Stage """
 
-            TOC.EndTask(E) if any(E) else None;                                    """ Update TOC with Ended Tasks """
+            # Update TOC
+            TOC.EndTask(E) if any(E) else None;                                          """ Update TOC w/ Completed """
 
-            l(-2) #PUBLISH LOG
-            sleep(0.2)
+            # Publish Log and Wait
+            l(-2); rospy.sleep(0.2)
 
     def get_all_agents(self):
         return self.agent_manager.agent_details.copy() #TODO: is copy needed?
@@ -635,131 +624,3 @@ class RasberryCoordinator(object):
             self.trigger_fresh_replan = False #ReplanTrigger
             return True
         return False
-
-
-    """ Task Stage Logging """
-    def log_linebreak(self):
-        dash_lengths = [13, 13, 36, 20, 3]
-        dashes = []
-        dashes += [',|,'.join(['-'*dl for dl in dash_lengths[:3]])]
-        dashes += [',|,'.join(['-'*dash_lengths[3] for a in range(len(self.AllAgentsList))])]
-        dashes += ['-' *dash_lengths[4]]
-        return dashes
-    def log_init(self):
-        with open(self.task_progression_log, 'w+') as log:
-            log.write(' ,'*5+"|,Agents:\n")
-
-        return ['Timestep','Iteration','Stage']+[a.agent_id for a in self.AllAgentsList.values()]
-    def log_break(self):
-        return ['' for a in range(3+len(self.AllAgentsList))]
-    def log_iteration(self):
-        return ['%s','%s']+['' for a in range(1 + len(self.AllAgentsList))]
-
-    def log_value(self, detail):
-        return ['','']+[a[detail] for a in self.AllAgentsList.values()]
-    def log_not_none(self, detail):
-        return ['', ''] + [a[detail] is not None for a in self.AllAgentsList.values()]
-
-    def log_stage(self):
-        stages = []
-        for a in self.AllAgentsList.values():
-            if a['stage_list']:
-                stages += [a().get_class()]
-            else:
-                stages += [None]
-        return ['', ''] + stages
-    def log_new_stage(self):
-        stages = []
-        for a in self.AllAgentsList.values():
-            if a['stage_list']:
-                stages += [a().new_stage]
-            else:
-                stages += [None]
-        return ['', ''] + stages
-    def log_task(self):
-        return ['', ''] + [a['name'] for a in self.AllAgentsList.values()]
-
-    def log_summary(self, detail):
-        lst=[]
-        for a in self.AllAgentsList.values():
-            switch = {'_start':a().new_stage,
-                      '_notify_start':a().new_stage,
-                      '_action':a().action_required,
-                      '_query':a().stage_complete,
-                      '_notify_end':a().stage_complete,
-                      '_del':a().stage_complete}
-            if switch[detail]:
-                lst += [a().summary[detail]]
-            else:
-                lst += ['-']
-        return ['','']+lst
-
-    def log_data(self, switches, detail=None, linebreak=False):
-        if not self.enable_task_logging:
-            return
-
-        switch_group_empty = {'init':self.log_init,
-                              'break':self.log_break,
-                              'iteration':self.log_iteration, #Make timestep query if time since last post has exceeded T
-                              'task':self.log_task,
-                              'stage': self.log_stage,
-                              'new_stage':self.log_new_stage,
-                              'linebreak': self.log_linebreak}
-        switch_group_value = {'route':self.log_not_none,          #('route')
-                              'action_required':self.log_value,   #('action_required')
-                              'route_required':self.log_value,    #('route_required')
-                              'stage_complete':self.log_value}    #('stage_complete')
-        switch_group_summary = {'_start':self.log_summary,        #('_start')
-                                '_notify_start':self.log_summary, #('_notify_start')
-                                '_action':self.log_summary,       #('_action')
-                                '_query':self.log_summary,        #('_query')
-                                '_notify_end':self.log_summary,   #('_notify_end')
-                                '_del':self.log_summary}          #('_del')
-
-
-        for switch in switches:
-            details = switch_group_empty[switch]() if switch in switch_group_empty else None
-            details = switch_group_value[switch](switch) if switch in switch_group_value else details
-            details = switch_group_summary[switch](switch) if switch in switch_group_summary else details
-
-            for idx, item in enumerate(details[2:]):
-                if item in [False, None]:
-                    details[idx+2] = '-'
-
-            if switch in ["break", "iteration"]:
-                details.insert(2,'')
-            elif switch in ["init", "linebreak"]:
-                pass
-            else:
-                details.insert(2, switch)
-                details += ['']
-            details = [str(d) for d in details]
-            self.current_log_iteration += "%s\n" % ',|,'.join(details)
-    def publish_log(self):
-        #TODO: add extra flag to set is ANY log returns a value? or query against empty log?
-        if self.enable_task_logging:
-            if self.previous_log_iteration != self.current_log_iteration:
-                with open(self.task_progression_log, 'a') as log:
-                    log.write(self.current_log_iteration % (self.timestep, self.iteration)) #use rospy.Time.now() ?
-                    self.iteration += 1
-                    logmsgbreak()
-                    # logmsg(category="log", msg="Updating log")
-                    print('\033[07m------------------------------------------\033[00m')
-
-            self.previous_log_iteration = self.current_log_iteration
-            self.current_log_iteration = ""
-
-    def log_minimal(self, idx):
-        switch = {-2: self.publish_log,
-                  -1:['init'],
-                  0: ['linebreak', 'iteration', 'task', 'stage', 'new_stage', 'break'],
-                  1: ['_start', '_notify_start', 'break'],
-                  2: ['_action', 'break'],
-                  3: ['route_required'],
-                  4: ['route', 'break'],
-                  5: ['_query', 'break', '_notify_end', '_del']}
-
-        if idx == min(switch):
-            switch[idx]()
-        else:
-            self.log_data(switch[idx])
