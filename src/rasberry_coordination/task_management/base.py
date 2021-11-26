@@ -139,7 +139,7 @@ from rasberry_coordination.srv import AgentNodePair
 
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
-from rasberry_coordination.robot import Robot as RobotInterface, VirtualRobot
+from rasberry_coordination.robot import Robot, VirtualRobot
 
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
@@ -282,23 +282,21 @@ class InterfaceDef(object):
             self.pub.publish(msg)
 
 
-    class base_robot(object):
-        def __init__(self, agent):
+    class robot(object):
+        def __init__(self, agent, Type):
             self.agent = agent
-            self.agent.temp_interface = RobotInterface(self.agent.agent_id)
+            self.agent.temp_interface = Type
             self.disconnect_sub = Subscriber('/%s/base/disconnect' % agent.agent_id, Str, self.disconnect)
         def disconnect(self, msg):
             logmsg(category="Task", id=self.agent.agent_id, msg="Request to disconnect")
             node_id = msg.data or self.agent.goal or self.agent.location(accurate=True)
             self.agent.add_task(task_name='exit_at_node', contacts={"exit_node":node_id}, index=0)
 
-            pass
+    class base_robot(robot):
+        def __init__(self, agent): super(InterfaceDef.base_robot, self).__init__(agent, Robot(agent.agent_id))
+    class base_virtual_robot(robot):
+        def __init__(self, agent): super(InterfaceDef.base_virtual_robot, self).__init__(agent, VirtualRobot(agent.agent_id, agent))
 
-
-    class base_virtual_robot(object):
-        def __init__(self, agent):
-            self.agent = agent
-            self.agent.temp_interface = VirtualRobot(agent.agent_id, agent)
 
 
 

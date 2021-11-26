@@ -7,7 +7,8 @@
 
 import copy
 from copy import deepcopy
-from pprint import pprint
+import os
+import whiptail
 import yaml
 
 from rospy import Subscriber, Publisher, Service, Time
@@ -21,6 +22,7 @@ from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
+import rasberry_des.config_utils
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
 
@@ -29,12 +31,20 @@ class AgentManager(object):
     """ Initialisation """
     def __init__(self, callback_dict):
         self.agent_details = {}
+        self.new_agent_buffer = dict()
+
         self.cb = callback_dict
         self.cb['format_agent_marker'] = self.format_agent_marker
 
         # Setup Connection for Dynamic Fleet
+        file_name = 'coordinator-loaded-agents-save-state.yaml'
+        if os.path.isfile(file_name):
+            if whiptail.Whiptail(title="Agent Management").confirm("Save-state detected, would you like to load it?"):
+                with open(file_name) as file:
+                    agent_dict = yaml.load(file, Loader=yaml.FullLoader)
+                    print(agent_dict)
+                    self.add_agents(agent_dict)
         self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', AgentDetailsMsg, self.add_agent_cb)
-        self.new_agent_buffer = dict()
 
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
 
@@ -92,6 +102,8 @@ class AgentDetails(object):
 
     """ Initialisations """
     def __init__(self, agent_dict, callbacks):
+        self.agent_dict = agent_dict
+
         self.agent_id = agent_dict['agent_id']
         self.local_properties = agent_dict['local_properties']
 
@@ -270,11 +282,5 @@ class AgentDetails(object):
     def __del__(self):
         logmsg(level="warn", category="DRM", id=self.agent_id, msg="Agent handler is deleted.")
         logmsg(level="warn", category="DRM", msg="Here, we must identify and unregister every subscriber")
-
-
-
-
-
-
 
 

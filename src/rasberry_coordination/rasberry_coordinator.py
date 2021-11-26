@@ -16,6 +16,7 @@ import threading
 import gc
 import sys
 import weakref
+import yaml
 from pprint import pprint
 
 import rospy
@@ -133,7 +134,11 @@ class RasberryCoordinator(object):
     def on_shutdown(self, ):
         """on shutdown cancel all goals
         """
-        logmsg(level='warn', msg='shutting down all actions')
+        logmsg(level='warn', msg='Coordinator shutting down, performing shutdown actions')
+
+        logmsg(level='warn', msg='AgentManager shutting down, saving agent_list')
+        dict_list = [details.agent_dict for details in self.agent_manager.agent_details.values()]
+        with open('coordinator-loaded-agents-save-state.yaml', 'w') as file: yaml.dump(dict_list, file)
 
 
     """ Main loop for task progression """
