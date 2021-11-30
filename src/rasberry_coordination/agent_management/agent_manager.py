@@ -8,6 +8,7 @@
 import copy
 from copy import deepcopy
 import os
+from pprint import pprint
 import whiptail
 import yaml
 
@@ -37,12 +38,12 @@ class AgentManager(object):
         self.cb['format_agent_marker'] = self.format_agent_marker
 
         # Setup Connection for Dynamic Fleet
-        file_name = 'coordinator-loaded-agents-save-state.yaml'
+        file_name = 'coordinator-loaded-agents-save-state.yaml'  #logs to $HOME/.ros/coordinator-loaded-agents-save-state.yaml
         if os.path.isfile(file_name):
             if whiptail.Whiptail(title="Agent Management").confirm("Save-state detected, would you like to load it?"):
                 with open(file_name) as file:
                     agent_dict = yaml.load(file, Loader=yaml.FullLoader)
-                    print(agent_dict)
+                    pprint(agent_dict)
                     self.add_agents(agent_dict)
         self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', AgentDetailsMsg, self.add_agent_cb)
 

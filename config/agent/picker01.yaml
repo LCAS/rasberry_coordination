@@ -1,4 +1,4 @@
 agent_id: picker01
-local_properties:
-  initial_location: WayPoint63
+#local_properties:
+#  initial_location: WayPoint63
 

@@ -17,7 +17,7 @@ from rasberry_coordination.msg import MarkerDetails
 from rasberry_coordination.coordinator_tools import logmsg
 
 
-class AgentMarker:
+class AgentMarker(object):
     def __init__(self, msg):
         self.type = msg.type
         self.agent_id = msg.agent_id
@@ -36,7 +36,7 @@ class AgentMarker:
     def publish_marker(self): self.marker.publish()
 
 
-class MarkerPublisher:
+class MarkerPublisher(object):
     def __init__(self):
         self.agents = dict()
         self.marker_set_sub = rospy.Subscriber('/rasberry_coordination/set_marker', MarkerDetails, self.set_marker_cb)
@@ -68,6 +68,17 @@ if __name__ == "__main__":
     logmsg(level="error", category="rviz", msg="  | to retrieve the active state of agents")
     logmsg(level="error", category="rviz", msg="If we want storage node publishing, we need to give it a location.")
 
-    # Run marker publisher
+    # Create marker publisher
     MP = MarkerPublisher()
+
+    # Launch inspector tool
+    from rasberry_coordination.coordinator_tools import RootInspector
+    RootInspector(topic='~root_inspector', root=MP)
+
+    # Run marker publisher
     MP.run()
+
+
+
+
+

@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-import sys
 import rospy
-import rasberry_des.config_utils
 
 
 def validate_field(file, config, key, datatype, mandatory=False):
@@ -66,12 +64,14 @@ def validate_types(file, config):
 if __name__ == '__main__':
     print("Recommended to set 'force_color_prompt=yes' on line 46 of .bashrc.")
 
+    import sys
     if len(sys.argv) < 2:
         usage = "rosrun rasberry_coordination abstract_task_executor_node.py config_file.yaml"
         print("Not enough arguments passed. Correct usage is:\n\t"+usage)
         exit()
 
     config_file = sys.argv[1]
+    import rasberry_des.config_utils
     config_data = rasberry_des.config_utils.get_config_data(config_file)
     config_keys = rasberry_des.config_utils.get_config_keys(config_file)
 
@@ -161,28 +161,8 @@ if __name__ == '__main__':
 
 
     """ INSPECTION """
-    from rasberry_coordination.srv import StringSrv as StringRequest, StringSrvResponse as StringResponse
-    def root_inspector_srv(req):
-        resp = StringResponse()
-        resp.success = True
-
-        root = req.data
-        # rosservice call /rasberry_coordination/root_inspector "data: 'coordinator.agent_manager.agent_details[*thorvald_001*].task.id'"
-
-        d = root.split('.')[1:]
-        tree = coordinator
-        for k in d:
-            k = k.replace('*]', '').split('[*')
-            tree = tree.__getattribute__(k[0])
-            if len(k) > 1:
-                if type(tree) == type([]):
-                    tree = tree[int(k[1])]
-                elif type(tree) == type(dict()):
-                    tree = tree[k[1]]
-        resp.msg = str(tree)
-        return resp
-
-    rospy.Service('/rasberry_coordination/root_inspector', StringRequest, root_inspector_srv)
+    from rasberry_coordination.coordinator_tools import RootInspector
+    RootInspector(topic='~root_inspector', root=coordinator)
 
     # Run the coordinator
     coordinator.run()
