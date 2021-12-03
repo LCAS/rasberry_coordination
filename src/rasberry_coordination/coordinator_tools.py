@@ -8,7 +8,7 @@
 import os
 import rospy
 
-from rasberry_coordination.srv import StringSrv as StringRequest, StringSrvResponse as StringResponse
+from rasberry_coordination.srv import String as StringRequest, StringResponse as StringResponse
 
 
 class RootInspector(object):
