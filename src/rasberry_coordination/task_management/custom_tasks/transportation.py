@@ -81,9 +81,9 @@ class TaskDef(object):
     # @classmethod
     # def transportation_picker_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
     #     return TDef.human_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
-    # @classmethod
-    # def transportation_courier_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    #     return TDef.robot_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)
+    @classmethod
+    def transportation_courier_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        if 'load' not in agent.local_properties: agent.local_properties['load'] = 0
 
 
     """ Idle Task Stages for Transportation Agents """

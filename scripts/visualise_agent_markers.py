@@ -12,7 +12,7 @@ import rasberry_coordination.msg
 import sys
 import rasberry_des.config_utils
 import geometry_msgs.msg
-from std_msgs.msg import String
+from std_msgs.msg import String, Empty
 from rasberry_coordination.msg import MarkerDetails
 from rasberry_coordination.coordinator_tools import logmsg
 
@@ -40,6 +40,7 @@ class MarkerPublisher(object):
     def __init__(self):
         self.agents = dict()
         self.marker_set_sub = rospy.Subscriber('/rasberry_coordination/set_marker', MarkerDetails, self.set_marker_cb)
+        self.get_marker_pub = rospy.Publisher('/rasberry_coordination/get_markers', Empty, queue_size=5)
 
     def set_marker_cb(self, msg):
         logmsg(category="rviz", id=msg.agent_id, msg="Setting %s %s(%s)"%(msg.type, msg.agent_id, msg.optional_color))
@@ -53,6 +54,8 @@ class MarkerPublisher(object):
 
     # Spawn markers in RViZ
     def run(self):
+        rospy.sleep(5)
+        self.get_marker_pub.publish(Empty())
         while not rospy.is_shutdown():
             for agent in self.agents.values():
                 agent.publish_marker()
@@ -62,11 +65,6 @@ class MarkerPublisher(object):
 if __name__ == "__main__":
     # Start node
     rospy.init_node("visualise_agent_markers")
-
-    logmsg(level="error", category="rviz", msg="Error message because I will probably forget.")
-    logmsg(level="error", category="rviz", msg="  | we need to ping the coordinator when this is started")
-    logmsg(level="error", category="rviz", msg="  | to retrieve the active state of agents")
-    logmsg(level="error", category="rviz", msg="If we want storage node publishing, we need to give it a location.")
 
     # Create marker publisher
     MP = MarkerPublisher()

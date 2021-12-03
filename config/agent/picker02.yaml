@@ -1,1 +1,3 @@
 agent_id: picker02
+local_properties:
+  initial_location: small-t1-r3-c4

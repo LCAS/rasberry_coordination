@@ -14,7 +14,7 @@ import yaml
 
 from rospy import Subscriber, Publisher, Service, Time
 
-from std_msgs.msg import String as Str
+from std_msgs.msg import String as Str, Empty
 from std_srvs.srv import Trigger, TriggerResponse
 
 from rasberry_coordination.msg import AgentDetails as AgentDetailsMsg, MarkerDetails, KeyValuePair
@@ -48,6 +48,7 @@ class AgentManager(object):
         self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', AgentDetailsMsg, self.add_agent_cb)
 
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
+        self.get_markers_sub = Subscriber('/rasberry_coordination/get_markers', Empty, self.get_markers_cb)
 
 
     """ Dynamic Fleet """
@@ -92,10 +93,16 @@ class AgentManager(object):
         #Define marker color ["remove", "red", "green", "blue", "black", "white", ""]
         marker.optional_color = style
 
-        logmsg(category="rviz", msg="Setting %s %s(%s)"%(marker.type,marker.agent_id,marker.optional_color))
+        logmsg(category="rviz", msg="Setting %s %s(%s)" % (marker.type, marker.agent_id, marker.optional_color))
 
+        agent.visualisation_properties['marker'] = marker
         self.set_marker_pub.publish(marker)
-
+    def get_markers_cb(self, empty):
+        """ Request from RViz to resend all markers """
+        for a in self.agent_details.values():
+            if 'marker' in a.visualisation_properties:
+                m = a.visualisation_properties['marker']
+                self.set_marker_pub.publish(m)
 
 class AgentDetails(object):
     """ Fields:

@@ -86,7 +86,7 @@ add_service_files(
   RobotState.srv
   RobotStates.srv
   SetLocation.srv
-  StringSrv.srv
+  String.srv
   TrayLoaded.srv
   TriggerRobot.srv
   UnregisterAgent.srv

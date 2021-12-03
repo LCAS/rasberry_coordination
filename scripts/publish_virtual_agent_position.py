@@ -5,6 +5,7 @@ from sys import argv
 import rospy
 from geometry_msgs.msg import Pose, Point, Quaternion
 
+
 class PoseManager(object):
     def __init__(self, agent_id, initial_pose):
         self.pose = initial_pose
@@ -21,9 +22,9 @@ class PoseManager(object):
 
 
 if __name__ == '__main__':
+    agent_id = argv[1]
     rospy.init_node('set_pose', anonymous=True)
 
-    agent_id = argv[1]
     x = float(argv[2])
     y = float(argv[3])
     a = float(argv[4])
