@@ -295,7 +295,7 @@ class FragmentPlanner(BasePlanner):
             route_nodes = []
             route_edges = []
 
-            # xxxx = raw_input('Press enter to continue yo! ')
+            # xxxx = raw_input('Press "a" to debug!')
             # if xxxx == "a":
             #     import pdb; pdb.set_trace()
 
