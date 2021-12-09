@@ -1,0 +1,15 @@
+modules:
+  - name: base
+    role: robot
+  - name: health_monitoring
+    role: robot
+  - name: transportation
+    role: courier
+navigation_properties:
+    has_presence: true
+    restrictions: inter-row
+module_properties:
+    max_load: 2
+visualisation_properties:
+    structure_type: short
+    rviz_model: short_robot
