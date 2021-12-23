@@ -6,7 +6,9 @@ from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
 
-from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
+try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
+except: pass
+
 from thorvald_base.msg import BatteryArray as Battery
 
 
@@ -66,37 +68,50 @@ class TaskDef(object):
 class StageDef(object):
 
     class StartChargeTask(SDef.StartTask):
+        """Used to Initiate task with the agent set to unregistered"""
         def _start(self):
-            super(StageDef.StartChargeTask, self)._start()
+            """Set registration to false when charging is begun"""
+            self.super()._start()
             self.agent.registration = False
 
     class AssignChargeNode(SDef.AssignNode):
+        """Used to Identify and reserve a charging station"""
         def _start(self):
-            super(StageDef.AssignChargeNode, self)._start()
+            """Initiate action to find charging station"""
+            self.super()._start()
             self.action['action_type'] = 'find_node'
             self.action['action_style'] = 'closest'
             self.action['descriptor'] = 'charging_station'
             self.action['response_location'] = None
         def _end(self):
+            """Save reserved charging station to contacts"""
             self.agent['contacts']['charging_station'] = self.action['response_location']
             # self.agent.responder_id = self.agent['contacts']['charging_station'] #TODO: if we want this, add another field to TOC (m.location)
 
     class NavigateToChargeNode(SDef.NavigateToNode):
-        def __init__(self, agent): super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')
+        """Used to navigate to the assigned charging station"""
+        def __init__(self, agent):
+            """Identify associated contact as 'charging_station'"""
+            self.super().__init__(agent, association='charging_station')
         def _query(self):
+            """Complete navigation if agents location is the target of if battery level is set to be above threshold"""
             LVL = self.agent.local_properties['battery_level']
             MAX = fetch_property('health_monitoring', 'max_battery_limit')
             success_conditions = [self.agent.location(accurate=True) == self.target,
                                   LVL >= MAX]
-            self._flag(any(success_conditions))
+            self.flag(any(success_conditions))
 
     class Charge(SDef.StageBase):
+        """Used to Pause task progression till battery level is usable"""
         def __repr__(self):
+            """Return battery level with class name"""
             return "%s(%s%%)"%(self.get_class(), str(100*self.agent.local_properties['battery_level']).split('.')[0])
         def _query(self):
+            """Complete once battery level is safe"""
             LVL = self.agent.local_properties['battery_level']
             MAX = fetch_property('health_monitoring', 'max_battery_limit')
             success_conditions = [LVL >= MAX];
-            self._flag(any(success_conditions))
+            self.flag(any(success_conditions))
         def _end(self):
+            """Enable registration once task is ended"""
             self.agent.registration = True

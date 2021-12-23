@@ -97,11 +97,6 @@ class StageDef(object):
         def _query(self):
             success_conditions = [self.check_value != self.agent[self.field_name]]
             self.agent.flag(any(success_conditions))
-        def _summary(self):
-            super(StageDef.CheckFieldUpdate, self)._summary()
-            self.summary['__init__'] = "save field_name"
-            self.summary['_start'] = "load check_value"
-            self.summary['_query'] = "check field update"
 
 
 """
@@ -185,3 +180,123 @@ class StageDef(object):
                 self.agent.storage.new_task('store', {'robot': self.agent})
     """
 
+""" Task Stages:
+- All stages must inherit from StageBase.
+"""
+
+# Standard Stage Methods:
+"""
+Standard Stage Methods:
+    - name: __init__
+      description: Define basic local properties
+      super: True
+
+    - name: _start_
+      description: 
+      super: True
+
+    - name: _query_
+      description:
+
+    - name: _end
+      description:
+      super: True
+
+    - name: __repr__
+      description: 
+    - name: _get_class
+      description: 
+"""
+
+# Standard Stage Attributes:
+"""
+Standard Stage Attributes:
+    - name: agent
+      description:
+    - name: action_required
+      description:
+    - name: route_required
+      description:
+    - name: stage_complete
+      description:
+    - name: new_stage
+      description:
+
+    - name: target
+      description:
+
+    - name: action
+      description: Dictionary of details for performing actions
+
+    - name: start_time
+      description: 
+
+
+"""
+
+# Subclass Inheritance Tree
+"""
+BaseStage.inheritance:
+    StartTask:
+    TargetedMovement:
+        EdgeUVTreatment:
+        RowUVTreatment:
+    Await:
+        AwaitAgentArrival:
+        AwaitAgentDismissal:
+        AwaitLoading:
+        AwaitUnloading:
+    Wait:
+        WaitDuration:
+        Pause:
+"""
+
+#
+"""
+All task specific details must be saved in agent.task_details
+Exceptions:
+    Non-Task-Based Attributes:
+        - location
+        - task_details #not directly accessed
+    Non-Task-Based Methods:
+        - .flag()
+        - .new_task()   # 
+        - .set_status() #communication
+    Values which must persist beyond the end of task
+        - store.request_admittance
+
+
+- target   (standard for planning)
+- ...
+- admittance (requied for communication)
+
+Interference with tasks should not be direct between agents.
+- advencement achieved by agents with their own _query
+- modify agent.tray_present, not Stage.stage_complete
+
+Methods called within coordinator:
+- closest_wait_node()
+- closest_storage() #closest_target
+- closest_robot()   #closest_target
+"""
+
+"""
+Rules for Custom Stages:
+- all cross-stage details must be stored in Stage.agent.task_details
+- all communication must be limited to the Stage._notify* methods
+- all overloading of __init__ must include a call to super first
+- all overloading of _start must include a call to super
+- all overloading of _end must include a call to super
+
+Notes:
+- __init__ is called when the task stages are added to an agent
+- __repr__ can be overloaded to include more information
+- _start is called once when the stask is at the head of task stage_list
+- _start can be called a second time by setting Stage.new_stage to True
+- _query is called on every iteration of Coordinator.run, except when task_progression is paused
+- 
+
+(Tim Peters, The Zen of Python):
+"Special cases aren't special enough to break the rules." / "Although practicality beats purity."
+-> `python -c "import this"`
+"""

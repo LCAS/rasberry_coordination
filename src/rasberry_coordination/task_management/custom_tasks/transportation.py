@@ -5,7 +5,8 @@ from rospy import Time, Duration, Subscriber, Publisher, Time
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
-from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
+try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
+except: pass
 from rasberry_coordination.robot import Robot as RobotInterface_Old
 
 from rospy import Time, Duration
@@ -191,36 +192,32 @@ class TaskDef(object):
 
 class StageDef(object):
 
-    #TODO: change this to idle, and make this condition an interface response?
     class IdleStorage(SDef.Idle):
+        """Used to Idle a storage agent whilst awaiting a request for admittance"""
+        #TODO: change this to idle, and make this condition an interface response?
         def _query(self):
+            """Complete once there exists any agents requiring storage"""
             success_conditions = [len(self.agent.request_admittance) > 0] #TODO: this may prove error prone w/ _start
-            self._flag(any(success_conditions))
+            self.flag(any(success_conditions))
             if any(success_conditions): print("admittance required: %s"%self.agent.request_admittance)
         def _end(self):
+            """On completion, add an idle storage to the end of the buffer"""
             self.agent.add_task('transportation_storage_idle')
-        def _summary(self):
-            super(StageDef.IdleStorage, self)._summary()
-            self.summary['_query'] = 'len(store.request_admittance) > 0'
-            self.summary['_del'] = 'begin task'
-
 
     """ Assignment-Based Task Stages (involves coordinator) """
     class AssignCourier(SDef.AssignAgent):
+        """Used to identify an available courier to collect a load"""
         def _start(self):
-            super(StageDef.AssignCourier, self)._start() #defined as default setup
+            """Initiate action details to identify the closest courier"""
+            self.super()._start() #defined as default setup
             self.action['action_type'] = 'find_agent'
             self.action['action_style'] = 'closest'
             self.action['agent_type'] = 'courier'
             self.action['response_location'] = None
-        def _notify_end(self):
-            self.agent.modules['transportation'].interface.notify("ACCEPT")
         def _end(self):
-            """ On completion of assign courier, a courier should have been identified.
-            As a result of the completion, the couier should be assigned a task, and be
-            given details pertaining to its completion. This is done explicitly.
-            """
-            super(StageDef.AssignCourier, self)._end()
+            """ On completion, notify picker of courier acceptance, and assign a retrieve load task to the courier"""
+            self.super()._end()
+            self.agent.modules['transportation'].interface.notify("ACCEPT")
             self.agent['contacts']['courier'] = self.action['response_location']
             self.agent['contacts']['courier'].add_task(task_name='transportation_retrieve_load',
                                                          task_id=self.agent['id'],
@@ -228,132 +225,142 @@ class StageDef(object):
                                                          contacts={'picker': self.agent},
                                                          initiator_id=self.agent.agent_id)
             self.agent['responder_id'] = self.agent['contacts']['courier'].agent_id
-
-        def _summary(self):
-            super(StageDef.AssignCourier, self)._summary()
-            self.summary['_start'] = "setup action to find courier"
-            self.summary['_action'] = "find closest robot courier"
-            self.summary['_del'] = "agent[courier].add_task"
-            self.summary['_notify_end'] = "agent -> ACCEPT"
     class AssignStorage(SDef.AssignAgent):
+        """Used to identify a storage location to deliver the load"""
         def _start(self):
-            super(StageDef.AssignStorage, self)._start()
+            """Initiate action details to identify the closest storage"""
+            self.super()._start()
             self.action['action_type'] = 'find_agent'
             self.action['action_style'] = 'closest'
             self.action['agent_type'] = 'storage'
             self.action['response_location'] = None
         def _end(self):
-            super(StageDef.AssignStorage, self)._end()
+            """On completion, save the storage and add the courier's id to the storage's request_admittance list"""
+            self.super()._end()
             self.agent['contacts']['storage'] = self.action['response_location']
             self.agent['contacts']['storage'].request_admittance.append(self.agent.agent_id)
             self.agent['responder_id'] = self.agent['contacts']['storage'].agent_id
-
-        def _summary(self):
-            super(StageDef.AssignStorage, self)._summary()
-            self.summary['_start'] = "setup action to find storage"
-            self.summary['_action'] = "find closest local storage"
-            self.summary['_del'] = "contact[storage].request_admittance"
     class AcceptCourier(SDef.AssignAgent):
+        """Used to notify a pending courier of admittance"""
         def _start(self):
-            super(StageDef.AcceptCourier, self)._start()
+            """Initiate action details to identify the closest courier from those that request admittance"""
+            self.super()._start()
             self.action['action_type'] = 'find_agent'
             self.action['action_style'] = 'closest'
             self.action['list'] = self.agent.request_admittance
             self.action['response_location'] = None
         def _end(self):
-            super(StageDef.AcceptCourier, self)._end()
+            """On completion, save the action response and remove the courier from the request_admittance list"""
+            self.super()._end()
             self.agent['contacts']['courier'] = self.action['response_location']
             logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent['contacts']['courier'].agent_id, self.agent.request_admittance))
             logmsg(category="stage", msg="AcceptCourier: stage_complete=%s" % self.stage_complete)
             self.agent.request_admittance.remove(self.agent['contacts']['courier'].agent_id)
             self.agent['initiator_id'] = self.agent['contacts']['courier'].agent_id
-        def _summary(self):
-            super(StageDef.AcceptCourier, self)._summary()
-            self.summary['_start'] = "setup action to find admittant"
-            self.summary['_action'] = "find closest robot request"
-            self.summary['_del'] = "contact[courier].request_admittance"
 
     """ Idle Actions for Pending Actions """
     class AwaitCourier(SDef.Idle):   #PICKER + STORAGE
+        """Used to idle the agent until a courier has arrived"""
         def __repr__(self):
+            """Attach id of agent to class name"""
             if 'courier' in self.agent['contacts']:
                 return "%s(%s)"%(self.get_class(), self.agent['contacts']['courier'].agent_id)
             else:
                 return "%s()" % (self.get_class())
         def _query(self):
+            """Complete once the associated courier has arrived at the agents location"""
             success_conditions = [self.agent['contacts']['courier'].location(accurate=True) == self.agent.location()]
-            self._flag(any(success_conditions))
-        def _notify_end(self):
+            self.flag(any(success_conditions))
+        def _end(self):
+            """On completion, notify the picker of ARRIVAL"""
             self.agent.modules['transportation'].interface.notify("ARRIVED")
-        def _summary(self):
-            super(StageDef.AwaitCourier, self)._summary()
-            self.summary['_query'] = "courier @ agent"
-            self.summary['_notify_end'] = "agent -> ARRIVED"
     class AwaitStoreAccess(SDef.Idle):
-        #While waiting for store access, move to a wait_node
-        # (ideally this should be identified by the coordinator and assigned dynamically)
+        """Used to idle the courier until the storage location has accepted admittance"""
         def __repr__(self):
+            """Attach id of agent to class name"""
             if 'storage' in self.agent['contacts']:
                 return "%s(%s)"%(self.get_class(), self.agent['contacts']['storage'].agent_id)
             else:
                 return "%s()" % (self.get_class())
-        def _start(self):
-            super(StageDef.AwaitStoreAccess, self)._start()
-            #self.route_required = True
-            # Despite moving to a wait node, dont end task on arrival #huh?
+        # def _start(self):
+        #     self.super()._start()
+        #     self.route_required = True
+        #     Despite moving to a wait node, dont end task on arrival #huh?
         def _query(self):
-            """ If a courier is assigned as the contact to the storage contact, check if it is this stage's owner """
+            """Complete if the courier assigned to the storage of interest is this agent"""
             storage = self.agent['contacts']['storage']
             if 'courier' not in storage['contacts']: return
             courier = storage['contacts']['courier']
             success_conditions = [courier.agent_id == self.agent.agent_id]
-            self._flag(any(success_conditions))
+            self.flag(any(success_conditions))
 
     """ Transportation Navigation Subclasses """
     class NavigateToPicker(SDef.NavigateToAgent):
-        def __init__(self, agent): super(StageDef.NavigateToPicker, self).__init__(agent,  association='picker')
+        """Used to define the target for the navigation as the picker"""
+        def __init__(self, agent):
+            """Set navigation target as associated picker"""
+            self.super().__init__(agent,  association='picker')
     class NavigateToStorage(SDef.NavigateToAgent):
-        def __init__(self, agent): super(StageDef.NavigateToStorage, self).__init__(agent, association='storage')
+        """Used to define the target for the navigation as the storage"""
+        def __init__(self, agent):
+            """Set navigation target as associated storage"""
+            self.super().__init__(agent, association='storage')
 
     """ Courier Load Modifiers for Picker and Storage """
     class LoadModifier(SDef.StageBase):
+        """Used to idle whilst the agent modifes the load of the courier"""
         def __init__(self, agent, end_requirement, wait_timeout=10):
-            super(StageDef.LoadModifier, self).__init__(agent)
+            """Initialise placeholders for a completion flag and a response timeout"""
+            self.super().__init__(agent)
             self.end_requirement = end_requirement
             self.wait_timeout = Duration(secs=wait_timeout)
         def _start(self):
-            super(StageDef.LoadModifier, self)._start()
+            """Set the has_tray flag to match the inverse end_requirement"""
+            self.super()._start()
             self.agent['has_tray'] = not self.end_requirement  # local flag
         def _query(self):
+            """Complete once agents's has_tray flag is triggered or timeout completes"""
             success_conditions = [Time.now() - self.start_time > self.wait_timeout,
                                   self.agent['has_tray'] == self.end_requirement]
-            self._flag(any(success_conditions))
+            self.flag(any(success_conditions))
         def _end(self):
-            super(StageDef.LoadModifier, self)._end()
+            """On Completion, set the associated courier's has_tray flag"""
+            self.super()._end()
             self.agent['contacts']['courier']['has_tray'] = not self.end_requirement
     class LoadCourier(LoadModifier): #PICKER
+        """Used for loading the courier"""
         def __init__(self, agent):
-            super(StageDef.LoadCourier, self).__init__(agent, end_requirement=False, wait_timeout=fetch_property('transportation', 'wait_loading'))
-        def _notify_end(self):
+            """Define the completion flag as False and the timeout as the tranportation/wait_loading property"""
+            self.super().__init__(agent, end_requirement=False, wait_timeout=fetch_property('transportation', 'wait_loading'))
+        def _end(self):
+            """On completion, notify the picker to reset with INIT"""
             self.agent.modules['transportation'].interface.notify("INIT")
     class UnloadCourier(LoadModifier): #STORAGE
+        """Used for unloading the courier"""
         def __init__(self, agent):
-            super(StageDef.UnloadCourier, self).__init__(agent, end_requirement=True, wait_timeout=fetch_property('transportation', 'wait_unloading'))
+            """Define the completion flag as True and the timeout as the tranportation/wait_unloading property"""
+            self.super().__init__(agent, end_requirement=True, wait_timeout=fetch_property('transportation', 'wait_unloading'))
 
     """ Loading Modifiers for Courier """
     class Loading(SDef.StageBase):
+        """Used for awaiting a change-of-state from the picker"""
         def _query(self):
+            """Complete once agents's has_tray flag is true"""
             success_conditions = [self.agent['has_tray'] == True]
-            self._flag(any(success_conditions))
+            self.flag(any(success_conditions))
         def _end(self):
-            super(StageDef.Loading, self)._end()
+            """On completion, increment the courier's total load by 1"""
+            self.super()._end()
             self.agent.local_properties['load'] += 1
             # logmsg(level='warn', category='STAGE', id=self.agent.agent_id, msg="Total load: %s" % self.agent.properties['load'])
     class Unloading(SDef.StageBase):
+        """Used for awaiting a change-of-state from the storage"""
         def _query(self):
+            """Complete once agents's has_tray flag is false"""
             success_conditions = [self.agent['has_tray'] == False]
-            self._flag(any(success_conditions))
+            self.flag(any(success_conditions))
         def _end(self):
-            super(StageDef.Unloading, self)._end()
+            """On completion, reset the courier's total load to 0"""
+            self.super()._end()
             self.agent.local_properties['load'] = 0
             # logmsg(level='warn', category='STAGE', id=self.agent.agent_id, msg="Total load: %s" % self.agent.properties['load'])

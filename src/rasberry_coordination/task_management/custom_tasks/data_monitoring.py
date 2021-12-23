@@ -7,8 +7,8 @@ from rasberry_coordination.msg import TopoLocation
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
-from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
-
+try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
+except: pass
 
 class InterfaceDef(object):
 
@@ -116,19 +116,34 @@ class TaskDef(object):
 
 class StageDef(object):
     class FindRowsDM(SDef.FindRows):
-        def __init__(self, agent, tunnel): super(StageDef.FindRowsDM, self).__init__(agent, tunnel, 'data_monitoring_scan_row')
+        """Used to assign the data_monitoring_scan_row task to all rows in the given tunnel."""
+        def __init__(self, agent, tunnel):
+            """Call super to set data_monitoring_scan_row as task to apply"""
+            self.super().__init__(agent, tunnel, 'data_monitoring_scan_row')
 
     class NavigateToDMStartNode(SDef.NavigateToNode):
-        def __init__(self, agent): super(StageDef.NavigateToDMStartNode, self).__init__(agent, association='start_node')
+        """Used to navigate to a given start node"""
+        def __init__(self, agent):
+            """Call to super to set the navigation target as the node stored in the action association"""
+            self.super().__init__(agent, association='start_node')
 
     class NavigateToDMEndNode(SDef.NavigateToNode):
-        def __init__(self, agent): super(StageDef.NavigateToDMEndNode, self).__init__(agent, association='end_node')
+        """Used to navigate to a given end node"""
+        def __init__(self, agent):
+            """Call to super to set the navigation target as the node stored in the action association"""
+            self.super().__init__(agent, association='end_node')
 
     class EnableDMCamera(SDef.NotifyTrigger):
-        def __init__(self, agent): super(StageDef.EnableDMCamera, self).__init__(agent, trigger='camera_status', msg="ENABLE_CAMERA", colour='green')
+        """Used to enable the camera on the robot"""
+        def __init__(self, agent):
+            """Call to initialise a camera_status message of ENABLE_CAMERA to send on start and set rviz robot to green"""
+            self.super().__init__(agent, trigger='camera_status', msg="ENABLE_CAMERA", colour='green')
 
     class DisableDMCamera(SDef.NotifyTrigger):
-        def __init__(self, agent): super(StageDef.DisableDMCamera, self).__init__(agent, trigger='camera_status', msg="DISABLE_CAMERA", colour='')
+        """Used to disable the camera on the robot"""
+        def __init__(self, agent):
+            """Call to initialise a camera_status message of DISABLE_CAMERA to send on start and set rviz robot to clear"""
+            self.super().__init__(agent, trigger='camera_status', msg="DISABLE_CAMERA", colour='')
 
 
 

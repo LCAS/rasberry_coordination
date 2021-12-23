@@ -7,8 +7,9 @@ from rasberry_coordination.msg import TopoLocation
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
-from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 
+try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
+except: pass
 
 class InterfaceDef(object):
 
@@ -116,31 +117,34 @@ class TaskDef(object):
 
 class StageDef(object):
     class FindRowsUV(SDef.FindRows):
-        def __init__(self, agent, tunnel): super(StageDef.FindRowsUV, self).__init__(agent, tunnel, 'uv_treatment_treat_row')
+        """Used to assign the uv_treatment_treat_row task to all rows in the given tunnel."""
+        def __init__(self, agent, tunnel):
+            """Call super to set uv_treatment_treat_row as task to apply"""
+            self.super().__init__(agent, tunnel, 'uv_treatment_treat_row')
 
     class NavigateToUVStartNode(SDef.NavigateToNode):
-        def __init__(self, agent): super(StageDef.NavigateToUVStartNode, self).__init__(agent, association='start_node')
+        """Used to navigate to a given start node"""
+        def __init__(self, agent):
+            """Call to super to set the navigation target as the node stored in the action association"""
+            self.super().__init__(agent, association='start_node')
 
     class NavigateToUVEndNode(SDef.NavigateToNode):
-        def __init__(self, agent): super(StageDef.NavigateToUVEndNode, self).__init__(agent, association='end_node')
+        """Used to navigate to a given end node"""
+        def __init__(self, agent):
+            """Call to super to set the navigation target as the node stored in the action association"""
+            self.super().__init__(agent, association='end_node')
 
     class EnableUVLight(SDef.NotifyTrigger):
-        def __init__(self, agent): super(StageDef.EnableUVLight, self).__init__(agent, trigger='light_status', msg="ENABLE_LIGHT", colour='blue')
+        """Used to enable the UV light on the uv robot"""
+        def __init__(self, agent):
+            """Call to initialise a light_status message of ENABLE_LIGHT to send on start and set rviz robot to blue"""
+            self.super().__init__(agent, trigger='light_status', msg="ENABLE_LIGHT", colour='blue')
 
     class DisableUVLight(SDef.NotifyTrigger):
-        def __init__(self, agent): super(StageDef.DisableUVLight, self).__init__(agent, trigger='light_status', msg="DISABLE_LIGHT", colour='')
-
-
-
-
-
-
-
-
-
-
-
-
+        """Used to disable the UV light on the uv robot"""
+        def __init__(self, agent):
+            """Call to initialise a light_status message of DISABLE_LIGHT to send on start and set rviz robot to clear"""
+            self.super().__init__(agent, trigger='light_status', msg="DISABLE_LIGHT", colour='')
 
 
 

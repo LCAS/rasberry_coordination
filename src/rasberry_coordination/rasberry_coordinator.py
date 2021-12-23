@@ -371,7 +371,7 @@ class RasberryCoordinator(object):
         1. Put the active stage into a suspended state (so once active again it will be restarted)
         2. Add an additional pause stage which queries self.agent.registration
         """
-        agent()._suspend() #suspend active stage
+        agent().suspend() #suspend active stage
 
         scope = agent.interruption[3]
         if agent().get_class() != "base.Pause":

@@ -240,12 +240,10 @@ class AgentDetails(object):
     """ Standard Task Interactions """
     def start_stage(self):
         self()._start()
-        self()._notify_start()
         self().new_stage = False
     def end_stage(self):
         from time import sleep; sleep(0.2) #TODO: this can be removed once add task to buffer is removed from async
         logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self['stage_list'][0])
-        self()._notify_end()
         self()._end()
         self['stage_list'].pop(0)
         return None if self['stage_list'] else self['id']

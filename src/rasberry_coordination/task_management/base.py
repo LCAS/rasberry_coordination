@@ -1,133 +1,3 @@
-""" Task Stages:
-- All stages must inherit from StageBase.
-"""
-
-#Standard Stage Methods:
-"""
-Standard Stage Methods:
-    - name: __init__
-      description: Define basic local properties
-      super: True
-
-    - name: _start_
-      description: 
-      super: True
-
-    - name: _query_
-      description:
-
-    - name: _end
-      description:
-      super: True
-
-    - name: __repr__
-      description: 
-    - name: _get_class
-      description: 
-    - name: _summary
-      description: 
-      
-    - name: _notify_start
-      description: 
-    - name: _notify_end
-      description: 
-"""
-
-#Standard Stage Attributes:
-"""
-Standard Stage Attributes:
-    - name: agent
-      description:
-    - name: action_required
-      description:
-    - name: route_required
-      description:
-    - name: stage_complete
-      description:
-    - name: new_stage
-      description:
-      
-    - name: target
-      description:
-      
-    - name: action
-      description: Dictionary of details for performing actions
-    - name: summary
-      description: Dictionary containing descriptiosn of customised functions
-      
-    - name: start_time
-      description: 
-      
-
-"""
-
-#Subclass Inheritance Tree
-"""
-BaseStage.inheritance:
-    StartTask:
-    TargetedMovement:
-        EdgeUVTreatment:
-        RowUVTreatment:
-    Await:
-        AwaitAgentArrival:
-        AwaitAgentDismissal:
-        AwaitLoading:
-        AwaitUnloading:
-    Wait:
-        WaitDuration:
-        Pause:
-"""
-
-#
-"""
-All task specific details must be saved in agent.task_details
-Exceptions:
-    Non-Task-Based Attributes:
-        - location
-        - task_details #not directly accessed
-    Non-Task-Based Methods:
-        - .flag()
-        - .new_task()   # 
-        - .set_status() #communication
-    Values which must persist beyond the end of task
-        - store.request_admittance
-        
-
-- target   (standard for planning)
-- ...
-- admittance (requied for communication)
-
-Interference with tasks should not be direct between agents.
-- advencement achieved by agents with their own _query
-- modify agent.tray_present, not Stage.stage_complete
-
-Methods called within coordinator:
-- closest_wait_node()
-- closest_storage() #closest_target
-- closest_robot()   #closest_target
-"""
-
-"""
-Rules for Custom Stages:
-- all cross-stage details must be stored in Stage.agent.task_details
-- all communication must be limited to the Stage._notify* methods
-- all overloading of __init__ must include a call to super first
-- all overloading of _start must include a call to super
-- all overloading of _end must include a call to super
-
-Notes:
-- __init__ is called when the task stages are added to an agent
-- __repr__ can be overloaded to include more information
-- _start is called once when the stask is at the head of task stage_list
-- _start can be called a second time by setting Stage.new_stage to True
-- _query is called on every iteration of Coordinator.run, except when task_progression is paused
-- 
-
-(Tim Peters, The Zen of Python):
-"Special cases aren't special enough to break the rules." / "Although practicality beats purity."
--> `python -c "import this"`
-"""
-
 from copy import deepcopy
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, get_param
 
@@ -429,12 +299,28 @@ class TaskDef(object):
 
 
 class StageDef(object):
+
     class StageBase(object):
-        def __repr__(self):
-            return self.get_class()
+        """Base class for all Stages"""
         def get_class(self):
+            """Cleaned class name for explicit class-type queries"""
             return str(self.__class__).replace("<class 'rasberry_coordination.task_management.","").replace("'>","")
+        def __repr__(self):
+            """Simplified representation of class for clean informative logging"""
+            return self.get_class()
+        def super(self):
+            """Convenience function to access a superclass (inc to reduce text in children)"""
+            return super(type(self), self)
+        def suspend(self):
+            """Collection function for all actions to call when a stage is suspended"""
+            self.new_stage = True
+        def flag(self, flag):
+            """Collection function when a stage is to be flagged as completed"""
+            # TODO: this is not very good here, the state of an agent being interrupted should be handled abstractly
+            if not self.agent.interruption:
+                self.stage_complete = flag
         def __init__(self, agent):
+            """Class initialisation for populating default values"""
             self.agent = agent
             self.action_required = False
             self.route_required = False
@@ -443,79 +329,52 @@ class StageDef(object):
             self.new_stage = True
             self.target = None
             self.action = {}
-            self.summary = {}
-
-            self._summary()
-        def _summary(self):
-            placeholder = '-'
-            self.summary['_start'] = placeholder
-            self.summary['_notify_start'] = placeholder
-            self.summary['_query'] = placeholder
-            self.summary['_action'] = placeholder
-            self.summary['_notify_end'] = placeholder
-            self.summary['_del'] = placeholder
+            self.summaries = {}
         def _start(self):
-            """ Called whenever a new stage is set.
-            Also called whenever Stage.new_stage is set to True
-            """
+            """Stage start, called when this is the active stage."""
             logmsg(category="stage", id=self.agent.agent_id, msg="Begun stage %s" % self)
             self.start_time = Time.now()
-        def _suspend(self):
-            self.new_stage = True
-        def _notify_start(self):
-            pass
         def _query(self):
+            """Used to define the criteria which ust be met for the stage to be completed"""
             success_conditions = []  # What should be queried to tell if the stage is completed?
-            self._flag(any(success_conditions))
-        def _flag(self, flag):
-            # TODO: this is not very good here, the state of an agent being interrupted should be handled abstractly
-            if not self.agent.interruption:
-                self.stage_complete = flag
-        def _notify_end(self):
-            pass
+            self.flag(any(success_conditions))
         def _end(self):
+            """Used to set any fields as the stage is about to be removed"""
             self.stage_complete = False
             pass
-
-    """ Standard Task Stages """
     class StartTask(StageBase):
-        """ Called as the first stage of every active task (excluding idle tasks),
-        this stage is responsible for the creation of the task_id on initialisation.
-
-        Created following the convention of {agent_id}_{total_tasks++}. This is a
-        unique key on condition that agents each have UUIDs for agent_id. No lock is
-        required for this to fuction.
-
-        Once this becomes the active task in the task stage_list, the task_id is
-        adopted by the agent as the active task_id.
-
-        This stage completes without any conditions.
-        """
+        """Called as the first stage of every task, to generate and apply a task_id."""
         def __init__(self, agent, task_id=None):
-            super(StageDef.StartTask, self).__init__(agent)
+            """Generate a unique Task ID of {agent_id}_{total_tasks++}."""
+            self.super().__init__(agent)
             self.task_id = task_id if task_id else "%s_%s" % (self.agent.agent_id.replace('thorvald','T').replace('picker','P').replace('storage','S'), self.agent.total_tasks) #TODO: this replace nest needs removing
             self.agent.total_tasks += 1
         def _start(self):
+            """Being at the head of the task, once the task is begun the task_id is adopted as the active task_id."""
             self.agent.task_details = {}
-            super(StageDef.StartTask, self)._start()
+            self.super()._start()
             self.agent['id'] = self.task_id #Set task_id as active_task_id for agent
             self.agent['start_time'] = Time.now()
         def _query(self):
-            self._flag(True)
-        def _summary(self):
-            super(StageDef.StartTask, self)._summary()
-            self.summary['_start'] = "adopt active task_id"
-            self.summary['_query'] = "return true"
+            """Complete the stage without any condition"""
+            self.flag(True)
+
+    """ Setup """
     class SetUnregister(StageBase):
+        """Called to mark the agent as unregistered"""
         def _start(self):
-            super(StageDef.SetUnregister, self)._start()
+            """Mark agent as unregistered and send a message to rviz to display the agent as red"""
+            self.super()._start()
             self.agent.registration = False
             self.agent.cb['format_agent_marker'](self.agent, style='red')
         def _query(self):
-            self._flag(True)
+            """Complete the stage without any condition"""
+            self.flag(True)
     class WaitForMap(StageBase):
+        """Called to suspend task progression till a restricted map is recieved"""
         def _start(self):
-            super(StageDef.WaitForMap, self)._start()
+            """Begin a subscriber to recieve the tmap"""
+            self.super()._start()
             self.agent.navigation['tmap'] = None
             self.agent.navigation['tmap_node_list'] = None
             self.agent.navigation['tmap_available'] = {}
@@ -525,239 +384,288 @@ class StageDef(object):
                 topic = "/%s/restricted_topological_map_2" % self.agent.agent_id
             self.agent.subs['tmap'] = Subscriber(topic, Str, self.agent.map_cb, queue_size=5)
         def _query(self):
+            """Complete stage once a tmap is available"""
             success_conditions = [self.agent.navigation['tmap']]
-            self._flag(any(success_conditions))
-        def _end(self):
-            super(StageDef.WaitForMap, self)._end()
-            logmsg(category="stage", msg="Map achieved %s" % self.agent.location())
+            self.flag(any(success_conditions))
     class EnableVirtualLocalisation(StageBase):
+        """Enable localisation for virtual agents"""
         def _start(self):
-            super(StageDef.EnableVirtualLocalisation, self)._start()
+            """Enable subscribers to virtual localisation"""
+            self.super()._start()
             self.agent.temp_interface.enable_subscribers()
         def _query(self):
-            self._flag(True)
+            """Complete the stage without any condition"""
+            self.flag(True)
     class WaitForLocalisation(StageBase):
+        """Called to suspend task progression till a location for the agent is recieved"""
         def _start(self):
-            super(StageDef.WaitForLocalisation, self)._start()
+            """Enable location monitoring"""
+            self.super()._start()
             self.agent.location.enable_location_monitoring(self.agent.agent_id)
         def _query(self):
+            """Complete once location has been identified"""
             success_conditions = [self.agent.location() is not None]
-            self._flag(any(success_conditions))
-        def _end(self):
-            super(StageDef.WaitForLocalisation, self)._end()
-            logmsg(category="stage", msg="    - localisation achieved %s" % self.agent.location())
-
+            self.flag(any(success_conditions))
     class SetRegister(StageBase):
+        """Called to mark the agent as registered"""
         def _start(self):
-            super(StageDef.SetRegister, self)._start()
+            """Mark agent as unregistered and send a message to rviz to display the agent without modified colour"""
+            self.super()._start()
             self.agent.registration = True
             self.agent.cb['format_agent_marker'](self.agent, style='')
         def _query(self):
-            self._flag(True)
+            """Complete the stage without any condition"""
+            self.flag(True)
 
     """ Idle """
     class Idle(StageBase):
+        """Used to suspend activity until the agent has a task."""
         def __repr__(self):
+            """Display class with idle location """
             if self.agent: return "%s(%s)" % (self.get_class(), self.agent.location())
             return self.get_class()
         def _query(self):
+            """Complete once task buffer contains another task, or if battery level is low."""
             health = 'health_monitoring' in self.agent.modules
-
             success_conditions = [len(self.agent.task_buffer) > 0,
                                   self.agent.modules['health_monitoring'].interface.battery_low() if health else False]
-            self._flag(any(success_conditions))
-        def _summary(self):
-            # logmsg(level='error', id=self.agent.agent_id, msg=self.agent.properties, speech=False)
-            super(StageDef.Idle, self)._summary()
-            self.summary['_query'] = 'len(task_buffer) > 0'
+            self.flag(any(success_conditions))
 
     """ Assignment-Based Task Stages (involves coordinator) """
-    class Assignment(StageBase): #Define as ABC
+    class Assignment(StageBase):
+        """Base task for all Assignments"""
         def _start(self):
-            super(StageDef.Assignment, self)._start()
+            """Set flag to perform multi-agent action"""
+            self.super()._start()
             self.action_required = True
         def _query(self):
+            """Complete once action has generated a result"""
             success_conditions = [('response_location' in self.action and self.action['response_location'] != None)]
-            self._flag(any(success_conditions))
-        def _summary(self):
-            super(StageDef.Assignment, self)._summary()
-            self.summary['_start'] = "load service requirements"
-    class AssignAgent(Assignment): pass
-    class AssignNode(Assignment): pass
+            self.flag(any(success_conditions))
+    class AssignAgent(Assignment):
+        """Handler for stages based around identifying an agent of interest."""
+        pass
+    class AssignNode(Assignment): """Handler for stages based around itdntifying a node of interest."""; pass
+
+    """ Node identification Stages"""
     class AssignBaseNode(AssignNode):
+        """Used to identify the closest available base_node."""
         def _start(self):
-            super(StageDef.AssignBaseNode, self)._start()
+            """Start action to find closest base_node"""
+            self.super()._start()
             self.action['action_type'] = 'find_node'
             self.action['action_style'] = 'closest'
             self.action['descriptor'] = 'base_node'
             self.action['response_location'] = None
         def _end(self):
+            """Save action response to contacts"""
             self.agent['contacts']['base_node'] = self.action['response_location']
+    class AssignWaitNode(AssignNode):
+        """Used to identify the closest availalbe wait_node"""
+        def _start(self):
+            """Start action to find closest wait_node"""
+            self.super()._start()
+            self.action['action_type'] = 'find_node'
+            self.action['action_style'] = 'closest'
+            self.action['descriptor'] = 'wait_node'
+            self.action['response_location'] = None
+        def _end(self):
+            """Save action response to contacts"""
+            self.agent['contacts']['wait_node'] = self.action['response_location']
 
     """ Identification of Navigation Targets """
     class FindRows(AssignNode):
-        def __repr__(self): return "%s(%s)" % (self.get_class(), self.tunnel)
+        """Used to generate a list of row tasks given a tunnel id."""
+        def __repr__(self):
+            """Display the tunnel id to generate tasks for."""
+            return "%s(%s)" % (self.get_class(), self.tunnel)
         def __init__(self, agent, tunnel, response_task):
-            super(StageDef.FindRows, self).__init__(agent)
+            """Save the tunnel details"""
+            self.super().__init__(agent)
             self.tunnel = tunnel
             self.response_task = response_task
         def _start(self):
-            super(StageDef.FindRows, self)._start()
+            """Initialise action details to search for rows"""
+            self.super()._start()
             self.action['action_type'] = 'find_node'
             self.action['action_style'] = 'rows'
             self.action['descriptor'] = self.tunnel
             self.action['response_location'] = None
         def _end(self):
-            super(StageDef.FindRows, self)._end()
+            """Begin defined task for each row in action response"""
+            self.super()._end()
             logmsg(category="stage", msg="Task to use %s rows:" % len(self.action['response_location']))
             [logmsg(category="stage", msg="    - row: %s" % row) for row in self.action['response_location']]
             for row in self.action['response_location']:
                 # self.agent.add_task(task_name='wait_at_base')
                 self.agent.add_task(task_name=self.response_task, details={'row': row})
     class FindRowEnds(AssignNode):
-        def __repr__(self): return "%s(%s)" % (self.get_class(), self.row)
+        """Used to identify the two ends of a given row."""
+        def __repr__(self):
+            """Display the id for the row of interest"""
+            return "%s(%s)" % (self.get_class(), self.row)
         def __init__(self, agent, row):
-            super(StageDef.FindRowEnds, self).__init__(agent)
+            """Save the row id of interest"""
+            self.super().__init__(agent)
             self.row = row
         def _start(self):
-            super(StageDef.FindRowEnds, self)._start()
+            """Start action to search for the start and end of the row of interest"""
+            self.super()._start()
             self.action['action_type'] = 'find_node'
             self.action['action_style'] = 'row_ends'
             self.action['descriptor'] = self.row
             self.action['response_location'] = None
         def _end(self):
-            super(StageDef.FindRowEnds, self)._end()
-            self.agent['contacts']['row_ends'] = self.action['response_location']
-            logmsg(category="stage", msg="Task to move from %s to %s" % (
-            self.action['response_location'][0], self.action['response_location'][1]))
+            """Save row ends to the contacts dictionary"""
+            self.super()._end()
+            rl = self.action['response_location']
+            self.agent['contacts']['row_ends'] = rl
+            logmsg(category="stage", msg="Task to move from %s to %s" % (rl[0], rl[1]))
     class FindStartNode(AssignNode):
+        """Used to identify of two nodes, which one is closest ot the agent."""
         def __repr__(self):
+            """Display row ends in the repr"""
             if 'row_ends' in self.agent['contacts'] and self.agent['contacts']['row_ends']:
                 return "%s(%s)" % (self.get_class(), self.agent['contacts']['row_ends'])
-            else:
-                return self.get_class()
+            return self.get_class()
         def __init__(self, agent, nodes=[]):
-            super(StageDef.FindStartNode, self).__init__(agent)
+            """Save row ends to the contact details"""
+            self.super().__init__(agent)
             self.agent['contacts']['row_ends'] = nodes
-
         def _start(self):
-            super(StageDef.FindStartNode, self)._start()
+            """Start action to find which node of the ends is the closest to start from"""
+            self.super()._start()
             self.action['action_type'] = 'find_node'
             self.action['action_style'] = 'closest'
             self.action['list'] = self.agent['contacts']['row_ends']
             self.action['response_location'] = None
-
         def _end(self):
-            super(StageDef.FindStartNode, self)._end()
+            """Save the closest and furthest node to be the row start and row end"""
+            self.super()._end()
             self.agent['contacts']['start_node'] = self.action['response_location']
-
             self.agent['contacts']['row_ends'].remove(self.action['response_location'])
             self.agent['contacts']['end_node'] = self.agent['contacts']['row_ends'][0]
-
             logmsg(category="stage", msg="Task to move from %s to %s" % (self.agent['contacts']['start_node'], self.agent['contacts']['end_node']))
 
     """ Navigation Controllers for Courier """
     class Navigation(StageBase):
+        """Base task for all Navigation"""
         def __repr__(self):
+            """Display class with idle navigation target """
             if self.target:
                 return "%s(%s)"%(self.get_class(), self.target.replace('WayPoint','WP'))
             return "%s" % (self.get_class())
         def __init__(self, agent, association):
-            super(StageDef.Navigation, self).__init__(agent)
+            """Identify the location from which the target is identified"""
+            self.super().__init__(agent)
             self.association = association
             self.target = None
         def _start(self):
-            super(StageDef.Navigation, self)._start()
+            """Flag the agent as requirieng a route"""
+            self.super()._start()
             # self.route_found = False  # Has route been identified?
             self.route_required = True  # Has route been published
             # self.state = "" #= "Identified" = "Published"
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is begun." % (self.agent.location(accurate=True), self.target))
         def _query(self):
+            """Complete when the agents location is identical to the target location."""
             success_conditions = [self.agent.location(accurate=True) == self.target]
-            self._flag(any(success_conditions))
+            self.flag(any(success_conditions))
         def _end(self):
+            """End navigation by refreshing routes for other agents in motion."""
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
             self.agent.cb['trigger_replan']() #ReplanTrigger
     class NavigateToAgent(Navigation):
+        """Used for navigating to a given agent"""
         def _start(self):
+            """Start task by setting the target to be a defined agent's current location"""
             self.target = self.agent['contacts'][self.association].location(accurate=True)
-            super(StageDef.NavigateToAgent, self)._start()
+            self.super()._start()
     class NavigateToNode(Navigation):
+        """Used for navigating to a given node"""
         def _start(self):
+            """Start task by setting the target to a given node"""
             self.target = self.agent['contacts'][self.association]
-            super(StageDef.NavigateToNode, self)._start()
-        def _query(self):
-            success_conditions = [self.agent.location(accurate=True) == self.target]
-            self._flag(any(success_conditions))
+            self.super()._start()
 
-    """ Navigation SubSubclasses """
+    """ Navigation Subclasses """
     class NavigateToBaseNode(NavigateToNode):
-        def __init__(self, agent): super(StageDef.NavigateToBaseNode, self).__init__(agent, association='base_node')
+        """Used to navigate to a given base_node"""
+        def __init__(self, agent):
+            """Call super to set association to base_node"""
+            self.super().__init__(agent, association='base_node')
     class NavigateToExitNode(NavigateToNode):
-        def __init__(self, agent): super(StageDef.NavigateToExitNode, self).__init__(agent, association='exit_node')
-
-    """ Routing Recovery Behviour """
-    class AssignWaitNode(AssignNode):
-        def _start(self):
-            super(StageDef.AssignWaitNode, self)._start()
-            self.action['action_type'] = 'find_node'
-            self.action['action_style'] = 'closest'
-            self.action['descriptor'] = 'wait_node'
-            self.action['response_location'] = None
-        def _end(self):
-            self.agent['contacts']['wait_node'] = self.action['response_location']
+        """Used to navigate to a given exit_node"""
+        def __init__(self, agent):
+            """Call super to set association to exit_node"""
+            self.super().__init__(agent, association='exit_node')
     class NavigateToWaitNode(NavigateToNode):
-        def __init__(self, agent): super(StageDef.NavigateToWaitNode, self).__init__(agent, association='wait_node')
+        """Used to navigate to a given wait_node"""
+        def __init__(self, agent):
+            """Call super to set association to wait_node"""
+            self.super().__init__(agent, association='wait_node')
 
     """ Communications """
     class NotifyTrigger(StageBase):
+        """Used to send a message to trigger some response"""
         def __init__(self, agent, trigger, msg, colour):
+            """Save initialisation details for message"""
             self.trigger, self.msg, self.colour = trigger, msg, colour
-            super(StageDef.NotifyTrigger, self).__init__(agent)
-        def _notify_start(self):
-            super(StageDef.NotifyTrigger, self)._start()
+            self.super().__init__(agent)
+        def _start(self):
+            """Send trigger message"""
+            self.super()._start()
             self.interface = self.agent.modules[self.agent['module']].interface
             self.interface.notify(self.msg)
             self.agent.cb['format_agent_marker'](self.agent, style=self.colour)
             self.interface[self.trigger] = True  # PSEUDO
         def _query(self):
+            """Wait for flag to be set by message response (os #PSUEDO)"""
             success_conditions = [self.interface[self.trigger]]
-            self._flag(any(success_conditions))
+            self.flag(any(success_conditions))
 
     """ Meta Stages """
     class Pause(StageBase):
+        """Inserted on Pause for use as a 3-stage controlled blocker, used on Coordinator, Task, or Agent scopes"""
         def __repr__(self):
+            """Display scopes actively contributing to the blocking"""
             return "%s(C%s|T%s|A%s)" % (self.get_class(), int(self.pause_state['Coord']), int(self.pause_state['Task']), int(self.pause_state['Agent']))
         def __init__(self, agent, format_agent_marker):
-            super(StageDef.Pause, self).__init__(agent)
+            """Initialise blocking properties"""
+            self.super().__init__(agent)
             logmsg(category="DTM", msg="      | pause init")
             self.agent.registration = False
             self.pause_state = {'Coord':False, 'Task':False, 'Agent':False}
             self.format_agent_marker = format_agent_marker
         def _start(self):
-            super(StageDef.Pause, self)._start()
-            logmsg(category="test", msg="pause::cancel_execpolicy_goal")
+            """On start, cancel any active navigation"""
+            self.super()._start()
             if hasattr(self.agent, 'temp_interface'): self.agent.temp_interface.cancel_execpolicy_goal()
             #TODO: set an agent function for generic definition of pausing?
         def _query(self):
+            """Continue once all blocking stages are False"""
             # success_conditions = [self.agent.registration]
             success_conditions = [not (True in self.pause_state.values())]
-            self._flag(any(success_conditions))
+            self.flag(any(success_conditions))
         def _end(self):
+            """On end, reenable registration"""
             self.agent.registration = True
             self.format_agent_marker(self.agent.agent_id, style='')
-    class Unregister(StageBase): pass
     class Exit(StageBase):
+        """Used for controlled removal of agent connections"""
         def _start(self):
-            super(StageDef.Exit, self)._start()
+            """Unregister agent and cancel any accociated tasks"""
+            self.super()._start()
             self.agent.registration = False
             for task in self.agent.task_buffer:
                 self.agent.set_interrupt('reset', task['module'], task['id'], "Task")
         def _query(self):
+            """Continue once all tasks are emoved from the buffer"""
             success_conditions = [len(self.agent.task_buffer) == 0];
-            self._flag(any(success_conditions))
+            self.flag(any(success_conditions))
         def _end(self):
-            super(StageDef.Exit, self)._end()
+            """Set marker to black and initiate disconnection interruption-"""
+            self.super()._end()
             self.agent.cb['format_agent_marker'](self.agent, 'black')
             self.agent.set_interrupt('disconnect', 'base', self.agent['id'], "Task")
 
