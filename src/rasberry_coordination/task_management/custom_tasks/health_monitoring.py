@@ -1,15 +1,15 @@
+"""Health Monitoring"""
+
 from copy import deepcopy
 from std_msgs.msg import String as Str
 from rospy import Time, Duration, Subscriber, Publisher, Time
-
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
+from thorvald_base.msg import BatteryArray as Battery
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
-
-from thorvald_base.msg import BatteryArray as Battery
 
 
 class InterfaceDef(object):
@@ -71,14 +71,14 @@ class StageDef(object):
         """Used to Initiate task with the agent set to unregistered"""
         def _start(self):
             """Set registration to false when charging is begun"""
-            self.super()._start()
+            super(StageDef.StartChargeTask, self)._start()
             self.agent.registration = False
 
     class AssignChargeNode(SDef.AssignNode):
         """Used to Identify and reserve a charging station"""
         def _start(self):
             """Initiate action to find charging station"""
-            self.super()._start()
+            super(StageDef.AssignChargeNode, self)._start()
             self.action['action_type'] = 'find_node'
             self.action['action_style'] = 'closest'
             self.action['descriptor'] = 'charging_station'
@@ -92,7 +92,7 @@ class StageDef(object):
         """Used to navigate to the assigned charging station"""
         def __init__(self, agent):
             """Identify associated contact as 'charging_station'"""
-            self.super().__init__(agent, association='charging_station')
+            super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')
         def _query(self):
             """Complete navigation if agents location is the target of if battery level is set to be above threshold"""
             LVL = self.agent.local_properties['battery_level']

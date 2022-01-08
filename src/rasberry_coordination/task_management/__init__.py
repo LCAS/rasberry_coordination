@@ -87,23 +87,31 @@ class Stg(object):
 
     def __repr__(self):
         """
-        NavigateToBaseNode (NavigateToNode[.], Navigation[:], StageBase[.:], object[::])
-        ----------------
-            DESC: Used for navigating to a given node
-            __repr__
-                | This is used to ...
-            .   | Overridden to ...
+        ---------------------------------------------------------------------------
+        #### NavigateToBaseNode: [`NavigateToNode(.)`, `Navigation(:)`, `StageBase(.:)`]
+        Used to navigate to a given base_node
+
+            -> __repr__
+               | .: | Simplified representation of class for clean informative logging
+               |  : | Display class with idle navigation target
+
             -> __init__
-                | This is used to ...
+               | .: | Class initialisation for populating default values
+               |  : | Identify the location from which the target is identified
+               |    | Call super to set association to base_node
+
             -> _start
-                | This is used to ...
+               | .: | Stage start, called when this is the active stage.
+               |  : | Flag the agent as requiring a route
+               |  . | Start task by setting the target to a given node
+
             -> _query
-                | Completed on start
-            :   | Overridden to complete on agent node bain the same as the target node
+               | .: | Used to define the criteria which must be met for the stage to be completed
+               |  : | Complete when the agent's location is identical to the target location.
+
             -> _end
-                | This is used to ...
-            .   | This is used to ...
-            .:  | This is used to ...
+               | .: | Used to set any fields as the stage is about to be removed
+               |  : | End navigation by refreshing routes for other agents in motion.
         """
         self.repr = ''
         def pint(s): self.repr = self.repr+"\n"+s
@@ -134,6 +142,7 @@ class Stg(object):
 
 
 def print_stages_md():
+    import rasberry_coordination
     from rasberry_coordination.task_management import Stg
     from rasberry_coordination.task_management import base
     from rasberry_coordination.task_management.custom_tasks import health_monitoring
@@ -141,15 +150,32 @@ def print_stages_md():
     from rasberry_coordination.task_management.custom_tasks import uv_treatment
     from rasberry_coordination.task_management.custom_tasks import data_monitoring
 
-    Stg(base.StageDef.__dict__['NavigateToBaseNode'])
+    # Stg(base.StageDef.__dict__['NavigateToBaseNode'])
+    ba = ([v for k, v in base.StageDef.__dict__.items() if not k.startswith('_')],              base)
+    hm = ([v for k, v in health_monitoring.StageDef.__dict__.items() if not k.startswith('_')], health_monitoring)
+    tp = ([v for k, v in transportation.StageDef.__dict__.items() if not k.startswith('_')],    transportation)
+    uv = ([v for k, v in uv_treatment.StageDef.__dict__.items() if not k.startswith('_')],      uv_treatment)
+    dm = ([v for k, v in data_monitoring.StageDef.__dict__.items() if not k.startswith('_')],   data_monitoring)
 
-    ba = [v for k, v in base.StageDef.__dict__.items() if not k.startswith('_')]
-    hm = [v for k, v in health_monitoring.StageDef.__dict__.items() if not k.startswith('_')]
-    tp = [v for k, v in transportation.StageDef.__dict__.items() if not k.startswith('_')]
-    uv = [v for k, v in uv_treatment.StageDef.__dict__.items() if not k.startswith('_')]
-    dm = [v for k, v in data_monitoring.StageDef.__dict__.items() if not k.startswith('_')]
+    # import rospkg
+    # rospack = rospkg.RosPack()
+    # rospack.list()
+    # rasberry_coordination = rospack.get_path('rasberry_coordination')
+    filepath = rasberry_coordination.__path__[-1].replace('/src/rasberry_coordination', '/docs/StageList.md')
+    modules = [ba, hm, tp, uv, dm]
+    with open(filepath, 'w') as f:
 
-    for v in ba + hm + tp + uv + dm:
-        print(Stg(v, True))
+        f.write('# Stage List:\nThis document details the structure and formatting of the stages defined in the StageDef for each module in:\n\n')
 
-# from rasberry_coordination.task_management import print_stages_md; print_stages_md()
+        for m in modules:
+            f.write('\n- [%s](#%s)' % (m[1].__doc__, m[1].__doc__.replace(' ','')))
+
+        for m in modules:
+            module_name = m[1].__doc__
+            module_ref = m[1].__name__.replace('rasberry_coordination.task_management.','')
+            f.write('\n\n%s\n<a name="%s"></a>\n## %s\nStages defined in the %s module:  ' % ("-"*50, module_name.replace(' ', ''), module_name, module_ref))
+            for v in m[0]: f.write(Stg(v, True).__repr__())
+
+# if __name__ == '__main__':
+    # from rasberry_coordination.task_management import print_stages_md; print_stages_md()
+    # print_stages_md()

@@ -1,3 +1,5 @@
+"""UV Treatment"""
+
 from copy import deepcopy
 from rospy import Time, Duration, Subscriber, Publisher, Time
 
@@ -10,6 +12,7 @@ from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
+
 
 class InterfaceDef(object):
 
@@ -116,35 +119,36 @@ class TaskDef(object):
 
 
 class StageDef(object):
+
     class FindRowsUV(SDef.FindRows):
         """Used to assign the uv_treatment_treat_row task to all rows in the given tunnel."""
         def __init__(self, agent, tunnel):
             """Call super to set uv_treatment_treat_row as task to apply"""
-            self.super().__init__(agent, tunnel, 'uv_treatment_treat_row')
+            super(StageDef.FindRowsUV, self).__init__(agent, tunnel, 'uv_treatment_treat_row')
 
     class NavigateToUVStartNode(SDef.NavigateToNode):
         """Used to navigate to a given start node"""
         def __init__(self, agent):
             """Call to super to set the navigation target as the node stored in the action association"""
-            self.super().__init__(agent, association='start_node')
+            super(StageDef.NavigateToUVStartNode, self).__init__(agent, association='start_node')
 
     class NavigateToUVEndNode(SDef.NavigateToNode):
         """Used to navigate to a given end node"""
         def __init__(self, agent):
             """Call to super to set the navigation target as the node stored in the action association"""
-            self.super().__init__(agent, association='end_node')
+            super(StageDef.NavigateToUVEndNode, self).__init__(agent, association='end_node')
 
     class EnableUVLight(SDef.NotifyTrigger):
         """Used to enable the UV light on the uv robot"""
         def __init__(self, agent):
             """Call to initialise a light_status message of ENABLE_LIGHT to send on start and set rviz robot to blue"""
-            self.super().__init__(agent, trigger='light_status', msg="ENABLE_LIGHT", colour='blue')
+            super(StageDef.EnableUVLight, self).__init__(agent, trigger='light_status', msg="ENABLE_LIGHT", colour='blue')
 
     class DisableUVLight(SDef.NotifyTrigger):
         """Used to disable the UV light on the uv robot"""
         def __init__(self, agent):
             """Call to initialise a light_status message of DISABLE_LIGHT to send on start and set rviz robot to clear"""
-            self.super().__init__(agent, trigger='light_status', msg="DISABLE_LIGHT", colour='')
+            super(StageDef.DisableUVLight, self).__init__(agent, trigger='light_status', msg="DISABLE_LIGHT", colour='')
 
 
 

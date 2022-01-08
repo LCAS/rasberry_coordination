@@ -4,7 +4,7 @@ modules:
   - name: health_monitoring
     role: robot
   - name: transportation
-    role: courier
+    role: field_courier
 navigation_properties:
     has_presence: true
     restrictions: inter-row

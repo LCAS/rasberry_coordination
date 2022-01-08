@@ -163,8 +163,6 @@ class AgentDetails(object):
             logmsg(level="error", category="task", msg="    | Should each module have an idle task for each agent?")
             logmsg(level="error", category="task", msg="    \ Agent to be assigned a basic idle task.")
             self.add_task(task_name='idle')
-
-
     def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None, quiet=False, initiator_id=""):
         """ Called by task stages, used to buffer new tasks for the agent """
         # #picker.interface.called(): self.agent.add_task('transportation_request_courier')
@@ -196,7 +194,6 @@ class AgentDetails(object):
         else:
             logmsg(category="TASK",  msg="    | Buffering %s to task_buffer[%i]:" % (task_name, index or len(self.task_buffer)))
             [logmsg(category="TASK", msg="    |    | %s"%t) for t in task.stage_list]
-
     def start_next_task(self, idx=0):
         logmsg(category="TASK", id=self.agent_id, msg="Beginning next task", speech=False)
 
@@ -235,7 +232,8 @@ class AgentDetails(object):
     def __call__(A, index=0): return A.task.stage_list[index] if len(A.task.stage_list) > index else None
     def __getitem__(A, key):  return A.task[key] if A.task else None
     def __setitem__(A, key, val):    A.task[key] = val
-
+    def simple_agent_id(self):
+        return self.agent_id.replace('thorvald','T').replace('picker','P').replace('storage','S')
 
     """ Standard Task Interactions """
     def start_stage(self):
@@ -284,7 +282,6 @@ class AgentDetails(object):
         if len(gc.get_referrers(a())) > 1:
             logmsg(level="error", category="DRM", msg="Remove unhandled refs in place or in AgentDetails.delete_known_references()")
         [logmsg(category="DRM", msg="    - (%s) %s" % (i+1, r)) for i, r in enumerate(gc.get_referrers(a()))]
-
     def __del__(self):
         logmsg(level="warn", category="DRM", id=self.agent_id, msg="Agent handler is deleted.")
         logmsg(level="warn", category="DRM", msg="Here, we must identify and unregister every subscriber")

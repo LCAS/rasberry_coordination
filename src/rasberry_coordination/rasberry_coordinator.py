@@ -63,33 +63,15 @@ class RasberryCoordinator(object):
         self.log_routes = True
         self.action_print = True
 
-
-        """ Initialise Task Parameters: """ #This should be done within Stages.py programatically
-        """
-        self.active_tasks = active_tasks
-        self.max_load_duration = max_load_duration
-        self.max_unload_duration = max_unload_duration
-        self.max_task_priority = max_task_priority
-        """
-
         """ Initialise System Details: """
         self.special_nodes = special_nodes
         self.base_station_nodes_pool = base_station_nodes_pool
         self.wait_nodes_pool = wait_nodes_pool
 
-        # Cold storage node is an agnet now, and should be defined as such
-        """
-        self.use_cold_storage = use_cold_storage
-        self.cold_storage_node = cold_storage_node
-        """
-
         """ Initialise Agents: """
         callbacks = {'update_topo_map': None
                      , 'trigger_replan': self.trigger_replan #ReplanTrigger
-                    }
-        #TODO: redesign for this to be gone
-
-        #Define Agent Manager
+                    } #TODO: redesign for this to be gone
         self.agent_manager = AgentManager(callbacks)
         self.agent_manager.add_agents(agent_list)
         self.AllAgentsList = self.get_all_agents()
@@ -101,10 +83,6 @@ class RasberryCoordinator(object):
 
         """ Communications Setup """
         self.advertise_services()
-
-        # Initialise topics for marker management #Combine these into 1 topic
-        # self.marker_add_pub = Publisher('/rasberry_coordination/marker_add', MarkerDetails, queue_size=5)
-        # self.marker_remove_pub = Publisher('/rasberry_coordination/marker_remove', MarkerDetails, queue_size=5)
 
         """ TOC Communications """
         self.TOC_Interface = InterfaceDef.TOC_Interface(self)
@@ -190,7 +168,7 @@ class RasberryCoordinator(object):
             # Interrupt Stage Execution
             interrupts = [a.interruption for a in A] ; a = None; del A
             logbreak("INTERRUPTS", interrupts)
-            interrupt_task() if any(interrupts) else None;                             """ Interrupt Stage Execution """
+            if any(interrupts): interrupt_task();                                      """ Interrupt Stage Execution """
 
             # Update local list of Agents
             A = get_agents()
@@ -226,7 +204,7 @@ class RasberryCoordinator(object):
             E=[a.end_stage() for a in A if a().stage_complete];                                        """ End Stage """
 
             # Update TOC
-            TOC.EndTask(E) if any(E) else None;                                          """ Update TOC w/ Completed """
+            if any(E): TOC.EndTask(E);                                                   """ Update TOC w/ Completed """
 
             # Publish Log and Wait
             l(-2); rospy.sleep(0.2)
@@ -351,8 +329,11 @@ class RasberryCoordinator(object):
 
     """ Find Distance """
     def dist(self, start_node, goal_node):
-        _,_,route_dists = self.get_path_details(start_node, goal_node)
-        return sum(route_dists)
+        try:
+            _,_,route_dists = self.get_path_details(start_node, goal_node)
+            return sum(route_dists)
+        except: pass
+        return None
 
     """ Interrupt Task """
     def interrupt_task(self):
@@ -452,7 +433,6 @@ class RasberryCoordinator(object):
         """ Define route, if no new route is generated, dont do anything. """
         policy.route.source = agent.route_fragments[0] if agent.route_fragments else None
         policy.route.edge_id = agent.route_edges[0] if agent.route_edges else None
-
 
         """ Flag to identify if new route is the same and should not be re-published """
         publish_route = True #assume route is identical

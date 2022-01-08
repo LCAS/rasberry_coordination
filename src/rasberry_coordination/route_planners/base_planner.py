@@ -139,9 +139,9 @@ class BasePlanner(object):
     def load_route_search(self, agent):
         agent.navigation['available_route_search'] = TopologicalRouteSearch(agent.navigation['tmap_available'])
 
-    def get_agents(self):
-        # Filter out agents with no physical presence
-        self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.location.has_presence}
+    # def get_agents(self):
+    #     # Filter out agents with no physical presence
+    #     self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.location.has_presence}
 
     def load_occupied_nodes(self):
         """ get the list of nodes occupied by all agents

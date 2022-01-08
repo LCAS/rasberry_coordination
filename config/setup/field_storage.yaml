@@ -2,7 +2,7 @@ modules:
   - name: base
     role: human
   - name: transportation
-    role: storage
+    role: field_storage
 navigation_properties:
     has_presence: false
 visualisation_properties:
