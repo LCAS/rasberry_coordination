@@ -40,8 +40,8 @@ class LocationObj(object):
     def disable_localisation(self, msg):
         self.current_node_sub.unregister()
         self.closest_node_sub.unregister()
-        self.current_node_cb(msg.data)
-        self.closest_node_cb(msg.data)
+        self.current_node_cb(msg)
+        self.closest_node_cb(msg)
 
     def enable_localisation(self, msg):
         self.previous_node, self.current_node, self.closest_node = None, None, None
@@ -64,7 +64,6 @@ class TaskObj(object):
         self.initiator_id = str() if not initiator_id else initiator_id
         self.responder_id = str() if not responder_id else responder_id
         self.stage_list = list() if not stage_list else stage_list
-
 
     def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
     def __setitem__(self, key, val): self.__setattr__(key,val)
