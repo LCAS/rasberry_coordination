@@ -91,6 +91,7 @@ class AgentManager(object):
         marker.type = agent.visualisation_properties['rviz_model']
 
         #Define marker color ["remove", "red", "green", "blue", "black", "white", ""]
+        style = style or agent.visualisation_properties['default_colour']
         marker.optional_color = style
 
         logmsg(category="rviz", msg="Setting %s %s(%s)" % (marker.type, marker.agent_id, marker.optional_color))
@@ -126,6 +127,8 @@ class AgentDetails(object):
         mp = setup['module_properties']
         np = setup['navigation_properties']
         vp = setup['visualisation_properties']
+
+        self.visualisation_properties['default_colour'] = lp['rviz_default_colour'] if 'rviz_default_colour' in lp else ''
 
         #Subscriptions
         self.subs = {}

@@ -163,12 +163,15 @@ class InterfaceDef(object):
             node_id = msg.data or self.agent.goal or self.agent.location(accurate=True)
             self.agent.add_task(task_name='exit_at_node', contacts={"exit_node":node_id}, index=0)
 
+
     class base_robot(robot):
-        def __init__(self, agent): super(InterfaceDef.base_robot, self).__init__(agent, Robot(agent.agent_id))
+        def __init__(self, agent):
+            super(InterfaceDef.base_robot, self).__init__(agent, Robot(agent.agent_id))
+
+
     class base_virtual_robot(robot):
-        def __init__(self, agent): super(InterfaceDef.base_virtual_robot, self).__init__(agent, VirtualRobot(agent.agent_id, agent))
-
-
+        def __init__(self, agent):
+            super(InterfaceDef.base_virtual_robot, self).__init__(agent, VirtualRobot(agent.agent_id, agent, step_delay=10))
 
 
     class base_human(object):

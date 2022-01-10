@@ -199,6 +199,7 @@ class StageDef(object):
             self.flag(any(success_conditions))
             if any(success_conditions): print("admittance required: %s"%self.agent.request_admittance)
     class IdleFieldStorage(IdleStorage):
+        pass
         def _end(self):
             """On completion, add an idle field_storage to the end of the buffer"""
             self.agent.add_task('transportation_field_storage_idle')
@@ -313,15 +314,11 @@ class StageDef(object):
             super(StageDef.TimeoutFlagModifier, self)._end()
             self.agent['contacts']['field_courier'][self.trigger_flag] = self.default
             self.agent.modules['transportation'].interface.notify("INIT")
-
-
     class LoadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be consideded loaded"""
         def _start(self):
             """Define the flag default as True and the timeout as the tranportation/wait_loading property"""
             super(StageDef.LoadFieldCourier, self)._start(timeout='wait_loading', flag='has_tray', default=True)
-
-
     class UnloadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be consideded unloaded"""
         def _start(self):

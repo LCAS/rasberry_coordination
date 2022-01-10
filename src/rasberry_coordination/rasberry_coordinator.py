@@ -138,7 +138,7 @@ class RasberryCoordinator(object):
         RL  = Rasberry_Logger(enable_task_logging=True)
 
         # Functions for simpler standard logging
-        def l(idx): RL.log_minimal(idx, self.AllAgentsList)
+        def l(idx): return; RL.log_minimal(idx, self.AllAgentsList)
         def lognull(): logmsg(category="null")
         def logbreak(section, condition):
             if any(condition):

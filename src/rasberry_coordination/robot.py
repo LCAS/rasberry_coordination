@@ -236,11 +236,11 @@ class Robot(object):
 
 
 class VirtualRobot(object):
-    def __init__(self, agent_id, agent):
+    def __init__(self, agent_id, agent, step_delay=0.5):
         self.agent = agent
         self.execpolicy_goal, self.route = ExecutePolicyModeGoal(), Path()
 
-        rospy.set_param('/rasberry_coordination/virtual_robot/route_step_delay', 0.5)
+        rospy.set_param('/rasberry_coordination/virtual_robot/route_step_delay', step_delay)
 
         self.topo_map = None
         self.rec_topo_map = False
