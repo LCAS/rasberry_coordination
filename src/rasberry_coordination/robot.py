@@ -291,7 +291,7 @@ class VirtualRobot(object):
             x = route.poses[0].pose
             del route.poses[0]
 
-            self.pose_update_pub.publish(x) #publish x as new location
+            self.pose_update_pub.publish(x)  # publish x as new location
             rospy.sleep(rospy.get_param('/rasberry_coordination/virtual_robot/route_step_delay', 2))
             self.route_progress_publisher.publish(route)
         else:

@@ -84,7 +84,6 @@ class FragmentPlanner(BasePlanner):
 
         """for each agent"""
         for agent in self.agent_details.values():
-        # for agent in self.robot_manager.agent_details.values() + self.picker_manager.agent_details.values():
             agent_id = agent.agent_id
             r_outer = agent.route
             critical_points[str(r_outer)] = set([])
@@ -95,7 +94,6 @@ class FragmentPlanner(BasePlanner):
                     continue
 
                 robot = self.agent_details[robot_id]
-                # robot = self.robot_manager.agent_details[robot_id]
 
                 """if the agent route is not the same as the robot route"""
                 r_inner = robot.route
@@ -198,7 +196,7 @@ class FragmentPlanner(BasePlanner):
 
         logmsg(category="route", msg="    - All fragments identified")
         for a in self.agent_details.values():
-            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,a.route_fragments))
+            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,str(a.route_fragments).replace('WayPoint','wp')))
 
         res_edges = {}
         # split the edges as per the route_fragments
@@ -229,7 +227,7 @@ class FragmentPlanner(BasePlanner):
 
         logmsg(category="route", msg="    - All fragments formatted")
         for a in self.agent_details.values():
-            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,a.route_fragments))
+            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,str(a.route_fragments).replace('WayPoint','wp')))
 
         """ for each agent, apply their route edges """
         # self.route_edges = res_edges
@@ -239,7 +237,8 @@ class FragmentPlanner(BasePlanner):
 
         logmsg(category="route", msg="    - All fragment edges formatted")
         for a in self.agent_details.values():
-            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,a.route_edges))
+            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,str(a.route_edges).replace('WayPoint','wp')))
+
 
     def find_routes(self, ):
         """find_routes - find indiviual paths, find critical points in these paths, and fragment the
@@ -277,21 +276,16 @@ class FragmentPlanner(BasePlanner):
                 continue
 
             """take copy of empty map"""
+            #unblock start and goal nodes, then update map to block other agents
             self.update_available_tmap(agent)
             self.unblock_node(agent, start_node)
-            self.unblock_node(agent, goal_node)  # TODO: is this needed?
+            self.unblock_node(agent, goal_node)
             self.load_route_search(agent)
 
             """generate route from start node to goal node"""
             route = None
-            print("label if start_node and goal_node:")
             if start_node and goal_node:
                 route = self.get_available_optimum_route(agent, start_node, goal_node)
-                # print("label get_route")
-                # print(start_node)
-                # print(goal_node)
-                # print(route)
-                # print("")
             route_nodes = []
             route_edges = []
 
@@ -306,11 +300,6 @@ class FragmentPlanner(BasePlanner):
                 self.no_route_found(agent)
                 inactives += [agent]
                 continue
-            # else:
-            #     print("label route_none")
-            #     print(route)
-            #     print("")
-
 
             route_nodes = route.source + [goal_node] # add goal_node as it could be a critical point
             route_edges = route.edge_id
@@ -332,7 +321,7 @@ class FragmentPlanner(BasePlanner):
 
         logmsg(category="route", msg="    - All agents assigned routes")
         for a in self.agent_details.values():
-            logmsg(category="route", msg="        - %s:%s" % (a.agent_id, a.route))
+            logmsg(category="route", msg="        - %s:%s" % (a.agent_id, str(a.route).replace('WayPoint','wp')))
 
         # find critical points and fragment routes to avoid critical point collistions
         self.split_critical_paths()

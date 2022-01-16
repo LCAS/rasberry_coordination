@@ -353,10 +353,10 @@ class RasberryCoordinator(object):
         2. Add an additional pause stage which queries self.agent.registration
         """
         agent().suspend() #suspend active stage
-
-        scope = agent.interruption[3]
         if agent().get_class() != "base.Pause":
             agent['stage_list'].insert(0, StageDef.Pause(agent, self.agent_manager.format_agent_marker)) #add paused stage
+
+        scope = agent.interruption[3]
         agent().pause_state[scope] = True
         logmsg(category="DTM", msg="      | pause trigger ['%s'] set to True" % scope)
         logmsg(category="DTM", msg="      | stage state: %s" % agent().__repr__())
@@ -529,7 +529,7 @@ class RasberryCoordinator(object):
     #     if (not policy.route.source) or (not policy.route.edge_id): return
     #
     #     # Identify Old and New routes
-    #     old_route_edges = agent.temp_interface.execpolicy_goal.route.edge_id; old_route_edges.reverse()
+    #     old_route_edges = agent.navigation_interface.execpolicy_goal.route.edge_id; old_route_edges.reverse()
     #     new_route_edges = policy.route.edge_id; new_route_edges.reverse()
     #     publish_route = False
     #
@@ -547,15 +547,15 @@ class RasberryCoordinator(object):
     #
     #     # Publish goal
     #     if publish_route:
-    #         agent.temp_interface.cancel_execpolicy_goal()
-    #         agent.temp_interface.set_execpolicy_goal(policy)
+    #         agent.navigation_interface.cancel_execpolicy_goal()
+    #         agent.navigation_interface.set_execpolicy_goal(policy)
     #         agent().route_required = False
     #         resp = "successful"
     #     else:
     #         resp = "unsuccessful, new route is not significantly different"
     #     logmsg(category="route", msg="    - publish attempt %s" % resp)
     #
-    #     agent().route_found = False  # Used to trigger replanning
+    #     agent().route_ready_for_publishing = False  # Used to trigger replanning
     #
     #     #Put a delay in route searching, we dont need new attempts every ms
     #     rospy.sleep(1)

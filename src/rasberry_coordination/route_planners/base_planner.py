@@ -107,12 +107,7 @@ class BasePlanner(object):
                 # also make sure we start adding from current/closest node
                 if not adding_ok:
                     adding_ok = agent.route[i] == (agent.location.current_node or agent.location.closest_node)
-                    # if agent.location.current_node != None:
-                    #     if agent.location.current_node == agent.route[i]:
-                    #         adding_ok = True
-                    # elif agent.location.closest_node != None:
-                    #     if agent.location.closest_node == agent.route[i]:
-                    #         adding_ok = True
+
                 if adding_ok:
                     dist += agent.route_dists[i]
         return dist

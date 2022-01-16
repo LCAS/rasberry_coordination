@@ -238,6 +238,7 @@ class AgentDetails(object):
     def simple_agent_id(self):
         return self.agent_id.replace('thorvald','T').replace('picker','P').replace('storage','S')
 
+
     """ Standard Task Interactions """
     def start_stage(self):
         self()._start()
