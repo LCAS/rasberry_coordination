@@ -111,14 +111,14 @@ class TaskDef(object):
     """ Picker Tasks """
     @classmethod
     def transportation_request_field_courier(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return(Task(id = task_id,
-                    module = 'transportation',
-                    name = "transportation_request_field_courier",
-                    details = details,
-                    contacts = contacts,
-                    initiator_id = agent.agent_id,
-                    responder_id = "",
-                    stage_list = [
+        return(Task(id=task_id,
+                    module='transportation',
+                    name="transportation_request_field_courier",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
                         SDef.StartTask(agent, task_id),
                         StageDef.AssignFieldCourier(agent),
                         StageDef.AwaitFieldCourier(agent),
@@ -128,28 +128,28 @@ class TaskDef(object):
     """ FieldCourier Tasks """
     @classmethod
     def transportation_retrieve_load(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return(Task(id = task_id,
-                    module = 'transportation',
-                    name = "transportation_retrieve_load",
-                    details = details,
-                    contacts = contacts,
-                    initiator_id = initiator_id,
-                    responder_id = agent.agent_id,
-                    stage_list = [
+        return(Task(id=task_id,
+                    module='transportation',
+                    name="transportation_retrieve_load",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=initiator_id,
+                    responder_id=agent.agent_id,
+                    stage_list=[
                         SDef.StartTask(agent, task_id),
                         StageDef.NavigateToPicker(agent),
                         StageDef.Loading(agent)
                     ]))
     @classmethod
     def transportation_deliver_load(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return(Task(id = task_id,
-                    module = 'transportation',
-                    name = "transportation_deliver_load",
-                    details = details,
-                    contacts = contacts,
-                    initiator_id = agent.agent_id,
-                    responder_id = "",
-                    stage_list = [
+        return(Task(id=task_id,
+                    module='transportation',
+                    name="transportation_deliver_load",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
                         SDef.StartTask(agent, task_id),
                         StageDef.AssignFieldStorage(agent),
                         SDef.AssignWaitNode(agent),
@@ -161,27 +161,27 @@ class TaskDef(object):
     """ Storage Tasks """
     @classmethod
     def idle_field_storage_def(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return(Task(id = task_id,
-                    module = 'transportation',
-                    name = "idle_field_storage_def",
-                    details = details,
-                    contacts = contacts,
-                    initiator_id = agent.agent_id,
-                    responder_id = "",
-                    stage_list = [
+        return(Task(id=task_id,
+                    module='transportation',
+                    name="idle_field_storage_def",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
                         SDef.StartTask(agent, task_id),
                         StageDef.IdleFieldStorage(agent)
                     ]))
     @classmethod
     def transportation_field_storage(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return(Task(id = task_id,
-                    module = 'transportation',
-                    name = "transportation_field_storage",
-                    details = details,
-                    contacts = contacts,
-                    initiator_id = "",
-                    responder_id = agent.agent_id,
-                    stage_list = [
+        return(Task(id=task_id,
+                    module='transportation',
+                    name="transportation_field_storage",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id="",
+                    responder_id=agent.agent_id,
+                    stage_list=[
                         StageDef.AcceptFieldCourier(agent),
                         StageDef.AwaitFieldCourier(agent),
                         StageDef.UnloadFieldCourier(agent)
@@ -295,13 +295,13 @@ class StageDef(object):
     """ FieldCourier Load Modifiers """
     class TimeoutFlagModifier(SDef.StageBase):
         """Used to idle till timeout or a flag is set"""
-        def _start(self, timeout, flag, default):
+        def _start(self, timeout_type, flag, default):
             """Define the completion flag and timeout"""
             super(StageDef.TimeoutFlagModifier, self)._start()
             self.agent[flag] = default
             self.trigger_flag = flag
             self.default = default
-            self.timeout = Duration(secs=fetch_property('transportation', timeout))
+            self.timeout = Duration(secs=fetch_property('transportation', timeout_type))
         def _query(self):
             """Complete once has_tray flag is triggered by interface or timeout completes"""
             success_conditions = [Time.now() - self.start_time > self.timeout,
@@ -318,12 +318,12 @@ class StageDef(object):
         """Used to define completion details for when the field_courier can be consideded loaded"""
         def _start(self):
             """Define the flag default as True and the timeout as the tranportation/wait_loading property"""
-            super(StageDef.LoadFieldCourier, self)._start(timeout='wait_loading', flag='has_tray', default=True)
+            super(StageDef.LoadFieldCourier, self)._start(timeout_type='wait_loading', flag='has_tray', default=True)
     class UnloadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be consideded unloaded"""
         def _start(self):
             """Define the flag default as False and the timeout as the tranportation/wait_unloading property"""
-            super(StageDef.UnloadFieldCourier, self)._start(timeout='wait_unloading', flag='has_tray', default=False)
+            super(StageDef.UnloadFieldCourier, self)._start(timeout_type='wait_unloading', flag='has_tray', default=False)
 
     """ Loading Modifiers for Courier """
     class Loading(SDef.StageBase):

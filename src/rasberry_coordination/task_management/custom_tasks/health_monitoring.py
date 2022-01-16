@@ -23,10 +23,19 @@ class InterfaceDef(object):
         def _battery_data_cb(self, msg):
             total_voltage = sum(battery.battery_voltage for battery in msg.battery_data)
             self.agent.local_properties['battery_level'] = total_voltage
-            if self.battery_critical() and self.agent['task_name'] is not "charge_at_charging_station":  # Only add charging task if battery level critical and active task is not charging
-                self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_name != "charge_at_charging_station"]  # Remove any low-battery tasks in buffer
-                self.agent.add_task(task_name="charge_at_charging_station", index=0)  # Add critical battery task to the buffer head
 
+            # Add charging task if battery is critical, and agent isnt charging
+            if self.battery_critical() and not self.is_charging():
+                self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_name != "charge_at_charging_station"]  # Filter charging task from buffer
+                self.agent.add_task(task_name="charge_at_charging_station", index=0)
+
+            # Add charging task if battery is low, agent isnt planning to charge, and stage is idle
+            if self.battery_low() and not self.has_charging_task() and self.is_idle():
+                self.agent.add_task(task_name="charge_at_charging_station")
+
+        def is_idle(self): return self.agent().get_class() == "base.Idle"
+        def is_charging(self): return self.agent['task_name'] is "charge_at_charging_station"
+        def has_charging_task(self): return "charge_at_charging_station" in [t.task_name for t in self.agent.task_buffer]+[self.agent['task_name']]
         def battery_critical(self):
             LP = self.agent.local_properties
             CRIT = fetch_property('health_monitoring', 'critical_battery_limit')
@@ -50,14 +59,14 @@ class TaskDef(object):
 
     @classmethod
     def charge_at_charging_station(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return(Task(id = task_id,
+        return(Task(id=task_id,
                     module='health_monitoring',
-                    name = "charge_at_charging_station",
+                    name="charge_at_charging_station",
                     details=details,
-                    contacts = contacts,
-                    initiator_id = agent.agent_id,
-                    responder_id = "",
-                    stage_list = [
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
                         StageDef.StartChargeTask(agent),
                         StageDef.AssignChargeNode(agent),
                         StageDef.NavigateToChargeNode(agent),

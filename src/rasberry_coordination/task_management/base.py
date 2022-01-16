@@ -172,7 +172,9 @@ class InterfaceDef(object):
 
     class base_virtual_robot(robot):
         def __init__(self, agent):
-            super(InterfaceDef.base_virtual_robot, self).__init__(agent, VirtualRobot(agent.agent_id, agent, step_delay=10))
+            sd = fetch_property('base', 'virtual_robot_step_delay')
+            VR = VirtualRobot(agent.agent_id, agent, step_delay=sd)
+            super(InterfaceDef.base_virtual_robot, self).__init__(agent, VR)
 
 
     class base_human(object):
@@ -197,7 +199,6 @@ class TaskDef(object):
                          StageDef.SetUnregister(agent),
                          StageDef.WaitForMap(agent),
                          StageDef.WaitForLocalisation(agent),
-                         # StageDef.WaitForModules(agent),
                          StageDef.SetRegister(agent)
                      ]))
 
@@ -221,14 +222,14 @@ class TaskDef(object):
 
     @classmethod
     def base_human_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return(Task(id = task_id,
-                    module = 'base',
-                    name = "base_human_init",
-                    details = details,
-                    contacts = contacts,
-                    initiator_id = agent.agent_id,
-                    responder_id = "",
-                    stage_list = [
+        return(Task(id=task_id,
+                    module='base',
+                    name="base_human_init",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
                         StageDef.StartTask(agent, task_id),
                         StageDef.SetUnregister(agent),
                         StageDef.WaitForLocalisation(agent),
@@ -249,27 +250,27 @@ class TaskDef(object):
     """ Runtime Method for Idle Task Definitions """
     @classmethod
     def idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return(Task(id = task_id,
-                    module = 'base',
-                    name = "idle",
-                    details = details,
-                    contacts = contacts,
-                    initiator_id = agent.agent_id,
-                    responder_id = "",
-                    stage_list = [
+        return(Task(id=task_id,
+                    module='base',
+                    name="idle",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
                         StageDef.StartTask(agent, task_id),
                         StageDef.Idle(agent)
                     ]))
     @classmethod
     def wait_at_base(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return(Task(id = task_id,
-                    module = 'base',
-                    name = "wait_at_base",
-                    details = details,
-                    contacts = contacts,
-                    initiator_id = agent.agent_id,
-                    responder_id = "",
-                    stage_list = [
+        return(Task(id=task_id,
+                    module='base',
+                    name="wait_at_base",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
                         StageDef.StartTask(agent, task_id),
                         # StageDef.Exit(agent)
                         StageDef.AssignBaseNode(agent),
@@ -278,14 +279,14 @@ class TaskDef(object):
                     ]))
     @classmethod
     def exit_at_node(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return(Task(id = task_id,
-                    module = 'base',
-                    name = "exit_at_node",
-                    details = details,
-                    contacts = contacts,
-                    initiator_id = agent.agent_id,
-                    responder_id = "",
-                    stage_list = [
+        return(Task(id=task_id,
+                    module='base',
+                    name="exit_at_node",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
                         StageDef.SetUnregister(agent),
                         StageDef.NavigateToExitNode(agent),
                         StageDef.Exit(agent)
@@ -431,9 +432,7 @@ class StageDef(object):
             return self.get_class()
         def _query(self):
             """Complete once task buffer contains another task, or if battery level is low."""
-            health = 'health_monitoring' in self.agent.modules
-            success_conditions = [len(self.agent.task_buffer) > 0,
-                                  self.agent.modules['health_monitoring'].interface.battery_low() if health else False]
+            success_conditions = [len(self.agent.task_buffer) > 0]
             self.flag(any(success_conditions))
 
     """ Assignment-Based Task Stages (involves coordinator) """
