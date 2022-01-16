@@ -425,6 +425,7 @@ class RasberryCoordinator(object):
 
     """ Publish route if different from current """
     def execute_policy_route(self, agent):
+
         logmsg(category="route", id=agent.agent_id, msg="Attempting to publish route.")
 
         """ Publish ExecutePolicyModeGoal if different from current policy """
@@ -555,7 +556,7 @@ class RasberryCoordinator(object):
     #         resp = "unsuccessful, new route is not significantly different"
     #     logmsg(category="route", msg="    - publish attempt %s" % resp)
     #
-    #     agent().route_ready_for_publishing = False  # Used to trigger replanning
+    #     agent().route_found = False  # Used to trigger replanning
     #
     #     #Put a delay in route searching, we dont need new attempts every ms
     #     rospy.sleep(1)

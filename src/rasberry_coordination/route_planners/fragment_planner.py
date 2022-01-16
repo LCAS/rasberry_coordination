@@ -308,7 +308,7 @@ class FragmentPlanner(BasePlanner):
             """save route details"""
             agent.route = route_nodes
             agent.route_edges = route_edges
-            agent().route_found = True #ReplanTrigger #todo: is this really right here?
+            agent().route_found = True #ReplanTrigger
             logmsg(category="route", msg="Route has been found, marking as such")
 
             self.get_edge_distances(agent_id)
