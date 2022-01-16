@@ -27,6 +27,7 @@ class RootInspector(object):
             k = k.replace(']', '').split('[')
 
             if k[0] not in tree.__dict__: tree = tree.__dict__; break
+            #Error processing request: 'dict' object has no attribute '__dict__'
 
             tree = tree.__getattribute__(k[0])
             if len(k) > 1:
