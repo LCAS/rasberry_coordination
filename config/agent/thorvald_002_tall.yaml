@@ -1,1 +1,3 @@
 agent_id: thorvald_002
+local_properties:
+    rviz_default_colour: green

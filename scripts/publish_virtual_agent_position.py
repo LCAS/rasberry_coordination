@@ -15,7 +15,7 @@ class PoseManager(object):
 
         while not rospy.is_shutdown():
             pub.publish(self.pose)
-            rospy.sleep(1.2)
+            rospy.sleep(1.2)  # timeout to republish marker obj
 
     def new_pose_cb(self, msg):
         self.pose = msg

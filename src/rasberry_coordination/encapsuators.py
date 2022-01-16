@@ -8,12 +8,13 @@ from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 from rasberry_coordination.srv import AgentNodePair
 
-
+import yaml
+from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
 class LocationObj(object):
 
-    def __init__(self, presence = True, initial_location = None):
-        self.has_presence = bool(presence)
+    def __init__(self, has_presence = True, initial_location = None):
+        self.has_presence = has_presence
         self.current_node = initial_location
         self.previous_node = None
         self.closest_node = None
@@ -100,10 +101,33 @@ class ModuleObj(object):
     #         self.agent.add_task(task_name=self.idle_task_name)
 
 
+class MapObj(object):
 
+    def __init__(self, agent, topic="/topological_map_2"):
+        self.agent = agent
+        self.topic = topic
 
+        self.map = None
+        self.node_list = None
+        self.fresh_map = None
+        self.optimal_route_search = None
 
+    def enable_map_monitoring(self):
+        # callback are enabled in base.StageDef.WaitForMap._start()
+        self.tmap_sub = Subscriber(self.topic, Str, self.map_cb, queue_size=5)
 
+    def map_cb(self, msg):
+        self.raw_map = msg
+        self.map = self.filter_raw_tmap(msg.data)
+        self.node_list = [node["node"]["name"] for node in self.map['nodes']]
+        self.fresh_map = deepcopy(self.map)
+        self.optimal_route_search = TopologicalRouteSearch(self.fresh_map)
 
+    def filter_raw_tmap(self, data):
+        return yaml.safe_load(data)
 
-
+    def is_node_restricted(self, node_id):
+        """checks if a given node is in the robot's restricted tmap2"""
+        if 'restrictions' in self.agent.navigation_properties:
+            return (self.node_list and node_id in self.node_list)
+        return True

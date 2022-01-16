@@ -1,4 +1,4 @@
 agent_id: thorvald_001
 local_properties:
-    load: 1
+    load: 2
     rviz_default_colour: blue

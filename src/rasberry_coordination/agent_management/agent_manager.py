@@ -20,7 +20,7 @@ from std_srvs.srv import Trigger, TriggerResponse
 from rasberry_coordination.msg import AgentDetails as AgentDetailsMsg, MarkerDetails, KeyValuePair
 from rasberry_coordination.srv import AddAgent, AgentNodePair
 from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module
+from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module, MapObj as Map
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
 import rasberry_des.config_utils
