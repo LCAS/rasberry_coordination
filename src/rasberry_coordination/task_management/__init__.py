@@ -25,7 +25,9 @@ def def_tasks(clean_task_list):
     from rasberry_coordination.coordinator_tools import logmsg
     logmsg(category="null")
 
+    clean_task_list = [t for t in clean_task_list if t != 'base']
     task_list = ['rasberry_coordination.task_management.custom_tasks.%s' % task for task in clean_task_list]
+
     if 'rasberry_coordination.task_management.base' not in task_list:
         task_list.insert(0, 'rasberry_coordination.task_management.base')
 
