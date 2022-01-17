@@ -73,7 +73,8 @@ class InterfaceDef(object):
                     task.responder_id = agent['responder_id']
 
                     # Get state of task from initiator
-                    init = self.coordinator.agent_manager.agent_details[agent['initiator_id']]
+                    i = agent['initiator_id'] or agent.agent_id
+                    init = self.coordinator.agent_manager.agent_details[i]
                     task.state = init().__repr__().replace('()','').split('.')[-1]
 
                     # Add task to list
