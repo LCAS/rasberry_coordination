@@ -60,7 +60,7 @@ class RasberryCoordinator(object):
         self.is_parent = True
         self.trigger_fresh_replan = False #ReplanTrigger
         self.log_count = 0
-        self.log_routes = True
+        self.log_routes = False
         self.action_print = True
 
         """ Initialise System Details: """
@@ -189,7 +189,7 @@ class RasberryCoordinator(object):
             [offer_service(a) for a in A if a().action_required]; l(2);                            """ Offer Service """
 
             # Find Routes
-            logbreak("ROUTE FIND", [trigger_routing(A)])
+            logbreak("ROUTE FIND", [trigger_routing(A,reset_trigger=False)])
             if trigger_routing(A): find_routes();                                                    """ Find Routes """
 
             # Publish Routes
@@ -300,8 +300,8 @@ class RasberryCoordinator(object):
     """ Action Style """
     def find_closest_agent(self, agent, agent_list):
         loc = agent.location()
-        dist_list = {a.agent_id:self.dist(loc, a.location()) for a in agent_list.values() if a.registration and a.is_node_restricted(loc)}
-        lst = {a.agent_id:[loc, a.location(), self.dist(loc, a.location()), a.registration, a.is_node_restricted(loc)] for a in agent_list.values()}
+        dist_list = {a.agent_id:self.dist(loc, a.location()) for a in agent_list.values() if a.registration and a.map_handler.is_node_restricted(loc)}
+        lst = {a.agent_id:[loc, a.location(), self.dist(loc, a.location()), a.registration, a.map_handler.is_node_restricted(loc)] for a in agent_list.values()}
 
         if self.action_print: [logmsg(category="action", msg="    | %s location: [ %s | %s | %s ]"%(a.agent_id, a.location.current_node, a.location.closest_node, a.location.previous_node)) for a in agent_list.values()]
         if self.action_print: logmsg(category="action", msg="Finding closest in: %s" % dist_list)
@@ -437,14 +437,12 @@ class RasberryCoordinator(object):
 
         """ Flag to identify if new route is the same and should not be re-published """
         publish_route = True #assume route is identical
-        logmsg(level='warn', category="route", msg="    - check_route label 1")
 
         """ Identify key elements in routes. """
-        old_node = agent.temp_interface.execpolicy_goal.route.source
-        old_edge = agent.temp_interface.execpolicy_goal.route.edge_id
+        old_node = agent.navigation_interface.execpolicy_goal.route.source
+        old_edge = agent.navigation_interface.execpolicy_goal.route.edge_id
         new_node = policy.route.source
         new_edge = policy.route.edge_id
-        # logmsg(category="ROB_PY", id=agent.agent_id, msg="    - route to join {0} and {1}"%(old_node, new_node))
 
         """ If no new route is generated, dont do anything. """
         if (not new_node) or (not new_edge): return
@@ -464,7 +462,6 @@ class RasberryCoordinator(object):
             # old: R========T
             # new:          T=====R
             if not publish_route and new_target_edge != old_target_edge:
-                logmsg(level='warn', category="route", msg="    - check_route label 2")
                 publish_route = True #route is different
             if not publish_route:
                 reason_failed_to_publish = "Old route comes from same direction as new route."
@@ -473,7 +470,6 @@ class RasberryCoordinator(object):
             # old: R========T
             # new:     R====T
             if not publish_route and len(new_edge) != len(old_edge):
-                logmsg(level='warn', category="route", msg="    - check_route label 3")
                 # If new_route is larger, routes are different
                 if len(new_edge) > len(old_edge):
                     publish_route = True #route is different
@@ -493,7 +489,6 @@ class RasberryCoordinator(object):
             # old: ****R====T
             # new:     R=-_=T
             if not publish_route:
-                logmsg(level='warn', category="route", msg="    - check_route label 4")
                 for i, e in enumerate(list(zip(*(old_edge,new_edge)))):
                     if e[0] != e[1]:
                         logmsg(category="route", msg="    - new route different from existing route")
@@ -504,19 +499,16 @@ class RasberryCoordinator(object):
 
         """ If check_route is false, routes are different """
         if publish_route:
-            logmsg(level='warn', category="route", msg="    - check_route label 5")
             if self.log_routes:
                 logmsg(category="route", msg="    - new route generated:\n%s" % policy)
-                logmsg(category="route", msg="    - previous route:\n%s" % agent.temp_interface.execpolicy_goal)
+                logmsg(category="route", msg="    - previous route:\n%s" % agent.navigation_interface.execpolicy_goal)
 
-            logmsg(category="test", msg="publish route::cancel_execpolicy_goal")
-            agent.temp_interface.cancel_execpolicy_goal()
-            agent.temp_interface.set_execpolicy_goal(policy)
+            agent.navigation_interface.cancel_execpolicy_goal()
+            agent.navigation_interface.set_execpolicy_goal(policy)
 
-            agent().route_required = False #ReplanTrigger
-            logmsg(level='warn', category="route", id=agent.agent_id, msg="    - route published")
-        agent().route_found = False  # ReplanTrigger?
-        logmsg(level='warn', category="route", id=agent.agent_id, msg="    - route publish attempt complete")
+            agent().route_required = False  # Route has now been published
+            logmsg(category="route", id=agent.agent_id, msg="    - route published")
+        agent().route_found = False  # Route has now been published
         rospy.sleep(1)
     # def new_execute_policy_route(self, agent):
     #     logmsg(category="route", id=agent.agent_id, msg="Attempting to publish route.")
@@ -588,7 +580,7 @@ class RasberryCoordinator(object):
     def trigger_replan(self, msg=None):
         logmsg(category="route", msg="A route has been completed, refreshing routes")
         self.trigger_fresh_replan = True #ReplanTrigger
-    def trigger_routing(self, A):
+    def trigger_routing(self, A, reset_trigger=True):
         """
         route_required => agent is doing navigation task
         route_found => agent has been assigned a route
@@ -606,7 +598,8 @@ class RasberryCoordinator(object):
         if any([a().route_required for a in A]):
             return True
         elif self.trigger_fresh_replan:
-            logmsg(category="route", msg="Replanning is triggered")
-            self.trigger_fresh_replan = False #ReplanTrigger
+            if reset_trigger:
+                logmsg(category="route", msg="Replanning is triggered")
+                self.trigger_fresh_replan = False #ReplanTrigger
             return True
         return False

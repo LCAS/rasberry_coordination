@@ -157,7 +157,7 @@ class InterfaceDef(object):
     class robot(object):
         def __init__(self, agent, Type):
             self.agent = agent
-            self.agent.temp_interface = Type
+            self.agent.navigation_interface = Type
             self.disconnect_sub = Subscriber('/%s/base/disconnect' % agent.agent_id, Str, self.disconnect)
         def disconnect(self, msg):
             logmsg(category="Task", id=self.agent.agent_id, msg="Request to disconnect")
@@ -329,8 +329,8 @@ class StageDef(object):
             """Class initialisation for populating default values"""
             self.agent = agent
             self.action_required = False
-            self.route_required = False
-            self.route_found = False
+            self.route_required = False  #True: trigger a route search
+            self.route_found = False  #True: trigger a route publish
             self.stage_complete = False
             self.new_stage = True
             self.target = None
@@ -381,24 +381,17 @@ class StageDef(object):
         def _start(self):
             """Begin a subscriber to recieve the tmap"""
             super(StageDef.WaitForMap, self)._start()
-            self.agent.navigation['tmap'] = None
-            self.agent.navigation['tmap_node_list'] = None
-            self.agent.navigation['tmap_available'] = {}
-            self.agent.navigation['available_route_search'] = TopologicalRouteSearch({"nodes": {}})
-            topic = "/topological_map_2"
-            if 'restrictions' in self.agent.navigation_properties:
-                topic = "/%s/restricted_topological_map_2" % self.agent.agent_id
-            self.agent.subs['tmap'] = Subscriber(topic, Str, self.agent.map_cb, queue_size=5)
+            self.agent.map_handler.enable_map_monitoring()
         def _query(self):
             """Complete stage once a tmap is available"""
-            success_conditions = [self.agent.navigation['tmap']]
+            success_conditions = [self.agent.map_handler.map]
             self.flag(any(success_conditions))
     class EnableVirtualLocalisation(StageBase):
         """Enable localisation for virtual agents"""
         def _start(self):
             """Enable subscribers to virtual localisation"""
             super(StageDef.EnableVirtualLocalisation, self)._start()
-            self.agent.temp_interface.enable_subscribers()
+            self.agent.navigation_interface.enable_subscribers()
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
@@ -665,7 +658,7 @@ class StageDef(object):
         def _start(self):
             """On start, cancel any active navigation"""
             super(StageDef.Pause, self)._start()
-            if hasattr(self.agent, 'temp_interface'): self.agent.temp_interface.cancel_execpolicy_goal()
+            if hasattr(self.agent, 'navigation_interface'): self.agent.navigation_interface.cancel_execpolicy_goal()
             #TODO: set an agent function for generic definition of pausing?
         def _query(self):
             """Continue once all blocking stages are False"""

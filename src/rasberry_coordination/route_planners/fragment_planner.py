@@ -35,7 +35,7 @@ class FragmentPlanner(BasePlanner):
         # Nothing to do if restrictions are not used
         if 'restrictions' not in agent.navigation_properties: return
 
-        available_tmap = copy.deepcopy(agent.navigation['tmap'])
+        available_tmap = copy.deepcopy(agent.map_handler.map)
 
         for node in available_tmap["nodes"]:
             to_pop = []
@@ -47,8 +47,8 @@ class FragmentPlanner(BasePlanner):
                 for j in to_pop:
                     node["node"]["edges"].pop(j)
 
-        agent.navigation['tmap_available'] = available_tmap
-        self.load_route_search(agent)
+        agent.map_handler.fresh_map = available_tmap
+        # self.load_route_search(agent)
 
     def unblock_node(self, agent, node_to_unblock):
         """ unblock a node by adding edges to an occupied node in available_tmap
@@ -59,20 +59,20 @@ class FragmentPlanner(BasePlanner):
         edges_to_append = []
 
         """ for each edge in network, if edge connects to a node to unblock, add to list """
-        for node in agent.navigation['tmap']["nodes"]:
+        for node in agent.map_handler.map["nodes"]:
             for edge in node["node"]["edges"]:
                 if edge["node"] == node_to_unblock:
                     nodes_to_append.append(node["node"]["name"])
                     edges_to_append.append(edge)
 
         """ for each node in empty map, if node is to be unblocked, add a extra edge """
-        for node in agent.navigation['tmap_available']["nodes"]:
+        for node in agent.map_handler.fresh_map["nodes"]:
             if node["node"]["name"] in nodes_to_append:
                 ind_to_append = nodes_to_append.index(node["node"]["name"])
                 node["node"]["edges"].append(edges_to_append[ind_to_append])
 
         # update the route_search object
-        agent.navigation['available_route_search'] = TopologicalRouteSearch(agent.navigation['tmap_available'])
+        # agent.map_handler.optimal_route_search = TopologicalRouteSearch(agent.map_handler.fresh_map)
 
     def critical_points(self, ):
         """find points where agent's path cross with those of active robots.
@@ -140,49 +140,46 @@ class FragmentPlanner(BasePlanner):
 
         """ for each agent populate res_routes with partial routes"""
         for agent in self.agent_details.values():
-            agent_id = agent.agent_id #TODO: test swapping this and above for performance gains
+            agent_id = agent.agent_id
             allowed_to_pass = False
-            r = agent.route
             collective_route = []
             partial_route = []
 
             """ for each node in the route """
-            for v in r:
+            for node in agent.route:
 
                 """ if node is a critical point in the route """
-                if v in c_points[str(r)]:
+                if node in c_points[str(agent.route)]:
 
                     """identify robot closest to the node"""
-                    nearest_agent = self.shortest_route_to_node(c_agents[v], v)
+                    nearest_agent = self.shortest_route_to_node(c_agents[node], node)
 
                     """
-                    each critical vertice can be given to 1 robot
-                    thus we give it to the closest robot and
-                    prevent it being taken again by adding it to
-                    allowed_cpoints,
+                    each critical vertice can be given to 1 robot thus we give it to the closest robot and
+                    prevent it being taken again by adding it to allowed_cpoints,
                     """
-                    if (agent_id == nearest_agent and v not in allowed_cpoints):
+                    if (agent_id == nearest_agent and node not in allowed_cpoints):
                         """ if vertice is unassigned, and is best assigned to this robot, assign it so"""
                         """also enable the chosen robot to take the remaining nodes using allowed_to_pass"""
-                        partial_route.append(v)
-                        allowed_cpoints.append(v)
+                        partial_route.append(node)
+                        allowed_cpoints.append(node)
                         allowed_to_pass = True
 
-                    elif v not in allowed_cpoints and allowed_to_pass:
+                    elif node not in allowed_cpoints and allowed_to_pass:
                         """ if vertice is unassigned, robot has been given permission to take the rest """
-                        partial_route.append(v)
-                        allowed_cpoints.append(v)
+                        partial_route.append(node)
+                        allowed_cpoints.append(node)
 
                     else:
                         """ if robot is not the nearest or the robot has not been given permission to take the rest """
                         """ if the robot has an existing route, save it to the collective and reset partial route """
                         if partial_route:
                             collective_route.append(partial_route)
-                        partial_route = [v]
+                        partial_route = [node]
 
                 else:
                     """ series of critical nodes has finished, add partial route """
-                    partial_route.append(v)
+                    partial_route.append(node)
 
             """ if a partial route exists, append it to the rr"""
             if partial_route:
@@ -260,6 +257,7 @@ class FragmentPlanner(BasePlanner):
 
         """find unblocked routes for all agents which need one"""
         self.load_occupied_nodes()
+
         for agent in actives:
             agent_id = agent.agent_id
             agent().route_found = False
@@ -277,9 +275,9 @@ class FragmentPlanner(BasePlanner):
 
             """take copy of empty map"""
             #unblock start and goal nodes, then update map to block other agents
-            self.update_available_tmap(agent)
             self.unblock_node(agent, start_node)
             self.unblock_node(agent, goal_node)
+            self.update_available_tmap(agent)
             self.load_route_search(agent)
 
             """generate route from start node to goal node"""
@@ -294,11 +292,12 @@ class FragmentPlanner(BasePlanner):
             #     import pdb; pdb.set_trace()
 
             """ If failed to find route, set robot as inactive and mark navigation as failed """
-            if route is None:
+            if route.source == [] and route.edge_id == []:
                 logmsg(level="warn", category="route", msg="failed to find route, waiting idle")
                 logmsg(level="warn", category="route", msg="modify here for wait_node addition")
-                self.no_route_found(agent)
+                # self.no_route_found(agent)
                 inactives += [agent]
+                agent().route_required = False
                 continue
 
             route_nodes = route.source + [goal_node] # add goal_node as it could be a critical point

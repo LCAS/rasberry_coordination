@@ -311,7 +311,7 @@ class VirtualRobot(object):
                          "map")
 
     def find_closest_node(self, pose):
-        node_list = self.agent.navigation['tmap']['nodes']
+        node_list = self.agent.map_handler.map['nodes']
         dists = {node["node"]["name"]: node_pose_dist(node, pose) for node in node_list}
         return min(dists, key=dists.get)
 

@@ -146,13 +146,16 @@ class AgentDetails(object):
 
         # Define interface for each role
         logmsg(category="MODULE", id=self.agent_id, msg="Initialising Module Interfaces:")
-        # self.tasks = setup['modules']
         self.modules = {t['name']: Module(agent=self, name=t['name'], role=t['role']) for t in setup['modules']}
 
         #Location and Callbacks
         initial_location = lp['initial_location'] if 'initial_location' in lp else ''
-        has_presence = np['has_presence'] if 'has_presence' in np else False
-        self.location = Location(presence=has_presence, initial_location=initial_location)
+        has_presence = True if 'has_presence' in np and np['has_presence'] == 'True' else False
+        self.location = Location(has_presence=has_presence, initial_location=initial_location)
+
+        #Map
+        topic = "/%s/restricted_topological_map_2" % self.agent_id if 'restrictions' in np else None
+        self.map_handler = Map(agent=self, topic=topic)
 
 
     """ Task Starters """
@@ -213,21 +216,8 @@ class AgentDetails(object):
     def roles(self):
         return [m.role for m in self.modules.values()]
 
+
     """ Navigation """
-    def map_cb(self, msg):
-        """topological map callback
-        """
-        self.navigation['tmap'] = yaml.safe_load(msg.data)
-        self.navigation['tmap_node_list'] = [node["node"]["name"] for node in self.navigation['tmap']['nodes']]
-        self.navigation['tmap_available'] = deepcopy(self.navigation['tmap'])
-        self.navigation['available_route_search'] = TopologicalRouteSearch(self.navigation['tmap_available'])
-    def is_node_restricted(self, node_id):
-        """checks if a given node is in the robot's restricted tmap2
-        :param node_id: name of the node, str
-        """
-        if 'restrictions' in self.navigation_properties:
-            return ('tmap_node_list' in self.navigation and node_id in self.navigation['tmap_node_list'])
-        return True
     def goal(self): return self().target
 
 
@@ -276,7 +266,7 @@ class AgentDetails(object):
 
         coordinator.agent_manager.agent_details.pop(self.agent_id)  # Remove from agent manager
         coordinator.route_finder.planner.agent_details.pop(self.agent_id)  # Remove from route planner
-        self.subs['tmap'].unregister()
+        self.map_handler.agent = None
         coordinator.AllAgentsList.pop(self.agent_id)  # Remove from coordinator
 
         gc.collect()

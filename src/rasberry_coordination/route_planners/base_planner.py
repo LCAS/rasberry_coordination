@@ -43,7 +43,7 @@ class BasePlanner(object):
     def get_row_ends(self, agent, row_id):
 
         row_nodes = [int(node["node"]["name"].replace("%s-c"%row_id, ''))
-                     for node in agent.navigation['tmap']["nodes"]
+                     for node in agent.map_handler.map["nodes"]
                      if node["node"]["name"].startswith(row_id)]
         if not row_nodes:
             logmsg(level="error", msg="No row ends found for row_id(%s): %s"%(row_id,row_nodes))
@@ -57,7 +57,7 @@ class BasePlanner(object):
         row_prefix = "%s-r"%tunnel_id
 
         row_ids = set([int(node["node"]["name"].replace(row_prefix, '').split('-c')[0])
-                       for node in agent.navigation['tmap']["nodes"]
+                       for node in agent.map_handler.map["nodes"]
                        if node["node"]["name"].startswith(row_prefix)])
 
         return ["%s%s"%(row_prefix, row_id) for row_id in row_ids]
@@ -127,27 +127,23 @@ class BasePlanner(object):
         :param goal_node: name of the node to which route should be planned, str
         :return: route from start_node to goal_node
         """
-        print(agent.navigation['available_route_search'])
-        print(agent.navigation['available_route_search'].search_route(start_node, goal_node))
-        return None or agent.navigation['available_route_search'].search_route(start_node, goal_node)
+        return None or agent.map_handler.optimal_route_search.search_route(start_node, goal_node)
 
     def load_route_search(self, agent):
-        agent.navigation['available_route_search'] = TopologicalRouteSearch(agent.navigation['tmap_available'])
-
-    # def get_agents(self):
-    #     # Filter out agents with no physical presence
-    #     self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.location.has_presence}
+        agent.map_handler.optimal_route_search = TopologicalRouteSearch(agent.map_handler.fresh_map)
 
     def load_occupied_nodes(self):
         """ get the list of nodes occupied by all agents
         """
-        self.occupied_nodes = list(set([a.location(accurate=False) for a in self.agent_manager.agent_details.values() if a.location.has_presence]))
+        occ = [a.location(accurate=False) for a in self.agent_manager.agent_details.values() if a.location.has_presence]
+        self.occupied_nodes = list(set(occ))
+        o={a.agent_id: [a.location(accurate=False), a.location.has_presence] for a in self.agent_manager.agent_details.values() if a.location.has_presence}
+        logmsg(category="route", msg="Occupied Nodes: %s"%str(o))
 
     def no_route_found(self, agent):
         logmsg(level='error', category='route', id=agent.agent_id, msg='Route not found, executing recovery behaviour:')
         if not 'WaitNode' in str(agent()):
             logmsg(level='error', category='route', msg='    - Adding WaitNode as intermediate target')
-
             logmsg(category="DTM", id=agent.agent_id, msg="    - Adding stages to active task:")
             agent().new_stage = True
             recovery_stages = [ StageDef.AssignWaitNode(agent), StageDef.NavigateToWaitNode(agent) ]
