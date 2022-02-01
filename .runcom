@@ -43,3 +43,4 @@ function set_battery () { rostopic pub /$1/dummy_battery_data thorvald_base/Batt
 - battery_voltage: $2" -1
 }
 
+function call () { echo $1 ; read -p "Press Enter to continue:" ; $1 ; }
