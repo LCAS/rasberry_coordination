@@ -202,12 +202,13 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 install(PROGRAMS
-  scripts/publish_virtual_agent_position.py
-  scripts/simple_task_executor_node.py
-  scripts/visualise_agent_markers.py
-  scripts/agent_monitor.py
+  scripts/abstract_task_executor_node.py
   scripts/add_agent.py
+  scripts/agent_monitor.py
+  scripts/publish_virtual_agent_position.py
   scripts/reset_picker.py
+  scripts/rviz_virtual_publisher.py
+  scripts/visualise_agent_markers.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
