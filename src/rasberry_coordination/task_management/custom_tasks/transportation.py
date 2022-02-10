@@ -41,10 +41,6 @@ class InterfaceDef(object):
             else:
                 logmsg(level="error", msg="task request cancelled but we only check for if task is active")
 
-        # def on_cancel(self, task_id, contact_id, force_release=False):
-        #     old_id = super(InterfaceDef.transportation_picker, self).on_cancel(task_id=task_id, contact_id=contact_id, force_release=force_release)
-        #     if old_id == task_id: self.notify("INIT")
-
     class transportation_field_courier(IDef.AgentInterface):
         def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
             #E.g. If a cancellation request is triggered by picker, we much release

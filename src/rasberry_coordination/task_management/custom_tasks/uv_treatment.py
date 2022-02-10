@@ -1,6 +1,7 @@
 """UV Treatment"""
 
 from copy import deepcopy
+from pprint import pprint
 from rospy import Time, Duration, Subscriber, Publisher, Time
 
 from std_msgs.msg import String as Str
@@ -15,6 +16,7 @@ except: pass
 
 
 class InterfaceDef(object):
+    #TODO: we could replace uv_treatment_phototherapist with just the role, and append the module in the task management INIT.py
 
     class uv_treatment_phototherapist(object):
         def notify(self, state):
@@ -62,6 +64,23 @@ class InterfaceDef(object):
 
         def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
         def __setitem__(self, key, val): self.__setattr__(key, val)
+
+
+    class uv_treatment_controller(IDef.RasberryInterfacing_ProtocolManager):
+        def sar_BEGUN(self):
+            task_scope, details = self.get_task('uv_treatment')
+            task_name = 'uv_treatment_treat_' + task_scope + '_with_robot'
+            if details['robot'] == 'closest':
+                task_name = 'uv_treatment_treat_' + task_scope + '_with_closest_robot'
+            if task_name: self.agent.add_task(task_name=task_name, details=details)
+
+
+        # def sar_CANCEL(self):
+        #     self.agent.set_interrupt('cancel', 'uv_treatment', self.agent['id'], "Task")
+        # def sar_EMERGENCY(self):
+        #     self.agent.add_task(task_name='stop')
+
+
 
 
 class TaskDef(object):
@@ -117,6 +136,25 @@ class TaskDef(object):
                          StageDef.FindRowsUV(agent, details['tunnel'])
                      ]))
 
+    """ Control from SAR """
+    @classmethod
+    def uv_treatment_treat_tunnel_with_closest_robot(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='uv_treatment',
+                    name="uv_treatment_treat_tunnel_with_closest_robot",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        SDef.StartTask(agent, task_id),
+                        StageDef.AssignPhototherapist(agent, details),
+                        StageDef.AwaitCompletion(agent),
+                    ]))
+
+
+
+
 
 class StageDef(object):
 
@@ -131,6 +169,10 @@ class StageDef(object):
         def __init__(self, agent):
             """Call to super to set the navigation target as the node stored in the action association"""
             super(StageDef.NavigateToUVStartNode, self).__init__(agent, association='start_node')
+        def _start(self):
+            if 'controller' in self.agent['contacts']:
+                self.agent['contacts']['controller'].modules['uv_treatment'].interface.notify("sar_AWAIT_START")
+            super(StageDef.NavigateToUVStartNode, self)._start()
 
     class NavigateToUVEndNode(SDef.NavigateToNode):
         """Used to navigate to a given end node"""
@@ -143,12 +185,47 @@ class StageDef(object):
         def __init__(self, agent):
             """Call to initialise a light_status message of ENABLE_LIGHT to send on start and set rviz robot to blue"""
             super(StageDef.EnableUVLight, self).__init__(agent, trigger='light_status', msg="ENABLE_LIGHT", colour='blue')
+        def _end(self):
+            if 'controller' in self.agent['contacts']:
+                self.agent['contacts']['controller'].modules['uv_treatment'].interface.notify("sar_AWAIT_TASK_COMPLETION")
+
 
     class DisableUVLight(SDef.NotifyTrigger):
         """Used to disable the UV light on the uv robot"""
         def __init__(self, agent):
             """Call to initialise a light_status message of DISABLE_LIGHT to send on start and set rviz robot to clear"""
             super(StageDef.DisableUVLight, self).__init__(agent, trigger='light_status', msg="DISABLE_LIGHT", colour='')
+        def _end(self):
+            if 'controller' in self.agent['contacts']:
+                print("\n\n\n")
+                pprint(self.agent['stage_list'])
+                pprint([s for s in self.agent['stage_list'][:-1] if 'DisableUVLight' in s.get_class()])
+                print("\n")
+                if len([s for s in self.agent['stage_list'][:-1] if 'DisableUVLight' in s.get_class()]) == 0:
+                    # if there is no more stages in stagslit, set flag on controller?
+                    self.agent['contacts']['controller']['phototherapist_completion_flag'] = True
 
 
+    class AssignPhototherapist(SDef.AssignAgent):
+        def __init__(self, agent, details):
+            self.details = details
+            self.response_task = 'uv_treatment_treat_'+details['scope']
+            super(StageDef.AssignPhototherapist, self).__init__(agent, action_style='closest', agent_type='phototherapist')
+        def _end(self):
+            super(StageDef.AssignPhototherapist, self)._end()
+            self.agent.modules['uv_treatment'].interface.notify("sar_AWAIT_START")
+            self.agent['contacts']['phototherapist'].add_task(task_name=self.response_task,
+                                                              task_id=self.agent['id'],
+                                                              details=self.details,
+                                                              contacts={'controller': self.agent},
+                                                              initiator_id=self.agent.agent_id)
 
+    class AwaitCompletion(SDef.Idle):
+        def _start(self):
+            super(StageDef.AwaitCompletion,self)._start()
+            self.agent['phototherapist_completion_flag'] = False
+        def _query(self):
+            success_conditions = [self.agent['phototherapist_completion_flag']]
+            self.flag(any(success_conditions))
+        def _end(self):
+            self.agent.modules['uv_treatment'].interface.notify("sar_COMPLETE")

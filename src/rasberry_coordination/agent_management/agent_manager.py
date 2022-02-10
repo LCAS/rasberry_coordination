@@ -187,7 +187,7 @@ class AgentDetails(object):
         task = task_def(self, task_id=task_id, details=details, contacts=contacts, initiator_id=initiator_id)
 
         if not task:
-            logmsg(category="TASK", msg="    | %s (empty)"%task_name)
+            logmsg(category="TASK", msg="    | %s (empty)" % task_name)
             return
 
         task_name = task_name if task.name == task_name else "%s/%s"%(task_name,task.name)
@@ -210,6 +210,10 @@ class AgentDetails(object):
         logmsg(category="TASK",  msg="- Active task: %s" % self['name'], speech=False)
         logmsg(category="TASK",  msg="  Task details:")
         [logmsg(category="TASK", msg="      | %s" % stage) for stage in self['stage_list']]
+    def extend_task(self, task_name, details):
+        task_def = getattr(TaskDef, task_name)
+        task = task_def(self, details=details)
+        self['stage_list'] += task.stage_list
 
 
     """ Roles """

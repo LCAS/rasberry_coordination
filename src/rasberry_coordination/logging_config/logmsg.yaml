@@ -6,6 +6,8 @@ categories:
     colour: false
   - name: "STAGE"
   - name: "MODULE"
+  - name: "IDEF"
+    colour: '46m'
 
   #Interruptions
   - name: "DRM"
@@ -59,3 +61,5 @@ ids:
     colour: '34m'
   - name: "picker02"
     colour: '35m'
+  - name: "uv1"
+    colour: '39m'

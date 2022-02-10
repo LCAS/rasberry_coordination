@@ -3,6 +3,7 @@
 from copy import deepcopy
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, get_param
 from std_msgs.msg import Bool, String as Str
+from diagnostic_msgs.msg import KeyValue
 import strands_executive_msgs.msg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 from rasberry_coordination.srv import AgentNodePair
@@ -143,7 +144,7 @@ class InterfaceDef(object):
             self.responses = responses
             self.pub = Publisher(pub, Str, queue_size=5)
             self.sub = Subscriber(sub, Str, self.callback, agent.agent_id)
-        def callback(self, msg, agent_id):  # Look into sub/feature
+        def callback(self, msg, agent_id):  # Look into subscribing to a /topic/feature
             msg = eval(msg.data)
             if "states" in msg: return # car callback sends two msgs, this filters second #TODO: remove this
             if msg['user'] == agent_id:
@@ -154,6 +155,36 @@ class InterfaceDef(object):
             logmsg(category="COMMS", msg="        - Publishing: (%s)" % msg)
             self.pub.publish(msg)
 
+
+    class RasberryInterfacing_ProtocolManager(object):
+        def __init__(self, agent):
+            self.agent = agent
+            self.msg = None
+            self.pub = Publisher('/car_client/set_states_kv', KeyValue, queue_size=5)
+            self.sub = Subscriber('/car_client/get_states_kv', KeyValue, self.callback, agent.agent_id)
+            self.notify("INIT")
+
+        def callback(self, msg, agent_id):
+            if msg.key == agent_id:
+                state = msg.value.split('-')[0]
+                if state in dir(self):
+                    logmsg(category="IDef", id=agent_id, msg="State changed to: %s" % state)
+                    self.msg = msg
+                    getattr(self, state)()
+
+        def notify(self, state):
+            msg = KeyValue(key=self.agent.agent_id, value=state)
+            logmsg(category="IDef", msg="        - Publishing: (%s)" % str(msg).replace('\n',' | '))
+            self.pub.publish(msg)
+
+        def get_task(self, module):
+            state, tunnel, row, edge, task, robot = self.msg.value.split('-')
+            if task != module: return (None,None)
+            elif tunnel == "select": return (None,None)
+            elif edge != "all": task_scope = 'edge'
+            elif row != "all": task_scope = 'row'
+            elif tunnel != "select": task_scope = 'tunnel'
+            return (task_scope, {'tunnel': 'tall-t'+tunnel, 'row': row, 'edge': edge, 'robot': robot, 'scope': task_scope})
 
     class robot(object):
         def __init__(self, agent, Type):
@@ -514,10 +545,9 @@ class StageDef(object):
             """Begin defined task for each row in action response"""
             super(StageDef.FindRows, self)._end()
             logmsg(category="stage", msg="Task to use %s rows:" % len(self.action['response_location']))
-            [logmsg(category="stage", msg="    - row: %s" % row) for row in self.action['response_location']]
             for row in self.action['response_location']:
-                # self.agent.add_task(task_name='wait_at_base')
-                self.agent.add_task(task_name=self.response_task, details={'row': row})
+                logmsg(category="stage", msg="    - extending stage list to include row: %s" % row)
+                self.agent.extend_task(task_name=self.response_task, details={'row': row})
     class FindRowEnds(AssignNode):
         """Used to identify the two ends of a given row."""
         def __repr__(self):
@@ -688,3 +718,21 @@ class StageDef(object):
             self.agent.cb['format_agent_marker'](self.agent, 'black')
             self.agent.set_interrupt('disconnect', 'base', self.agent['id'], "Task")
 
+
+
+
+
+
+
+
+"""
+class AgentInterface_KV(object):
+    def __init__(self):
+        self.notify("INIT")
+    def callback(self):
+        print('callback')
+    def notify(self, state):
+        print('notify '+state)
+    def get_task(self, module, prefix):
+        print('get_task ' + module + ' ' + prefix)
+"""
