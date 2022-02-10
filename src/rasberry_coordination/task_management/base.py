@@ -179,12 +179,21 @@ class InterfaceDef(object):
 
         def get_task(self, module):
             state, tunnel, row, edge, task, robot = self.msg.value.split('-')
+            nodes = []
             if task != module: return (None,None)
             elif tunnel == "select": return (None,None)
-            elif edge != "all": task_scope = 'edge'
+            elif edge != "all":
+                task_scope = 'edge'
+                nodes = ["tall-t%s-r%s-c%s" % (tunnel, row, e) for e in edge.split('>')]
             elif row != "all": task_scope = 'row'
             elif tunnel != "select": task_scope = 'tunnel'
-            return (task_scope, {'tunnel': 'tall-t'+tunnel, 'row': 'tall-t'+tunnel+'-r'+row, 'edge': edge, 'robot': robot, 'scope': task_scope})
+            return (task_scope, {
+                'tunnel': 'tall-t'+tunnel,
+                'row': 'tall-t'+tunnel+'-r'+row,
+                'edge': edge,
+                'nodes': nodes,
+                'robot': robot,
+                'scope': task_scope})
 
     class robot(object):
         def __init__(self, agent, Type):
@@ -577,10 +586,6 @@ class StageDef(object):
             if 'row_ends' in self.agent['contacts'] and self.agent['contacts']['row_ends']:
                 return "%s(%s)" % (self.get_class(), self.agent['contacts']['row_ends'])
             return self.get_class()
-        def __init__(self, agent, nodes=[]):
-            """Save row ends to the contact details"""
-            super(StageDef.FindStartNode, self).__init__(agent)
-            self.agent['contacts']['row_ends'] = nodes
         def _start(self):
             """Start action to find which node of the ends is the closest to start from"""
             super(StageDef.FindStartNode, self)._start()

@@ -169,8 +169,11 @@ class AgentDetails(object):
             logmsg(level="error", category="task", msg="    | Should each module have an idle task for each agent?")
             logmsg(level="error", category="task", msg="    \ Agent to be assigned a basic idle task.")
             self.add_task(task_name='idle')
-    def add_task(self, task_name, task_id=None, task_stage_list=[], details={}, contacts={}, index=None, quiet=False, initiator_id=""):
+    def add_task(self, task_name, task_id=None, task_stage_list=None, details=None, contacts=None, index=None, quiet=False, initiator_id=""):
         """ Called by task stages, used to buffer new tasks for the agent """
+        task_stage_list = task_stage_list if task_stage_list else []
+        details = details if details else {}
+        contacts = contacts if contacts else {}
         # #picker.interface.called(): self.agent.add_task('transportation_request_courier')
         # 1. #find TaskDef
         # 2. #task = TaskDef()

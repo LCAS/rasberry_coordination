@@ -43,7 +43,7 @@ class InterfaceDef(object):
                 nodeB = "%s-t%s-r%s-c%s"%(msg.type, msg.tunnel, msg.row, msg.edge_node[1])
 
                 logmsg(category="UVTask", id=self.agent.agent_id, msg="Request to treat edge")
-                self.agent.add_task(task_name='uv_treatment_treat_edge', details={"nodes": [nodeA, nodeB]})
+                self.agent.add_task(task_name='uv_treatment_treat_edge', contacts={'row_ends': [nodeA, nodeB]})
         def row(self, msg):
             if self.agent.registration:
                 # msg.type = "tall"
@@ -69,9 +69,9 @@ class InterfaceDef(object):
     class uv_treatment_controller(IDef.RasberryInterfacing_ProtocolManager):
         def sar_BEGUN(self):
             task_scope, details = self.get_task('uv_treatment')
-            task_name = 'uv_treatment_treat_' + task_scope + '_with_robot'
+            task_name = 'uv_treatment_treat_with_robot'
             if details['robot'] == 'closest':
-                task_name = 'uv_treatment_treat_' + task_scope + '_with_closest_robot'
+                task_name = 'uv_treatment_treat_with_closest_robot'
             if task_name: self.agent.add_task(task_name=task_name, details=details)
 
 
@@ -98,7 +98,7 @@ class TaskDef(object):
                      responder_id="",
                      stage_list=[
                          SDef.StartTask(agent, task_id),
-                         SDef.FindStartNode(agent, details['nodes']),
+                         SDef.FindStartNode(agent),
                          StageDef.NavigateToUVStartNode(agent),
                          StageDef.EnableUVLight(agent),
                          StageDef.NavigateToUVEndNode(agent),
@@ -138,7 +138,7 @@ class TaskDef(object):
 
     """ Control from SAR """
     @classmethod
-    def uv_treatment_treat_tunnel_with_closest_robot(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+    def uv_treatment_treat_with_closest_robot(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
                     module='uv_treatment',
                     name="uv_treatment_treat_tunnel_with_closest_robot",
@@ -151,23 +151,6 @@ class TaskDef(object):
                         StageDef.AssignPhototherapist(agent, details),
                         StageDef.AwaitCompletion(agent),
                     ]))
-
-    @classmethod
-    def uv_treatment_treat_row_with_closest_robot(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return(Task(id=task_id,
-                    module='uv_treatment',
-                    name="uv_treatment_treat_row_with_closest_robot",
-                    details=details,
-                    contacts=contacts,
-                    initiator_id=agent.agent_id,
-                    responder_id="",
-                    stage_list=[
-                        SDef.StartTask(agent, task_id),
-                        StageDef.AssignPhototherapist(agent, details),
-                        StageDef.AwaitCompletion(agent),
-                    ]))
-
-
 
 
 class StageDef(object):
@@ -224,6 +207,9 @@ class StageDef(object):
         def __init__(self, agent, details):
             self.details = details
             self.response_task = 'uv_treatment_treat_'+details['scope']
+            self.contacts = {'controller': agent}
+            if details['scope']== "edge":
+                self.contacts['row_ends'] = details['nodes']
             super(StageDef.AssignPhototherapist, self).__init__(agent, action_style='closest', agent_type='phototherapist')
         def _end(self):
             super(StageDef.AssignPhototherapist, self)._end()
@@ -231,7 +217,7 @@ class StageDef(object):
             self.agent['contacts']['phototherapist'].add_task(task_name=self.response_task,
                                                               task_id=self.agent['id'],
                                                               details=self.details,
-                                                              contacts={'controller': self.agent},
+                                                              contacts=self.contacts,
                                                               initiator_id=self.agent.agent_id)
 
     class AwaitCompletion(SDef.Idle):
@@ -243,3 +229,19 @@ class StageDef(object):
             self.flag(any(success_conditions))
         def _end(self):
             self.agent.modules['uv_treatment'].interface.notify("sar_COMPLETE")
+
+
+
+
+
+
+    """
+        
+    assignAgent needs ability to assign by name
+    - what should happen if named agent is unavailable?
+    - //what happend if category agent is unavailable?//
+    
+    
+    publish deets to sar
+
+    """
