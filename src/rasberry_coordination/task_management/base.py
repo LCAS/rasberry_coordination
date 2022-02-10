@@ -184,7 +184,7 @@ class InterfaceDef(object):
             elif edge != "all": task_scope = 'edge'
             elif row != "all": task_scope = 'row'
             elif tunnel != "select": task_scope = 'tunnel'
-            return (task_scope, {'tunnel': 'tall-t'+tunnel, 'row': row, 'edge': edge, 'robot': robot, 'scope': task_scope})
+            return (task_scope, {'tunnel': 'tall-t'+tunnel, 'row': 'tall-t'+tunnel+'-r'+row, 'edge': edge, 'robot': robot, 'scope': task_scope})
 
     class robot(object):
         def __init__(self, agent, Type):

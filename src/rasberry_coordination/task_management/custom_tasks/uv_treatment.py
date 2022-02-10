@@ -152,6 +152,20 @@ class TaskDef(object):
                         StageDef.AwaitCompletion(agent),
                     ]))
 
+    @classmethod
+    def uv_treatment_treat_row_with_closest_robot(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='uv_treatment',
+                    name="uv_treatment_treat_row_with_closest_robot",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        SDef.StartTask(agent, task_id),
+                        StageDef.AssignPhototherapist(agent, details),
+                        StageDef.AwaitCompletion(agent),
+                    ]))
 
 
 
