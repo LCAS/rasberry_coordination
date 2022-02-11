@@ -362,7 +362,7 @@ class RasberryCoordinator(object):
         logmsg(category="DTM", msg="      | stage state: %s" % agent().__repr__())
 
         agent.interruption = None  # reset interruption trigger
-        self.agent_manager.format_agent_marker(agent.agent_id, style='red')
+        self.agent_manager.format_agent_marker(agent, style='red')
     def resume(self, agent):
         """ Agent unpausing works as follows:
         1. Set the flag to end the pause stage (self.agent.registration)
@@ -377,7 +377,7 @@ class RasberryCoordinator(object):
             logmsg(category="DTM", msg="      | stage state: %s" % agent().__repr__())
 
         agent.interruption = None  # reset interruption trigger
-        # self.agent_manager.format_agent_marker(agent.agent_id, style='')
+        # self.agent_manager.format_agent_marker(agent, style='')
     def reset(self, agent):
         """ Reset task works as follows:
         If the reset request comes from the initiator:

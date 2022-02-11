@@ -213,9 +213,9 @@ class AgentDetails(object):
         logmsg(category="TASK",  msg="- Active task: %s" % self['name'], speech=False)
         logmsg(category="TASK",  msg="  Task details:")
         [logmsg(category="TASK", msg="      | %s" % stage) for stage in self['stage_list']]
-    def extend_task(self, task_name, details):
+    def extend_task(self, task_name, task_id, details):
         task_def = getattr(TaskDef, task_name)
-        task = task_def(self, details=details)
+        task = task_def(self, details=details, task_id=task_id)
         self['stage_list'] += task.stage_list
 
 

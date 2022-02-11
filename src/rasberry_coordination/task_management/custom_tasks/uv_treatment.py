@@ -69,18 +69,25 @@ class InterfaceDef(object):
     class uv_treatment_controller(IDef.RasberryInterfacing_ProtocolManager):
         def sar_BEGUN(self):
             task_scope, details = self.get_task('uv_treatment')
-            task_name = 'uv_treatment_treat_with_robot'
-            if details['robot'] == 'closest':
-                task_name = 'uv_treatment_treat_with_closest_robot'
+            task_name = 'send_uv_treatment'
             if task_name: self.agent.add_task(task_name=task_name, details=details)
-
-
-        # def sar_CANCEL(self):
-        #     self.agent.set_interrupt('cancel', 'uv_treatment', self.agent['id'], "Task")
-        # def sar_EMERGENCY(self):
-        #     self.agent.add_task(task_name='stop')
-
-
+        def sar_CANCEL(self):
+            logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="Cancel "+self.agent['name'])
+            if self.agent['name'] == 'send_uv_treatment':
+                logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="has task")
+                self.agent.set_interrupt('reset', 'uv_treatment', self.agent['id'], "Task")
+        def sar_EMERGENCY_STOP(self):
+            logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="Emergency stop called")
+            if self.agent['name'] == 'send_uv_treatment':
+                self.agent.set_interrupt('pause', 'uv_treatment', self.agent['id'], "Task")
+                if 'phototherapist' in self.agent['contacts'] and 'Pause' not in self.agent['contacts']['phototherapist']().get_class():
+                    self.agent['contacts']['phototherapist'].set_interrupt('pause', 'uv_treatment', self.agent['id'], "Task")
+        def sar_EMERGENCY_RESUME(self):
+            logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="Emergency resume called")
+            if self.agent['name'] == 'send_uv_treatment':
+                self.agent.set_interrupt('resume', 'uv_treatment', self.agent['id'], "Task")
+                if 'phototherapist' in self.agent['contacts'] and 'Pause' in self.agent['contacts']['phototherapist']().get_class():
+                    self.agent['contacts']['phototherapist'].set_interrupt('resume', 'uv_treatment', self.agent['id'], "Task")
 
 
 class TaskDef(object):
@@ -138,10 +145,10 @@ class TaskDef(object):
 
     """ Control from SAR """
     @classmethod
-    def uv_treatment_treat_with_closest_robot(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+    def send_uv_treatment(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
                     module='uv_treatment',
-                    name="uv_treatment_treat_tunnel_with_closest_robot",
+                    name="send_uv_treatment",
                     details=details,
                     contacts=contacts,
                     initiator_id=agent.agent_id,
@@ -194,10 +201,6 @@ class StageDef(object):
             super(StageDef.DisableUVLight, self).__init__(agent, trigger='light_status', msg="DISABLE_LIGHT", colour='')
         def _end(self):
             if 'controller' in self.agent['contacts']:
-                print("\n\n\n")
-                pprint(self.agent['stage_list'])
-                pprint([s for s in self.agent['stage_list'][:-1] if 'DisableUVLight' in s.get_class()])
-                print("\n")
                 if len([s for s in self.agent['stage_list'][:-1] if 'DisableUVLight' in s.get_class()]) == 0:
                     # if there is no more stages in stagslit, set flag on controller?
                     self.agent['contacts']['controller']['phototherapist_completion_flag'] = True
@@ -210,6 +213,8 @@ class StageDef(object):
             self.contacts = {'controller': agent}
             if details['scope']== "edge":
                 self.contacts['row_ends'] = details['nodes']
+            if details['robot'] != "closest":
+                self.action['list'] = [details['robot']]
             super(StageDef.AssignPhototherapist, self).__init__(agent, action_style='closest', agent_type='phototherapist')
         def _end(self):
             super(StageDef.AssignPhototherapist, self)._end()
@@ -219,6 +224,7 @@ class StageDef(object):
                                                               details=self.details,
                                                               contacts=self.contacts,
                                                               initiator_id=self.agent.agent_id)
+
 
     class AwaitCompletion(SDef.Idle):
         def _start(self):
@@ -236,12 +242,13 @@ class StageDef(object):
 
 
     """
-        
+    
     assignAgent needs ability to assign by name
-    - what should happen if named agent is unavailable?
-    - //what happend if category agent is unavailable?//
     
+    publish configs to sar
+
+    emergency stop
     
-    publish deets to sar
+    cancel task
 
     """

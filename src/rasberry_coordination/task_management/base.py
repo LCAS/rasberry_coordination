@@ -556,7 +556,7 @@ class StageDef(object):
             logmsg(category="stage", msg="Task to use %s rows:" % len(self.action['response_location']))
             for row in self.action['response_location']:
                 logmsg(category="stage", msg="    - extending stage list to include row: %s" % row)
-                self.agent.extend_task(task_name=self.response_task, details={'row': row})
+                self.agent.extend_task(task_name=self.response_task, task_id=self.agent['id'], details={'row': row})
     class FindRowEnds(AssignNode):
         """Used to identify the two ends of a given row."""
         def __repr__(self):
@@ -704,7 +704,7 @@ class StageDef(object):
         def _end(self):
             """On end, reenable registration"""
             self.agent.registration = True
-            self.format_agent_marker(self.agent.agent_id, style='')
+            self.format_agent_marker(self.agent, style='')
     class Exit(StageBase):
         """Used for controlled removal of agent connections"""
         def _start(self):
@@ -722,22 +722,3 @@ class StageDef(object):
             super(StageDef.Exit, self)._end()
             self.agent.cb['format_agent_marker'](self.agent, 'black')
             self.agent.set_interrupt('disconnect', 'base', self.agent['id'], "Task")
-
-
-
-
-
-
-
-
-"""
-class AgentInterface_KV(object):
-    def __init__(self):
-        self.notify("INIT")
-    def callback(self):
-        print('callback')
-    def notify(self, state):
-        print('notify '+state)
-    def get_task(self, module, prefix):
-        print('get_task ' + module + ' ' + prefix)
-"""

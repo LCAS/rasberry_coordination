@@ -69,7 +69,6 @@ class TaskObj(object):
     def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
     def __setitem__(self, key, val): self.__setattr__(key,val)
 
-
 class ModuleObj(object):
 
     def __repr__(self):
