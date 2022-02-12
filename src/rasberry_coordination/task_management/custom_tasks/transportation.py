@@ -15,31 +15,19 @@ except: pass
 
 class InterfaceDef(object):
 
-    class transportation_picker(IDef.AgentInterface):
-        def __init__(self, agent, sub='/car_client/get_states', pub='/car_client/set_states'):
-            # self.release_triggers = ['self', 'toc']
-            # self.restart_triggers = ['thorvald']
-
-            responses = {'CALLED': self.called, 'LOADED': self.loaded, 'INIT': self.reset}
-            super(InterfaceDef.transportation_picker, self).__init__(agent, responses, sub=sub, pub=pub)
-
-            self.notify("INIT")
-
-        def called(self):
-            logmsg(category="TPTask", id=self.agent.agent_id, msg="Request for field_courier")
+    class transportation_picker(IDef.RasberryInterfacing_ProtocolManager):
+        def car_CALLED(self):
             self.agent.add_task(task_name='transportation_request_field_courier')
             self.agent['start_time'] = Time.now()
 
-        def loaded(self):
-            logmsg(msg="picker called loaded")
-            self.agent['has_tray'] = False #picker no longer has the tray
+        def car_LOADED(self):
+            self.agent['has_tray'] = False
 
-        def reset(self):
-            logmsg(category="TPTask", id=self.agent.agent_id, msg="Reset-task requested")
+        def car_CANCEL(self):
             if self.agent['id'] and self.agent['name']=='transportation_request_field_courier':
                 self.agent.set_interrupt('reset', 'transportation', self.agent['id'], "Task")
-            else:
-                logmsg(level="error", msg="task request cancelled but we only check for if task is active")
+
+
 
     class transportation_field_courier(IDef.AgentInterface):
         def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
@@ -84,7 +72,8 @@ class TaskDef(object):
     """ Idle Task Stages for Transportation Agents """
     @classmethod
     def transportation_picker_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        agent.modules['transportation'].interface.notify("INIT")
+        pass
+        # agent.modules['transportation'].interface.notify("car_INIT2")
     @classmethod
     def transportation_field_courier_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         LP = agent.local_properties
@@ -208,7 +197,7 @@ class StageDef(object):
         def _end(self):
             """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
             super(StageDef.AssignFieldCourier, self)._end()
-            self.agent.modules['transportation'].interface.notify("ACCEPT")
+            self.agent.modules['transportation'].interface.notify("car_ACCEPT")
             self.agent['contacts']['field_courier'].add_task(task_name='transportation_retrieve_load',
                                                        task_id=self.agent['id'],
                                                        details={},
@@ -256,7 +245,7 @@ class StageDef(object):
             self.flag(any(success_conditions))
         def _end(self):
             """On completion, notify the picker of ARRIVAL"""
-            self.agent.modules['transportation'].interface.notify("ARRIVED")
+            self.agent.modules['transportation'].interface.notify("car_ARRIVED")
     class AwaitStoreAccess(SDef.Idle):
         """Used to idle the field_courier until the storage location has accepted admittance"""
         def __repr__(self):
@@ -313,7 +302,7 @@ class StageDef(object):
             """On Completion, set the field_courier's flag and notify picker"""
             super(StageDef.TimeoutFlagModifier, self)._end()
             self.agent['contacts']['field_courier'][self.trigger_flag] = self.default
-            self.agent.modules['transportation'].interface.notify("INIT")
+            self.agent.modules['transportation'].interface.notify("car_COMPLETE")
     class LoadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be consideded loaded"""
         def _start(self):

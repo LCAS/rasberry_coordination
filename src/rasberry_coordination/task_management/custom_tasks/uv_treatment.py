@@ -72,18 +72,15 @@ class InterfaceDef(object):
             task_name = 'send_uv_treatment'
             if task_name: self.agent.add_task(task_name=task_name, details=details)
         def sar_CANCEL(self):
-            logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="Cancel "+self.agent['name'])
             if self.agent['name'] == 'send_uv_treatment':
                 logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="has task")
                 self.agent.set_interrupt('reset', 'uv_treatment', self.agent['id'], "Task")
         def sar_EMERGENCY_STOP(self):
-            logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="Emergency stop called")
             if self.agent['name'] == 'send_uv_treatment':
                 self.agent.set_interrupt('pause', 'uv_treatment', self.agent['id'], "Task")
                 if 'phototherapist' in self.agent['contacts'] and 'Pause' not in self.agent['contacts']['phototherapist']().get_class():
                     self.agent['contacts']['phototherapist'].set_interrupt('pause', 'uv_treatment', self.agent['id'], "Task")
         def sar_EMERGENCY_RESUME(self):
-            logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="Emergency resume called")
             if self.agent['name'] == 'send_uv_treatment':
                 self.agent.set_interrupt('resume', 'uv_treatment', self.agent['id'], "Task")
                 if 'phototherapist' in self.agent['contacts'] and 'Pause' in self.agent['contacts']['phototherapist']().get_class():
