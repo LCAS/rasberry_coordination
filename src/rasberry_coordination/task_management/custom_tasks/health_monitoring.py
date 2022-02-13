@@ -14,7 +14,7 @@ except: pass
 
 class InterfaceDef(object):
 
-    class health_monitoring_robot(IDef.AgentInterface):
+    class robot(IDef.AgentInterface):
         def __init__(self, agent):
             self.agent = agent
             self.battery_data_sub = Subscriber("/%s/dummy_battery_data" % (self.agent.agent_id), Battery, self._battery_data_cb)  # TODO: point this to the correct location

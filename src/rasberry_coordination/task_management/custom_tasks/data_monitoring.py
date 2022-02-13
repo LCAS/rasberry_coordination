@@ -16,7 +16,7 @@ except: pass
 
 class InterfaceDef(object):
 
-    class data_monitoring_scanner(object):
+    class scanner(object):
         def notify(self, state):
             msg = Str('{\"user\":\"%s\", \"state\":\"%s\"}' % (self.agent.agent_id, state))
             logmsg(category="COMMS", msg="Publishing: (%s)" % msg)

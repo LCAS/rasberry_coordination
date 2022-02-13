@@ -15,7 +15,7 @@ except: pass
 
 class InterfaceDef(object):
 
-    class transportation_picker(IDef.RasberryInterfacing_ProtocolManager):
+    class picker(IDef.RasberryInterfacing_ProtocolManager):
         def car_CALLED(self):
             self.agent.add_task(task_name='transportation_request_field_courier')
             self.agent['start_time'] = Time.now()
@@ -27,9 +27,7 @@ class InterfaceDef(object):
             if self.agent['id'] and self.agent['name']=='transportation_request_field_courier':
                 self.agent.set_interrupt('reset', 'transportation', self.agent['id'], "Task")
 
-
-
-    class transportation_field_courier(IDef.AgentInterface):
+    class field_courier(IDef.AgentInterface):
         def __init__(self, agent, sub='/r/get_states', pub='/r/set_states'):
             #E.g. If a cancellation request is triggered by picker, we much release
             #E.g. If a cancellation request is triggered by field_storage, we much restart
@@ -43,7 +41,7 @@ class InterfaceDef(object):
         def unpause(self): self.agent.set_interrupt('unpause', 'transportation', self.agent['id'])
         def release(self): self.agent.set_interrupt('reset', 'transportation', self.agent['id'])
 
-    class transportation_field_storage(IDef.AgentInterface):
+    class field_storage(IDef.AgentInterface):
         def __init__(self, agent, sub='/uar/get_states', pub='/uar/set_states'):
             self.release_triggers = ['self', 'toc']
             self.restart_triggers = ['thorvald']
@@ -59,8 +57,8 @@ class InterfaceDef(object):
 
 
 class TaskDef(object):
-
     """ Initialisation """
+
     # @classmethod
     # def transportation_picker_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
     #     return TDef.human_localisation(agent=agent, task_id=task_id, details=details, contacts=contacts)

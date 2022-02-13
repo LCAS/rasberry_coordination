@@ -20,34 +20,41 @@ def set_properties(module_dict):
 def fetch_property(module, key, default=None):
     return get_param('/rasberry_coordination/task_modules/%s/%s' % (module, key), default)
 
+def rename(cls, prefix):
+    for fcn_name in [f for f in dir(cls) if not f.startswith('__') and prefix != 'base']:
+        fcn = getattr(cls, fcn_name)
+        delattr(cls, fcn_name)
+        setattr(cls, prefix+'_'+fcn_name, fcn)
+    return cls
 
-def def_tasks(clean_task_list):
+def load_custom_modules(clean_module_list):
     from rasberry_coordination.coordinator_tools import logmsg
     logmsg(category="null")
 
-    clean_task_list = [t for t in clean_task_list if t != 'base']
-    task_list = ['rasberry_coordination.task_management.custom_tasks.%s' % task for task in clean_task_list]
+    clean_module_list = [t for t in clean_module_list if t != 'base']
+    module_list = ['rasberry_coordination.task_management.custom_tasks.%s' % module for module in clean_module_list]
 
-    if 'rasberry_coordination.task_management.base' not in task_list:
-        task_list.insert(0, 'rasberry_coordination.task_management.base')
+    if 'rasberry_coordination.task_management.base' not in module_list:
+        module_list.insert(0, 'rasberry_coordination.task_management.base')
 
     logmsg(category="START",  msg="Collecting Interface, Task, and Stage Definitions for modules: ")
-    [logmsg(category="START", msg="    | %s" % module) for module in clean_task_list]
+    [logmsg(category="START", msg="    | %s" % module) for module in clean_module_list]
 
-    # For each task, import the TaskDef, StageDef, and InterfaceDef to the respective dictionaries
+    # For each module, import the TaskDef, StageDef, and InterfaceDef to their respective containers
+    interface_definitions = dict()
     task_definitions = dict()
     stage_definitions = dict()
-    interface_definitions = dict()
-    for task in task_list:
-        task_definitions[task] = __import__('%s' % task, globals(), locals(), ['TaskDef'], -1).TaskDef
-        stage_definitions[task] = __import__('%s' % task, globals(), locals(), ['StageDef'], -1).StageDef
-        interface_definitions[task] = __import__('%s' % task, globals(), locals(), ['InterfaceDef'], -1).InterfaceDef
+    for module in module_list:
+        module_class = __import__(module, globals(), locals(), ['TaskDef','StageDef','InterfaceDef'], -1)
+        interface_definitions[module] = rename(module_class.InterfaceDef, module.split('.')[-1])
+        task_definitions[module] = module_class.TaskDef
+        stage_definitions[module] = module_class.StageDef
 
-    # Make these accessible through import
+    # Compile containers down to single global objects to import from within rasberry_coordination
     global TaskDef, StageDef, InterfaceDef
+    InterfaceDef = type('InterfaceDef', tuple(interface_definitions.values()), dict())
     TaskDef = type('TaskDef', tuple(task_definitions.values()), dict())
     StageDef = type('StageDef', tuple(stage_definitions.values()), dict())
-    InterfaceDef = type('InterfaceDef', tuple(interface_definitions.values()), dict())
 
     logmsg(category="START",  msg="Interfaces: ")
     [logmsg(category="START", msg="    | %s" % i) for i in dir(InterfaceDef) if not i.startswith('__')]

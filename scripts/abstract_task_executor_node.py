@@ -143,7 +143,7 @@ if __name__ == '__main__':
     # Initialise task manager to store all task and stage definitions in single objects for later access
     import rasberry_coordination.task_management.__init__ as task_init
     task_init.set_properties(config_data['active_modules'])
-    task_init.def_tasks(list(modules_to_load))
+    task_init.load_custom_modules(list(modules_to_load))
 
 
     """ COORDINATOR """

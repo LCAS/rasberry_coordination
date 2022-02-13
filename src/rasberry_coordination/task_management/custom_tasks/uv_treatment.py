@@ -16,9 +16,8 @@ except: pass
 
 
 class InterfaceDef(object):
-    #TODO: we could replace uv_treatment_phototherapist with just the role, and append the module in the task management INIT.py
 
-    class uv_treatment_phototherapist(object):
+    class phototherapist(object):
         def notify(self, state):
             msg = Str('{\"user\":\"%s\", \"state\":\"%s\"}' % (self.agent.agent_id, state))
             logmsg(category="COMMS", msg="Publishing: (%s)" % msg)
@@ -66,7 +65,7 @@ class InterfaceDef(object):
         def __setitem__(self, key, val): self.__setattr__(key, val)
 
 
-    class uv_treatment_controller(IDef.RasberryInterfacing_ProtocolManager):
+    class controller(IDef.RasberryInterfacing_ProtocolManager):
         def sar_BEGUN(self):
             task_scope, details = self.get_task('uv_treatment')
             task_name = 'send_uv_treatment'
