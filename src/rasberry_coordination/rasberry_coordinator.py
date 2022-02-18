@@ -22,7 +22,7 @@ from pprint import pprint
 import rospy
 from rospy import Subscriber, Publisher
 
-from std_msgs.msg import Empty
+from std_msgs.msg import String as Str, Empty
 import strands_executive_msgs.msg
 import strands_executive_msgs.srv
 import strands_navigation_msgs.msg
@@ -217,34 +217,36 @@ class RasberryCoordinator(object):
 
     """ Services offerd by Coordinator to assist with tasks """
     def offer_service(self, agent):
-        action_type =       agent().action['action_type']
-        action_style =      agent().action['action_style']
 
+        #Identify action properties
+        action_type =  agent().action['action_type']
+        action_style = agent().action['action_style'] if 'action_style' in agent().action else ''
+        action_deets = {k:v for k,v in agent().action.items() if k not in ['action_type', 'action_style', 'response_location']}
+
+        #Define resposse functions
         responses = {'find_agent':self.find_agent,
-                     'find_node': self.find_node}
+                     'find_node': self.find_node,
+                     'send_info': self.send_info}
 
-        action_deets = agent().action.copy()
-        del action_deets['action_type']
-        del action_deets['action_style']
-        del action_deets['response_location']
-
+        #Perform Action
         s, self.action_print = self.action_print, False
         agent().action['response_location'] = responses[action_type](agent)
         self.action_print = s
 
+        if agent().action['response_location'] == 'sent': return
+
+        #Log results (reperform action with logging if action results in success)
         if agent().action['response_location']:
             #for better logging but worse code:
             self.action_print = True
             logmsg(category="action", id=agent.agent_id, msg="Perfoming %s(%s) - details: %s" % (action_type, action_style, action_deets))
             responses[action_type](agent)
             logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
-
             agent().action_required = False
         else:
             if self.action_print: logmsg(category="action", id=agent.agent_id, msg="Perfoming %s(%s) - details: %s" % (action_type, action_style, action_deets))
             responses[action_type](agent)
             if self.action_print: logmsg(category="action", msg="No response found, continuing in background, will update log when successful.")
-
             self.action_print = False
 
     """ Action Category """
@@ -296,6 +298,13 @@ class RasberryCoordinator(object):
                      "row_ends": self.find_row_ends,
                      "rows": self.find_rows}  # ROOM TO EXPAND
         return responses[action_style](agent, N)
+    def send_info(self, agent):
+        pub1 = Publisher('/car_client/info/map', Str, queue_size=1, latch=True)
+        pub1.publish(agent.map_handler.simplify())
+        pub2 = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)
+        pub2.publish(self.agent_manager.simplify())
+        return 'sent'
+
 
     """ Action Style """
     def find_closest_agent(self, agent, agent_list):

@@ -195,6 +195,7 @@ class InterfaceDef(object):
                 'robot': robot,
                 'scope': task_scope})
 
+
     class robot(object):
         def __init__(self, agent, Type):
             self.agent = agent
@@ -274,6 +275,7 @@ class TaskDef(object):
                         StageDef.StartTask(agent, task_id),
                         StageDef.SetUnregister(agent),
                         StageDef.WaitForLocalisation(agent),
+                        StageDef.SendInfo(agent),
                         StageDef.SetRegister(agent)
                     ]))
 
@@ -457,6 +459,20 @@ class StageDef(object):
             """Complete the stage without any condition"""
             self.flag(True)
 
+    class SendInfo(StageBase):
+        def __init__(self, agent):
+            super(StageDef.SendInfo, self).__init__(agent)
+            self.action_required = True
+        def _start(self):
+            super(StageDef.SendInfo, self)._start()
+            self.action['action_type'] = 'send_info'
+            self.action['response_location'] = ''
+        def _query(self):
+            """Complete once action has generated a result"""
+            success_conditions = [self.action['response_location'] == 'sent']
+            self.flag(any(success_conditions))
+
+
     """ Idle """
     class Idle(StageBase):
         """Used to suspend activity until the agent has a task."""
@@ -487,7 +503,6 @@ class StageDef(object):
             super(StageDef.AssignAgent, self).__init__(agent)
             self.agent_type = agent_type
             self.action_style = action_style
-
         def _start(self):
             """Initiate action details to identify agent"""
             super(StageDef.AssignAgent, self)._start()
@@ -495,7 +510,6 @@ class StageDef(object):
             self.action['action_style'] = self.action_style
             self.action['agent_type'] = self.agent_type
             self.action['response_location'] = None
-
         def _end(self, contact_type='responder_id'):
             """ On completion, save agent contact"""
             super(StageDef.AssignAgent, self)._end()

@@ -130,3 +130,7 @@ class MapObj(object):
         if 'restrictions' in self.agent.navigation_properties:
             return (self.node_list and node_id in self.node_list)
         return True
+
+    def simplify(self):
+        return Str(str({'0': {'0': ['0>1', '1>2'], '1': ['0>1', '1>2'], '2': ['0>1', '1>2'], '3': ['0>1', '1>2'], '4': ['0>1', '1>2']},
+                        '1': {'6': ['0>1', '1>2'], '7': ['0>1', '1>2'], '8': ['0>1', '1>2'], '9': ['0>1', '1>2'], '10': ['0>1', '1>2']}}))

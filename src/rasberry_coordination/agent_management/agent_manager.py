@@ -78,6 +78,7 @@ class AgentManager(object):
     def __getitem__(self, key):
         return self.agent_details[key] if key in self.agent_details else None
 
+
     """ Visuals """
     def format_agent_marker(self, agent, style):
         """ Add/modify marker to display in rviz """
@@ -104,6 +105,14 @@ class AgentManager(object):
             if 'marker' in a.visualisation_properties:
                 m = a.visualisation_properties['marker']
                 self.set_marker_pub.publish(m)
+
+    """ Data """
+    def simplify(self):
+        return Str(str({'short': {'logistics':      ['thorvald_014']},
+                        'tall':  {'uv_treatment':   ['thorvald_002_tall', 'thorvald_030'],
+                                  'data_gathering': ['thorvald_002_tall']}}))
+
+
 
 class AgentDetails(object):
     """ Fields:
