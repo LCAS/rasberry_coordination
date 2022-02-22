@@ -13,12 +13,12 @@ from rasberry_coordination.coordinator_tools import logmsg
 
 from topological_navigation.tmap_utils import get_node as get_topomap_node, get_distance_node_pose_from_tmap2 as node_pose_dist
 from topological_navigation.route_search import TopologicalRouteSearch
+from topological_navigation_msgs.msg import GotoNodeGoal, GotoNodeAction
 
 from std_msgs.msg import Header, String
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Pose
 from strands_navigation_msgs.msg import ExecutePolicyModeGoal, ExecutePolicyModeAction, TopologicalMap, TopologicalRoute
-from topological_navigation.msg import GotoNodeGoal, GotoNodeAction
 
 
 class Robot(object):

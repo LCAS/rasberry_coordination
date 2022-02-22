@@ -99,7 +99,6 @@ class ModuleObj(object):
     #     if getattr(TaskDef, self.idle_task_name):
     #         self.agent.add_task(task_name=self.idle_task_name)
 
-
 class MapObj(object):
 
     def __init__(self, agent, topic="/topological_map_2"):

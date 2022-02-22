@@ -205,6 +205,7 @@ class StageDef(object):
     class AssignPhototherapist(SDef.AssignAgent):
         def __init__(self, agent, details):
             self.details = details
+            print(details)
             self.response_task = 'uv_treatment_treat_'+details['scope']
             self.contacts = {'controller': agent}
             if details['scope']== "edge":

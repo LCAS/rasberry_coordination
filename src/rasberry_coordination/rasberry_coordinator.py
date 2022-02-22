@@ -27,9 +27,6 @@ import strands_executive_msgs.msg
 import strands_executive_msgs.srv
 import strands_navigation_msgs.msg
 import strands_navigation_msgs.srv
-import topological_navigation.msg
-import topological_navigation.route_search
-import topological_navigation.tmap_utils
 
 import rasberry_coordination.robot
 import rasberry_coordination.srv
@@ -38,6 +35,9 @@ from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, Rasberr
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module
 
 #Route Planning
+import topological_navigation_msgs.msg
+import topological_navigation.route_search
+import topological_navigation.tmap_utils
 from rasberry_coordination.route_planners.route_planners import RouteFinder
 
 #Task Managment

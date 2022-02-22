@@ -112,6 +112,16 @@ class AgentManager(object):
                         'tall':  {'uv_treatment':   ['thorvald_002_tall', 'thorvald_030'],
                                   'data_gathering': ['thorvald_002_tall']}}))
 
+        # out = {}
+        # for a in self.agent_details.values():
+        #     if 'structure_type' not in a.visualisation_properties: continue
+        #     st = a.visualisation_properties['structure_type']
+        #     if st not in out: out[st] = {}
+        #     for t in a.modules:
+        #         if t in ['base', 'health_monitoring']: continue
+        #         if t not in out[st]: out[st][t] = []
+        #         out[st][t] += [a.agent_id]
+        # return Str(str(out))
 
 
 class AgentDetails(object):
