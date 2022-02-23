@@ -6,7 +6,7 @@ This document details the structure and formatting of the stages defined in the 
 - [Health Monitoring](#HealthMonitoring)
 - [Transportation](#Transportation)
 - [UV Treatment](#UVTreatment)
-- [Data Monitoring](#DataMonitoring)
+- [Data Collection](#DataCollection)
 
 --------------------------------------------------
 <a name="Base"></a>
@@ -421,7 +421,6 @@ Used to identify of two nodes, which one is closest ot the agent.
 
     -> __init__
        | .: | Class initialisation for populating default values
-       |    | Save row ends to the contact details
 
     -> _start
        | .: | Stage start, called when this is the active stage.
@@ -500,6 +499,31 @@ Base task for all Assignments
     -> _start
        | . | Stage start, called when this is the active stage.
        |   | Set flag to perform multi-agent action
+
+    -> _query
+       | . | Used to define the criteria which ust be met for the stage to be completed
+       |   | Complete once action has generated a result
+
+    -> _end
+       | . | Used to set any fields as the stage is about to be removed
+
+
+
+
+--------------------------
+#### SendInfo: [`StageBase(.)`]
+None
+
+    -> __repr__
+       | . | Simplified representation of class for clean informative logging
+
+    -> __init__
+       | . | Class initialisation for populating default values
+       |   | None
+
+    -> _start
+       | . | Stage start, called when this is the active stage.
+       |   | None
 
     -> _query
        | . | Used to define the criteria which ust be met for the stage to be completed
@@ -1144,6 +1168,7 @@ Used to idle the agent until a field_courier has arrived
 
     -> _start
        | : | Stage start, called when this is the active stage.
+       |   | None
 
     -> _query
        | : | Used to define the criteria which ust be met for the stage to be completed
@@ -1189,31 +1214,31 @@ Used to idle the field_courier until the storage location has accepted admittanc
 Stages defined in the custom_tasks.uv_treatment module:  
 
 
-------------------------------------------------------------------------------
-#### NavigateToUVStartNode: [`NavigateToNode(.)`, `Navigation(:)`, `StageBase(.:)`]
-Used to navigate to a given start node
+-------------------------------------------------------------------------------
+#### FindRowsUV: [`FindRows(.)`, `AssignNode(:)`, `Assignment(.:)`, `StageBase(::)`]
+Used to assign the uv_treatment_treat_row task to all rows in the given tunnel.
 
     -> __repr__
-       | .: | Simplified representation of class for clean informative logging
-       |  : | Display class with idle navigation target 
+       | :: | Simplified representation of class for clean informative logging
+       |  . | Display the tunnel id to generate tasks for.
 
     -> __init__
-       | .: | Class initialisation for populating default values
-       |  : | Identify the location from which the target is identified
-       |    | Call to super to set the navigation target as the node stored in the action association
+       | :: | Class initialisation for populating default values
+       |  . | Save the tunnel details
+       |    | Call super to set uv_treatment_treat_row as task to apply
 
     -> _start
-       | .: | Stage start, called when this is the active stage.
-       |  : | Flag the agent as requirieng a route
-       |  . | Start task by setting the target to a given node
+       | :: | Stage start, called when this is the active stage.
+       | .: | Set flag to perform multi-agent action
+       |  . | Initialise action details to search for rows
 
     -> _query
-       | .: | Used to define the criteria which ust be met for the stage to be completed
-       |  : | Complete when the agents location is identical to the target location.
+       | :: | Used to define the criteria which ust be met for the stage to be completed
+       | .: | Complete once action has generated a result
 
     -> _end
-       | .: | Used to set any fields as the stage is about to be removed
-       |  : | End navigation by refreshing routes for other agents in motion.
+       | :: | Used to set any fields as the stage is about to be removed
+       |  . | Begin defined task for each row in action response
 
 
 
@@ -1247,35 +1272,6 @@ Used to navigate to a given end node
 
 
 
--------------------------------------------------------------------------------
-#### FindRowsUV: [`FindRows(.)`, `AssignNode(:)`, `Assignment(.:)`, `StageBase(::)`]
-Used to assign the uv_treatment_treat_row task to all rows in the given tunnel.
-
-    -> __repr__
-       | :: | Simplified representation of class for clean informative logging
-       |  . | Display the tunnel id to generate tasks for.
-
-    -> __init__
-       | :: | Class initialisation for populating default values
-       |  . | Save the tunnel details
-       |    | Call super to set uv_treatment_treat_row as task to apply
-
-    -> _start
-       | :: | Stage start, called when this is the active stage.
-       | .: | Set flag to perform multi-agent action
-       |  . | Initialise action details to search for rows
-
-    -> _query
-       | :: | Used to define the criteria which ust be met for the stage to be completed
-       | .: | Complete once action has generated a result
-
-    -> _end
-       | :: | Used to set any fields as the stage is about to be removed
-       |  . | Begin defined task for each row in action response
-
-
-
-
 ---------------------------------------------------
 #### EnableUVLight: [`NotifyTrigger(.)`, `StageBase(:)`]
 Used to enable the UV light on the uv robot
@@ -1298,6 +1294,7 @@ Used to enable the UV light on the uv robot
 
     -> _end
        | : | Used to set any fields as the stage is about to be removed
+       |   | None
 
 
 
@@ -1324,18 +1321,105 @@ Used to disable the UV light on the uv robot
 
     -> _end
        | : | Used to set any fields as the stage is about to be removed
+       |   | None
+
+
+
+
+------------------------------------------------------------------------------
+#### NavigateToUVStartNode: [`NavigateToNode(.)`, `Navigation(:)`, `StageBase(.:)`]
+Used to navigate to a given start node
+
+    -> __repr__
+       | .: | Simplified representation of class for clean informative logging
+       |  : | Display class with idle navigation target 
+
+    -> __init__
+       | .: | Class initialisation for populating default values
+       |  : | Identify the location from which the target is identified
+       |    | Call to super to set the navigation target as the node stored in the action association
+
+    -> _start
+       | .: | Stage start, called when this is the active stage.
+       |  : | Flag the agent as requirieng a route
+       |  . | Start task by setting the target to a given node
+       |    | None
+
+    -> _query
+       | .: | Used to define the criteria which ust be met for the stage to be completed
+       |  : | Complete when the agents location is identical to the target location.
+
+    -> _end
+       | .: | Used to set any fields as the stage is about to be removed
+       |  : | End navigation by refreshing routes for other agents in motion.
+
+
+
+
+--------------------------------------------------------------------------
+#### AssignPhototherapist: [`AssignAgent(.)`, `Assignment(:)`, `StageBase(.:)`]
+None
+
+    -> __repr__
+       | .: | Simplified representation of class for clean informative logging
+
+    -> __init__
+       | .: | Class initialisation for populating default values
+       |  . | Initialise the agent's type and the action style
+       |    | None
+
+    -> _start
+       | .: | Stage start, called when this is the active stage.
+       |  : | Set flag to perform multi-agent action
+       |  . | Initiate action details to identify agent
+
+    -> _query
+       | .: | Used to define the criteria which ust be met for the stage to be completed
+       |  : | Complete once action has generated a result
+
+    -> _end
+       | .: | Used to set any fields as the stage is about to be removed
+       |  . |  On completion, save agent contact
+       |    | None
+
+
+
+
+--------------------------------------------
+#### AwaitCompletion: [`Idle(.)`, `StageBase(:)`]
+None
+
+    -> __repr__
+       | : | Simplified representation of class for clean informative logging
+       | . | Display class with idle location 
+
+    -> __init__
+       | : | Class initialisation for populating default values
+
+    -> _start
+       | : | Stage start, called when this is the active stage.
+       |   | None
+
+    -> _query
+       | : | Used to define the criteria which ust be met for the stage to be completed
+       | . | Complete once task buffer contains another task, or if battery level is low.
+       |   | None
+
+    -> _end
+       | : | Used to set any fields as the stage is about to be removed
+       |   | None
 
 
 
 --------------------------------------------------
-<a name="DataMonitoring"></a>
-## Data Monitoring
-Stages defined in the custom_tasks.data_monitoring module:  
+<a name="DataCollection"></a>
+## Data Collection
+Stages defined in the custom_tasks.data_collection module:  
 
 
 -------------------------------------------------------------------------------
 #### FindRowsDM: [`FindRows(.)`, `AssignNode(:)`, `Assignment(.:)`, `StageBase(::)`]
-Used to assign the data_monitoring_scan_row task to all rows in the given tunnel.
+Used to assign the data_collection_scan_row task to all rows in the given tunnel.
 
     -> __repr__
        | :: | Simplified representation of class for clean informative logging
@@ -1344,7 +1428,7 @@ Used to assign the data_monitoring_scan_row task to all rows in the given tunnel
     -> __init__
        | :: | Class initialisation for populating default values
        |  . | Save the tunnel details
-       |    | Call super to set data_monitoring_scan_row as task to apply
+       |    | Call super to set data_collection_scan_row as task to apply
 
     -> _start
        | :: | Stage start, called when this is the active stage.
@@ -1358,32 +1442,6 @@ Used to assign the data_monitoring_scan_row task to all rows in the given tunnel
     -> _end
        | :: | Used to set any fields as the stage is about to be removed
        |  . | Begin defined task for each row in action response
-
-
-
-
------------------------------------------------------
-#### DisableDMCamera: [`NotifyTrigger(.)`, `StageBase(:)`]
-Used to disable the camera on the robot
-
-    -> __repr__
-       | : | Simplified representation of class for clean informative logging
-
-    -> __init__
-       | : | Class initialisation for populating default values
-       | . | Save initialisation details for message
-       |   | Call to initialise a camera_status message of DISABLE_CAMERA to send on start and set rviz robot to clear
-
-    -> _start
-       | : | Stage start, called when this is the active stage.
-       | . | Send trigger message
-
-    -> _query
-       | : | Used to define the criteria which ust be met for the stage to be completed
-       | . | Wait for flag to be set by message response (os #PSUEDO)
-
-    -> _end
-       | : | Used to set any fields as the stage is about to be removed
 
 
 
@@ -1405,6 +1463,7 @@ Used to navigate to a given start node
        | .: | Stage start, called when this is the active stage.
        |  : | Flag the agent as requirieng a route
        |  . | Start task by setting the target to a given node
+       |    | None
 
     -> _query
        | .: | Used to define the criteria which ust be met for the stage to be completed
@@ -1446,6 +1505,62 @@ Used to navigate to a given end node
 
 
 
+-------------------------------------------------------------------
+#### AssignScanner: [`AssignAgent(.)`, `Assignment(:)`, `StageBase(.:)`]
+None
+
+    -> __repr__
+       | .: | Simplified representation of class for clean informative logging
+
+    -> __init__
+       | .: | Class initialisation for populating default values
+       |  . | Initialise the agent's type and the action style
+       |    | None
+
+    -> _start
+       | .: | Stage start, called when this is the active stage.
+       |  : | Set flag to perform multi-agent action
+       |  . | Initiate action details to identify agent
+
+    -> _query
+       | .: | Used to define the criteria which ust be met for the stage to be completed
+       |  : | Complete once action has generated a result
+
+    -> _end
+       | .: | Used to set any fields as the stage is about to be removed
+       |  . |  On completion, save agent contact
+       |    | None
+
+
+
+
+-----------------------------------------------------
+#### DisableDMCamera: [`NotifyTrigger(.)`, `StageBase(:)`]
+Used to disable the camera on the robot
+
+    -> __repr__
+       | : | Simplified representation of class for clean informative logging
+
+    -> __init__
+       | : | Class initialisation for populating default values
+       | . | Save initialisation details for message
+       |   | Call to initialise a camera_status message of DISABLE_CAMERA to send on start and set rviz robot to clear
+
+    -> _start
+       | : | Stage start, called when this is the active stage.
+       | . | Send trigger message
+
+    -> _query
+       | : | Used to define the criteria which ust be met for the stage to be completed
+       | . | Wait for flag to be set by message response (os #PSUEDO)
+
+    -> _end
+       | : | Used to set any fields as the stage is about to be removed
+       |   | None
+
+
+
+
 ----------------------------------------------------
 #### EnableDMCamera: [`NotifyTrigger(.)`, `StageBase(:)`]
 Used to enable the camera on the robot
@@ -1468,4 +1583,32 @@ Used to enable the camera on the robot
 
     -> _end
        | : | Used to set any fields as the stage is about to be removed
+       |   | None
+
+
+
+
+--------------------------------------------
+#### AwaitCompletion: [`Idle(.)`, `StageBase(:)`]
+None
+
+    -> __repr__
+       | : | Simplified representation of class for clean informative logging
+       | . | Display class with idle location 
+
+    -> __init__
+       | : | Class initialisation for populating default values
+
+    -> _start
+       | : | Stage start, called when this is the active stage.
+       |   | None
+
+    -> _query
+       | : | Used to define the criteria which ust be met for the stage to be completed
+       | . | Complete once task buffer contains another task, or if battery level is low.
+       |   | None
+
+    -> _end
+       | : | Used to set any fields as the stage is about to be removed
+       |   | None
 

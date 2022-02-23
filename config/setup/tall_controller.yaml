@@ -3,6 +3,8 @@ modules:
     role: human
   - name: uv_treatment
     role: controller
+  - name: data_collection
+    role: controller
 navigation_properties:
     has_presence: false
 visualisation_properties:

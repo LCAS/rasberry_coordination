@@ -94,7 +94,7 @@ c.add("uv_treatment", ["edge-action", "row-action", "tunnel-action"])
 C.add(c)
 
 c = Container("TASKS(4)")
-c.add("data_monitoring", ["edge-action", "row-action", "tunnel-action"])
+c.add("data_collection", ["edge-action", "row-action", "tunnel-action"])
 C.add(c)
 
 C[0][0](0)

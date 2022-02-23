@@ -157,14 +157,14 @@ def print_stages_md():
     from rasberry_coordination.task_management.custom_tasks import health_monitoring
     from rasberry_coordination.task_management.custom_tasks import transportation
     from rasberry_coordination.task_management.custom_tasks import uv_treatment
-    from rasberry_coordination.task_management.custom_tasks import data_monitoring
+    from rasberry_coordination.task_management.custom_tasks import data_collection
 
     # Stg(base.StageDef.__dict__['NavigateToBaseNode'])
     ba = ([v for k, v in base.StageDef.__dict__.items() if not k.startswith('_')],              base)
     hm = ([v for k, v in health_monitoring.StageDef.__dict__.items() if not k.startswith('_')], health_monitoring)
     tp = ([v for k, v in transportation.StageDef.__dict__.items() if not k.startswith('_')],    transportation)
     uv = ([v for k, v in uv_treatment.StageDef.__dict__.items() if not k.startswith('_')],      uv_treatment)
-    dm = ([v for k, v in data_monitoring.StageDef.__dict__.items() if not k.startswith('_')],   data_monitoring)
+    dm = ([v for k, v in data_collection.StageDef.__dict__.items() if not k.startswith('_')],   data_collection)
 
     # import rospkg
     # rospack = rospkg.RosPack()

@@ -1,4 +1,4 @@
-"""Data Monitoring"""
+"""Data Collection"""
 
 from copy import deepcopy
 from pprint import pprint
@@ -27,9 +27,9 @@ class InterfaceDef(object):
 
             self.camera_status = False
 
-            self.sub_edge     = Subscriber('/%s/data_monitoring/initiate_task/edge'     % agent.agent_id, TopoLocation, self.edge)
-            self.sub_row      = Subscriber('/%s/data_monitoring/initiate_task/row'      % agent.agent_id, TopoLocation, self.row)
-            self.sub_tunnel   = Subscriber('/%s/data_monitoring/initiate_task/tunnel'   % agent.agent_id, TopoLocation, self.tunnel)
+            self.sub_edge     = Subscriber('/%s/data_collection/initiate_task/edge'     % agent.agent_id, TopoLocation, self.edge)
+            self.sub_row      = Subscriber('/%s/data_collection/initiate_task/row'      % agent.agent_id, TopoLocation, self.row)
+            self.sub_tunnel   = Subscriber('/%s/data_collection/initiate_task/tunnel'   % agent.agent_id, TopoLocation, self.tunnel)
             # self.sub_schedule = Subscriber('/%s/initiate_task/schedule' % agent.agent_id, Str, self.schedule)
 
         def edge(self, msg):
@@ -42,7 +42,7 @@ class InterfaceDef(object):
                 nodeB = "%s-t%s-r%s-c%s"%(msg.type, msg.tunnel, msg.row, msg.edge_node[1])
 
                 logmsg(category="DMTask", id=self.agent.agent_id, msg="Request to treat edge")
-                self.agent.add_task(task_name='data_monitoring_scan_edge', details={"row_ends": [nodeA, nodeB]})
+                self.agent.add_task(task_name='data_collection_scan_edge', details={"row_ends": [nodeA, nodeB]})
         def row(self, msg):
             if self.agent.registration:
                 # msg.type = "tall"
@@ -51,7 +51,7 @@ class InterfaceDef(object):
                 row = "%s-t%s-r%s"%(msg.type, msg.tunnel, msg.row)
 
                 logmsg(category="DMTask", id=self.agent.agent_id, msg="Request to treat row")
-                self.agent.add_task(task_name='data_monitoring_scan_row', details={"row": row})
+                self.agent.add_task(task_name='data_collection_scan_row', details={"row": row})
         def tunnel(self, msg):
             if self.agent.registration:
                 msg.type = "tall"
@@ -59,41 +59,41 @@ class InterfaceDef(object):
                 tunnel = "%s-t%s"%(msg.type, msg.tunnel)
 
                 logmsg(category="DMTask", id=self.agent.agent_id, msg="Request to treat row")
-                self.agent.add_task(task_name='data_monitoring_scan_tunnel', details={"tunnel": tunnel})
+                self.agent.add_task(task_name='data_collection_scan_tunnel', details={"tunnel": tunnel})
 
         def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
         def __setitem__(self, key, val): self.__setattr__(key, val)
 
     class controller(IDef.RasberryInterfacing_ProtocolManager):
         def sar_BEGUN(self):
-            task_scope, details = self.get_task('data_monitoring')
-            task_name = 'send_data_monitoring'
+            task_scope, details = self.get_task('data_collection')
+            task_name = 'send_data_collection'
             if task_name: self.agent.add_task(task_name=task_name, details=details)
         def sar_CANCEL(self):
-            if self.agent['name'] == 'send_data_monitoring':
+            if self.agent['name'] == 'send_data_collection':
                 logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="has task")
-                self.agent.set_interrupt('reset', 'data_monitoring', self.agent['id'], "Task")
+                self.agent.set_interrupt('reset', 'data_collection', self.agent['id'], "Task")
         def sar_EMERGENCY_STOP(self):
-            if self.agent['name'] == 'send_data_monitoring':
-                self.agent.set_interrupt('pause', 'data_monitoring', self.agent['id'], "Task")
+            if self.agent['name'] == 'send_data_collection':
+                self.agent.set_interrupt('pause', 'data_collection', self.agent['id'], "Task")
                 if 'phototherapist' in self.agent['contacts'] and 'Pause' not in self.agent['contacts']['scanner']().get_class():
-                    self.agent['contacts']['scanner'].set_interrupt('pause', 'data_monitoring', self.agent['id'], "Task")
+                    self.agent['contacts']['scanner'].set_interrupt('pause', 'data_collection', self.agent['id'], "Task")
         def sar_EMERGENCY_RESUME(self):
-            if self.agent['name'] == 'send_data_monitoring':
-                self.agent.set_interrupt('resume', 'data_monitoring', self.agent['id'], "Task")
+            if self.agent['name'] == 'send_data_collection':
+                self.agent.set_interrupt('resume', 'data_collection', self.agent['id'], "Task")
                 if 'phototherapist' in self.agent['contacts'] and 'Pause' in self.agent['contacts']['scanner']().get_class():
-                    self.agent['contacts']['scanner'].set_interrupt('resume', 'data_monitoring', self.agent['id'], "Task")
+                    self.agent['contacts']['scanner'].set_interrupt('resume', 'data_collection', self.agent['id'], "Task")
 
 
 class TaskDef(object):
-    """ Constructors for data_monitoring Tasks """
+    """ Constructors for data_collection Tasks """
 
     """ Tasks """
     @classmethod
-    def data_monitoring_scan_edge(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+    def data_collection_scan_edge(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return (Task(id=task_id,
-                     module='data_monitoring',
-                     name="data_monitoring_scan_edge",
+                     module='data_collection',
+                     name="data_collection_scan_edge",
                      details=details,
                      contacts=contacts,
                      initiator_id=initiator_id,
@@ -107,10 +107,10 @@ class TaskDef(object):
                          StageDef.DisableDMCamera(agent)
                      ]))
     @classmethod
-    def data_monitoring_scan_row(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+    def data_collection_scan_row(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return (Task(id=task_id,
-                     module='data_monitoring',
-                     name="data_monitoring_scan_row",
+                     module='data_collection',
+                     name="data_collection_scan_row",
                      details=details,
                      contacts=contacts,
                      initiator_id=initiator_id,
@@ -125,10 +125,10 @@ class TaskDef(object):
                          StageDef.DisableDMCamera(agent)
                      ]))
     @classmethod
-    def data_monitoring_scan_tunnel(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+    def data_collection_scan_tunnel(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return (Task(id=task_id,
-                     module='data_monitoring',
-                     name="data_monitoring_scan_tunnel",
+                     module='data_collection',
+                     name="data_collection_scan_tunnel",
                      details=details,
                      contacts=contacts,
                      initiator_id=initiator_id,
@@ -140,10 +140,10 @@ class TaskDef(object):
 
     """ Control from SAR """
     @classmethod
-    def send_data_monitoring(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+    def send_data_collection(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
-                    module='data_monitoring',
-                    name="send_data_monitoring",
+                    module='data_collection',
+                    name="send_data_collection",
                     details=details,
                     contacts=contacts,
                     initiator_id=agent.agent_id,
@@ -158,10 +158,10 @@ class TaskDef(object):
 class StageDef(object):
 
     class FindRowsDM(SDef.FindRows):
-        """Used to assign the data_monitoring_scan_row task to all rows in the given tunnel."""
+        """Used to assign the data_collection_scan_row task to all rows in the given tunnel."""
         def __init__(self, agent, tunnel):
-            """Call super to set data_monitoring_scan_row as task to apply"""
-            super(StageDef.FindRowsDM, self).__init__(agent, tunnel, 'data_monitoring_scan_row')
+            """Call super to set data_collection_scan_row as task to apply"""
+            super(StageDef.FindRowsDM, self).__init__(agent, tunnel, 'data_collection_scan_row')
 
     class NavigateToDMStartNode(SDef.NavigateToNode):
         """Used to navigate to a given start node"""
@@ -170,7 +170,7 @@ class StageDef(object):
             super(StageDef.NavigateToDMStartNode, self).__init__(agent, association='start_node')
         def _start(self):
             if 'controller' in self.agent['contacts']:
-                self.agent['contacts']['controller'].modules['data_monitoring'].interface.notify("sar_AWAIT_START")
+                self.agent['contacts']['controller'].modules['data_collection'].interface.notify("sar_AWAIT_START")
             super(StageDef.NavigateToDMStartNode, self)._start()
 
     class NavigateToDMEndNode(SDef.NavigateToNode):
@@ -186,7 +186,7 @@ class StageDef(object):
             super(StageDef.EnableDMCamera, self).__init__(agent, trigger='camera_status', msg="ENABLE_CAMERA", colour='green')
         def _end(self):
             if 'controller' in self.agent['contacts']:
-                self.agent['contacts']['controller'].modules['data_monitoring'].interface.notify("sar_AWAIT_TASK_COMPLETION")
+                self.agent['contacts']['controller'].modules['data_collection'].interface.notify("sar_AWAIT_TASK_COMPLETION")
 
     class DisableDMCamera(SDef.NotifyTrigger):
         """Used to disable the camera on the robot"""
@@ -203,7 +203,7 @@ class StageDef(object):
         def __init__(self, agent, details):
             self.details = details
             print(details)
-            self.response_task = 'data_monitoring_treat_'+details['scope']
+            self.response_task = 'data_collection_treat_'+details['scope']
             self.contacts = {'controller': agent}
             if details['scope']== "edge":
                 self.contacts['row_ends'] = details['nodes']
@@ -212,7 +212,7 @@ class StageDef(object):
             super(StageDef.AssignScanner, self).__init__(agent, action_style='closest', agent_type='scanner')
         def _end(self):
             super(StageDef.AssignScanner, self)._end()
-            self.agent.modules['data_monitoring'].interface.notify("sar_AWAIT_START")
+            self.agent.modules['data_collection'].interface.notify("sar_AWAIT_START")
             self.agent['contacts']['scanner'].add_task(task_name=self.response_task,
                                                        task_id=self.agent['id'],
                                                        details=self.details,
@@ -227,7 +227,7 @@ class StageDef(object):
             success_conditions = [self.agent['scanner_completion_flag']]
             self.flag(any(success_conditions))
         def _end(self):
-            self.agent.modules['data_monitoring'].interface.notify("sar_COMPLETE")
+            self.agent.modules['data_collection'].interface.notify("sar_COMPLETE")
 
 
 

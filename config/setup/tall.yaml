@@ -5,7 +5,7 @@ modules:
     role: robot
   - name: uv_treatment
     role: phototherapist
-  - name: data_monitoring
+  - name: data_collection
     role: scanner
 navigation_properties:
     restrictions: intra-row
