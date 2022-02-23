@@ -32,7 +32,7 @@ def load_custom_modules(clean_module_list):
     logmsg(category="null")
 
     clean_module_list = [t for t in clean_module_list if t != 'base']
-    module_list = ['rasberry_coordination.task_management.custom_tasks.%s' % module for module in clean_module_list]
+    module_list = ['rasberry_coordination.task_management.modules.%s' % module for module in clean_module_list]
 
     if 'rasberry_coordination.task_management.base' not in module_list:
         module_list.insert(0, 'rasberry_coordination.task_management.base')
@@ -154,10 +154,10 @@ def print_stages_md():
     import rasberry_coordination
     from rasberry_coordination.task_management import Stg
     from rasberry_coordination.task_management import base
-    from rasberry_coordination.task_management.custom_tasks import health_monitoring
-    from rasberry_coordination.task_management.custom_tasks import transportation
-    from rasberry_coordination.task_management.custom_tasks import uv_treatment
-    from rasberry_coordination.task_management.custom_tasks import data_collection
+    from rasberry_coordination.task_management.modules import health_monitoring
+    from rasberry_coordination.task_management.modules import transportation
+    from rasberry_coordination.task_management.modules import uv_treatment
+    from rasberry_coordination.task_management.modules import data_collection
 
     # Stg(base.StageDef.__dict__['NavigateToBaseNode'])
     ba = ([v for k, v in base.StageDef.__dict__.items() if not k.startswith('_')],              base)

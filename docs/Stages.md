@@ -77,7 +77,7 @@ The `get_class` method was included to simplify the information presentation in 
 
 ```python
 # Converted from:
-"<class 'rasberry_coordination.task_management.custom_tasks.transportation.AssignFieldCourier'>"
+"<class 'rasberry_coordination.task_management.modules.transportation.AssignFieldCourier'>"
 # to:
 "transportation.AssignFieldCourier"
 

@@ -13,13 +13,13 @@
 #
 #
 #     print('')
-#     tp='rasberry_coordination.task_management.custom_tasks.transportation'
+#     tp='rasberry_coordination.task_management.modules.transportation'
 #     module_class = __import__(tp, globals(), locals(), ['TaskDef', 'StageDef', 'InterfaceDef'], -1)
 #     ti = rename(interface=module_class.InterfaceDef, prefix='FP_')
 #     print(filter(ti))
 #
 #     print('')
-#     uv='rasberry_coordination.task_management.custom_tasks.uv_treatment'
+#     uv='rasberry_coordination.task_management.modules.uv_treatment'
 #     module_class = __import__(uv, globals(), locals(), ['TaskDef', 'StageDef', 'InterfaceDef'], -1)
 #     ui = rename(interface=module_class.InterfaceDef, prefix='UV_')
 #     print(filter(ui))

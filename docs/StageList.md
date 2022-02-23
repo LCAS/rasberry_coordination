@@ -689,7 +689,7 @@ Called as the first stage of every task, to generate and apply a task_id.
 --------------------------------------------------
 <a name="HealthMonitoring"></a>
 ## Health Monitoring
-Stages defined in the custom_tasks.health_monitoring module:  
+Stages defined in the modules.health_monitoring module:  
 
 
 -------------------------------------------------
@@ -801,7 +801,7 @@ Used to Identify and reserve a charging station
 --------------------------------------------------
 <a name="Transportation"></a>
 ## Transportation
-Stages defined in the custom_tasks.transportation module:  
+Stages defined in the modules.transportation module:  
 
 
 -------------------------
@@ -1211,7 +1211,7 @@ Used to idle the field_courier until the storage location has accepted admittanc
 --------------------------------------------------
 <a name="UVTreatment"></a>
 ## UV Treatment
-Stages defined in the custom_tasks.uv_treatment module:  
+Stages defined in the modules.uv_treatment module:  
 
 
 -------------------------------------------------------------------------------
@@ -1414,7 +1414,7 @@ None
 --------------------------------------------------
 <a name="DataCollection"></a>
 ## Data Collection
-Stages defined in the custom_tasks.data_collection module:  
+Stages defined in the modules.data_collection module:  
 
 
 -------------------------------------------------------------------------------

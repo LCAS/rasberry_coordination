@@ -357,7 +357,7 @@ class StageDef(object):
             return str(self.__class__)\
                 .replace("<class 'rasberry_coordination.task_management.","")\
                 .replace("'>","")\
-                .replace("custom_tasks.","")
+                .replace("modules.","")
         def __repr__(self):
             """Simplified representation of class for clean informative logging"""
             return self.get_class()
