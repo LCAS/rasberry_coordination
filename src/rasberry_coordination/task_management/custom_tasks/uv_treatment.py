@@ -189,7 +189,6 @@ class StageDef(object):
             if 'controller' in self.agent['contacts']:
                 self.agent['contacts']['controller'].modules['uv_treatment'].interface.notify("sar_AWAIT_TASK_COMPLETION")
 
-
     class DisableUVLight(SDef.NotifyTrigger):
         """Used to disable the UV light on the uv robot"""
         def __init__(self, agent):
@@ -200,7 +199,6 @@ class StageDef(object):
                 if len([s for s in self.agent['stage_list'][:-1] if 'DisableUVLight' in s.get_class()]) == 0:
                     # if there is no more stages in stagslit, set flag on controller?
                     self.agent['contacts']['controller']['phototherapist_completion_flag'] = True
-
 
     class AssignPhototherapist(SDef.AssignAgent):
         def __init__(self, agent, details):
@@ -222,7 +220,6 @@ class StageDef(object):
                                                               contacts=self.contacts,
                                                               initiator_id=self.agent.agent_id)
 
-
     class AwaitCompletion(SDef.Idle):
         def _start(self):
             super(StageDef.AwaitCompletion,self)._start()
@@ -243,9 +240,5 @@ class StageDef(object):
     assignAgent needs ability to assign by name
     
     publish configs to sar
-
-    emergency stop
-    
-    cancel task
 
     """

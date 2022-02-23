@@ -1,6 +1,7 @@
 """Data Monitoring"""
 
 from copy import deepcopy
+from pprint import pprint
 from rospy import Time, Duration, Subscriber, Publisher, Time
 
 from std_msgs.msg import String as Str
@@ -41,7 +42,7 @@ class InterfaceDef(object):
                 nodeB = "%s-t%s-r%s-c%s"%(msg.type, msg.tunnel, msg.row, msg.edge_node[1])
 
                 logmsg(category="DMTask", id=self.agent.agent_id, msg="Request to treat edge")
-                self.agent.add_task(task_name='data_monitoring_scan_edge', details={"nodes": [nodeA, nodeB]})
+                self.agent.add_task(task_name='data_monitoring_scan_edge', details={"row_ends": [nodeA, nodeB]})
         def row(self, msg):
             if self.agent.registration:
                 # msg.type = "tall"
@@ -63,6 +64,26 @@ class InterfaceDef(object):
         def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
         def __setitem__(self, key, val): self.__setattr__(key, val)
 
+    class controller(IDef.RasberryInterfacing_ProtocolManager):
+        def sar_BEGUN(self):
+            task_scope, details = self.get_task('data_monitoring')
+            task_name = 'send_data_monitoring'
+            if task_name: self.agent.add_task(task_name=task_name, details=details)
+        def sar_CANCEL(self):
+            if self.agent['name'] == 'send_data_monitoring':
+                logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="has task")
+                self.agent.set_interrupt('reset', 'data_monitoring', self.agent['id'], "Task")
+        def sar_EMERGENCY_STOP(self):
+            if self.agent['name'] == 'send_data_monitoring':
+                self.agent.set_interrupt('pause', 'data_monitoring', self.agent['id'], "Task")
+                if 'phototherapist' in self.agent['contacts'] and 'Pause' not in self.agent['contacts']['scanner']().get_class():
+                    self.agent['contacts']['scanner'].set_interrupt('pause', 'data_monitoring', self.agent['id'], "Task")
+        def sar_EMERGENCY_RESUME(self):
+            if self.agent['name'] == 'send_data_monitoring':
+                self.agent.set_interrupt('resume', 'data_monitoring', self.agent['id'], "Task")
+                if 'phototherapist' in self.agent['contacts'] and 'Pause' in self.agent['contacts']['scanner']().get_class():
+                    self.agent['contacts']['scanner'].set_interrupt('resume', 'data_monitoring', self.agent['id'], "Task")
+
 
 class TaskDef(object):
     """ Constructors for data_monitoring Tasks """
@@ -79,7 +100,7 @@ class TaskDef(object):
                      responder_id="",
                      stage_list=[
                          SDef.StartTask(agent, task_id),
-                         SDef.FindStartNode(agent, details['nodes']),
+                         SDef.FindStartNode(agent),
                          StageDef.NavigateToDMStartNode(agent),
                          StageDef.EnableDMCamera(agent),
                          StageDef.NavigateToDMEndNode(agent),
@@ -117,6 +138,22 @@ class TaskDef(object):
                          StageDef.FindRowsDM(agent, details['tunnel'])
                      ]))
 
+    """ Control from SAR """
+    @classmethod
+    def send_data_monitoring(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='data_monitoring',
+                    name="send_data_monitoring",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        SDef.StartTask(agent, task_id),
+                        StageDef.AssignScanner(agent, details),
+                        StageDef.AwaitCompletion(agent),
+                    ]))
+
 
 class StageDef(object):
 
@@ -131,6 +168,10 @@ class StageDef(object):
         def __init__(self, agent):
             """Call to super to set the navigation target as the node stored in the action association"""
             super(StageDef.NavigateToDMStartNode, self).__init__(agent, association='start_node')
+        def _start(self):
+            if 'controller' in self.agent['contacts']:
+                self.agent['contacts']['controller'].modules['data_monitoring'].interface.notify("sar_AWAIT_START")
+            super(StageDef.NavigateToDMStartNode, self)._start()
 
     class NavigateToDMEndNode(SDef.NavigateToNode):
         """Used to navigate to a given end node"""
@@ -143,21 +184,50 @@ class StageDef(object):
         def __init__(self, agent):
             """Call to initialise a camera_status message of ENABLE_CAMERA to send on start and set rviz robot to green"""
             super(StageDef.EnableDMCamera, self).__init__(agent, trigger='camera_status', msg="ENABLE_CAMERA", colour='green')
+        def _end(self):
+            if 'controller' in self.agent['contacts']:
+                self.agent['contacts']['controller'].modules['data_monitoring'].interface.notify("sar_AWAIT_TASK_COMPLETION")
 
     class DisableDMCamera(SDef.NotifyTrigger):
         """Used to disable the camera on the robot"""
         def __init__(self, agent):
             """Call to initialise a camera_status message of DISABLE_CAMERA to send on start and set rviz robot to clear"""
             super(StageDef.DisableDMCamera, self).__init__(agent, trigger='camera_status', msg="DISABLE_CAMERA", colour='')
+        def _end(self):
+            if 'controller' in self.agent['contacts']:
+                if len([s for s in self.agent['stage_list'][:-1] if 'DisableDMCamera' in s.get_class()]) == 0:
+                    # if there is no more stages in stagslit, set flag on controller?
+                    self.agent['contacts']['controller']['scanner_completion_flag'] = True
 
+    class AssignScanner(SDef.AssignAgent):
+        def __init__(self, agent, details):
+            self.details = details
+            print(details)
+            self.response_task = 'data_monitoring_treat_'+details['scope']
+            self.contacts = {'controller': agent}
+            if details['scope']== "edge":
+                self.contacts['row_ends'] = details['nodes']
+            if details['robot'] != "closest":
+                self.action['list'] = [details['robot']]
+            super(StageDef.AssignScanner, self).__init__(agent, action_style='closest', agent_type='scanner')
+        def _end(self):
+            super(StageDef.AssignScanner, self)._end()
+            self.agent.modules['data_monitoring'].interface.notify("sar_AWAIT_START")
+            self.agent['contacts']['scanner'].add_task(task_name=self.response_task,
+                                                       task_id=self.agent['id'],
+                                                       details=self.details,
+                                                       contacts=self.contacts,
+                                                       initiator_id=self.agent.agent_id)
 
-
-
-
-
-
-
-
+    class AwaitCompletion(SDef.Idle):
+        def _start(self):
+            super(StageDef.AwaitCompletion,self)._start()
+            self.agent['scanner_completion_flag'] = False
+        def _query(self):
+            success_conditions = [self.agent['scanner_completion_flag']]
+            self.flag(any(success_conditions))
+        def _end(self):
+            self.agent.modules['data_monitoring'].interface.notify("sar_COMPLETE")
 
 
 
