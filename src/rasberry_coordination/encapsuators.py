@@ -101,9 +101,9 @@ class ModuleObj(object):
 
 class MapObj(object):
 
-    def __init__(self, agent, topic="/topological_map_2"):
+    def __init__(self, agent, topic=None):
         self.agent = agent
-        self.topic = topic
+        self.topic = topic or "/topological_map_2"
 
         self.map = None
         self.node_list = None
@@ -131,5 +131,14 @@ class MapObj(object):
         return True
 
     def simplify(self):
-        return Str(str({'0': {'0': ['0>1', '1>2'], '1': ['0>1', '1>2'], '2': ['0>1', '1>2'], '3': ['0>1', '1>2'], '4': ['0>1', '1>2']},
-                        '1': {'6': ['0>1', '1>2'], '7': ['0>1', '1>2'], '8': ['0>1', '1>2'], '9': ['0>1', '1>2'], '10': ['0>1', '1>2']}}))
+        # import code
+        # code.interact(local=locals())
+
+        T = {n.split('-')[1][1:]:{} for n in self.node_list if n.startswith('tall')}
+        for t in T:
+            T[t] = {n.split('-')[2][1:]:{} for n in self.node_list if n.startswith('tall-t'+t)}
+            for r in T[t]:
+                T[t][r] = [n.split('-')[3][1:] for n in self.node_list if n.startswith('tall-t'+t+'-r'+r)]
+        return Str(str(T))
+        # return Str(str({'0': {'0': ['0', '1', '2'], '1': ['0', '1', '2'], '2': ['0', '1', '2'], '3': ['0', '1', '2'], '4': ['0', '1', '2']},
+        #                 '1': {'6': ['0', '1', '2'], '7': ['0', '1', '2'], '8': ['0', '1', '2'], '9': ['0', '1', '2'], '10': ['0', '1', '2']}}))

@@ -274,6 +274,7 @@ class TaskDef(object):
                     stage_list=[
                         StageDef.StartTask(agent, task_id),
                         StageDef.SetUnregister(agent),
+                        StageDef.WaitForMap(agent),
                         StageDef.WaitForLocalisation(agent),
                         StageDef.SendInfo(agent),
                         StageDef.SetRegister(agent)
