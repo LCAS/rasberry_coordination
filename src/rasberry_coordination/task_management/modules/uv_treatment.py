@@ -54,8 +54,8 @@ class InterfaceDef(object):
                 self.agent.add_task(task_name='uv_treatment_treat_row', details={"row": row})
         def tunnel(self, msg):
             if self.agent.registration:
-                msg.type = "tall"
-                msg.tunnel = 1
+                #msg.type = "tall"
+                #msg.tunnel = 1
                 tunnel = "%s-t%s"%(msg.type, msg.tunnel)
 
                 logmsg(category="UVTask", id=self.agent.agent_id, msg="Request to treat row")
