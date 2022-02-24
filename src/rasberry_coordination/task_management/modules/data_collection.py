@@ -68,7 +68,7 @@ class InterfaceDef(object):
         def sar_BEGUN(self):
             task_scope, details = self.get_task('data_collection')
             task_name = 'send_data_collection'
-            if task_name: self.agent.add_task(task_name=task_name, details=details)
+            if task_name and details: self.agent.add_task(task_name=task_name, details=details)
         def sar_CANCEL(self):
             if self.agent['name'] == 'send_data_collection':
                 logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="has task")
@@ -203,7 +203,7 @@ class StageDef(object):
         def __init__(self, agent, details):
             self.details = details
             print(details)
-            self.response_task = 'data_collection_treat_'+details['scope']
+            self.response_task = 'data_collection_scan_'+details['scope']
             self.contacts = {'controller': agent}
             if details['scope']== "edge":
                 self.contacts['row_ends'] = details['nodes']

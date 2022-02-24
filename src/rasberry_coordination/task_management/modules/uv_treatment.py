@@ -69,7 +69,7 @@ class InterfaceDef(object):
         def sar_BEGUN(self):
             task_scope, details = self.get_task('uv_treatment')
             task_name = 'send_uv_treatment'
-            if task_name: self.agent.add_task(task_name=task_name, details=details)
+            if task_name and details: self.agent.add_task(task_name=task_name, details=details)
         def sar_CANCEL(self):
             if self.agent['name'] == 'send_uv_treatment':
                 logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="has task")
