@@ -17,6 +17,7 @@ from rospy import Subscriber, Publisher, Service, Time
 from std_msgs.msg import String as Str, Empty
 from std_srvs.srv import Trigger, TriggerResponse
 
+# from diagnostis_msgs.msg import KeyValue
 from rasberry_coordination.msg import AgentDetails as AgentDetailsMsg, MarkerDetails, KeyValuePair
 from rasberry_coordination.srv import AddAgent, AgentNodePair
 from rasberry_coordination.coordinator_tools import logmsg
@@ -52,11 +53,13 @@ class AgentManager(object):
 
 
     """ Dynamic Fleet """
-    def add_agents(self, agent_list):
-        for agent in agent_list: self.add_agent(agent)
     def add_agent(self, agent_dict):
         if agent_dict['agent_id'] not in self.agent_details:
             self.new_agent_buffer[agent_dict['agent_id']] = agent_dict
+            pub2 = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)  #TODO: this should not be included here
+            pub2.publish(self.simplify())
+    def add_agents(self, agent_list):
+        for agent in agent_list: self.add_agent(agent)
     def add_agent_from_buffer(self):
         buffer, self.new_agent_buffer = self.new_agent_buffer, dict()
         for agent_dict in buffer.values():
