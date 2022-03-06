@@ -27,53 +27,6 @@ class FragmentPlanner(BasePlanner):
         super(FragmentPlanner, self).__init__(all_agent_details_pointer, heterogeneous_map)
         self.task_lock = threading.Lock()
 
-    def update_available_tmap(self, agent):
-        """remove incoming edges to the list of agent nodes in the available_tmap
-        and update the available_route_search object with the new map
-        :param agent_nodes: list of nodes occupied by other agents, list
-        """
-        # Nothing to do if restrictions are not used
-        if 'restrictions' not in agent.navigation_properties: return
-
-        available_tmap = copy.deepcopy(agent.map_handler.map)
-
-        for node in available_tmap["nodes"]:
-            to_pop = []
-            for i in range(len(node["node"]["edges"])):
-                if node["node"]["edges"][i]["node"] in self.occupied_nodes:
-                    to_pop.append(i)
-            if to_pop:
-                to_pop.reverse()
-                for j in to_pop:
-                    node["node"]["edges"].pop(j)
-
-        agent.map_handler.fresh_map = available_tmap
-        # self.load_route_search(agent)
-
-    def unblock_node(self, agent, node_to_unblock):
-        """ unblock a node by adding edges to an occupied node in available_tmap
-        copying from tmap
-        :param node_to_unblock: name of the node to be unblocked, str
-        """
-        nodes_to_append = []
-        edges_to_append = []
-
-        """ for each edge in network, if edge connects to a node to unblock, add to list """
-        for node in agent.map_handler.map["nodes"]:
-            for edge in node["node"]["edges"]:
-                if edge["node"] == node_to_unblock:
-                    nodes_to_append.append(node["node"]["name"])
-                    edges_to_append.append(edge)
-
-        """ for each node in empty map, if node is to be unblocked, add a extra edge """
-        for node in agent.map_handler.fresh_map["nodes"]:
-            if node["node"]["name"] in nodes_to_append:
-                ind_to_append = nodes_to_append.index(node["node"]["name"])
-                node["node"]["edges"].append(edges_to_append[ind_to_append])
-
-        # update the route_search object
-        # agent.map_handler.optimal_route_search = TopologicalRouteSearch(agent.map_handler.fresh_map)
-
     def critical_points(self, ):
         """find points where agent's path cross with those of active robots.
         also find active robots which cross paths at these critical points.
@@ -236,7 +189,6 @@ class FragmentPlanner(BasePlanner):
         for a in self.agent_details.values():
             logmsg(category="route", msg="        - %s:%s" % (a.agent_id,str(a.route_edges).replace('WayPoint','wp')))
 
-
     def find_routes(self, ):
         """find_routes - find indiviual paths, find critical points in these paths, and fragment the
         paths at critical points - whenever triggered
@@ -245,53 +197,46 @@ class FragmentPlanner(BasePlanner):
 
         logmsg(category="route", id="COORDINATOR", msg="Finding routes for Active agents:")
         [logmsg(category="route", msg="    | %s: %s"%(a.agent_id, a.goal())) for a in self.agent_details.values()]
-        actives =   [a for a in self.agent_details.values() if a.goal()]  # agents with an active nav goal (navigation)
-        inactives = [a for a in self.agent_details.values() if not a.goal()]  # agents without an active goal (idle)
+
+        # agents with an active nav goal (navigation)
+        actives = [a for a in self.agent_details.values() if a.goal()]
         logmsg(category="route", msg="actives --- "+str([a.agent_id for a in actives]))
+
+        # agents without an active goal (idle)
+        inactives = [a for a in self.agent_details.values() if not a.goal()]
         logmsg(category="route", msg="inactives - "+str([a.agent_id for a in inactives]))
 
+        # agents which require a route for thier active stage
         need_route = [a for a in self.agent_details.values() if a().route_required]
         logmsg(category="route", msg="Agents requiring routes:")
-        for a in need_route:
-            logmsg(category="route", msg="    | {%s: %s}" % (a.agent_id, a()))
+        for a in need_route: logmsg(category="route", msg="    | {%s: %s}" % (a.agent_id, a()))
 
-        """find unblocked routes for all agents which need one"""
+        # identify all occupied nodes
         self.load_occupied_nodes()
 
+        # find unblocked routes for all agents which need one
         for agent in actives:
             agent_id = agent.agent_id
             agent().route_found = False
 
-            """get start node and goal node"""
+            # get start node and goal node
             start_node = agent.location(accurate=False)
             goal_node  = agent.goal()
             logmsg(category="route", id=agent.agent_id, msg="Finding route for %s: %s -> %s" % (agent_id, start_node, goal_node))
 
-            """if current node is goal node, mark agent as inactive"""
+            # if current node is goal node, mark agent as inactive
             if start_node == goal_node: #should _query should have handled this by this point?
                 inactives += [agent]
                 logmsg(category="route", msg="Agent is at goal_node, adding to inactives")
                 continue
 
-            """take copy of empty map"""
-            #unblock start and goal nodes, then update map to block other agents
-            self.unblock_node(agent, start_node)
-            self.unblock_node(agent, goal_node)
-            self.update_available_tmap(agent)
-            self.load_route_search(agent)
+            # unblock start and goal nodes, then update map to block other agents
+            FragmentPlanner_map_filter.generate_filtered_map(agent, start_node, goal_node, self.occupied_nodes)
 
-            """generate route from start node to goal node"""
-            route = None
-            if start_node and goal_node:
-                route = self.get_available_optimum_route(agent, start_node, goal_node)
-            route_nodes = []
-            route_edges = []
+            # generate route from start node to goal node
+            route = agent.map_handler.filtered_route_search.search_route(start_node, goal_node)
 
-            # xxxx = raw_input('Press "a" to debug!')
-            # if xxxx == "a":
-            #     import pdb; pdb.set_trace()
-
-            """ If failed to find route, set robot as inactive and mark navigation as failed """
+            # if failed to find route, set robot as inactive and mark navigation as failed
             if route.source == [] and route.edge_id == []:
                 logmsg(level="warn", category="route", msg="failed to find route, waiting idle")
                 logmsg(level="warn", category="route", msg="modify here for wait_node addition")
@@ -300,29 +245,115 @@ class FragmentPlanner(BasePlanner):
                 agent().route_required = False
                 continue
 
-            route_nodes = route.source + [goal_node] # add goal_node as it could be a critical point
+            # add goal_node as it could be a critical point
+            route_nodes = route.source + [goal_node]
             route_edges = route.edge_id
-            agent.no_route_found_notification = True #TODO: what?
 
-            """save route details"""
+            # TODO: ?
+            agent.no_route_found_notification = True
+
+            # save route details
             agent.route = route_nodes
             agent.route_edges = route_edges
-            agent().route_found = True #ReplanTrigger
+            agent.route_dists = agent.map_handler.get_edge_distances()
+
+            # mark route as found
+            agent().route_found = True
             logmsg(category="route", msg="Route has been found, marking as such")
 
-            self.get_edge_distances(agent_id)
-
-        """secure locations for each inactive agent, to make routing not interfere"""
+        # secure locations for each inactive agent, to make routing not interfere
         for agent in inactives:
-            agent.route = [agent.location(accurate=True)] #consider previous_node before closest_node
+            agent.route = [agent.location(accurate=True)]
             agent.route_edges = []
-            self.get_edge_distances(agent.agent_id)
+            agent.route_dists = agent.map_handler.get_edge_distances()
 
+        # log each route
         logmsg(category="route", msg="    - All agents assigned routes")
         for a in self.agent_details.values():
             logmsg(category="route", msg="        - %s:%s" % (a.agent_id, str(a.route).replace('WayPoint','wp')))
 
-        # find critical points and fragment routes to avoid critical point collistions
+        # find critical points and fragment routes to avoid critical point collisions
         self.split_critical_paths()
 
-        rospy.sleep(1)
+        # TODO: this should be removed if possible
+        print("\n\n\n\n\n\n")
+        # rospy.sleep(1)
+
+class FragmentPlanner_map_filter(object):
+
+    @classmethod
+    def generate_filtered_map(cls, agent, start_node, goal_node, occupied_nodes):
+        agent.map_handler.start_map_reset()
+        cls.block_nodes(agent, occupied_nodes)
+        cls.unblock_node(agent, start_node)
+        cls.unblock_node(agent, goal_node)
+        agent.map_handler.complete_map_reset()
+
+    @classmethod
+    def block_nodes(cls, agent, occupied_nodes):
+        """remove incoming edges to the list of agent nodes in the available_tmap
+        and update the available_route_search object with the new map
+        :param agent_nodes: list of nodes occupied by other agents, list
+        """
+
+        # # Nothing to do if restrictions are not used
+        # if 'restrictions' not in agent.navigation_properties: return
+
+        ocn = occupied_nodes
+        # if agent.location() in occupied_nodes: ocn.remove(agent.location())
+
+        # for node in agent.map_handler.filtered_map["nodes"]:
+        #     to_pop = []
+        #     for i in range(len(node["node"]["edges"])):
+        #         if node["node"]["edges"][i]["node"] in ocn:
+        #             to_pop.append(i)
+        #     if to_pop:
+        #         to_pop.reverse()
+        #         for j in to_pop:
+        #             node["node"]["edges"].pop(j)
+
+        for node in agent.map_handler.filtered_map["nodes"]:
+            node["node"]["edges"] = [e for e in node["node"]["edges"] if e not in ocn]
+
+    @classmethod
+    def unblock_node(cls, agent, node_to_unblock):
+        """ unblock a node by adding details from unfiltered map """
+        nodes_to_append = []
+        edges_to_append = []
+
+        # for each edge in network, if edge connects to a node to unblock, add to list
+        for node in agent.map_handler.empty_map["nodes"]:
+            for edge in node["node"]["edges"]:
+                if edge["node"] == node_to_unblock:
+                    nodes_to_append.append(node["node"]["name"])
+                    edges_to_append.append(edge)
+
+        # for each node in empty map, if node is to be unblocked, add a extra edge
+        for node in agent.map_handler.filtered_map["nodes"]:
+            if node["node"]["name"] in nodes_to_append:
+                ind_to_append = nodes_to_append.index(node["node"]["name"])
+                node["node"]["edges"].append(edges_to_append[ind_to_append])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

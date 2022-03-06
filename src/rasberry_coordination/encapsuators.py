@@ -10,6 +10,7 @@ from rasberry_coordination.srv import AgentNodePair
 
 import yaml
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
+from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, get_distance_to_node_tmap2 as GetNodeDist
 
 class LocationObj(object):
 
@@ -100,45 +101,119 @@ class ModuleObj(object):
     #         self.agent.add_task(task_name=self.idle_task_name)
 
 class MapObj(object):
-
+    """
+    Uses:
+    - instantiated by Agent
+    - .map checked in WaitForMap
+    -
+    """
     def __init__(self, agent, topic=None):
         self.agent = agent
         self.topic = topic or "/topological_map_2"
 
-        self.map = None
-        self.node_list = None
-        self.fresh_map = None
-        self.optimal_route_search = None
+        self.raw_msg = None
+
+        # used for planning direct routes
+        self.empty_map = None
+        self.empty_route_search = None
+        self.empty_node_list = None
+
+        # used for planning in cluttered workspace
+        self.filtered_map = None
+        self.filtered_route_search = None
+        self.filtered_node_list = None
+
 
     def enable_map_monitoring(self):
         # callback are enabled in base.StageDef.WaitForMap._start()
         self.tmap_sub = Subscriber(self.topic, Str, self.map_cb, queue_size=5)
 
     def map_cb(self, msg):
-        self.raw_map = msg
-        self.map = self.filter_raw_tmap(msg.data)
-        self.node_list = [node["node"]["name"] for node in self.map['nodes']]
-        self.fresh_map = deepcopy(self.map)
-        self.optimal_route_search = TopologicalRouteSearch(self.fresh_map)
+        self.raw_msg = msg.data
 
-    def filter_raw_tmap(self, data):
+        # used for planning direct routes
+        self.empty_map = self.load_raw_tmap(self.raw_msg)
+        self.empty_route_search = TopologicalRouteSearch(self.empty_map)
+        self.empty_node_list = [node["node"]["name"] for node in self.empty_map['nodes']]
+
+        # used for planning in cluttered workspace
+        self.filtered_map = self.load_raw_tmap(self.raw_msg)
+        self.filtered_route_search = TopologicalRouteSearch(self.filtered_map)
+        self.filtered_node_list = [node["node"]["name"] for node in self.filtered_map['nodes']]
+
+    def start_map_reset(self):
+        self.filtered_map = self.load_raw_tmap(self.raw_msg)
+    def complete_map_reset(self):
+        self.filtered_route_search = TopologicalRouteSearch(self.filtered_map)
+        self.filtered_node_list = [node["node"]["name"] for node in self.filtered_map['nodes']]
+
+    def load_raw_tmap(self, data):
         return yaml.safe_load(data)
 
     def is_node_restricted(self, node_id):
-        """checks if a given node is in the robot's restricted tmap2"""
+        """check if given node is in agent's map"""
         if 'restrictions' in self.agent.navigation_properties:
-            return (self.node_list and node_id in self.node_list)
+            return (self.empty_node_list and node_id in self.empty_node_list)
         return True
 
     def simplify(self):
-        # import code
-        # code.interact(local=locals())
-
-        T = {n.split('-')[1][1:]:{} for n in self.node_list if n.startswith('tall')}
+        # TODO: agent only holds restricted map, could this cause issues? (this only called by humans though, and they use full)
+        T = {n.split('-')[1][1:]:{} for n in self.empty_node_list if n.startswith('tall')}
         for t in T:
-            T[t] = {n.split('-')[2][1:]:{} for n in self.node_list if n.startswith('tall-t'+t)}
+            T[t] = {n.split('-')[2][1:]:{} for n in self.empty_node_list if n.startswith('tall-t'+t)}
             for r in T[t]:
-                T[t][r] = [n.split('-')[3][1:] for n in self.node_list if n.startswith('tall-t'+t+'-r'+r)]
+                T[t][r] = [n.split('-')[3][1:] for n in self.empty_node_list if n.startswith('tall-t'+t+'-r'+r)]
         return Str(str(T))
-        # return Str(str({'0': {'0': ['0', '1', '2'], '1': ['0', '1', '2'], '2': ['0', '1', '2'], '3': ['0', '1', '2'], '4': ['0', '1', '2']},
-        #                 '1': {'6': ['0', '1', '2'], '7': ['0', '1', '2'], '8': ['0', '1', '2'], '9': ['0', '1', '2'], '10': ['0', '1', '2']}}))
+
+    """ The following are map query tools """
+    def is_node(self, node):
+        """get node by name"""
+        return (node in self.empty_node_list)
+
+    def get_node(self, node):
+        """get node by name"""
+        return GetNode(self.empty_map, node)
+
+    def get_edge_length(self, from_node, to_node):
+        """ get length of edge """
+        return GetNodeDist(self.get_node(from_node), self.get_node(to_node))
+
+    def get_edge_distances(self):
+        """find edge lengths of route """
+        self.agent.route_dists = []
+        if not self.agent.route_edges: return
+        return [self.get_edge_length(self.agent.route[i], self.agent.route[i+1]) for i in range(len(self.agent.route) - 1)]
+
+    def get_route_length(self, agent, start_node, goal_node):
+        """ get length of direct route between nodes """
+        if start_node == goal_node: return 0
+        route = self.empty_route_search.search_route(start_node, goal_node)
+        if route is None: return float("inf")
+
+        route_nodes = route.source
+        route_nodes.append(goal_node)
+
+        route_distance = []
+        for i in range(len(route_nodes) - 1):
+            route_distance.append(self.get_edge_length(route_nodes[i], route_nodes[i + 1]))
+
+        return route_distance
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

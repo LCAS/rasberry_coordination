@@ -428,7 +428,7 @@ class StageDef(object):
             self.agent.map_handler.enable_map_monitoring()
         def _query(self):
             """Complete stage once a tmap is available"""
-            success_conditions = [self.agent.map_handler.map]
+            success_conditions = [self.agent.map_handler.filtered_node_list]
             self.flag(any(success_conditions))
     class EnableVirtualLocalisation(StageBase):
         """Enable localisation for virtual agents"""

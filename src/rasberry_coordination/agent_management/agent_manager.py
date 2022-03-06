@@ -225,6 +225,7 @@ class AgentDetails(object):
         else:
             logmsg(category="TASK",  msg="    | Buffering %s to task_buffer[%i]:" % (task_name, index or len(self.task_buffer)))
             [logmsg(category="TASK", msg="    |    | %s"%t) for t in task.stage_list]
+        print('\n\n\n\n\n\n')
     def start_next_task(self, idx=0):
         logmsg(category="TASK", id=self.agent_id, msg="Beginning next task", speech=False)
 

@@ -265,7 +265,6 @@ class RasberryCoordinator(object):
     def find_node(self, agent):
         action_style =      agent().action['action_style']
 
-
         if 'descriptor' in agent().action:
             if agent().action['action_style'] == "row_ends":
                 N = agent().action['descriptor']
@@ -280,9 +279,14 @@ class RasberryCoordinator(object):
                 if self.action_print: logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
 
                 occupied = [a.location.current_node for a in AExcl if a.location.current_node] #Check if node is occupied
-                occupied += [a().action[rl] for a in AExcl if rl in a().action and a().action[rl]]  # TackleSharedTarget
+                occupied += [a().action[rl] for a in AExcl if rl in a().action and a().action[rl] and a.map_handler.is_node(a().action[rl])]  # TackleSharedTarget
                 occupied += [a.goal() for a in AExcl if a.goal()]
                 if self.action_print: logmsg(category='action', msg='Occupied Nodes: %s'%occupied)
+
+                # if 'sent' in occupied:
+                #     xxxx = raw_input('Press "a" to debug!')
+                    # if xxxx == "a":
+                    #     import pdb; pdb.set_trace()
 
                 N2 = {n['id']:n for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)}
                 N = [n['id'] for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)]
@@ -293,14 +297,13 @@ class RasberryCoordinator(object):
             if self.action_print: logmsg(category='action', msg='Nodes to Compare Against:')
             if self.action_print: [logmsg(category='action', msg="    - %s"%n) for n in N]
 
-
         responses = {"closest": self.find_closest_node,
                      "row_ends": self.find_row_ends,
                      "rows": self.find_rows}  # ROOM TO EXPAND
         return responses[action_style](agent, N)
     def send_info(self, agent):
         pub1 = Publisher('/car_client/info/map', Str, queue_size=1, latch=True)
-        pub1.publish(agent.map_handler.simplify())
+        pub1.publish(agent.map_handler.simplify())  # TODO: agent only holds restricted map, could this cause issues? (this only called by humans though, and they use full)
         pub2 = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)
         pub2.publish(self.agent_manager.simplify())
         return 'sent'
@@ -309,14 +312,13 @@ class RasberryCoordinator(object):
     """ Action Style """
     def find_closest_agent(self, agent, agent_list):
         loc = agent.location()
-        dist_list = {a.agent_id:self.dist(loc, a.location()) for a in agent_list.values() if a.registration and a.map_handler.is_node_restricted(loc)}
-        lst = {a.agent_id:[loc, a.location(), self.dist(loc, a.location()), a.registration, a.map_handler.is_node_restricted(loc)] for a in agent_list.values()}
+        dist_list = {a.agent_id:self.dist(a, a.location(), loc) for a in agent_list.values() if a.registration and a.map_handler.is_node_restricted(loc)}
+        lst = {a.agent_id:[loc, a.location(), self.dist(a, a.location(), loc), a.registration, a.map_handler.is_node_restricted(loc)] for a in agent_list.values()}
 
         if self.action_print: [logmsg(category="action", msg="    | %s location: [ %s | %s | %s ]"%(a.agent_id, a.location.current_node, a.location.closest_node, a.location.previous_node)) for a in agent_list.values()]
         if self.action_print: logmsg(category="action", msg="Finding closest in: %s" % dist_list)
         if self.action_print: logmsg(category="action", msg="Deets: %s" % lst)
-        if dist_list:
-            return agent_list[min(dist_list, key=dist_list.get)]
+        if dist_list: return agent_list[min(dist_list, key=dist_list.get)]
         return None
     def find_closest_node(self, agent, node_list):
         """ Find the closest node (via optimal route) to the given agent.
@@ -325,8 +327,7 @@ class RasberryCoordinator(object):
         :param node_list: The list of nodes to query.
         :return: The node_id closest to the agent querying against.
         """
-        loc = agent.location()
-        dist_list = {n:self.dist(loc,n) for n in node_list}
+        dist_list = {n:self.dist(agent, agent.location(), n) for n in node_list}
         if self.action_print: logmsg(category="action", msg="Finding closest in:")
         if self.action_print: [logmsg(category='action', msg="    - %s: %s"%(n,dist_list[n])) for n in dist_list]
         if dist_list:
@@ -337,12 +338,8 @@ class RasberryCoordinator(object):
         return self.route_finder.planner.get_rows(agent, tunnel_id)
 
     """ Find Distance """
-    def dist(self, start_node, goal_node):
-        try:
-            _,_,route_dists = self.get_path_details(start_node, goal_node)
-            return sum(route_dists)
-        except: pass
-        return None
+    def dist(self, agent, start_node, goal_node):
+        return agent.map_handler.get_route_length(agent, start_node, goal_node)
 
     """ Interrupt Task """
     def interrupt_task(self):
@@ -446,6 +443,8 @@ class RasberryCoordinator(object):
 
         """ Flag to identify if new route is the same and should not be re-published """
         publish_route = True #assume route is identical
+        rationalle_to_publish = ""
+        reason_failed_to_publish = ""
 
         """ Identify key elements in routes. """
         old_node = agent.navigation_interface.execpolicy_goal.route.source
@@ -453,60 +452,105 @@ class RasberryCoordinator(object):
         new_node = policy.route.source
         new_edge = policy.route.edge_id
 
+        # print("\n")
+        # pprint(old_node)
+        # pprint(new_node)
+        # print("\n")
+
         """ If no new route is generated, dont do anything. """
         if (not new_node) or (not new_edge): return
 
         """ If old route exists, check against it """
         if old_node:
-            publish_route = False  #assume new route is the same
+            publish_route = False  #assume new route is the same, so no need to publish
             reason_failed_to_publish = "Routes are same."
 
-            """ Identify key elements in routes. """
-            old_start_edge = old_edge[0]
-            old_target_edge = old_node[-1]
-            new_start_edge = new_edge[0]
-            new_target_edge = new_node[-1]
 
-            """ Do lists have different entrances to the target node? """
-            # old: R========T
-            # new:          T=====R
-            if not publish_route and new_target_edge != old_target_edge:
-                publish_route = True #route is different
-            if not publish_route:
-                reason_failed_to_publish = "Old route comes from same direction as new route."
+            # """ Identify key elements in routes. """
+            # old_start_edge = old_edge[0]
+            # old_target_edge = old_node[-1]
+            # new_start_edge = new_edge[0]
+            # new_target_edge = new_node[-1]
+            #
+            #
+            # """ Do lists have different entrances to the target node? """
+            # # old: R=======*T   (compare *'s)
+            # # new:          T*====R
+            # if new_target_edge != old_target_edge:
+            #     publish_route = True #route ends from different directions, so publish new route
+            #     rationalle_to_publish = "Old route comes from different direction as new route."
+            # else:
+            #     publish_route = False  # no reason to suspect new route is different
+            #     reason_failed_to_publish = "Old route comes from same direction as new route."
+            #
+            #
+            # """ Do lists have different lengths? """
+            # # old: R========T
+            # # new:     R====T
+            # if not publish_route:
+            #     # If new_route is larger, routes are different
+            #     if len(new_edge) > len(old_edge):
+            #         publish_route = True #route is different
+            #         rationalle_to_publish = "New route is larger then old route."
+            #     else:
+            #         publish_route = False
+            #         reason_failed_to_publish = "New shorter route could just be a partially used route"
 
             """ Do lists have different lengths? """
             # old: R========T
             # new:     R====T
-            if not publish_route and len(new_edge) != len(old_edge):
-                # If new_route is larger, routes are different
-                if len(new_edge) > len(old_edge):
-                    publish_route = True #route is different
-                else:
-                    """ Go backwards from target till smaller route is used up. """
-                    # old: R========T
-                    # new:     R====T
-                    old_edge_crop=[]
-                    for i, e in enumerate(list(zip(*(old_start_edge[::-1],new_start_edge[::-1])))):
-                        old_edge_crop.append(e[0])
-                    old_edge_crop.reverse()
-                    old_edge = old_edge_crop
-            if not publish_route:
-                reason_failed_to_publish = "New route is longer then what remains of the old route."
+            if len(new_edge) > len(old_edge):
+                publish_route = True
+                rationalle_to_publish = "New route is larger then old route."
+                logmsg(category="route", msg="    - new route longer than existing one")
+            else:
+                publish_route = False
+                reason_failed_to_publish = "New shorter route could just be a partially used route"
 
-            """ Do same-sized routes differ? """
-            # old: ****R====T
-            # new:     R=-_=T
+
+            """ Compare routes for any differences from target to start. """
             if not publish_route:
-                for i, e in enumerate(list(zip(*(old_edge,new_edge)))):
-                    if e[0] != e[1]:
+                N = new_edge[::-1] #reverse
+                O = old_edge[::-1] #reverse
+                paired = zip(O[0:len(N)], N)  #trim old route
+                # pprint(paired)
+                for o, n in paired:
+                    if o != n:
+                        publish_route = True
+                        rationalle_to_publish = "New route takes a different route to target."
                         logmsg(category="route", msg="    - new route different from existing route")
-                        publish_route = True #route is different
                         break
-                if not publish_route:
-                    reason_failed_to_publish = "Old route uses same path as new route."
+                    else:
+                        publish_route = False
+                        reason_failed_to_publish = "Old route uses same path as new route."
 
-        """ If check_route is false, routes are different """
+            # """ Trim off irrelevent parts of old route. """
+            # # old: R========T
+            # # new:     R====T
+            # if not publish_route:
+            #     old_edge_crop=[]
+            #     for i, e in enumerate(list(zip(*(old_start_edge[::-1],new_start_edge[::-1])))):
+            #         old_edge_crop.append(e[0])
+            #     old_edge_crop.reverse()
+            #     old_edge = old_edge_crop
+            #
+            #
+            # """ Do same-sized routes differ? """
+            # # old: ****R====T
+            # # new:     R=-_=T
+            # if not publish_route:
+            #
+            #     for i, e in enumerate(list(zip(*(old_edge,new_edge)))):
+            #         if e[0] != e[1]:
+            #             logmsg(category="route", msg="    - new route different from existing route")
+            #             publish_route = True #route is different
+            #             rationalle_to_publish = "New route takes a different route to target."
+            #             break
+            #     if not publish_route:
+            #         publish_route = False
+            #         reason_failed_to_publish = "Old route uses same path as new route."
+
+        """ If publish_route is True, routes are different """
         if publish_route:
             if self.log_routes:
                 logmsg(category="route", msg="    - new route generated:\n%s" % policy)
@@ -516,9 +560,13 @@ class RasberryCoordinator(object):
             agent.navigation_interface.set_execpolicy_goal(policy)
 
             agent().route_required = False  # Route has now been published
-            logmsg(category="route", id=agent.agent_id, msg="    - route published")
+            logmsg(category="route", id=agent.agent_id, msg="    - route published: %s" % rationalle_to_publish)
+        else:
+            logmsg(category="route", id=agent.agent_id, msg="    - route failed to published: %s" % reason_failed_to_publish)
+
         agent().route_found = False  # Route has now been published
         rospy.sleep(1)
+
     # def new_execute_policy_route(self, agent):
     #     logmsg(category="route", id=agent.agent_id, msg="Attempting to publish route.")
     #
@@ -561,33 +609,9 @@ class RasberryCoordinator(object):
     #
     #     #Put a delay in route searching, we dont need new attempts every ms
     #     rospy.sleep(1)
-    def get_path_details(self, start_node, goal_node):
-        """get route_nodes, route_edges and route_distance from start_node to goal_node
 
-        Keyword arguments:
-
-        start_node -- name of the starting node
-        goal_node -- name of the goal node
-        """
-        route_distance = []
-        route = self.route_finder.planner.route_search.search_route(start_node, goal_node)
-        if route is None:
-            if start_node == goal_node:
-                logmsg(category="route", msg='start_node %s is goal_node %s' % (start_node, goal_node))
-                return ([], [], [0])
-            else:
-                logmsg(category="route", msg='no route between %s and %s' % (start_node, goal_node))
-                return ([], [], [float("inf")])
-        route_nodes = route.source
-        route_nodes.append(goal_node)
-        route_edges = route.edge_id
-
-        for i in range(len(route_nodes) - 1):
-            route_distance.append(self.route_finder.planner.get_distance_between_adjacent_nodes(route_nodes[i], route_nodes[i + 1]))
-
-        return (route_nodes, route_edges, route_distance)
     def trigger_replan(self, msg=None):
-        logmsg(category="route", msg="A route has been completed, refreshing routes")
+        logmsg(level="error", category="route", id="COORDINATOR", msg="A route has been completed, refreshing routes")
         self.trigger_fresh_replan = True #ReplanTrigger
     def trigger_routing(self, A, reset_trigger=True):
         """
@@ -608,7 +632,7 @@ class RasberryCoordinator(object):
             return True
         elif self.trigger_fresh_replan:
             if reset_trigger:
-                logmsg(category="route", msg="Replanning is triggered")
+                logmsg(level="error", category="route", id="COORDINATOR", msg="Replanning is triggered")
                 self.trigger_fresh_replan = False #ReplanTrigger
             return True
         return False

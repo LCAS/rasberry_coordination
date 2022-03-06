@@ -1,40 +1,46 @@
 categories:
   #Core
   - name: "ROBOT"
+#    reject: true
   - name: "PICKER"
+#    reject: true
   - name: "TASK"
-    colour: false
+#    colour: false
   - name: "STAGE"
+#    reject: false
   - name: "MODULE"
+#    reject: true
   - name: "IDEF"
+#    reject: true
     colour: '46m'
 
   #Interruptions
   - name: "DRM"
   - name: "DTM"
   - name: "TOC"
+#    reject: true
   - name: "COMMS"
-    reject: true
   - name: "RVIZ"
-    reject: false
+#    reject: true
 
   #Navigation
   - name: "ROB_PY"
-    colour: false
+#    reject: true
+  - name: "VR_ROB"
+    colour: '45m'
   - name: "ROUTE"
   - name: "ROBNAV"
+#    reject: true
 
   #Debug
   - name: "OTHER"
   - name: "START"
-    reject: false
   - name: "SETUP"
   - name: "LOG"
   - name: "TEST"
 
   #Task-Generic
   - name: "ACTION"
-    reject: false
     colour: false
 
   #Task Specific

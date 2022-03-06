@@ -8,8 +8,9 @@
 import actionlib
 import rospy
 import tf
+from random import random
 from rospy import Publisher, Subscriber
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination.coordinator_tools import logmsg, Lock
 
 from topological_navigation.tmap_utils import get_node as get_topomap_node, get_distance_node_pose_from_tmap2 as node_pose_dist
 from topological_navigation.route_search import TopologicalRouteSearch
@@ -246,6 +247,7 @@ class VirtualRobot(object):
         self.rec_topo_map = False
         Subscriber("topological_map", TopologicalMap, self._map_cb)
 
+        self.total_routes = 0
         self.route_search = TopologicalRouteSearch(self.topo_map)
         self.route_publisher = Publisher("/%s/current_route" % agent_id, Path, latch=True, queue_size=5)
         self.route_progress_publisher = Publisher("/%s/current_route_progress" % agent_id, Path, latch=True, queue_size=5)
@@ -254,6 +256,8 @@ class VirtualRobot(object):
 
         self.current_node_pub = Publisher("/%s/current_node" % agent_id, String, latch=True, queue_size=5)
         self.closest_node_pub = Publisher("/%s/closest_node" % agent_id, String, latch=True, queue_size=5)
+
+        self.locker = Lock()
 
     def enable_subscribers(self):
         self.route_subscriber = Subscriber("/%s/current_route_progress" % self.agent.agent_id, Path, self.route_sub_cb)
@@ -279,29 +283,176 @@ class VirtualRobot(object):
             node_obj = self.get_node(source[-1])
             route.poses += [[self.get_pose(edge.node) for edge in node_obj.edges if edge.edge_id == edge_id[-1]][0]]
 
+
+        #Add an identifier to the route so we can ensure we are only updateing the location based on the latest route
+        self.total_routes += 1
+        for pose in route.poses:
+            pose.header.seq = self.total_routes
+
+        #Publish the route
         self.route_publisher.publish(route)
         self.route_progress_publisher.publish(route)
-        self.route = route
+        self.route = route #we could replace the publishing of the route with just an empty update call and use the saved route?
+
     def get_pose(self, node):
         return PoseStamped(header=(Header(frame_id="map")), pose=self.get_node(node).pose)
     def get_node(self, node): return get_topomap_node(self.topo_map, node)
 
-    def route_sub_cb(self, route):
-        if route.poses:
-            x = route.poses[0].pose
-            del route.poses[0]
 
-            self.pose_update_pub.publish(x)  # publish x as new location
+
+
+    def next_node(self):
+        return self.find_closest_node(self.route.poses[0].pose)
+    def current_node(self):
+        return self.agent.location.current_node
+
+    def route_sub_cb(self, msg):
+        print("\n\n\n")
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='1) MSG ARRIVED | [%s]' % len(self.route.poses))
+
+        #If a second route comes in, since we do the delay first, by the time the delay completes, we should be taking the next pose from the newest route
+        if self.locker.status:
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='1) locked      | [%s]' % len(self.route.poses))
+            return
+
+        #If the next route is empty, pass
+        if not self.route.poses:
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='1) empty       | [%s]' % len(self.route.poses))
+            self.route_publisher.publish(self.route)
+            return
+
+        with self.locker:
+            #if current node is there, delete that first, either way we always want to teleport to the node after the one we are currently at
+
+            """ FILTER """
+            if self.next_node() == self.current_node():
+                logmsg(category='vr_rob', id=self.agent.agent_id, msg='2) @ next node | { %s }' % self.next_node())
+                logmsg(category='vr_rob', id=self.agent.agent_id, msg='2) popping 0   | ')
+                self.route.poses.pop(0)
+                if not self.route.poses:
+                    logmsg(category='vr_rob', id=self.agent.agent_id, msg='2) new empty   | ')
+                    return
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='2) moving      | { %s > %s }' % (self.current_node(), self.next_node()))
+
+            """ DELAY """
+            # Wait the 2 seconds till we should be taking the next item
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='3) delay begun | ')
+            print("\n\n\n")
             rospy.sleep(rospy.get_param('/rasberry_coordination/virtual_robot/route_step_delay', 2))
-            self.route_progress_publisher.publish(route)
-        else:
-            self.route_publisher.publish(route)
+            print("\n\n\n")
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='3) delay ended | ')
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='4) moving      | { %s > %s }' % (self.current_node(), self.next_node()))
+
+            """ UPDATE """
+            # Identify next pose to set, and remove it from the route
+            pose = self.route.poses.pop(0).pose
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='5) popped 0    | { %s }' % self.find_closest_node(pose))
+            self.pose_update_pub.publish(pose)
+
+            new_node = self.find_closest_node(pose)
+            self.agent.location.current_node = new_node
+            self.agent.location.closest_node = new_node
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='6) new node    | { %s }' % new_node)
+
+
+        # Publish the remaining route (this line calls this callback)
+        self.route_progress_publisher.publish(self.route)
+
+    #
+    # A 2 B 2 C 2 D 2 E
+    #
+    # A 2 B 2 c 2         <- this far in
+    #         c 2 D ...   <- routing begins thinking we at C
+    #         C 2 D 2 E   <- new route includes the node we past and the node we were jus waiting for
+    #         -   D 2 E   <- we need to delete the node left and move to D
+    #
+    #
+    # A 2 B 2 C 2 d 2     <- this far in faking D
+    #             D       <- routing begins thinking we at d
+    #             D 2 E   <- new route includes the node we at
+    #             D 2 E   <- but we alredy ther, so all good
+    #                      ^ but by faking d, stage completes
+    #
+    #
+    # A 2 B 2 c 2         <- this far in
+    #         c           <- routing begins thinking we at C
+    # A 2 B 2 C 2 d 2     <- we complete move to D
+    #         c 2 D 2 E   <- new route includes C and D
+    #         -   D 2 E   <- we need to delete C
+    #             D 2 E   <- we already at D
+    #         -   -   E   <- so we need to delete D
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # def route_sub_cb(self, msg):
+    #     # i = random()
+    #     # logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | begun  {%s}'%(i, len(self.route.poses)))
+    #
+    #     #If a second route comes in, since we do the delay first, by the time the delay completes, we should be taking the next pose from the newest route
+    #     # if self.locker.status:
+    #     #     logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | locked {%s}' % (i, len(self.route.poses)))
+    #     #     return
+    #
+    #     #If the next route is
+    #     if not self.route.poses:
+    #         # logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | empty  {%s}' % (i, len(self.route.poses)))
+    #         self.route_publisher.publish(self.route) #i believe this should delete the path on rviz
+    #         return
+    #
+    #     with self.locker:
+    #         # logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | locked {%s}' % (i, len(self.route.poses)))
+    #
+    #         # new_node = self.find_closest_node(self.route.poses[0].pose)
+    #         # self.current_node_pub.publish(new_node)
+    #         # self.closest_node_pub.publish(new_node)
+    #
+    #         # Wait the 2 seconds till we should be taking the next item
+    #         rospy.sleep(rospy.get_param('/rasberry_coordination/virtual_robot/route_step_delay', 2))
+    #
+    #         # Identify next pose to set, and remove it from the route
+    #         pose = self.route.poses.pop(0).pose
+    #         # logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | pose   {%s}' % (i,str(pose).replace('\n','')))
+    #
+    #     # Publish the loction of the robots new pose, and sleep for the defined time
+    #     self.pose_update_pub.publish(pose)
+    #     # logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | publsh {%s}' % (i,str(pose).replace('\n','')))
+    #
+    #     # Publish the remaining route (this line calls this callback)
+    #     # logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | publsh2{%s}' % (i, len(self.route.poses)))
+    #     self.route_progress_publisher.publish(self.route)
 
 
     def pose_cb(self, msg):
         new_node = self.find_closest_node(msg)
         self.current_node_pub.publish(new_node)
         self.closest_node_pub.publish(new_node)
+
+        if (new_node != self.agent.location.current_node):
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='8) new pose    | { %s }' % new_node)
 
         br = tf.TransformBroadcaster()
         br.sendTransform((msg.position.x, msg.position.y, msg.position.z),
@@ -311,8 +462,35 @@ class VirtualRobot(object):
                          "map")
 
     def find_closest_node(self, pose):
-        node_list = self.agent.map_handler.map['nodes']
-        dists = {node["node"]["name"]: node_pose_dist(node, pose) for node in node_list}
+        dists = {node["node"]["name"]: node_pose_dist(node, pose) for node in self.agent.map_handler.empty_map['nodes']}
         return min(dists, key=dists.get)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
