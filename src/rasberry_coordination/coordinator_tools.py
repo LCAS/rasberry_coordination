@@ -11,6 +11,11 @@ import rospy
 from rasberry_coordination.srv import String as StringRequest, StringResponse as StringResponse
 
 
+class Lock:
+    def __init__(self): self.status = False
+    def __enter__(self): self.status = True
+    def __exit__(self, ty, va, tr): self.status = False
+
 class RootInspector(object):
     def __init__(self, topic, root):
         self.root = root
