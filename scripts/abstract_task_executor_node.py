@@ -164,5 +164,20 @@ if __name__ == '__main__':
     from rasberry_coordination.coordinator_tools import RootInspector
     RootInspector(topic='~root_inspector', root=coordinator)
 
-    # Run the coordinator
+    """ Run the Coordinator """
+    # import cProfile, pstats
+    # profiler = cProfile.Profile()
+    # profiler.enable()
     coordinator.run()
+    # profiler.disable()
+    # stats = pstats.Stats(profiler)
+    # from datetime import datetime as dt; import rospkg
+    # now = str(dt.utcnow())
+    # path = "%s/profiling/export-data_%s.prof" % (rospkg.RosPack().get_path('rasberry_coordination'), now.replace(' ','-'))
+    # stats.dump_stats(path)
+
+
+
+
+
+
