@@ -25,21 +25,6 @@ from abc import ABCMeta, abstractmethod
 class BasePlanner(object):
     __metaclass__ = ABCMeta  # @abstractmethod
 
-    # def _map_cb(self, msg):
-    #     """This function receives the Topological Map
-    #     """
-    #     self.topo_map = yaml.safe_load(msg.data)
-    #     self.rec_topo_map = True
-
-    # def get_node(self, node):
-    #     """get_node: Given a node name return its node object.
-    #     A wrapper for the get_node function in tmap_utils
-    #
-    #     Keyword arguments:
-    #
-    #     node -- name of the node in topological map"""
-    #     return GetNode(self.topo_map, node)
-
     def get_row_ends(self, agent, row_id):
 
         row_nodes = [int(node["node"]["name"].replace("%s-c"%row_id, ''))
@@ -61,32 +46,6 @@ class BasePlanner(object):
                        if node["node"]["name"].startswith(row_prefix)])
 
         return ["%s%s"%(row_prefix, row_id) for row_id in row_ids]
-
-    # def get_distance_between_adjacent_nodes(self, from_node, to_node):
-    #     """get_distance_between_adjacent_nodes: Given names of two nodes, return the distance of the edge
-    #     between their node objects. A wrapper for the get_distance_to_node function in tmap_utils.
-    #     Works only for adjacent nodes.
-    #
-    #     Keyword arguments:
-    #
-    #     from_node -- name of the starting node
-    #     to_node -- name of the ending node name"""
-    #     from_node_obj = self.get_node(from_node)
-    #     to_node_obj = self.get_node(to_node)
-    #     return GetNodeDist(from_node_obj, to_node_obj)
-
-    # def get_edge_distances(self, agent_id):
-    #     """find and fill distances of all edges of a agent's planned route, if at least one edge is there.
-    #     the route must contain the goal_node as the last node in the list.
-    #
-    #     Keyword arguments:
-    #         robot_id -- robot_id
-    #     """
-    #     agent = self.agent_details[agent_id]
-    #     agent.route_dists = []
-    #     if len(agent.route_edges) >= 1:
-    #         for i in range (len(agent.route) - 1):
-    #             agent.route_dists.append(self.get_distance_between_adjacent_nodes(agent.route[i], agent.route[i+1]))
 
     def get_route_distance_to_node(self, agent_id, node_id):
         """get the total distance to a node in a agent's route
@@ -121,7 +80,6 @@ class BasePlanner(object):
 
         return sorted(dists.items(), key=operator.itemgetter(1))[0][0]
 
-
     def load_occupied_nodes(self):
         """ get the list of all nodes occupied by agents """
         occ = [a.location(accurate=False) for a in self.agent_manager.agent_details.values() if a.location.has_presence]
@@ -155,22 +113,8 @@ class BasePlanner(object):
         self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.location.has_presence}
 
         """ Download Topological Map """
+        self.occupied_nodes = None
         self.heterogeneous_map = heterogeneous_map
-        # self.rec_topo_map = False
-        # Subscriber("topological_map_2", String, self._map_cb)
-
-        # logmsg(category="route", msg='    | awaiting topomap')
-        # while not self.rec_topo_map:
-        #     rospy.sleep(rospy.Duration.from_sec(0.1))           # TODO: this is disgusting, we need to remove any syncrnous delays... the rest of this functon could be moved to the map callback
-        # logmsg(category="route", msg='    | received topomap')
-        # self.available_topo_map = copy.deepcopy(self.topo_map)  # empty map used to measure routes #TODO: not used anymore?
-
-        # """ Change callback location to modify the FragmentPlanner available topomap """
-        # for agent in self.agent_details.values():
-        #     agent.cb['update_topo_map'] = self.update_available_topo_map #do we use this?
-        #
-        # """ Setup object to perform route_searching in empty map """
-        # self.route_search = TopologicalRouteSearch(self.topo_map) #do we use this?
 
     @abstractmethod
     def find_routes(self):

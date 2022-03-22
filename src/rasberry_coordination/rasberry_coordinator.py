@@ -12,6 +12,7 @@ import os
 import csv
 import time
 import datetime
+from datetime import datetime as dt
 import threading
 import gc
 import sys
@@ -21,6 +22,7 @@ from pprint import pprint
 
 import rospy
 from rospy import Subscriber, Publisher
+import rospkg
 
 from std_msgs.msg import String as Str, Empty
 import strands_executive_msgs.msg
@@ -207,7 +209,8 @@ class RasberryCoordinator(object):
             if any(E): TOC.EndTask(E);                                                   """ Update TOC w/ Completed """
 
             # Publish Log and Wait
-            l(-2); rospy.sleep(0.2)
+            l(-2);
+            rospy.sleep(0.2)
 
     def get_all_agents(self):
         return self.agent_manager.agent_details.copy() #TODO: is copy needed?
@@ -452,11 +455,6 @@ class RasberryCoordinator(object):
         new_node = policy.route.source
         new_edge = policy.route.edge_id
 
-        # print("\n")
-        # pprint(old_node)
-        # pprint(new_node)
-        # print("\n")
-
         """ If no new route is generated, dont do anything. """
         if (not new_node) or (not new_edge): return
 
@@ -464,37 +462,6 @@ class RasberryCoordinator(object):
         if old_node:
             publish_route = False  #assume new route is the same, so no need to publish
             reason_failed_to_publish = "Routes are same."
-
-
-            # """ Identify key elements in routes. """
-            # old_start_edge = old_edge[0]
-            # old_target_edge = old_node[-1]
-            # new_start_edge = new_edge[0]
-            # new_target_edge = new_node[-1]
-            #
-            #
-            # """ Do lists have different entrances to the target node? """
-            # # old: R=======*T   (compare *'s)
-            # # new:          T*====R
-            # if new_target_edge != old_target_edge:
-            #     publish_route = True #route ends from different directions, so publish new route
-            #     rationalle_to_publish = "Old route comes from different direction as new route."
-            # else:
-            #     publish_route = False  # no reason to suspect new route is different
-            #     reason_failed_to_publish = "Old route comes from same direction as new route."
-            #
-            #
-            # """ Do lists have different lengths? """
-            # # old: R========T
-            # # new:     R====T
-            # if not publish_route:
-            #     # If new_route is larger, routes are different
-            #     if len(new_edge) > len(old_edge):
-            #         publish_route = True #route is different
-            #         rationalle_to_publish = "New route is larger then old route."
-            #     else:
-            #         publish_route = False
-            #         reason_failed_to_publish = "New shorter route could just be a partially used route"
 
             """ Do lists have different lengths? """
             # old: R========T
@@ -524,32 +491,6 @@ class RasberryCoordinator(object):
                         publish_route = False
                         reason_failed_to_publish = "Old route uses same path as new route."
 
-            # """ Trim off irrelevent parts of old route. """
-            # # old: R========T
-            # # new:     R====T
-            # if not publish_route:
-            #     old_edge_crop=[]
-            #     for i, e in enumerate(list(zip(*(old_start_edge[::-1],new_start_edge[::-1])))):
-            #         old_edge_crop.append(e[0])
-            #     old_edge_crop.reverse()
-            #     old_edge = old_edge_crop
-            #
-            #
-            # """ Do same-sized routes differ? """
-            # # old: ****R====T
-            # # new:     R=-_=T
-            # if not publish_route:
-            #
-            #     for i, e in enumerate(list(zip(*(old_edge,new_edge)))):
-            #         if e[0] != e[1]:
-            #             logmsg(category="route", msg="    - new route different from existing route")
-            #             publish_route = True #route is different
-            #             rationalle_to_publish = "New route takes a different route to target."
-            #             break
-            #     if not publish_route:
-            #         publish_route = False
-            #         reason_failed_to_publish = "Old route uses same path as new route."
-
         """ If publish_route is True, routes are different """
         if publish_route:
             if self.log_routes:
@@ -561,54 +502,17 @@ class RasberryCoordinator(object):
 
             agent().route_required = False  # Route has now been published
             logmsg(category="route", id=agent.agent_id, msg="    - route published: %s" % rationalle_to_publish)
+
+            now = str(dt.utcnow())
+            path = "%s/routing/filtered_map_%s.prof" % (rospkg.RosPack().get_path('rasberry_coordination'), now.replace(' ','-'))
+            with open("output_file.txt", "w") as f_handle:
+                yaml.dump(data, f_handle)
+
         else:
             logmsg(category="route", id=agent.agent_id, msg="    - route failed to published: %s" % reason_failed_to_publish)
 
         agent().route_found = False  # Route has now been published
-        rospy.sleep(1)
 
-    # def new_execute_policy_route(self, agent):
-    #     logmsg(category="route", id=agent.agent_id, msg="Attempting to publish route.")
-    #
-    #     # Define route to send
-    #     policy = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
-    #     policy.route.source = agent.route_fragments[0] if agent.route_fragments else None
-    #     policy.route.edge_id = agent.route_edges[0] if agent.route_edges else None
-    #
-    #     # Return if new route is empty
-    #     if (not policy.route.source) or (not policy.route.edge_id): return
-    #
-    #     # Identify Old and New routes
-    #     old_route_edges = agent.navigation_interface.execpolicy_goal.route.edge_id; old_route_edges.reverse()
-    #     new_route_edges = policy.route.edge_id; new_route_edges.reverse()
-    #     publish_route = False
-    #
-    #     # Identify if either is empty
-    #     route_contents = [int(not old_route_edges), int(not new_route_edges)];
-    #     publish_route = (sum(route_contents) == 1)  #we cant itterate an empty list, but new route might be empty
-    #
-    #     # Itterate through edges to see if there is a difference
-    #     for i in range(1, min([len(old_route_edges), len(new_route_edges)])):
-    #         o = old_route_edges[i]
-    #         n = new_route_edges[i]
-    #         if o != n:
-    #             publish_route = True
-    #             break
-    #
-    #     # Publish goal
-    #     if publish_route:
-    #         agent.navigation_interface.cancel_execpolicy_goal()
-    #         agent.navigation_interface.set_execpolicy_goal(policy)
-    #         agent().route_required = False
-    #         resp = "successful"
-    #     else:
-    #         resp = "unsuccessful, new route is not significantly different"
-    #     logmsg(category="route", msg="    - publish attempt %s" % resp)
-    #
-    #     agent().route_found = False  # Used to trigger replanning
-    #
-    #     #Put a delay in route searching, we dont need new attempts every ms
-    #     rospy.sleep(1)
 
     def trigger_replan(self, msg=None):
         logmsg(level="error", category="route", id="COORDINATOR", msg="A route has been completed, refreshing routes")
@@ -628,11 +532,11 @@ class RasberryCoordinator(object):
         #                REQUIRED=false
         """
 
-        if any([a().route_required for a in A]):
-            return True
-        elif self.trigger_fresh_replan:
+        if self.trigger_fresh_replan:
             if reset_trigger:
                 logmsg(level="error", category="route", id="COORDINATOR", msg="Replanning is triggered")
                 self.trigger_fresh_replan = False #ReplanTrigger
+            return True
+        elif any([a().route_required for a in A]):
             return True
         return False
