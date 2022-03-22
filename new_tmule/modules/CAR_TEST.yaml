@@ -1,0 +1,5 @@
+- name: client_callarobot
+  panes:
+  - uri_server ; python $(rospack find rasberry_coordination)/callarobot/call_a_robot/callarobot.py
+  - uri_server ; python $(rospack find rasberry_coordination)/callarobot/call_a_robot/ws_client.py
+  tags: [callarobot]
