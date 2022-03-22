@@ -142,7 +142,9 @@ class MapObj(object):
         self.filtered_node_list = [node["node"]["name"] for node in self.filtered_map['nodes']]
 
     def start_map_reset(self):
-        self.filtered_map = self.load_raw_tmap(self.raw_msg)
+        self.filtered_map = deepcopy(self.empty_map)
+        # self.filtered_map = self.load_raw_tmap(self.raw_msg)
+
     def complete_map_reset(self):
         self.filtered_route_search = TopologicalRouteSearch(self.filtered_map)
         self.filtered_node_list = [node["node"]["name"] for node in self.filtered_map['nodes']]

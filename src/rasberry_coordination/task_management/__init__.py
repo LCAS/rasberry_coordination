@@ -20,12 +20,14 @@ def set_properties(module_dict):
 def fetch_property(module, key, default=None):
     return get_param('/rasberry_coordination/task_modules/%s/%s' % (module, key), default)
 
+
 def rename(cls, prefix):
     for fcn_name in [f for f in dir(cls) if not f.startswith('__') and prefix != 'base']:
         fcn = getattr(cls, fcn_name)
         delattr(cls, fcn_name)
         setattr(cls, prefix+'_'+fcn_name, fcn)
     return cls
+
 
 def load_custom_modules(clean_module_list):
     from rasberry_coordination.coordinator_tools import logmsg

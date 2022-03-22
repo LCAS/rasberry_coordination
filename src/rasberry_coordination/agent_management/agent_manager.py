@@ -252,7 +252,14 @@ class AgentDetails(object):
 
 
     """ Conveniences for Active Task """
-    def __call__(A, index=0): return A.task.stage_list[index] if len(A.task.stage_list) > index else None
+
+    def __call__(A, index=0):
+        if index:
+            return A.task.stage_list[index] if len(A.task.stage_list) > index else None
+        return A.task.stage_list[0] if A.task.stage_list else None
+    # def __call2__(A, index=0):
+    #     return A.task.stage_list[index] if len(A.task.stage_list) > index else None
+
     def __getitem__(A, key):  return A.task[key] if A.task else None
     def __setitem__(A, key, val):    A.task[key] = val
     def simple_agent_id(self):
@@ -264,7 +271,7 @@ class AgentDetails(object):
         self()._start()
         self().new_stage = False
     def end_stage(self):
-        from time import sleep; sleep(0.2) #TODO: this can be removed once add task to buffer is removed from async
+        # from time import sleep; sleep(0.2) #TODO: this can be removed once add task to buffer is removed from async
         logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self['stage_list'][0])
         self()._end()
         self['stage_list'].pop(0)

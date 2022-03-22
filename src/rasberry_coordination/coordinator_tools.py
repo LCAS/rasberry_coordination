@@ -16,6 +16,7 @@ class Lock:
     def __enter__(self): self.status = True
     def __exit__(self, ty, va, tr): self.status = False
 
+
 class RootInspector(object):
     def __init__(self, topic, root):
         self.root = root
@@ -189,7 +190,6 @@ class Rasberry_Logger(object):
         self.AllAgentsList = None
 
 
-
 def logmsgbreak(total=3):
     """ Print a number of lines using logmsg formatting
 
@@ -199,6 +199,7 @@ def logmsgbreak(total=3):
 
     for i in range(total):
         logmsg(category="null")
+
 
 def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speech=False):
     """ Print formatted log messages to console.
@@ -324,7 +325,6 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
 
     if id=="empty": id='';
     if speech: os.system('spd-say "%s, %s" -r 10 -t female2 -w'%(id, basic_msg));
-
 
 
 import subprocess
