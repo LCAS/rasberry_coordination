@@ -13,7 +13,3 @@ export_default NOGO_MAP "${SITE_PATH}/nogo_map.yaml"
 export_default TASK_COORD_CONFIG "${SITE_PATH}/coordination/rb_atm.yaml"
 
 
-
-#  #  $ROBOT_NAME_1
-#  #  $ROBOT_NAME_2
-

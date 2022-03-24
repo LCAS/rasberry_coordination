@@ -14,7 +14,7 @@ function add () { rosrun rasberry_coordination add_agent.py ; }
 
 function add_agent () {
   roslaunch rasberry_coordination add_agent.launch \
-    namespace=$1 \
+    namespace:=$1 \
     agent_file_id:=$2 \
     setup_file_id:=$3
 }
