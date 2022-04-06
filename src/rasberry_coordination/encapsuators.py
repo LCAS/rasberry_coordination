@@ -199,7 +199,7 @@ class MapObj(object):
         for i in range(len(route_nodes) - 1):
             route_distance.append(self.get_edge_length(route_nodes[i], route_nodes[i + 1]))
 
-        return route_distance
+        return sum(route_distance)
 
 
 
