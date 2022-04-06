@@ -342,7 +342,11 @@ class RasberryCoordinator(object):
 
     """ Find Distance """
     def dist(self, agent, start_node, goal_node):
-        return agent.map_handler.get_route_length(agent, start_node, goal_node)
+        try:
+            return agent.map_handler.get_route_length(agent, start_node, goal_node)
+        except Exception as e:
+            #print(e)
+            return None
 
     """ Interrupt Task """
     def interrupt_task(self):
@@ -506,7 +510,7 @@ class RasberryCoordinator(object):
             now = str(dt.utcnow())
             path = "%s/routing/filtered_map_%s.prof" % (rospkg.RosPack().get_path('rasberry_coordination'), now.replace(' ','-'))
             with open("output_file.txt", "w") as f_handle:
-                yaml.dump(data, f_handle)
+                yaml.dump(policy, f_handle)
 
         else:
             logmsg(category="route", id=agent.agent_id, msg="    - route failed to published: %s" % reason_failed_to_publish)
