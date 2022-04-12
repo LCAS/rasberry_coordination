@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import rospy
-
+import rospy, sys
+print(sys.version)
 
 def validate_field(file, config, key, datatype, mandatory=False):
     """

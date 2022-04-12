@@ -7,6 +7,7 @@ from rospy import Time, Duration, Subscriber, Publisher, Time
 from std_msgs.msg import String as Str
 from rasberry_coordination.msg import TopoLocation
 
+from rasberry_coordination.actions.action_manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
@@ -199,17 +200,19 @@ class StageDef(object):
                     # if there is no more stages in stagslit, set flag on controller?
                     self.agent['contacts']['controller']['scanner_completion_flag'] = True
 
-    class AssignScanner(SDef.AssignAgent):
+    class AssignScanner(SDef.ActionResponse):
+        """Used to identify the closest scanner."""
         def __init__(self, agent, details):
-            self.details = details
+            """ Mark the details of the associated Action """
             print(details)
+            self.details = details
             self.response_task = 'data_collection_scan_'+details['scope']
             self.contacts = {'controller': agent}
-            if details['scope']== "edge":
-                self.contacts['row_ends'] = details['nodes']
-            if details['robot'] != "closest":
-                self.action['list'] = [details['robot']]
-            super(StageDef.AssignScanner, self).__init__(agent, action_style='closest', agent_type='scanner')
+            if details['scope'] == "edge": self.contacts['row_ends'] = details['nodes']
+            if details['robot'] != "closest": self.action['list'] = [details['robot']]
+            super(StageDef.AssignScanner, self).__init__(agent)
+            self.action = ActionDetails(type='search', grouping='agent_descriptor', descriptor='scanner', style='closest_agent')
+            self.contact = 'scanner'
         def _end(self):
             super(StageDef.AssignScanner, self)._end()
             self.agent.modules['data_collection'].interface.notify("sar_AWAIT_START")
@@ -218,6 +221,9 @@ class StageDef(object):
                                                        details=self.details,
                                                        contacts=self.contacts,
                                                        initiator_id=self.agent.agent_id)
+
+
+
 
     class AwaitCompletion(SDef.Idle):
         def _start(self):

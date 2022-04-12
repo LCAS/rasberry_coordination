@@ -33,6 +33,7 @@ import strands_navigation_msgs.srv
 import rasberry_coordination.robot
 import rasberry_coordination.srv
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
+from rasberry_coordination.actions.action_manager import ActionManager
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, Rasberry_Logger
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module
 
@@ -57,6 +58,7 @@ class RasberryCoordinator(object):
         logmsg(category="setup", msg='Coordinator initialisation begun')
         logmsgbreak(total=1)
 
+
         """ Meta Fields """
         self.ns = ns.strip("/") + "/"
         self.is_parent = True
@@ -65,10 +67,12 @@ class RasberryCoordinator(object):
         self.log_routes = False
         self.action_print = True
 
+
         """ Initialise System Details: """
         self.special_nodes = special_nodes
         self.base_station_nodes_pool = base_station_nodes_pool
         self.wait_nodes_pool = wait_nodes_pool
+
 
         """ Initialise Agents: """
         callbacks = {'update_topo_map': None
@@ -83,34 +87,41 @@ class RasberryCoordinator(object):
         self.route_finder = RouteFinder(planning_format=planning_format, agent_manager=self.agent_manager)
         self.replan_trigger_cb = Subscriber('/rasberry_coordination/force_replan', Empty, self.trigger_replan, )
 
-        """ Communications Setup """
-        self.advertise_services()
+
+        # """ Communications Setup """
+        # self.advertise_services()
+
 
         """ TOC Communications """
         self.TOC_Interface = InterfaceDef.TOC_Interface(self)
+
+
+        """ Internal System Managers """
+        self.action_manager = ActionManager(self.agent_manager, self.route_finder, self.special_nodes, self.get_all_agents)
 
 
         logmsg(category="setup", msg='Coordinator initialisation complete')
         print("------------------------------------------")
         logmsgbreak(total=1)
         return
-    def advertise_services(self):
-        """Adverstise ROS services.
-        Only call at the end of constructor to avoid calls during construction.
-        If this is a parent class, call from child class
-        """
-        # advertise ros services
-        logmsg(category="null")
-        logmsg(category="setup", msg="Advertising services:")
-        for attr in dir(self):
-            if attr.endswith("_ros_srv"):
-                service = getattr(self, attr)
-                rospy.Service(
-                    self.ns+attr[:-8],
-                    service.type,
-                    service
-                )
-                logmsg(category="setup", msg="    - %s%s" % (self.ns, attr[:-8]))
+
+    # def advertise_services(self):
+    #     """Adverstise ROS services.
+    #     Only call at the end of constructor to avoid calls during construction.
+    #     If this is a parent class, call from child class
+    #     """
+    #     # advertise ros services
+    #     logmsg(category="null")
+    #     logmsg(category="setup", msg="Advertising services:")
+    #     for attr in dir(self):
+    #         if attr.endswith("_ros_srv"):
+    #             service = getattr(self, attr)
+    #             rospy.Service(
+    #                 self.ns+attr[:-8],
+    #                 service.type,
+    #                 service
+    #             )
+    #             logmsg(category="setup", msg="    - %s%s" % (self.ns, attr[:-8]))
     def on_shutdown(self, ):
         """on shutdown cancel all goals
         """
@@ -126,7 +137,8 @@ class RasberryCoordinator(object):
 
         # Remappings to for commonly used functions
         get_agents      = self.get_agents
-        offer_service   = self.offer_service
+        # offer_service   = self.offer_service
+        offer_service   = self.action_manager.offer_service
         find_routes     = self.route_finder.find_routes
         publish_route   = self.execute_policy_route
         trigger_routing = self.trigger_routing
@@ -219,7 +231,7 @@ class RasberryCoordinator(object):
         return self.AllAgentsList.values()
 
     """ Services offerd by Coordinator to assist with tasks """
-    def offer_service(self, agent):
+    def offer_service_old(self, agent):
 
         #Identify action properties
         action_type =  agent().action['action_type']
