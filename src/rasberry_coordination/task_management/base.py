@@ -7,6 +7,7 @@ from diagnostic_msgs.msg import KeyValue
 import strands_executive_msgs.msg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 from rasberry_coordination.srv import AgentNodePair
+from rasberry_coordination.actions.action_manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.robot import Robot, VirtualRobot
@@ -378,7 +379,7 @@ class StageDef(object):
             self.stage_complete = False
             self.new_stage = True
             self.target = None
-            self.action = {}
+            self.action = None
             self.summaries = {}
         def _start(self):
             """Stage start, called when this is the active stage."""
@@ -408,6 +409,25 @@ class StageDef(object):
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
+    class ActionResponse(StageBase):
+        def __init__(self, agent):
+            """Enable action"""
+            super(StageDef.ActionResponse, self).__init__(agent)
+            self.action_required = True
+            self.contact = None
+        def _query(self):
+            """Complete once action has generated a result"""
+            success_conditions = [self.action.response != None]
+            self.flag(any(success_conditions))
+        def _end(self, contact_type='responder_id'):
+            """Save action response to contacts"""
+            super(StageDef.ActionResponse, self)._end()
+            resp = self.action.response
+            if self.contact:
+                if '_agent' in str(self.action.style): #TODO: TypeError: argument of type 'NoneType' is not iterable
+                    self.agent[contact_type] = self.action.response.agent_id
+                self.agent['contacts'][self.contact] = self.action.response
+
 
     """ Setup """
     class SetUnregister(StageBase):
@@ -460,18 +480,14 @@ class StageDef(object):
             """Complete the stage without any condition"""
             self.flag(True)
 
-    class SendInfo(StageBase):
+    class SendInfo(ActionResponse):
+        """Used to identify the closest available wait_node."""
         def __init__(self, agent):
+            """ Mark the details of the associated Action """
             super(StageDef.SendInfo, self).__init__(agent)
-            self.action_required = True
-        def _start(self):
-            super(StageDef.SendInfo, self)._start()
-            self.action['action_type'] = 'send_info'
-            self.action['response_location'] = ''
-        def _query(self):
-            """Complete once action has generated a result"""
-            success_conditions = [self.action['response_location'] == 'sent']
-            self.flag(any(success_conditions))
+            self.action = ActionDetails(type='info', info='send_info')
+
+
 
 
     """ Idle """
@@ -487,68 +503,56 @@ class StageDef(object):
             self.flag(any(success_conditions))
 
     """ Assignment-Based Task Stages (involves coordinator) """
-    class Assignment(StageBase):
-        """Base task for all Assignments"""
-        def _start(self):
-            """Set flag to perform multi-agent action"""
-            super(StageDef.Assignment, self)._start()
-            self.action_required = True
-        def _query(self):
-            """Complete once action has generated a result"""
-            success_conditions = [('response_location' in self.action and self.action['response_location'] != None)]
-            self.flag(any(success_conditions))
-    class AssignAgent(Assignment):
-        """Handler for stages based around identifying an agent of interest."""
-        def __init__(self, agent, agent_type, action_style):
-            """Initialise the agent's type and the action style"""
-            super(StageDef.AssignAgent, self).__init__(agent)
-            self.agent_type = agent_type
-            self.action_style = action_style
-        def _start(self):
-            """Initiate action details to identify agent"""
-            super(StageDef.AssignAgent, self)._start()
-            self.action['action_type'] = 'find_agent'
-            self.action['action_style'] = self.action_style
-            self.action['agent_type'] = self.agent_type
-            self.action['response_location'] = None
-        def _end(self, contact_type='responder_id'):
-            """ On completion, save agent contact"""
-            super(StageDef.AssignAgent, self)._end()
-            resp = self.action['response_location']
-            self.agent[contact_type] = resp.agent_id
-            self.agent['contacts'][self.agent_type] = resp
-
-
-    class AssignNode(Assignment): """Handler for stages based around itdntifying a node of interest."""; pass
+    # class Assignment(StageBase):
+    #     """Base task for all Assignments"""
+    #     def _start(self):
+    #         """Set flag to perform multi-agent action"""
+    #         super(StageDef.Assignment, self)._start()
+    #         self.action_required = True
+    #     def _query(self):
+    #         """Complete once action has generated a result"""
+    #         success_conditions = [('response_location' in self.action and self.action['response_location'] != None)]
+    #         self.flag(any(success_conditions))
+    # class AssignAgent(Assignment):
+    #     """Handler for stages based around identifying an agent of interest."""
+    #     def __init__(self, agent, agent_type, action_style):
+    #         """Initialise the agent's type and the action style"""
+    #         super(StageDef.AssignAgent, self).__init__(agent)
+    #         self.agent_type = agent_type
+    #         self.action_style = action_style
+    #     def _start(self):
+    #         """Initiate action details to identify agent"""
+    #         super(StageDef.AssignAgent, self)._start()
+    #         self.action['action_type'] = 'find_agent'
+    #         self.action['action_style'] = self.action_style
+    #         self.action['agent_type'] = self.agent_type
+    #         self.action['response_location'] = None
+    #     def _end(self, contact_type='responder_id'):
+    #         """ On completion, save agent contact"""
+    #         super(StageDef.AssignAgent, self)._end()
+    #         resp = self.action['response_location']
+    #         self.agent[contact_type] = resp.agent_id
+    #         self.agent['contacts'][self.agent_type] = resp
+    # class AssignNode(Assignment): """Handler for stages based around itdntifying a node of interest."""; pass
 
     """ Node identification Stages"""
-    class AssignBaseNode(AssignNode):
+    class AssignBaseNode(ActionResponse):
         """Used to identify the closest available base_node."""
-        def _start(self):
-            """Start action to find closest base_node"""
-            super(StageDef.AssignBaseNode, self)._start()
-            self.action['action_type'] = 'find_node'
-            self.action['action_style'] = 'closest'
-            self.action['descriptor'] = 'base_node'
-            self.action['response_location'] = None
-        def _end(self):
-            """Save action response to contacts"""
-            self.agent['contacts']['base_node'] = self.action['response_location']
-    class AssignWaitNode(AssignNode):
-        """Used to identify the closest availalbe wait_node"""
-        def _start(self):
-            """Start action to find closest wait_node"""
-            super(StageDef.AssignWaitNode, self)._start()
-            self.action['action_type'] = 'find_node'
-            self.action['action_style'] = 'closest'
-            self.action['descriptor'] = 'wait_node'
-            self.action['response_location'] = None
-        def _end(self):
-            """Save action response to contacts"""
-            self.agent['contacts']['wait_node'] = self.action['response_location']
+        def __init__(self, agent):
+            """ Mark the details of the associated Action """
+            super(StageDef.AssignBaseNode, self).__init__(agent)
+            self.action = ActionDetails(type='search', grouping='node_descriptor', descriptor='base_node', style='closest_node')
+            self.contact = 'base_node'
+    class AssignWaitNode(ActionResponse):
+        """Used to identify the closest available wait_node."""
+        def __init__(self, agent):
+            """ Mark the details of the associated Action """
+            super(StageDef.AssignWaitNode, self).__init__(agent)
+            self.action = ActionDetails(type='search', grouping='node_descriptor', descriptor='wait_node', style='closest_node')
+            self.contact = 'wait_node'
 
     """ Identification of Navigation Targets """
-    class FindRows(AssignNode):
+    class FindRows(ActionResponse):
         """Used to generate a list of row tasks given a tunnel id."""
         def __repr__(self):
             """Display the tunnel id to generate tasks for."""
@@ -558,43 +562,25 @@ class StageDef(object):
             super(StageDef.FindRows, self).__init__(agent)
             self.tunnel = tunnel
             self.response_task = response_task
-        def _start(self):
-            """Initialise action details to search for rows"""
-            super(StageDef.FindRows, self)._start()
-            self.action['action_type'] = 'find_node'
-            self.action['action_style'] = 'rows'
-            self.action['descriptor'] = self.tunnel
-            self.action['response_location'] = None
+            self.action = ActionDetails(type='info', info='find_rows', descriptor=tunnel)
         def _end(self):
             """Begin defined task for each row in action response"""
             super(StageDef.FindRows, self)._end()
-            logmsg(category="stage", msg="Task to use %s rows:" % len(self.action['response_location']))
-            for row in self.action['response_location']:
+            logmsg(category="stage", msg="Task to use %s rows:" % len(self.action.response))
+            for row in self.action.response:
                 logmsg(category="stage", msg="    - extending stage list to include row: %s" % row)
                 self.agent.extend_task(task_name=self.response_task, task_id=self.agent['id'], details={'row': row})
-    class FindRowEnds(AssignNode):
+    class FindRowEnds(ActionResponse):
         """Used to identify the two ends of a given row."""
         def __repr__(self):
-            """Display the id for the row of interest"""
-            return "%s(%s)" % (self.get_class(), self.row)
+            """Display the tunnel id to generate tasks for."""
+            return "%s(%s)" % (self.get_class(), self.action.descriptor)
         def __init__(self, agent, row):
             """Save the row id of interest"""
             super(StageDef.FindRowEnds, self).__init__(agent)
-            self.row = row
-        def _start(self):
-            """Start action to search for the start and end of the row of interest"""
-            super(StageDef.FindRowEnds, self)._start()
-            self.action['action_type'] = 'find_node'
-            self.action['action_style'] = 'row_ends'
-            self.action['descriptor'] = self.row
-            self.action['response_location'] = None
-        def _end(self):
-            """Save row ends to the contacts dictionary"""
-            super(StageDef.FindRowEnds, self)._end()
-            rl = self.action['response_location']
-            self.agent['contacts']['row_ends'] = rl
-            logmsg(category="stage", msg="Task to move from %s to %s" % (rl[0], rl[1]))
-    class FindStartNode(AssignNode):
+            self.action = ActionDetails(type='info', info='find_row_ends', descriptor=row)
+            self.contact = 'row_ends'
+    class FindStartNode(ActionResponse):
         """Used to identify of two nodes, which one is closest ot the agent."""
         def __repr__(self):
             """Display row ends in the repr"""
@@ -602,17 +588,15 @@ class StageDef(object):
                 return "%s(%s)" % (self.get_class(), self.agent['contacts']['row_ends'])
             return self.get_class()
         def _start(self):
-            """Start action to find which node of the ends is the closest to start from"""
+            """Define action to find which node of the ends is the closest to start from"""
             super(StageDef.FindStartNode, self)._start()
-            self.action['action_type'] = 'find_node'
-            self.action['action_style'] = 'closest'
-            self.action['list'] = self.agent['contacts']['row_ends']
-            self.action['response_location'] = None
+            lst = self.agent['contacts']['row_ends']
+            self.action = ActionDetails(type='search', grouping='node_list', list=lst, style='closest_node')
         def _end(self):
             """Save the closest and furthest node to be the row start and row end"""
             super(StageDef.FindStartNode, self)._end()
-            self.agent['contacts']['start_node'] = self.action['response_location']
-            self.agent['contacts']['row_ends'].remove(self.action['response_location'])
+            self.agent['contacts']['start_node'] = self.action.response
+            self.agent['contacts']['row_ends'].remove(self.action.response)
             self.agent['contacts']['end_node'] = self.agent['contacts']['row_ends'][0]
             logmsg(category="stage", msg="Task to move from %s to %s" % (self.agent['contacts']['start_node'], self.agent['contacts']['end_node']))
 

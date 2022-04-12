@@ -76,6 +76,12 @@ class AgentManager(object):
                                    'visualisation_properties': kvp_list(msg.setup.visualisation_properties)
                                    }})
 
+    # #self.sub = Subscriber('/car_client/get_states_kv', KeyValue, self.car_callback)
+    # def car_callback(self, msg):
+    #     if msg.key in self.agent_details: return
+    #     logmsg(category="IDef", id=agent_id, msg="New Agent Identified: %s" % msg.key)
+
+
 
     """ Conveniences """
     def __getitem__(self, key):
@@ -125,7 +131,6 @@ class AgentManager(object):
                 if t not in out[st]: out[st][t] = []
                 out[st][t] += [a.agent_id]
         return Str(str(out))
-
 
 class AgentDetails(object):
     """ Fields:

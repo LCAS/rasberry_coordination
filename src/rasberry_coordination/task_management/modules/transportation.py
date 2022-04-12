@@ -3,6 +3,7 @@
 from copy import deepcopy
 from std_msgs.msg import String as Str
 from rospy import Time, Duration, Subscriber, Publisher, Time
+from rasberry_coordination.actions.action_manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
@@ -54,6 +55,7 @@ class InterfaceDef(object):
             self.agent.has_presence = False  # used for routing (swap key for physical?)
 
         def unloaded(self): self.agent['has_tray'] = True
+
 
 
 class TaskDef(object):
@@ -188,43 +190,87 @@ class StageDef(object):
             self.agent.add_task('transportation_field_storage_idle')
 
     """ Assignment-Based Task Stages (involves coordinator) """
-    class AssignFieldCourier(SDef.AssignAgent):
-        """Used to identify an available field_courier to collect a load"""
+    # class AssignFieldCourier(SDef.AssignAgent):
+    #     """Used to identify an available field_courier to collect a load"""
+    #     def __init__(self, agent):
+    #         super(StageDef.AssignFieldCourier, self).__init__(agent, action_style='closest', agent_type='field_courier')
+    #     def _end(self):
+    #         """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
+    #         super(StageDef.AssignFieldCourier, self)._end()
+    #         self.agent.modules['transportation'].interface.notify("car_ACCEPT")
+    #         self.agent['contacts']['field_courier'].add_task(task_name='transportation_retrieve_load',
+    #                                                    task_id=self.agent['id'],
+    #                                                    details={},
+    #                                                    contacts={'picker': self.agent},
+    #                                                    initiator_id=self.agent.agent_id)
+    class AssignFieldCourier(SDef.ActionResponse):
+        """Used to identify the closest field_courier."""
         def __init__(self, agent):
-            super(StageDef.AssignFieldCourier, self).__init__(agent, action_style='closest', agent_type='field_courier')
+            """ Mark the details of the associated Action """
+            super(StageDef.AssignFieldCourier, self).__init__(agent)
+            self.action = ActionDetails(type='search', grouping='agent_descriptor', descriptor='field_courier', style='closest_agent')
+            self.contact = 'field_courier'
         def _end(self):
             """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
             super(StageDef.AssignFieldCourier, self)._end()
+
             self.agent.modules['transportation'].interface.notify("car_ACCEPT")
             self.agent['contacts']['field_courier'].add_task(task_name='transportation_retrieve_load',
-                                                       task_id=self.agent['id'],
-                                                       details={},
-                                                       contacts={'picker': self.agent},
-                                                       initiator_id=self.agent.agent_id)
-    class AssignFieldStorage(SDef.AssignAgent):
-        """Used to identify a storage location to deliver the load"""
+                                                             task_id=self.agent['id'],
+                                                             details={},
+                                                             contacts={'picker': self.agent},
+                                                             initiator_id=self.agent.agent_id)
+    # class AssignFieldStorage(SDef.AssignAgent):
+    #     """Used to identify a storage location to deliver the load"""
+    #     def __init__(self, agent):
+    #         super(StageDef.AssignFieldStorage, self).__init__(agent, action_style='closest', agent_type='field_storage')
+    #     def _end(self):
+    #         """On completion, save the storage and add the field_courier's id to the storage's request_admittance list"""
+    #         super(StageDef.AssignFieldStorage, self)._end()
+    #         self.agent['contacts']['field_storage'].request_admittance.append(self.agent.agent_id)
+    class AssignFieldStorage(SDef.ActionResponse):
+        """Used to identify the closest field_storage."""
         def __init__(self, agent):
-            super(StageDef.AssignFieldStorage, self).__init__(agent, action_style='closest', agent_type='field_storage')
+            """ Mark the details of the associated Action """
+            super(StageDef.AssignFieldStorage, self).__init__(agent)
+            self.action = ActionDetails(type='search', grouping='agent_descriptor', descriptor='field_storage', style='closest_agent')
+            self.contact = 'field_storage'
         def _end(self):
-            """On completion, save the storage and add the field_courier's id to the storage's request_admittance list"""
+            """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
             super(StageDef.AssignFieldStorage, self)._end()
             self.agent['contacts']['field_storage'].request_admittance.append(self.agent.agent_id)
-    class AcceptFieldCourier(SDef.AssignAgent):
-        """Used to notify a pending field_courier of admittance"""
+    # class AcceptFieldCourier(SDef.AssignAgent):
+    #     """Used to notify a pending field_courier of admittance"""
+    #     def __init__(self, agent):
+    #         super(StageDef.AcceptFieldCourier, self).__init__(agent, action_style='closest', agent_type='field_courier')
+    #     def _start(self):
+    #         """Initiate action details to identify the closest field_courier from those that request admittance"""
+    #         super(StageDef.AcceptFieldCourier, self)._start()
+    #         self.action['list'] = self.agent.request_admittance
+    #     def _end(self):
+    #         """On completion, save the action response and remove the field_courier from the request_admittance list"""
+    #         super(StageDef.AcceptFieldCourier, self)._end(contact_type='initiator_id')
+    #         logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent['contacts']['field_courier'].agent_id, self.agent.request_admittance))
+    #         logmsg(category="stage", msg="AcceptFieldCourier: stage_complete=%s" % self.stage_complete)
+    #         self.agent.request_admittance.remove(self.agent['contacts']['field_courier'].agent_id)
+    class AcceptFieldCourier(SDef.ActionResponse):
+        """Used to identify the closest field_storage."""
         def __init__(self, agent):
-            super(StageDef.AcceptFieldCourier, self).__init__(agent, action_style='closest', agent_type='field_courier')
-        def _start(self):
-            """Initiate action details to identify the closest field_courier from those that request admittance"""
-            super(StageDef.AcceptFieldCourier, self)._start()
-            self.action['list'] = self.agent.request_admittance
+            """ Mark the details of the associated Action """
+            super(StageDef.AcceptFieldCourier, self).__init__(agent)
+            self.action = ActionDetails(type='search', grouping='agent_list', list=self.agent.request_admittance, style='closest_agent')
+            self.contact = 'field_courier'
         def _end(self):
-            """On completion, save the action response and remove the field_courier from the request_admittance list"""
-            super(StageDef.AcceptFieldCourier, self)._end(contact_type='initiator_id')
+            """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
+            super(StageDef.AcceptFieldCourier, self)._end()
             logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent['contacts']['field_courier'].agent_id, self.agent.request_admittance))
             logmsg(category="stage", msg="AcceptFieldCourier: stage_complete=%s" % self.stage_complete)
             self.agent.request_admittance.remove(self.agent['contacts']['field_courier'].agent_id)
 
-    """ Idle Actions for Pending Actions """
+
+
+
+    """ Idle for Pending """
     class AwaitFieldCourier(SDef.Idle):
         """Used to idle the agent until a field_courier has arrived"""
         def __repr__(self):

@@ -83,19 +83,13 @@ class StageDef(object):
             super(StageDef.StartChargeTask, self)._start()
             self.agent.registration = False
 
-    class AssignChargeNode(SDef.AssignNode):
-        """Used to Identify and reserve a charging station"""
-        def _start(self):
-            """Initiate action to find charging station"""
-            super(StageDef.AssignChargeNode, self)._start()
-            self.action['action_type'] = 'find_node'
-            self.action['action_style'] = 'closest'
-            self.action['descriptor'] = 'charging_station'
-            self.action['response_location'] = None
-        def _end(self):
-            """Save reserved charging station to contacts"""
-            self.agent['contacts']['charging_station'] = self.action['response_location']
-            # self.agent.responder_id = self.agent['contacts']['charging_station'] #TODO: if we want this, add another field to TOC (m.location)
+    class AssignChargeNode(SDef.ActionResponse):
+        """Used to identify the closest available charging_station."""
+        def __init__(self, agent):
+            """ Mark the details of the associated Action """
+            super(StageDef.AssignChargeNode, self).__init__(agent)
+            self.action = ActionDetails(type='search', grouping='node_descriptor', descriptor='charging_station', style='closest_node')
+            self.contact = 'charging_station'
 
     class NavigateToChargeNode(SDef.NavigateToNode):
         """Used to navigate to the assigned charging station"""
