@@ -1,5 +1,5 @@
 - name: callarobot_websocket
   panes:
   - uri_server ; python $(rospack find rasberry_coordination)/callarobot/call_a_robot/ws_client.py
-  - uri_server ; if $LAUNCH_CAR ; python $(rospack find rasberry_coordination)/callarobot/call_a_robot/callarobot.py ; fi
+  - uri_server ; if [ "$LAUNCH_CAR"=true ] ; then python $(rospack find rasberry_coordination)/callarobot/call_a_robot/callarobot.py ; fi
   tags: [ callarobot ]
