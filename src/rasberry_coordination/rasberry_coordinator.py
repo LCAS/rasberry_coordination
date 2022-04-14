@@ -70,6 +70,7 @@ class RasberryCoordinator(object):
 
         """ Initialise System Details: """
         self.special_nodes = special_nodes
+        self.default_location = [n for n in self.special_nodes if 'default_location' in n['descriptors']][0]
         self.base_station_nodes_pool = base_station_nodes_pool
         self.wait_nodes_pool = wait_nodes_pool
 
@@ -77,7 +78,7 @@ class RasberryCoordinator(object):
         """ Initialise Agents: """
         callbacks = {'update_topo_map': None
                      , 'trigger_replan': self.trigger_replan #ReplanTrigger
-                    } #TODO: redesign for this to be gone
+                     , 'default_location': self.default_location } #TODO: redesign for this to be gone
         self.agent_manager = AgentManager(callbacks)
         self.agent_manager.add_agents(agent_list)
         self.AllAgentsList = self.get_all_agents()
