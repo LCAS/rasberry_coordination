@@ -206,13 +206,9 @@ class InterfaceDef(object):
             logmsg(category="Task", id=self.agent.agent_id, msg="Request to disconnect")
             node_id = msg.data or self.agent.goal or self.agent.location(accurate=True)
             self.agent.add_task(task_name='exit_at_node', contacts={"exit_node":node_id}, index=0)
-
-
     class base_robot(robot):
         def __init__(self, agent):
             super(InterfaceDef.base_robot, self).__init__(agent, Robot(agent.agent_id))
-
-
     class base_virtual_robot(robot):
         def __init__(self, agent):
             sd = fetch_property('base', 'virtual_robot_step_delay')
@@ -223,6 +219,8 @@ class InterfaceDef(object):
     class base_human(object):
         def __init__(self, agent):
             self.agent = agent
+    class base_localised_human(base_human):
+        pass
 
 
 class TaskDef(object):
@@ -265,6 +263,23 @@ class TaskDef(object):
 
     @classmethod
     def base_human_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        agent.current_node = agent.cb['default_location']
+        return(Task(id=task_id,
+                    module='base',
+                    name="base_human_init",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.SetUnregister(agent),
+                        StageDef.WaitForMap(agent),
+                        StageDef.SendInfo(agent),
+                        StageDef.SetRegister(agent)
+                    ]))
+    @classmethod
+    def base_localised_human_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
                     module='base',
                     name="base_human_init",
@@ -290,6 +305,9 @@ class TaskDef(object):
         return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
     def base_human_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return TaskDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
+    @classmethod
+    def base_localised_human_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return TaskDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
     """ Runtime Method for Idle Task Definitions """
