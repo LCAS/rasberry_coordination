@@ -1,0 +1,23 @@
+agent_id: picker01
+local_properties:
+  initial_location: small-t0-r4-c1
+#  picker_picking_rate travel speed: µ=0.4 s=0.02
+#  picker_transportation_rate speed: µ=1.0 s=0.04
+#  picker_max_n_trays: 4
+#  picker_car_n_trays: 2
+#  picker_unloading_time: µ=10.0 s=0.2
+#  tray_capacity: 1200
+#  robot_transportation_rate: 1
+#  robot_max_n_trays: 4
+#  robot_unloading_time: 10
+#  node_distance: 3
+#  yield_per_node: µ=200.0 s=5
+#
+#  TTS_ranked_picking_speed: 0=3.3581, 1=5.4845, 2=7.2408, 3=9.1615, 4=11.5868, 5=15.5635
+#  TTS_stats: picker_picking_rate/node_distance *yield_per_node
+#  picker_capacity: picker_max_n_trays * tray_capacity
+#  transporter_drop_off___unload_time: picker_car_n_trays * picker_unloading_time
+#  TTS_average_field_size_rows: 17188.95
+#  TTS_average_yield: yield_per_node/node_distance
+#
+#  grid_square_size: 4
