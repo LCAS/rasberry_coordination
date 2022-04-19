@@ -41,7 +41,7 @@ def load_agent_obj(agent_input, setup_input, get_files_from_paths=False):
 
     setup_data = rasberry_des.config_utils.get_config_data(setup_file)
 
-    if not get_files_from_paths:
+    if get_files_from_paths:
         agent_data['agent_id'] = agent_file
 
     # Build msg
