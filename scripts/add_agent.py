@@ -25,12 +25,13 @@ def get_file_path(agent, setup):
 
 def load_agent_obj(agent_input, setup_input, get_files_from_paths=False):
 
-    # Load config file
+    # Identify agent and setup filepaths
     if get_files_from_paths:
         agent_file, setup_file = get_file_path(agent_input, setup_input)
     else:
         agent_file, setup_file = agent_input, setup_input
 
+    # Load file contents, (fallback on empty file if agent_file not found)
     try:
         agent_data = rasberry_des.config_utils.get_config_data(agent_file)
     except Exception as e:
@@ -38,11 +39,7 @@ def load_agent_obj(agent_input, setup_input, get_files_from_paths=False):
         logmsg(level="error", category="DRM", msg="File not Loaded: %s" % (agent_file))
         agent_data = {'agent_id': agent_input}
         logmsg(level="error", category="DRM", msg="Launching with agent_data: %s" % (agent_data))
-
     setup_data = rasberry_des.config_utils.get_config_data(setup_file)
-
-    if get_files_from_paths:
-        agent_data['agent_id'] = agent_file
 
     # Build msg
     agent = AgentDetails()
