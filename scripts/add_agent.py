@@ -97,7 +97,7 @@ if __name__ == '__main__':
         logmsg(category="DRM", msg="Details of Agent being launched:\n%s\n\n"%agent)
 
         # Create publisher
-        pub = rospy.Publisher("/rasberry_coordination/dynamic_fleet/add_agent", AgentDetails, latch=True, queue_size=5)
+        pub = rospy.Publisher("/rasberry_coordination/dynamic_fleet/add_agent", AgentDetails, latch=False, queue_size=5)
         rospy.sleep(1)
 
         while not rospy.is_shutdown():
