@@ -37,7 +37,7 @@ def load_agent_obj(agent_input, setup_input, get_files_from_paths=False):
     except Exception as e:
         print(e)
         logmsg(level="error", category="DRM", msg="File not Loaded: %s" % (agent_file))
-        agent_data = {'agent_id': agent_input}
+        agent_data = {'agent_id': agent_input.split("/")[-1].split(".")[0]}
         logmsg(level="error", category="DRM", msg="Launching with agent_data: %s" % (agent_data))
     setup_data = rasberry_des.config_utils.get_config_data(setup_file)
 
