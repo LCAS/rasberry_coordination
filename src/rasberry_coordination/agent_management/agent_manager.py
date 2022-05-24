@@ -58,14 +58,14 @@ class AgentManager(object):
             self.new_agent_buffer[agent_dict['agent_id']] = agent_dict
             pub2 = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)  #TODO: this should not be included here
             pub2.publish(self.simplify())
-    def add_agents(self, agent_list):
-        for agent in agent_list: self.add_agent(agent)
     def add_agent_from_buffer(self):
         buffer, self.new_agent_buffer = self.new_agent_buffer, dict()
         for agent_dict in buffer.values():
             self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
             self.format_agent_marker(self.agent_details[agent_dict['agent_id']], style='red')
             logmsg(category="null")
+    def add_agents(self, agent_list):
+        for agent in agent_list: self.add_agent(agent)
     def add_agent_cb(self, msg):
         def kvp_list(msg): return {kvp.key: kvp.value for kvp in msg}
         self.add_agent({'agent_id': msg.agent_id,
@@ -75,12 +75,6 @@ class AgentManager(object):
                                    'navigation_properties': kvp_list(msg.setup.navigation_properties),
                                    'visualisation_properties': kvp_list(msg.setup.visualisation_properties)
                                    }})
-
-    # #self.sub = Subscriber('/car_client/get_states_kv', KeyValue, self.car_callback)
-    # def car_callback(self, msg):
-    #     if msg.key in self.agent_details: return
-    #     logmsg(category="IDef", id=agent_id, msg="New Agent Identified: %s" % msg.key)
-
 
 
     """ Conveniences """
@@ -117,10 +111,6 @@ class AgentManager(object):
 
     """ Data """
     def simplify(self):
-        # return Str(str({'short': {'logistics':      ['thorvald_014']},
-        #                 'tall':  {'uv_treatment':   ['thorvald_002_tall', 'thorvald_030'],
-        #                           'data_gathering': ['thorvald_002_tall']}}))
-
         out = {}
         for a in self.agent_details.values():
             if 'structure_type' not in a.visualisation_properties: continue
@@ -130,7 +120,7 @@ class AgentManager(object):
                 if t in ['base', 'health_monitoring']: continue
                 if t not in out[st]: out[st][t] = []
                 out[st][t] += [a.agent_id]
-        return Str(str(out))
+        return Str(str(out or 'empty'))
 
 class AgentDetails(object):
     """ Fields:
@@ -250,7 +240,11 @@ class AgentDetails(object):
     """ Roles """
     def roles(self):
         return [m.role for m in self.modules.values()]
-
+    def send_car_msg(self, msg):
+        interface = [v.interface for k,v in self.modules.items() if issubclass(type(v.interface), InterfaceDef.RasberryInterfacing_ProtocolManager)]
+        print(interface)
+        if interface:
+            interface[0].notify(msg)
 
     """ Navigation """
     def goal(self): return self().target
