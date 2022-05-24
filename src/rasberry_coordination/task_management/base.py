@@ -163,7 +163,7 @@ class InterfaceDef(object):
             self.msg = None
             self.pub = Publisher('/car_client/set_states_kv', KeyValue, queue_size=5)
             self.sub = Subscriber('/car_client/get_states_kv', KeyValue, self.callback, agent.agent_id)
-            self.notify("INIT")
+            self.notify("CONNECTED")
 
         def callback(self, msg, agent_id):
             if msg.key == agent_id:
@@ -202,10 +202,27 @@ class InterfaceDef(object):
             self.agent = agent
             self.agent.navigation_interface = Type
             self.disconnect_sub = Subscriber('/%s/base/disconnect' % agent.agent_id, Str, self.disconnect)
+            self.move_idle_sub = Subscriber('/%s/base/move_idle' % agent.agent_id, Str, self.move_idle)
         def disconnect(self, msg):
             logmsg(category="Task", id=self.agent.agent_id, msg="Request to disconnect")
             node_id = msg.data or self.agent.goal or self.agent.location(accurate=True)
             self.agent.add_task(task_name='exit_at_node', contacts={"exit_node":node_id}, index=0)
+        def move_idle(self, msg):
+            logmsg(category="Task", id=self.agent.agent_id, msg="Request to Move while Idle")
+
+            # if idle:
+            if not isinstance(self.agent(), StageDef.Idle):
+                logmsg(category="Task", msg="    - agent not idle")
+                return
+
+            # if node valid:
+            if not self.agent.map_handler.is_node(msg.data):
+                logmsg(category="Task", msg="    - node is invalid")
+                return
+
+            # add task
+            self.agent.add_task(task_name='move_idle', contacts={"target":msg.data})
+
     class base_robot(robot):
         def __init__(self, agent):
             super(InterfaceDef.base_robot, self).__init__(agent, Robot(agent.agent_id))
@@ -338,6 +355,20 @@ class TaskDef(object):
                         # StageDef.Exit(agent)
                         StageDef.AssignBaseNode(agent),
                         StageDef.NavigateToBaseNode(agent),
+                        StageDef.Idle(agent)
+                    ]))
+    @classmethod
+    def move_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='base',
+                    name="move_idle",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.NavigateToTargetNode(agent),
                         StageDef.Idle(agent)
                     ]))
     @classmethod
@@ -497,6 +528,9 @@ class StageDef(object):
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
+        def _end(self):
+            super(StageDef.SetRegister, self)._end()
+            self.agent.send_car_msg("REGISTERED")
 
     class SendInfo(ActionResponse):
         """Used to identify the closest available wait_node."""
@@ -672,9 +706,17 @@ class StageDef(object):
             super(StageDef.NavigateToExitNode, self).__init__(agent, association='exit_node')
     class NavigateToWaitNode(NavigateToNode):
         """Used to navigate to a given wait_node"""
+
         def __init__(self, agent):
             """Call super to set association to wait_node"""
             super(StageDef.NavigateToWaitNode, self).__init__(agent, association='wait_node')
+
+    class NavigateToTargetNode(NavigateToNode):
+        """Used to navigate to a given wait_node"""
+
+        def __init__(self, agent):
+            """Call super to set association to wait_node"""
+            super(StageDef.NavigateToTargetNode, self).__init__(agent, association='target')
 
     """ Communications """
     class NotifyTrigger(StageBase):
