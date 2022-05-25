@@ -324,7 +324,8 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
 
 
     if id=="empty": id='';
-    if speech: os.system('spd-say "%s, %s" -r 10 -t female2 -w'%(id, basic_msg));
+    # if speech: os.system('spd-say "%s, %s" -r 10 -t female2 -w'%(id, basic_msg));
+    if speech: os.system('espeak "%s"'%basic_msg);
 
 
 import subprocess

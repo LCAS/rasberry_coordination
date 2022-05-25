@@ -14,7 +14,7 @@ import yaml
 
 from rospy import Subscriber, Publisher, Service, Time
 
-from std_msgs.msg import String as Str, Empty
+from std_msgs.msg import String as Str, Empty, Bool
 from std_srvs.srv import Trigger, TriggerResponse
 
 # from diagnostis_msgs.msg import KeyValue
@@ -174,6 +174,10 @@ class AgentDetails(object):
         topic = "/%s/restricted_topological_map_2" % self.agent_id if 'restrictions' in np else None
         self.map_handler = Map(agent=self, topic=topic)
 
+        #Debug
+        self.in_auto_mode = None
+        self.auto_mode_sub = Subscriber('/%s/debug/auto_mode'%self.agent_id, Bool, self.auto_mode_cb)
+        self.speaker_pub = Publisher('/%s/ui/speaker'%self.agent_id, Str, queue_size=1)
 
     """ Task Starters """
     def add_idle_tasks(self):
@@ -246,19 +250,16 @@ class AgentDetails(object):
         if interface:
             interface[0].notify(msg)
 
+
     """ Navigation """
     def goal(self): return self().target
 
 
     """ Conveniences for Active Task """
-
     def __call__(A, index=0):
         if index:
             return A.task.stage_list[index] if len(A.task.stage_list) > index else None
         return A.task.stage_list[0] if A.task.stage_list else None
-    # def __call2__(A, index=0):
-    #     return A.task.stage_list[index] if len(A.task.stage_list) > index else None
-
     def __getitem__(A, key):  return A.task[key] if A.task else None
     def __setitem__(A, key, val):    A.task[key] = val
     def simple_agent_id(self):
@@ -288,9 +289,20 @@ class AgentDetails(object):
 
     """ Logging """
     def __repr__(self):
-        return "%s(%s)" % (self.get_class(), self.agent_id)
+        if self.in_auto_mode:
+            return "%s(%s)" % (self.get_class(), self.agent_id)
+        return "![%s(%s)]" % (self.get_class(), self.agent_id)
     def get_class(self):
         return str(self.__class__).replace("<class 'rasberry_coordination.agent_management.agent_manager.", "").replace("'>", "")
+    def auto_mode_cb(self, in_auto_mode):
+        self.in_auto_mode = in_auto_mode
+        if self.in_auto_mode:
+            logmsg(level="warn", category="NAV", id=self.agent_id, msg="Agent is in AUTONOMOUS mode.")
+        else:
+            logmsg(level="warn", category="NAV", id=self.agent_id, msg="Agent is in MANUAL mode.")
+    def speaker(self, msg):
+        self.speaker_pub.publish(String(msg))
+
 
     """ GC """
     def delete_known_references(self, coordinator):

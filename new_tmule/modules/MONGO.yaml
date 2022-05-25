@@ -1,6 +1,6 @@
 - name: server_mongo
   panes:
-  - uri_server ; mkdir -p "$MONGO_PATH" ; roslaunch mongodb_store mongodb_store.launch db_path:=$MONGO_PATH
+  - uri_server ; rm -r "$MONGO_PATH"; mkdir -p "$MONGO_PATH" ; roslaunch mongodb_store mongodb_store.launch db_path:=$MONGO_PATH
   check: "ROS_MASTER_URI=${SERVER_URI} rosservice list | grep -q message_store"
   tags: [coord]
 
