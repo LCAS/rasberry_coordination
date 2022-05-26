@@ -18,7 +18,7 @@ from rasberry_coordination.coordinator_tools import logmsg
 class Speaker:
     def __init__(self, agent_id):
         self.agent_id = agent_id
-        self.agent_cb = Sub('/%s/ui/speaker'%agent_id, String, self.callback)
+        self.agent_cb = Sub('/ui/speaker', String, self.callback)
 
     def callback(self, msg):
         logmsg(category="LOG", id=self.agent_id, msg=msg.data, speech=True)
