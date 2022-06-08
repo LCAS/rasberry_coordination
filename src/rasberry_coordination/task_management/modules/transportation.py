@@ -280,8 +280,8 @@ class StageDef(object):
             else:
                 return "%s()" % (self.get_class())
         def _start(self):
-            print("\n"*10)
-            logmsg(level="error", category="stage", msg="AwaitFieldCourier started")
+            #print("\n"*10)
+            #logmsg(level="error", category="stage", msg="AwaitFieldCourier started")
             super(StageDef.AwaitFieldCourier, self)._start()
         def _query(self):
             """Complete once the associated field_courier has arrived at the agents location"""
