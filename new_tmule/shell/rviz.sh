@@ -10,6 +10,6 @@ export_default METRIC_MAP "${SITE_PATH}/map.yaml"
 export_default NOGO_MAP "${SITE_PATH}/nogo_map.yaml"
 
 # Coordination configs
-export_default TASK_COORD_CONFIG "${SITE_PATH}/coordination/rb_atm.yaml"
+export_default TASK_COORD_CONFIG "${SITE_PATH}/${AGENT_APPLICATION}/rb_atm.yaml"
 
 
