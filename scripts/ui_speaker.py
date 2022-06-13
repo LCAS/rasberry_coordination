@@ -29,6 +29,6 @@ if __name__ == '__main__':
     rospy.init_node('speaker_'+agent__id, anonymous=False)
 
     SP = Speaker(agent__id)
-    SP.callback(String('init_complete'))
+    #SP.callback(String('init_complete'))
 
     rospy.spin()
