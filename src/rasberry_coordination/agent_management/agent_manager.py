@@ -295,6 +295,7 @@ class AgentDetails(object):
     def get_class(self):
         return str(self.__class__).replace("<class 'rasberry_coordination.agent_management.agent_manager.", "").replace("'>", "")
     def auto_mode_cb(self, in_auto_mode):
+        if self.in_auto_mode == in_auto_mode.data: return
         self.in_auto_mode = in_auto_mode.data
         if self.in_auto_mode:
             logmsg(level="warn", category="TEST", id=self.agent_id, msg="Agent is in AUTONOMOUS mode.")
@@ -303,7 +304,10 @@ class AgentDetails(object):
             logmsg(level="warn", category="TEST", id=self.agent_id, msg="Agent is in MANUAL mode.")
             self.speaker("manual mode")
     def speaker(self, msg):
-        self.speaker_pub.publish(Str(msg))
+        try:
+            self.speaker_pub.publish(Str(msg))
+        except:
+            logmsg(level="debug", category="TEST", id=self.agent_id, msg="Speaker pub not set.")
 
 
     """ GC """
