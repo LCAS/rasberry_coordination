@@ -14,12 +14,13 @@ from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, ge
 
 class LocationObj(object):
 
-    def __init__(self, has_presence = True, initial_location = None):
+    def __init__(self, agent, has_presence = True, initial_location = None):
+        self.agent = agent
         self.has_presence = has_presence
         self.current_node = initial_location
         self.previous_node = None
         self.closest_node = None
-        
+
     def enable_location_monitoring(self, agent_id):
         # callback are enabled in base.StageDef.WaitForLocalisation._start()
         self.current_node_sub = Subscriber('/%s/current_node'    % agent_id, Str, self.current_node_cb)
@@ -40,10 +41,13 @@ class LocationObj(object):
         self.closest_node = None if msg.data == "none" else msg.data
 
     def disable_localisation(self, msg):
-        self.current_node_sub.unregister()
-        self.closest_node_sub.unregister()
-        self.current_node_cb(msg)
-        self.closest_node_cb(msg)
+        if True: #self.agent.map.is_node(msg):
+            self.current_node_sub.unregister()
+            self.closest_node_sub.unregister()
+            self.current_node_cb(msg)
+            self.closest_node_cb(msg)
+        else:
+            logmsg(level='warn', agent=self.agent.agent_id, msg="canot fake localisation to node: %s" % str(msg))
 
     def enable_localisation(self, msg):
         self.previous_node, self.current_node, self.closest_node = None, None, None

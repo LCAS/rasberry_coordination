@@ -168,7 +168,7 @@ class AgentDetails(object):
         #Location and Callbacks
         initial_location = lp['initial_location'] if 'initial_location' in lp else ''
         has_presence = True if 'has_presence' in np and np['has_presence'] == 'True' else False
-        self.location = Location(has_presence=has_presence, initial_location=initial_location)
+        self.location = Location(self, has_presence=has_presence, initial_location=initial_location)
 
         #Map
         topic = "/%s/restricted_topological_map_2" % self.agent_id if 'restrictions' in np else None

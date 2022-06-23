@@ -328,19 +328,25 @@ class StageDef(object):
     """ FieldCourier Load Modifiers """
     class TimeoutFlagModifier(SDef.StageBase):
         """Used to idle till timeout or a flag is set"""
-        def _start(self, timeout_type, flag, default):
+        def _start(self, timeout_type, flag, default, prompt="move"):
             """Define the completion flag and timeout"""
             super(StageDef.TimeoutFlagModifier, self)._start()
             self.agent[flag] = default
             self.trigger_flag = flag
             self.default = default
             self.timeout = Duration(secs=fetch_property('transportation', timeout_type))
+            self.timeout_prompt = False
+            self.agent['contacts']['field_courier'].speaker("I will leave in %s seconds. Please %s trays." % (str(self.timeout.secs), prompt))
         def _query(self):
             """Complete once has_tray flag is triggered by interface or timeout completes"""
             success_conditions = [Time.now() - self.start_time > self.timeout,
                                   self.agent[self.trigger_flag] != self.default]
             self.flag(any(success_conditions))
-
+            if (not self.timeout_prompt):
+                time_spent = (Time.now() - self.start_time)
+                if self.timeout - time_spent < Duration(secs=10):
+                   self.timeout_prompt = True
+                   self.agent['contacts']['field_courier'].speaker("I will leave in 10 seconds.")
 
         def _end(self):
             """On Completion, set the field_courier's flag and notify picker"""
@@ -351,13 +357,12 @@ class StageDef(object):
         """Used to define completion details for when the field_courier can be consideded loaded"""
         def _start(self):
             """Define the flag default as True and the timeout as the tranportation/wait_loading property"""
-            super(StageDef.LoadFieldCourier, self)._start(timeout_type='wait_loading', flag='has_tray', default=True)
+            super(StageDef.LoadFieldCourier, self)._start(timeout_type='wait_loading', flag='has_tray', default=True, prompt="load")
     class UnloadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be consideded unloaded"""
         def _start(self):
             """Define the flag default as False and the timeout as the tranportation/wait_unloading property"""
-            super(StageDef.UnloadFieldCourier, self)._start(timeout_type='wait_unloading', flag='has_tray', default=False)
-
+            super(StageDef.UnloadFieldCourier, self)._start(timeout_type='wait_unloading', flag='has_tray', default=False, prompt="unload")
     """ Loading Modifiers for Courier """
     class Loading(SDef.StageBase):
         """Used for awaiting a change-of-state from the picker"""
