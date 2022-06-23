@@ -225,7 +225,7 @@ class InterfaceDef(object):
 
     class base_robot(robot):
         def __init__(self, agent):
-            super(InterfaceDef.base_robot, self).__init__(agent, Robot(agent.agent_id))
+            super(InterfaceDef.base_robot, self).__init__(agent, Robot(agent.agent_id, agent.speaker))
     class base_virtual_robot(robot):
         def __init__(self, agent):
             sd = fetch_property('base', 'virtual_robot_step_delay')
