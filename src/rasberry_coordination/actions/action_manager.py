@@ -90,7 +90,8 @@ class ActionManager(object):
         elif GR == 'agent_descriptor':
             descriptor = agent().action.descriptor
             L = {a.agent_id: a for a in self.AllAgentsList.values() if
-                 (a is not agent) and a.registration and (descriptor in a.roles())}
+                 (a is not agent) and a.registration and a().accepting_new_tasks and (descriptor in a.roles())}
+            #TODO make accepitng tasks a different generator
 
         elif GR == 'new_list_generators_go_here':
             L = {}
@@ -104,7 +105,8 @@ class ActionManager(object):
         #print('item')
         if ST == 'closest_agent':
             new_list = {k: self.dist(v, v.location(), location) for k, v in list.items()}
-            I = self.AllAgentsList[self.get_dist(new_list)]
+            i = self.get_dist(new_list)
+            I = self.AllAgentsList[i] if i in self.AllAgentsList else None
 
         elif ST == 'closest_node':
             #print('closest_node')

@@ -62,7 +62,7 @@ class TaskObj(object):
                (self.id, self.module, self.name, self.initiator_id, self.responder_id, len(self.stage_list))
 
     def __init__(self, id=None, name=None, module=None, details=None, contacts=None, initiator_id=None, responder_id=None, stage_list=None):
-        self.id = str() if not id else id
+        self.id = str("...") if not id else id
         self.name = str() if not name else name
         self.module = str() if not name else module
         self.details = dict() if not details else details
