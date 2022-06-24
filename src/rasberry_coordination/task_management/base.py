@@ -77,7 +77,14 @@ class InterfaceDef(object):
                     # Get state of task from initiator
                     i = agent['initiator_id'] or agent.agent_id
                     init = self.coordinator.agent_manager.agent_details[i]
-                    task.state = init().__repr__().replace('()','').split('.')[-1]
+                    stage_repr = init().__repr__()
+                    if '(' in stage_repr:
+                        stage_content = "(" + stage_repr.split('(')[-1]
+                        stage_cls = stage_repr.split('(')[0].split('.')[-1]
+                    else:
+                        stage_content = ""
+                        stage_cls = stage_repr.split('.')[-1]
+                    task.state = stage_cls + stage_content.replace('()','')
 
                     # Add task to list
                     task_list.tasks.append(task)
@@ -354,7 +361,7 @@ class TaskDef(object):
                         StageDef.StartTask(agent, task_id),
                         # StageDef.Exit(agent)
                         StageDef.AssignBaseNode(agent),
-                        StageDef.NavigateToBaseNode(agent),
+                        StageDef.NavigateToBaseNodeIdle(agent),
                         StageDef.Idle(agent)
                     ]))
     @classmethod
@@ -429,11 +436,13 @@ class StageDef(object):
             self.new_stage = True
             self.target = None
             self.action = None
+            self.accepting_new_tasks = False
             self.summaries = {}
         def _start(self):
             """Stage start, called when this is the active stage."""
             logmsg(category="stage", id=self.agent.agent_id, msg="Begun stage %s" % self)
             self.start_time = Time.now()
+            self.accepting_new_tasks = False
         def _query(self):
             """Used to define the criteria which ust be met for the stage to be completed"""
             success_conditions = []  # What should be queried to tell if the stage is completed?
@@ -549,6 +558,9 @@ class StageDef(object):
             """Display class with idle location """
             if self.agent: return "%s(%s)" % (self.get_class(), self.agent.location())
             return self.get_class()
+        def _start(self):
+            super(StageDef.Idle, self)._start()
+            self.accepting_new_tasks = True
         def _query(self):
             """Complete once task buffer contains another task, or if battery level is low."""
             success_conditions = [len(self.agent.task_buffer) > 0]
@@ -699,6 +711,19 @@ class StageDef(object):
         def __init__(self, agent):
             """Call super to set association to base_node"""
             super(StageDef.NavigateToBaseNode, self).__init__(agent, association='base_node')
+    class NavigateToBaseNodeIdle(NavigateToBaseNode):
+        """ Used to Navigate To Base node, but with interruption enabled """
+        def _start(self):
+            """ enable interuption """
+            super(StageDef.NavigateToBaseNodeIdle, self)._start()
+            self.accepting_new_tasks = True
+        def _query(self):
+            """Complete when the agents location is identical to the target location."""
+            success_conditions = [self.agent.location(accurate=True) == self.target, 
+                                  len(self.agent.task_buffer) > 0]
+
+            self.flag(any(success_conditions))
+
     class NavigateToExitNode(NavigateToNode):
         """Used to navigate to a given exit_node"""
         def __init__(self, agent):
