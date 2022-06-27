@@ -64,7 +64,7 @@ class RasberryCoordinator(object):
         self.is_parent = True
         self.trigger_fresh_replan = False #ReplanTrigger
         self.log_count = 0
-        self.log_routes = False
+        self.log_routes = True
         self.action_print = True
 
 
@@ -204,12 +204,13 @@ class RasberryCoordinator(object):
             [offer_service(a) for a in A if a().action_required]; l(2);                            """ Offer Service """
 
             # Find Routes
-            logbreak("ROUTE FIND", [trigger_routing(A,reset_trigger=False)])
+            trigger = trigger_routing(A, reset_trigger=False)
+            logbreak("ROUTE FIND", [trigger])
             if trigger_routing(A): find_routes();                                                    """ Find Routes """
 
             # Publish Routes
             logbreak("ROUTE PUBLISH", [a().route_found for a in A])
-            [publish_route(a) for a in A if a().route_found]; l(3);                               """ Publish Routes """
+            [publish_route(a, trigger) for a in A if a().route_found]; l(3);                               """ Publish Routes """
 
             #Perform Stage-Completion Query
             [a()._query() for a in A]; l(4);                                                               """ Query """
@@ -450,7 +451,7 @@ class RasberryCoordinator(object):
 
 
     """ Publish route if different from current """
-    def execute_policy_route(self, agent):
+    def execute_policy_route(self, agent, trigger=False):
 
         logmsg(category="route", id=agent.agent_id, msg="Attempting to publish route.")
 
@@ -509,7 +510,7 @@ class RasberryCoordinator(object):
                         reason_failed_to_publish = "Old route uses same path as new route."
 
         """ If publish_route is True, routes are different """
-        if publish_route:
+        if publish_route: #or trigger:
             if self.log_routes:
                 logmsg(category="route", msg="    - new route generated:\n%s" % policy)
                 logmsg(category="route", msg="    - previous route:\n%s" % agent.navigation_interface.execpolicy_goal)
