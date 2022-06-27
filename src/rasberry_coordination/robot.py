@@ -25,7 +25,7 @@ from strands_navigation_msgs.msg import ExecutePolicyModeGoal, ExecutePolicyMode
 class Robot(object):
     """Robot class to wrap all ros interfaces to the physical/simulated robot
     """
-    def __init__(self, robot_id, ):
+    def __init__(self, robot_id, speaker_fn):
         """initialise the Robot class
 
         Keyword arguments:
@@ -34,6 +34,7 @@ class Robot(object):
         """
         self.robot_id = robot_id
         self.ns = "/%s/" %(robot_id)
+        self.speaker_fn = speaker_fn
 
         self.goal_node = "none"
         self.start_time = rospy.get_rostime()
@@ -57,7 +58,7 @@ class Robot(object):
         logmsg(category="rob_py", id=self.robot_id, msg='received Topological map')
 
         self.route_search = TopologicalRouteSearch(self.topo_map)
-        self.route_publisher = Publisher("%s/current_route" %(self.robot_id), Path, latch=True, queue_size=5)
+        self.route_publisher = Publisher("/%s/current_route" %(self.robot_id), Path, latch=True, queue_size=5)
         self.publish_route()
 
         self.topo_route_sub = Subscriber("/%s/topological_navigation/Route" %(self.robot_id),
@@ -188,6 +189,8 @@ class Robot(object):
         """done callback
         """
         logmsg(category='rob_py', id=self.robot_id, msg='_done_execpolicy_cb, route has been completed with result: {%s}'%(result))
+        if result.success == False:
+            self.speaker_fn("Excuse me. My route has a problem. Please can you find help.")
         self.execpolicy_status = status
         self.execpolicy_result = result
         self.execpolicy_goal = ExecutePolicyModeGoal()

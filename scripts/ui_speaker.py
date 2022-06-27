@@ -6,7 +6,7 @@
 # @date:
 # ----------------------------------
 
-import sys
+import sys, random, time
 
 import rospy
 from rospy import Subscriber as Sub
@@ -29,6 +29,13 @@ if __name__ == '__main__':
     rospy.init_node('speaker_'+agent__id, anonymous=False)
 
     SP = Speaker(agent__id)
-    SP.callback(String('init_complete'))
+    #SP.callback(String('init_complete'))
 
+    #lines = open('/home/thorvald/.jokes').readlines()
+    #finale = random.choice(lines)
+    #print(finale)
+    #rospy.spin()
+    #SP.callback(String(finale))
+    #time.sleep(7.5)
+    
     rospy.spin()

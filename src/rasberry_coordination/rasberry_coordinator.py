@@ -516,7 +516,7 @@ class RasberryCoordinator(object):
 
             agent.navigation_interface.cancel_execpolicy_goal()
             agent.navigation_interface.set_execpolicy_goal(policy)
-            agent.speaker("hello, im about to move so be careful")
+            agent.speaker("Hello. I am about to move. Be careful!")
 
             agent().route_required = False  # Route has now been published
             logmsg(category="route", id=agent.agent_id, msg="    - route published: %s" % rationalle_to_publish)
