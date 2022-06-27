@@ -168,7 +168,7 @@ class AgentDetails(object):
         #Location and Callbacks
         initial_location = lp['initial_location'] if 'initial_location' in lp else ''
         has_presence = True if 'has_presence' in np and np['has_presence'] == 'True' else False
-        self.location = Location(has_presence=has_presence, initial_location=initial_location)
+        self.location = Location(self, has_presence=has_presence, initial_location=initial_location)
 
         #Map
         topic = "/%s/restricted_topological_map_2" % self.agent_id if 'restrictions' in np else None
@@ -295,6 +295,7 @@ class AgentDetails(object):
     def get_class(self):
         return str(self.__class__).replace("<class 'rasberry_coordination.agent_management.agent_manager.", "").replace("'>", "")
     def auto_mode_cb(self, in_auto_mode):
+        if self.in_auto_mode == in_auto_mode.data: return
         self.in_auto_mode = in_auto_mode.data
         if self.in_auto_mode:
             logmsg(level="warn", category="TEST", id=self.agent_id, msg="Agent is in AUTONOMOUS mode.")
@@ -303,7 +304,10 @@ class AgentDetails(object):
             logmsg(level="warn", category="TEST", id=self.agent_id, msg="Agent is in MANUAL mode.")
             self.speaker("manual mode")
     def speaker(self, msg):
-        self.speaker_pub.publish(Str(msg))
+        try:
+            self.speaker_pub.publish(Str(msg))
+        except:
+            logmsg(level="debug", category="TEST", id=self.agent_id, msg="Speaker pub not set.")
 
 
     """ GC """

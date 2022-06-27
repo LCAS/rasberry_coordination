@@ -3,6 +3,7 @@ from rospy import Publisher
 from rasberry_coordination.coordinator_tools import logmsg
 
 class ActionDetails(object):
+    """TODO: move to encapsulators"""
     def __init__(self, type, grouping=None, descriptor=None, style=None, info=None, list=None):
         self.type = type #[search, info]
         self.grouping = grouping #[node_list, agent_list, node_descriptor, agent_descriptor]
@@ -29,16 +30,20 @@ class ActionManager(object):
 
         self.AllAgentsList = self.get_agents_fcn()  # TODO: add enter and exit commands for agent manager.agent_details.copy()?
         if TP == 'search':
+            #print("action: %s" % str(action))
             list = self.get_list(agent)
+            #print("list: %s" % str(list))
             item = self.get_item(agent, list)
+            #print("item: %s" % str(item))
             action.response = item
-            print(item)
         elif TP == 'info':
             resp = self.get_info(agent)
             action.response = resp
 
         if action.response:
             logmsg(category="action", msg="    - Performing action: %s" % {k: v for k, v in action.__dict__.items() if v})
+            if TP=="search":
+                logmsg(category="action", msg="        - list: %s" % str(list))
             logmsg(category="action", msg="    - Action result found: %s" % action.response)
         elif not action.silence:
             logmsg(category="action", msg="    - Performing action: %s" % {k: v for k, v in action.__dict__.items() if v})
@@ -79,12 +84,14 @@ class ActionManager(object):
         elif GR == 'node_descriptor':
             descriptor = agent().action.descriptor
             occupied = self.get_occupied_nodes(agent)
+            print("occupied: %s" % str(occupied))
             L = [n['id'] for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)]
 
         elif GR == 'agent_descriptor':
             descriptor = agent().action.descriptor
             L = {a.agent_id: a for a in self.AllAgentsList.values() if
-                 (a is not agent) and a.registration and (descriptor in a.roles())}
+                 (a is not agent) and a.registration and a().accepting_new_tasks and (descriptor in a.roles())}
+            #TODO make accepitng tasks a different generator
 
         elif GR == 'new_list_generators_go_here':
             L = {}
@@ -95,13 +102,14 @@ class ActionManager(object):
         action = agent().action
         location = agent.location()
         ST = action.style
-        print('item')
+        #print('item')
         if ST == 'closest_agent':
             new_list = {k: self.dist(v, v.location(), location) for k, v in list.items()}
-            I = self.AllAgentsList[self.get_dist(new_list)]
+            i = self.get_dist(new_list)
+            I = self.AllAgentsList[i] if i in self.AllAgentsList else None
 
         elif ST == 'closest_node':
-            print('closest_node')
+            #print('closest_node')
             new_list = {n: self.dist(agent, n, agent.location()) for n in list}
             I = self.get_dist(new_list)
 

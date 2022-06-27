@@ -37,10 +37,11 @@ function leave () {
 
 
 #Dummy Functions
-#function start_coordinator () { roslaunch rasberry_coordination new_simple_task_coordinator.launch config_file:=$TASK_COORD_CONFIG ; }
-#function reset_picker () { rostopic pub /car_client/set_states std_msgs/String data:"{\"user\":\"$1\", \"state\": \"INIT\"}" -1 ; }
 function set_battery () { rostopic pub /$1/dummy_battery_data thorvald_base/BatteryArray "battery_data:
 - battery_voltage: $2" -1
 }
 
 function call () { echo $1 ; read -p "Press Enter to continue:" ; $1 ; }
+
+#Debug Functions
+function coord () { tmux capture-pane -pS -50000 -t server:server_coordinator.1 > "`date` - coordinator_output.txt" ; }
