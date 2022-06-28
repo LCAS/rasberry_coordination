@@ -352,7 +352,7 @@ class StageDef(object):
             """On Completion, set the field_courier's flag and notify picker"""
             super(StageDef.TimeoutFlagModifier, self)._end()
             self.agent['contacts']['field_courier'][self.trigger_flag] = self.default
-            self.agent.modules['transportation'].interface.notify("car_INIT")
+            self.agent.modules['transportation'].interface.notify("car_COMPLETE")
     class LoadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be consideded loaded"""
         def _start(self):
