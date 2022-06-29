@@ -10,6 +10,7 @@ from thorvald_base.msg import BatteryArray as Battery
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
+#row_traversal/health/paused/data
 
 
 class InterfaceDef(object):
@@ -17,7 +18,16 @@ class InterfaceDef(object):
     class robot(IDef.AgentInterface):
         def __init__(self, agent):
             self.agent = agent
+            self.speaker = self.agent.speaker
+
             self.battery_data_sub = Subscriber("/%s/dummy_battery_data" % (self.agent.agent_id), Battery, self._battery_data_cb)  # TODO: point this to the correct location
+
+            self.in_auto_mode = None
+            self.auto_mode_sub = Subscriber('/%s/debug/auto_mode'%self.agent_id, Bool, self.auto_mode_cb)
+
+            self.row_trav_paused = None
+            self.row_trav_sub = Subscriber('/%s/health_monitoring/row_traversal'%self.agent_id, RowTraversalHealth, self.row_trav_cb)
+
 
         """ Battery Monitoring """
         def _battery_data_cb(self, msg):
@@ -45,6 +55,29 @@ class InterfaceDef(object):
             MIN = fetch_property('health_monitoring', 'min_battery_limit')
             CRIT = fetch_property('health_monitoring', 'critical_battery_limit')
             if 'battery_level' in LP and CRIT < LP['battery_level'] <= MIN: return True
+
+        def auto_mode_cb(self, in_auto_mode):
+            if self.in_auto_mode == in_auto_mode.data: return
+            self.in_auto_mode = in_auto_mode.data
+            if self.in_auto_mode:
+                logmsg(level="warn", category="TEST", id=self.agent_id, msg="Agent is in AUTONOMOUS mode.")
+                self.speaker("deactivated... Enter auto mode")
+            else:
+                logmsg(level="warn", category="TEST", id=self.agent_id, msg="Agent is in MANUAL mode.")
+                self.speaker("manual mode")
+
+
+        def row_trav_cb(self, msg):
+            if self.row_trav_paused == msg.paused.data: return
+            self.row_trav_paused = msg.paused.data
+            if self.row_trav_paused:
+                logmsg(level="warn", category="TEST", id=self.agent_id, msg="Row Traversal is Paused.")
+                self.speaker("error in row traversal")
+            else:
+                logmsg(level="warn", category="TEST", id=self.agent_id, msg="Row Traverlsal is Active")
+                self.speaker("row traversal reengaged")
+
+
 
 
 class TaskDef(object):

@@ -200,7 +200,7 @@ class RasberryCoordinator(object):
             [a.start_stage() for a in A if a().new_stage];                                           """ Start Stage """
 
             # Offer Action Services
-            logbreak("ACTION", [a().action_required if action_print() else False for a in A])
+            #logbreak("ACTION", [a().action_required if action_print() else False for a in A])
             [offer_service(a) for a in A if a().action_required]; l(2);                            """ Offer Service """
 
             # Find Routes

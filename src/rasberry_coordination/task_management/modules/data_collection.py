@@ -18,6 +18,21 @@ try: from rasberry_coordination.task_management.__init__ import PropertiesDef as
 except: pass
 
 
+"""
+topological_map: 'tmap_stream.tmap2'
+continuous: True
+rows:
+# 1
+- origin: 't1-r3-c0'
+  end: 't1-r3-c2'
+  orientation: 'front'
+# 2
+- origin: 't1-r4-c2'
+  end: 't1-r4-c0'
+  orientation: 'back'
+
+"""
+
 class InterfaceDef(object):
 
     class scanner(object):
