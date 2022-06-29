@@ -1,6 +1,6 @@
 agent_id: picker01
 local_properties:
-  initial_location: small-t0-r4-c1
+  initial_location: s0
 #  picker_picking_rate travel speed: µ=0.4 s=0.02
 #  picker_transportation_rate speed: µ=1.0 s=0.04
 #  picker_max_n_trays: 4
