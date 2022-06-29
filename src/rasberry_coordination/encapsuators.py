@@ -163,13 +163,11 @@ class MapObj(object):
         return True
 
     def simplify(self):
-        # TODO: agent only holds restricted map, could this cause issues? (this only called by humans though, and they use full)
-        T = {n.split('-')[1][1:]:{} for n in self.empty_node_list if n.startswith('tall')}
-        for t in T:
-            T[t] = {n.split('-')[2][1:]:{} for n in self.empty_node_list if n.startswith('tall-t'+t)}
-            for r in T[t]:
-                T[t][r] = [n.split('-')[3][1:] for n in self.empty_node_list if n.startswith('tall-t'+t+'-r'+r)]
-        return Str(str(T))
+        R = {n.split('-')[0][1:]: {} for n in self.empty_node_list}
+        for r in R:
+            R[r] = [n.split('-')[1][1:] for n in self.empty_node_list if n.startswith('r' + r)]
+        return Str(str(R))
+
 
     """ The following are map query tools """
     def is_node(self, node):

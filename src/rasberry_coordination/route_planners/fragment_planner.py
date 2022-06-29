@@ -275,9 +275,6 @@ class FragmentPlanner(BasePlanner):
         # find critical points and fragment routes to avoid critical point collisions
         self.split_critical_paths()
 
-        # TODO: this should be removed if possible
-        print("\n\n\n\n\n\n")
-        # rospy.sleep(1)
 
 class FragmentPlanner_map_filter(object):
 
@@ -386,7 +383,7 @@ class FragmentPlanner_map_filter(object):
 
     @classmethod
     def unblock_parent_row(cls, agent, node_name):
-        #Exit early if the node is not in a tunnel
+        #Exit early if the node is not in a row
         if node_name.split('_')[0] not in ['tall_t', 'small_t']: return
 
         #Identify the parent row
