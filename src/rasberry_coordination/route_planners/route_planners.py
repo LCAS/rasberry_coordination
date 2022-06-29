@@ -36,7 +36,7 @@ class RouteFinder(object):  # TODO: investigate use of static class (return plan
             self.planner.find_routes()
         except AttributeError as e:
             print(e)
-            logmsg(level="error", category="robot", msg='error w/ search_route(start_node, goal_node)')
+            logmsg(level="error", category="route", msg='find_routes encountered a problem')
 
 
     def fragment_planner(self):  # TODO: add direct object creation in __init__

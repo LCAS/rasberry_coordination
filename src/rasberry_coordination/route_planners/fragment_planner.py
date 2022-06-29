@@ -275,9 +275,6 @@ class FragmentPlanner(BasePlanner):
         # find critical points and fragment routes to avoid critical point collisions
         self.split_critical_paths()
 
-        # TODO: this should be removed if possible
-        print("\n\n\n\n\n\n")
-        # rospy.sleep(1)
 
 class FragmentPlanner_map_filter(object):
 
