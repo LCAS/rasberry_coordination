@@ -69,9 +69,9 @@ class BasePlanner(object):
         logmsg(category="route", msg="Occupied Nodes: %s"%str(o))
 
     def no_route_found(self, agent):
-        logmsg(level='error', category='route', id=agent.agent_id, msg='Route not found, executing recovery behaviour:')
+        logmsg(level='warn', category='route', id=agent.agent_id, msg='Route not found, executing recovery behaviour:')
         if not 'WaitNode' in str(agent()):
-            logmsg(level='error', category='route', msg='    - Adding WaitNode as intermediate target')
+            logmsg(level='warn', category='route', msg='    - Adding WaitNode as intermediate target')
             logmsg(category="DTM", id=agent.agent_id, msg="    - Adding stages to active task:")
             agent().new_stage = True
             recovery_stages = [ StageDef.AssignWaitNode(agent), StageDef.NavigateToWaitNode(agent) ]

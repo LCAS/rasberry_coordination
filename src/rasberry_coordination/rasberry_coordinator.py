@@ -368,7 +368,7 @@ class RasberryCoordinator(object):
                 N = new_edge[::-1] #reverse
                 O = old_edge[::-1] #reverse
                 paired = zip(O[0:len(N)], N)  #trim old route
-                # pprint(paired)
+
                 for o, n in paired:
                     if o != n:
                         publish_route = True
@@ -404,7 +404,7 @@ class RasberryCoordinator(object):
 
 
     def trigger_replan(self, msg=None):
-        logmsg(level="error", category="route", id="COORDINATOR", msg="A route has been completed, refreshing routes")
+        logmsg(category="route", id="COORDINATOR", msg="A route has been completed, refreshing routes")
         self.trigger_fresh_replan = True #ReplanTrigger
     def trigger_routing(self, A, reset_trigger=True):
         """

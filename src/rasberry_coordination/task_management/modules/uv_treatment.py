@@ -60,7 +60,7 @@ class InterfaceDef(object):
             if task_name and details: self.agent.add_task(task_name=task_name, details=details)
         def sar_CANCEL(self):
             if self.agent['name'] == 'send_uv_treatment':
-                logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="has task")
+                logmsg(level="error", category="IDef", id=self.agent.agent_id, msg="already has task")
                 self.agent.set_interrupt('reset', 'uv_treatment', self.agent['id'], "Task")
         def sar_EMERGENCY_STOP(self):
             if self.agent['name'] == 'send_uv_treatment':
@@ -173,7 +173,6 @@ class StageDef(object):
         """Used to identify the closest phototherapist."""
         def __init__(self, agent, details):
             """ Mark the details of the associated Action """
-            print(details)
             self.details = details
             self.response_task = 'uv_treatment_treat_'+details['scope']
             self.contacts = {'controller': agent}

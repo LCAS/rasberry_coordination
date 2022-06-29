@@ -30,11 +30,8 @@ class ActionManager(object):
 
         self.AllAgentsList = self.get_agents_fcn()  # TODO: add enter and exit commands for agent manager.agent_details.copy()?
         if TP == 'search':
-            #print("action: %s" % str(action))
             list = self.get_list(agent)
-            #print("list: %s" % str(list))
             item = self.get_item(agent, list)
-            #print("item: %s" % str(item))
             action.response = item
         elif TP == 'info':
             resp = self.get_info(agent)
@@ -98,14 +95,12 @@ class ActionManager(object):
         action = agent().action
         location = agent.location()
         ST = action.style
-        #print('item')
         if ST == 'closest_agent':
             new_list = {k: self.dist(v, v.location(), location) for k, v in list.items()}
             i = self.get_dist(new_list)
             I = self.AllAgentsList[i] if i in self.AllAgentsList else None
 
         elif ST == 'closest_node':
-            #print('closest_node')
             new_list = {n: self.dist(agent, n, agent.location()) for n in list}
             I = self.get_dist(new_list)
 
@@ -117,15 +112,10 @@ class ActionManager(object):
     """ Action Tools """
 
     def get_occupied_nodes(self, agent):
-        print('occupied')
         AExcl = [a for _id, a in self.AllAgentsList.items() if (_id is not agent.agent_id)]
-        print(AExcl)
         occupied = [a.location.current_node for a in AExcl if a.location.current_node]  # Check if node is occupied
-        print(occupied)
         occupied += [a().action.response for a in AExcl if a().action and a().action.response and a.map_handler.is_node(a().action.response)]  # Include navigation targets
-        print(occupied)
         occupied += [a.goal() for a in AExcl if a.goal()] # Include navigation targets
-        print(occupied)
         return occupied
 
     def get_dist(self, dist_list):

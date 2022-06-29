@@ -224,7 +224,6 @@ class AgentDetails(object):
         else:
             logmsg(category="TASK",  msg="    | Buffering %s to task_buffer[%i]:" % (task_name, index or len(self.task_buffer)))
             [logmsg(category="TASK", msg="    |    | %s"%t) for t in task.stage_list]
-        print('\n\n\n\n\n\n')
     def start_next_task(self, idx=0):
         logmsg(category="TASK", id=self.agent_id, msg="Beginning next task", speech=False)
 
@@ -246,7 +245,6 @@ class AgentDetails(object):
         return [m.role for m in self.modules.values()]
     def send_car_msg(self, msg):
         interface = [v.interface for k,v in self.modules.items() if issubclass(type(v.interface), InterfaceDef.RasberryInterfacing_ProtocolManager)]
-        print(interface)
         if interface:
             interface[0].notify(msg)
 
