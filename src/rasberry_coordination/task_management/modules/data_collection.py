@@ -3,7 +3,7 @@
 from copy import deepcopy
 from pprint import pprint
 from rospy import Time, Duration, Subscriber, Publisher, Time
-
+from actionlib import SimpleActionClient as SAC
 from std_msgs.msg import String as Str
 from rasberry_coordination.msg import TopoLocation
 
@@ -11,6 +11,8 @@ from rasberry_coordination.actions.action_manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
+
+from rasberry_data_collection.msg import RDCCollectDataAction
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
@@ -32,6 +34,8 @@ class InterfaceDef(object):
             self.sub_row      = Subscriber('/%s/data_collection/initiate_task/row'      % agent.agent_id, TopoLocation, self.row)
             # self.sub_schedule = Subscriber('/%s/initiate_task/schedule' % agent.agent_id, Str, self.schedule)
 
+            self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data', RDCCollectDataAction)
+
         def edge(self, msg):
             if self.agent.registration:
                 # msg.row = 3
@@ -48,6 +52,22 @@ class InterfaceDef(object):
 
                 logmsg(category="DMTask", id=self.agent.agent_id, msg="Request to treat row")
                 self.agent.add_task(task_name='data_collection_scan_row', details={"row": row})
+
+        def publish_action(self, ???):
+            self.action_publisher.publish(???(???))
+
+            collection_goal = rasberry_data_collection.msg.RDCCollectDataGoal()
+            collection_goal.topological_map = config['topological_map']
+            collection_goal.continuous = config['continuous']
+            row = rasberry_data_collection.msg.DataCollectionRow()
+            row.origin = i['origin']
+            row.end = i['end']
+            row.orientation = i['orientation']
+            row.data_config = i['data_config']
+            collection_goal.rows.append(row)
+
+            self.client.send_goal(collection_goal)  # ,self.done_cb, self.active_cb, self.feedback_cb)
+            ???
 
         def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
         def __setitem__(self, key, val): self.__setattr__(key, val)
@@ -76,6 +96,22 @@ class InterfaceDef(object):
 class TaskDef(object):
     """ Constructors for data_collection Tasks """
 
+    @classmethod
+    def data_collection_scanner_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return (Task(id=task_id,
+                     module='base',
+                     name="base_robot_init",
+                     details=details,
+                     contacts=contacts,
+                     initiator_id=agent.agent_id,
+                     responder_id="",
+                     stage_list=[
+                         SDef.StartTask(agent, task_id),
+                         SDef.SetUnregister(agent),
+                         StageDef.WaitForDCActionClient(agent),
+                         SDef.SetRegister(agent)
+                     ]))
+
     """ Tasks """
     @classmethod
     def data_collection_scan_edge(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
@@ -89,9 +125,9 @@ class TaskDef(object):
                      stage_list=[
                          SDef.StartTask(agent, task_id),
                          SDef.FindStartNode(agent),
-                         StageDef.NavigateToDMStartNode(agent),
+                         StageDef.NavigateToDCStartNode(agent),
                          StageDef.EnableDMCamera(agent),
-                         StageDef.NavigateToDMEndNode(agent),
+                         StageDef.PerformDCAction(agent),
                          StageDef.DisableDMCamera(agent)
                      ]))
     @classmethod
@@ -107,9 +143,9 @@ class TaskDef(object):
                          SDef.StartTask(agent, task_id),
                          SDef.FindRowEnds(agent, details['row']),
                          SDef.FindStartNode(agent),
-                         StageDef.NavigateToDMStartNode(agent),
+                         StageDef.NavigateToDCStartNode(agent),
                          StageDef.EnableDMCamera(agent),
-                         StageDef.NavigateToDMEndNode(agent),
+                         StageDef.PerformDCAction(agent),
                          StageDef.DisableDMCamera(agent)
                      ]))
 
@@ -131,21 +167,43 @@ class TaskDef(object):
 
 
 class StageDef(object):
-    class NavigateToDMStartNode(SDef.NavigateToNode):
+
+    class WaitForDCActionClient(SDef.StageBase):
+        """"""
+        def _query(self):
+            """Complete when the agents location is identical to the target location."""
+            success_conditions = [???self.client.wait_for_server()]
+            self.flag(any(success_conditions))
+
+
+
+    class NavigateToDCStartNode(SDef.NavigateToNode):
         """Used to navigate to a given start node"""
         def __init__(self, agent):
             """Call to super to set the navigation target as the node stored in the action association"""
-            super(StageDef.NavigateToDMStartNode, self).__init__(agent, association='start_node')
+            super(StageDef.NavigateToDCStartNode, self).__init__(agent, association='start_node')
         def _start(self):
             if 'controller' in self.agent['contacts']:
                 self.agent['contacts']['controller'].modules['data_collection'].interface.notify("sar_AWAIT_START")
-            super(StageDef.NavigateToDMStartNode, self)._start()
+            super(StageDef.NavigateToDCStartNode, self)._start()
 
-    class NavigateToDMEndNode(SDef.NavigateToNode):
-        """Used to navigate to a given end node"""
+    class PerformDCAction(SDef.StageBase):
+        """"""
         def __init__(self, agent):
-            """Call to super to set the navigation target as the node stored in the action association"""
-            super(StageDef.NavigateToDMEndNode, self).__init__(agent, association='end_node')
+            """"""
+            super(StageDef.PerformDCAction, self).__init__(agent)
+            self.target_node = self.agent['contacts']['end_node']
+        def _start(self):
+            """format and publish msg to send to action server"""
+            super(StageDef.PerformDCAction, self)._start()
+            self.agent.publish_action(self.target_node)
+        def _query(self):
+            """"""
+            success_conditions = [???self.client.wait_for_result()]
+            self.flag(any(success_conditions))
+
+
+
 
     class EnableDMCamera(SDef.NotifyTrigger):
         """Used to enable the camera on the robot"""
