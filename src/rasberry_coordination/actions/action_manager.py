@@ -9,7 +9,7 @@ class ActionDetails(object):
         self.grouping = grouping #[node_list, agent_list, node_descriptor, agent_descriptor]
         self.descriptor = descriptor #'base_station'
         self.style = style #closest_node, closest_agent
-        self.info = info #['send_info', 'find_row_ends', 'find_rows']
+        self.info = info #['send_info', 'find_row_ends']
         self.list = list
 
         self.response = None
@@ -30,11 +30,8 @@ class ActionManager(object):
 
         self.AllAgentsList = self.get_agents_fcn()  # TODO: add enter and exit commands for agent manager.agent_details.copy()?
         if TP == 'search':
-            #print("action: %s" % str(action))
             list = self.get_list(agent)
-            #print("list: %s" % str(list))
             item = self.get_item(agent, list)
-            #print("item: %s" % str(item))
             action.response = item
         elif TP == 'info':
             resp = self.get_info(agent)
@@ -67,10 +64,6 @@ class ActionManager(object):
             row_id = action.descriptor
             return self.route_finder.planner.get_row_ends(agent, row_id)
 
-        elif FO == 'find_rows':
-            tunnel_id = action.descriptor
-            return self.route_finder.planner.get_rows(agent, tunnel_id)
-
     def get_list(self, agent):
         action = agent().action
         GR = action.grouping
@@ -102,14 +95,12 @@ class ActionManager(object):
         action = agent().action
         location = agent.location()
         ST = action.style
-        #print('item')
         if ST == 'closest_agent':
             new_list = {k: self.dist(v, v.location(), location) for k, v in list.items()}
             i = self.get_dist(new_list)
             I = self.AllAgentsList[i] if i in self.AllAgentsList else None
 
         elif ST == 'closest_node':
-            #print('closest_node')
             new_list = {n: self.dist(agent, n, agent.location()) for n in list}
             I = self.get_dist(new_list)
 
@@ -121,15 +112,10 @@ class ActionManager(object):
     """ Action Tools """
 
     def get_occupied_nodes(self, agent):
-        print('occupied')
         AExcl = [a for _id, a in self.AllAgentsList.items() if (_id is not agent.agent_id)]
-        print(AExcl)
         occupied = [a.location.current_node for a in AExcl if a.location.current_node]  # Check if node is occupied
-        print(occupied)
         occupied += [a().action.response for a in AExcl if a().action and a().action.response and a.map_handler.is_node(a().action.response)]  # Include navigation targets
-        print(occupied)
         occupied += [a.goal() for a in AExcl if a.goal()] # Include navigation targets
-        print(occupied)
         return occupied
 
     def get_dist(self, dist_list):
@@ -139,31 +125,4 @@ class ActionManager(object):
 
     def dist(self, agent, start_node, goal_node):
         return agent.map_handler.get_route_length(agent, start_node, goal_node)
-
-
-
-"""
-(type, grouping, descriptor, style)
-(type, info)
-
-Info
-    sendinfo (info, send_info)
-    findrows (info, find_rows)
-    findrowends (info, find_row_ends)
-Search
-    Node
-        descriptor-
-            assignbasenode (search, node_descriptor, base_node, closest_node)
-            assignwaitnode (search, node_descriptor, wait_node, closest_node)
-            assignchargenode (search, node_descriptor, charge_node, closest_node)
-        list-
-            findstartnode (search, node_list, ~, closest_node)
-    Agent
-        descriptor-
-            assignfieldcourier (search, agent_descriptor, courier, closest_agent)
-            assignfieldstorage (search, agent_descriptor, storage, closest_agent)
-            assignscanner (search, agent_descriptor, scanner, closest_agent)
-        list-
-            acceptfieldcourier (search, agent_list, ~, closest_agent)
-"""
 

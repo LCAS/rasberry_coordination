@@ -182,27 +182,16 @@ class StageDef(object):
             """Complete once there exists any agents requiring storage"""
             success_conditions = [len(self.agent.request_admittance) > 0] #TODO: this may prove error prone w/ _start
             self.flag(any(success_conditions))
-            if any(success_conditions): print("admittance required: %s"%self.agent.request_admittance)
+        def _end(self):
+            super(StageDef.AssignFieldCourier, self)._end()
+            logmsg(category="stage", agent=self.agent.agent_id, msg="admittance required: %s"%self.agent.request_admittance)
     class IdleFieldStorage(IdleStorage):
-        pass
         def _end(self):
             """On completion, add an idle field_storage to the end of the buffer"""
+            super(StageDef.AssignFieldCourier, self)._end()
             self.agent.add_task('transportation_field_storage_idle')
 
     """ Assignment-Based Task Stages (involves coordinator) """
-    # class AssignFieldCourier(SDef.AssignAgent):
-    #     """Used to identify an available field_courier to collect a load"""
-    #     def __init__(self, agent):
-    #         super(StageDef.AssignFieldCourier, self).__init__(agent, action_style='closest', agent_type='field_courier')
-    #     def _end(self):
-    #         """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
-    #         super(StageDef.AssignFieldCourier, self)._end()
-    #         self.agent.modules['transportation'].interface.notify("car_ACCEPT")
-    #         self.agent['contacts']['field_courier'].add_task(task_name='transportation_retrieve_load',
-    #                                                    task_id=self.agent['id'],
-    #                                                    details={},
-    #                                                    contacts={'picker': self.agent},
-    #                                                    initiator_id=self.agent.agent_id)
     class AssignFieldCourier(SDef.ActionResponse):
         """Used to identify the closest field_courier."""
         def __init__(self, agent):
@@ -220,14 +209,6 @@ class StageDef(object):
                                                              details={},
                                                              contacts={'picker': self.agent},
                                                              initiator_id=self.agent.agent_id)
-    # class AssignFieldStorage(SDef.AssignAgent):
-    #     """Used to identify a storage location to deliver the load"""
-    #     def __init__(self, agent):
-    #         super(StageDef.AssignFieldStorage, self).__init__(agent, action_style='closest', agent_type='field_storage')
-    #     def _end(self):
-    #         """On completion, save the storage and add the field_courier's id to the storage's request_admittance list"""
-    #         super(StageDef.AssignFieldStorage, self)._end()
-    #         self.agent['contacts']['field_storage'].request_admittance.append(self.agent.agent_id)
     class AssignFieldStorage(SDef.ActionResponse):
         """Used to identify the closest field_storage."""
         def __init__(self, agent):
@@ -239,20 +220,6 @@ class StageDef(object):
             """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
             super(StageDef.AssignFieldStorage, self)._end()
             self.agent['contacts']['field_storage'].request_admittance.append(self.agent.agent_id)
-    # class AcceptFieldCourier(SDef.AssignAgent):
-    #     """Used to notify a pending field_courier of admittance"""
-    #     def __init__(self, agent):
-    #         super(StageDef.AcceptFieldCourier, self).__init__(agent, action_style='closest', agent_type='field_courier')
-    #     def _start(self):
-    #         """Initiate action details to identify the closest field_courier from those that request admittance"""
-    #         super(StageDef.AcceptFieldCourier, self)._start()
-    #         self.action['list'] = self.agent.request_admittance
-    #     def _end(self):
-    #         """On completion, save the action response and remove the field_courier from the request_admittance list"""
-    #         super(StageDef.AcceptFieldCourier, self)._end(contact_type='initiator_id')
-    #         logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent['contacts']['field_courier'].agent_id, self.agent.request_admittance))
-    #         logmsg(category="stage", msg="AcceptFieldCourier: stage_complete=%s" % self.stage_complete)
-    #         self.agent.request_admittance.remove(self.agent['contacts']['field_courier'].agent_id)
     class AcceptFieldCourier(SDef.ActionResponse):
         """Used to identify the closest field_storage."""
         def __init__(self, agent):
@@ -279,10 +246,6 @@ class StageDef(object):
                 return "%s(%s)"%(self.get_class(), self.agent['contacts']['field_courier'].agent_id)
             else:
                 return "%s()" % (self.get_class())
-        def _start(self):
-            #print("\n"*10)
-            #logmsg(level="error", category="stage", msg="AwaitFieldCourier started")
-            super(StageDef.AwaitFieldCourier, self)._start()
         def _query(self):
             """Complete once the associated field_courier has arrived at the agents location"""
             success_conditions = [self.agent['contacts']['field_courier'].location(accurate=True) == self.agent.location()]
@@ -354,14 +317,14 @@ class StageDef(object):
             self.agent['contacts']['field_courier'][self.trigger_flag] = self.default
             self.agent.modules['transportation'].interface.notify("car_COMPLETE")
     class LoadFieldCourier(TimeoutFlagModifier):
-        """Used to define completion details for when the field_courier can be consideded loaded"""
+        """Used to define completion details for when the field_courier can be considered loaded"""
         def _start(self):
-            """Define the flag default as True and the timeout as the tranportation/wait_loading property"""
+            """Define the flag default as True and the timeout as the transportation/wait_loading property"""
             super(StageDef.LoadFieldCourier, self)._start(timeout_type='wait_loading', flag='has_tray', default=True, prompt="load")
     class UnloadFieldCourier(TimeoutFlagModifier):
-        """Used to define completion details for when the field_courier can be consideded unloaded"""
+        """Used to define completion details for when the field_courier can be considered unloaded"""
         def _start(self):
-            """Define the flag default as False and the timeout as the tranportation/wait_unloading property"""
+            """Define the flag default as False and the timeout as the transportation/wait_unloading property"""
             super(StageDef.UnloadFieldCourier, self)._start(timeout_type='wait_unloading', flag='has_tray', default=False, prompt="unload")
     """ Loading Modifiers for Courier """
     class Loading(SDef.StageBase):

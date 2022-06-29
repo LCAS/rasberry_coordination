@@ -55,18 +55,13 @@ def load_agent_obj(agent_input, setup_input, get_files_from_paths=False):
 class AgentMonitor():
     def __init__(self):
         self.pub = rospy.Publisher("/rasberry_coordination/dynamic_fleet/add_agent", AgentDetails, latch=True, queue_size=5)
-        self.s1 = rospy.Subscriber("/car/new_agent", String, self.new_picker)
-        self.s2 = rospy.Subscriber("/sar/new_agent", String, self.new_tall_controller)
+        self.s1 = rospy.Subscriber("/car/new_agent", String, self.load,  callback_args='picker')
+        self.s2 = rospy.Subscriber("/sar/new_agent", String, self.load,  callback_args='tall_controller')
+        self.s3 = rospy.Subscriber("/car/new_store", String, self.load,  callback_args='field_storage')
 
-    def new_picker(self, msg):
-        logmsg(category="DRM", msg="Recieved new picker information: %s"%(msg.data))
-        agent = load_agent_obj(agent_input=msg.data, setup_input='picker', get_files_from_paths=True)
-        print(agent)
-        self.pub.publish(agent)
-
-    def new_tall_controller(self, msg):
-        logmsg(category="DRM", msg="Recieved new tall_controller information: %s"%(msg.data))
-        agent = load_agent_obj(agent_input=msg.data, setup_input='tall_controller', get_files_from_paths=True)
+    def load(self, msg, agent_type):
+        logmsg(category="DRM", msg="Recieved new %s information: %s"%(msg.data, agent_type))
+        agent = load_agent_obj(agent_input=msg.data, setup_input=agent_type, get_files_from_paths=True)
         print(agent)
         self.pub.publish(agent)
 

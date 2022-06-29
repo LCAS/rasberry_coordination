@@ -186,22 +186,20 @@ class InterfaceDef(object):
             self.pub.publish(msg)
 
         def get_task(self, module):
-            state, tunnel, row, edge, task, robot = self.msg.value.split('-')
+            state, row, edge, task, robot = self.msg.value.split('-')
             nodes = []
             if task != module: return (None,None)
-            elif tunnel == "select": return (None,None)
             elif edge != "all":
                 task_scope = 'edge'
-                nodes = ["tall-t%s-r%s-c%s" % (tunnel, row, e) for e in edge.split('>')]
-            elif row != "all": task_scope = 'row'
-            elif tunnel != "select": task_scope = 'tunnel'
-            return (task_scope, {
-                'tunnel': 'tall-t'+tunnel,
-                'row': 'tall-t'+tunnel+'-r'+row,
-                'edge': edge,
-                'nodes': nodes,
-                'robot': robot,
-                'scope': task_scope})
+                nodes = ["r%s-c%s" % (row, e) for e in edge.split('>')]
+            elif row != "all":
+                task_scope = 'row'
+
+            return (task_scope, {'row': 'r'+row,
+                                 'edge': edge,
+                                 'nodes': nodes,
+                                 'robot': robot,
+                                 'scope': task_scope})
 
 
     class robot(object):
@@ -616,28 +614,10 @@ class StageDef(object):
             self.contact = 'wait_node'
 
     """ Identification of Navigation Targets """
-    class FindRows(ActionResponse):
-        """Used to generate a list of row tasks given a tunnel id."""
-        def __repr__(self):
-            """Display the tunnel id to generate tasks for."""
-            return "%s(%s)" % (self.get_class(), self.tunnel)
-        def __init__(self, agent, tunnel, response_task):
-            """Save the tunnel details"""
-            super(StageDef.FindRows, self).__init__(agent)
-            self.tunnel = tunnel
-            self.response_task = response_task
-            self.action = ActionDetails(type='info', info='find_rows', descriptor=tunnel)
-        def _end(self):
-            """Begin defined task for each row in action response"""
-            super(StageDef.FindRows, self)._end()
-            logmsg(category="stage", msg="Task to use %s rows:" % len(self.action.response))
-            for row in self.action.response:
-                logmsg(category="stage", msg="    - extending stage list to include row: %s" % row)
-                self.agent.extend_task(task_name=self.response_task, task_id=self.agent['id'], details={'row': row})
     class FindRowEnds(ActionResponse):
         """Used to identify the two ends of a given row."""
         def __repr__(self):
-            """Display the tunnel id to generate tasks for."""
+            """Display the row id to generate tasks for."""
             return "%s(%s)" % (self.get_class(), self.action.descriptor)
         def __init__(self, agent, row):
             """Save the row id of interest"""
