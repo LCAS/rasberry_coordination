@@ -9,7 +9,7 @@ class ActionDetails(object):
         self.grouping = grouping #[node_list, agent_list, node_descriptor, agent_descriptor]
         self.descriptor = descriptor #'base_station'
         self.style = style #closest_node, closest_agent
-        self.info = info #['send_info', 'find_row_ends', 'find_rows']
+        self.info = info #['send_info', 'find_row_ends']
         self.list = list
 
         self.response = None
@@ -66,10 +66,6 @@ class ActionManager(object):
         elif FO == 'find_row_ends':
             row_id = action.descriptor
             return self.route_finder.planner.get_row_ends(agent, row_id)
-
-        elif FO == 'find_rows':
-            tunnel_id = action.descriptor
-            return self.route_finder.planner.get_rows(agent, tunnel_id)
 
     def get_list(self, agent):
         action = agent().action
@@ -139,31 +135,4 @@ class ActionManager(object):
 
     def dist(self, agent, start_node, goal_node):
         return agent.map_handler.get_route_length(agent, start_node, goal_node)
-
-
-
-"""
-(type, grouping, descriptor, style)
-(type, info)
-
-Info
-    sendinfo (info, send_info)
-    findrows (info, find_rows)
-    findrowends (info, find_row_ends)
-Search
-    Node
-        descriptor-
-            assignbasenode (search, node_descriptor, base_node, closest_node)
-            assignwaitnode (search, node_descriptor, wait_node, closest_node)
-            assignchargenode (search, node_descriptor, charge_node, closest_node)
-        list-
-            findstartnode (search, node_list, ~, closest_node)
-    Agent
-        descriptor-
-            assignfieldcourier (search, agent_descriptor, courier, closest_agent)
-            assignfieldstorage (search, agent_descriptor, storage, closest_agent)
-            assignscanner (search, agent_descriptor, scanner, closest_agent)
-        list-
-            acceptfieldcourier (search, agent_list, ~, closest_agent)
-"""
 

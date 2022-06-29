@@ -30,37 +30,24 @@ class InterfaceDef(object):
 
             self.sub_edge     = Subscriber('/%s/data_collection/initiate_task/edge'     % agent.agent_id, TopoLocation, self.edge)
             self.sub_row      = Subscriber('/%s/data_collection/initiate_task/row'      % agent.agent_id, TopoLocation, self.row)
-            self.sub_tunnel   = Subscriber('/%s/data_collection/initiate_task/tunnel'   % agent.agent_id, TopoLocation, self.tunnel)
             # self.sub_schedule = Subscriber('/%s/initiate_task/schedule' % agent.agent_id, Str, self.schedule)
 
         def edge(self, msg):
             if self.agent.registration:
-                # msg.type = "tall"
-                # msg.tunnel = 1
                 # msg.row = 3
                 # msg.edge_nodes = [0,1]
-                nodeA = "%s-t%s-r%s-c%s"%(msg.type, msg.tunnel, msg.row, msg.edge_node[0])
-                nodeB = "%s-t%s-r%s-c%s"%(msg.type, msg.tunnel, msg.row, msg.edge_node[1])
+                nodeA = "r%s-c%s"%(msg.row, msg.edge_node[0])
+                nodeB = "r%s-c%s"%(msg.row, msg.edge_node[1])
 
                 logmsg(category="DMTask", id=self.agent.agent_id, msg="Request to treat edge")
                 self.agent.add_task(task_name='data_collection_scan_edge', details={"row_ends": [nodeA, nodeB]})
         def row(self, msg):
             if self.agent.registration:
-                # msg.type = "tall"
-                # msg.tunnel = 1
                 # msg.row = 3
-                row = "%s-t%s-r%s"%(msg.type, msg.tunnel, msg.row)
+                row = "r%s"%(msg.row)
 
                 logmsg(category="DMTask", id=self.agent.agent_id, msg="Request to treat row")
                 self.agent.add_task(task_name='data_collection_scan_row', details={"row": row})
-        def tunnel(self, msg):
-            if self.agent.registration:
-                #msg.type = "tall"
-                #msg.tunnel = 1
-                tunnel = "%s-t%s"%(msg.type, msg.tunnel)
-
-                logmsg(category="DMTask", id=self.agent.agent_id, msg="Request to treat row")
-                self.agent.add_task(task_name='data_collection_scan_tunnel', details={"tunnel": tunnel})
 
         def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
         def __setitem__(self, key, val): self.__setattr__(key, val)
@@ -125,19 +112,6 @@ class TaskDef(object):
                          StageDef.NavigateToDMEndNode(agent),
                          StageDef.DisableDMCamera(agent)
                      ]))
-    @classmethod
-    def data_collection_scan_tunnel(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return (Task(id=task_id,
-                     module='data_collection',
-                     name="data_collection_scan_tunnel",
-                     details=details,
-                     contacts=contacts,
-                     initiator_id=initiator_id,
-                     responder_id="",
-                     stage_list=[
-                         SDef.StartTask(agent, task_id),
-                         StageDef.FindRowsDM(agent, details['tunnel'])
-                     ]))
 
     """ Control from SAR """
     @classmethod
@@ -157,13 +131,6 @@ class TaskDef(object):
 
 
 class StageDef(object):
-
-    class FindRowsDM(SDef.FindRows):
-        """Used to assign the data_collection_scan_row task to all rows in the given tunnel."""
-        def __init__(self, agent, tunnel):
-            """Call super to set data_collection_scan_row as task to apply"""
-            super(StageDef.FindRowsDM, self).__init__(agent, tunnel, 'data_collection_scan_row')
-
     class NavigateToDMStartNode(SDef.NavigateToNode):
         """Used to navigate to a given start node"""
         def __init__(self, agent):

@@ -232,137 +232,7 @@ class RasberryCoordinator(object):
         self.AllAgentsList = self.get_all_agents()
         return self.AllAgentsList.values()
 
-    """ Services offerd by Coordinator to assist with tasks """
-    def offer_service_old(self, agent):
-
-        #Identify action properties
-        action_type =  agent().action['action_type']
-        action_style = agent().action['action_style'] if 'action_style' in agent().action else ''
-        action_deets = {k:v for k,v in agent().action.items() if k not in ['action_type', 'action_style', 'response_location']}
-
-        #Define resposse functions
-        responses = {'find_agent':self.find_agent,
-                     'find_node': self.find_node,
-                     'send_info': self.send_info}
-
-        #Perform Action
-        s, self.action_print = self.action_print, False
-        agent().action['response_location'] = responses[action_type](agent)
-        self.action_print = s
-
-        if agent().action['response_location'] == 'sent': return
-
-        #Log results (reperform action with logging if action results in success)
-        if agent().action['response_location']:
-            #for better logging but worse code:
-            self.action_print = True
-            logmsg(category="action", id=agent.agent_id, msg="Perfoming %s(%s) - details: %s" % (action_type, action_style, action_deets))
-            responses[action_type](agent)
-            logmsg(category="action", msg="Found: %s" % (agent().action['response_location']))
-            agent().action_required = False
-        else:
-            if self.action_print: logmsg(category="action", id=agent.agent_id, msg="Perfoming %s(%s) - details: %s" % (action_type, action_style, action_deets))
-            responses[action_type](agent)
-            if self.action_print: logmsg(category="action", msg="No response found, continuing in background, will update log when successful.")
-            self.action_print = False
-
-    """ Action Category """
-    def find_agent(self, agent):
-        action_style = agent().action['action_style']
-
-        if 'list' in agent().action:
-            agent_list = agent().action['list']
-            A = {agent_id:self.AllAgentsList[agent_id] for agent_id in agent_list}
-        else:
-            agent_type = agent().action['agent_type']
-            A = {a.agent_id:a for a in self.AllAgentsList.values() if (a is not agent) and (agent_type in a.roles())}
-
-        responses = {"closest": self.find_closest_agent}  # TODO: ROOM TO EXPAND
-        return responses[action_style](agent, A)
-    def find_node(self, agent):
-        action_style =      agent().action['action_style']
-
-        if 'descriptor' in agent().action:
-            if agent().action['action_style'] == "row_ends":
-                N = agent().action['descriptor']
-                if self.action_print: logmsg(category='action', msg='Finding ends to row: %s'%N)
-            elif agent().action['action_style'] == "rows":
-                N = agent().action['descriptor']
-                if self.action_print: logmsg(category='action', msg='Finding rows in tunnel: %s'%N)
-            else:
-                descriptor = agent().action['descriptor']
-                rl='response_location'
-                AExcl = [a for _id,a in self.AllAgentsList.items()  if (_id is not agent.agent_id)]
-                if self.action_print: logmsg(category='action', msg='Finding %s unoccupied node to: %s'%(action_style,agent.location()))
-
-                occupied = [a.location.current_node for a in AExcl if a.location.current_node] #Check if node is occupied
-                occupied += [a().action[rl] for a in AExcl if rl in a().action and a().action[rl] and a.map_handler.is_node(a().action[rl])]  # TackleSharedTarget
-                occupied += [a.goal() for a in AExcl if a.goal()]
-                if self.action_print: logmsg(category='action', msg='Occupied Nodes: %s'%occupied)
-
-                # if 'sent' in occupied:
-                #     xxxx = raw_input('Press "a" to debug!')
-                    # if xxxx == "a":
-                    #     import pdb; pdb.set_trace()
-
-                N2 = {n['id']:n for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)}
-                N = [n['id'] for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)]
-                if self.action_print: logmsg(category='action', msg='Nodes to Compare Against:')
-                if self.action_print: [logmsg(category='action', msg="    - %s: %s"%(n,N2[n])) for n in N2]
-        else:
-            N = agent().action['list']
-            if self.action_print: logmsg(category='action', msg='Nodes to Compare Against:')
-            if self.action_print: [logmsg(category='action', msg="    - %s"%n) for n in N]
-
-        responses = {"closest": self.find_closest_node,
-                     "row_ends": self.find_row_ends,
-                     "rows": self.find_rows}  # ROOM TO EXPAND
-        return responses[action_style](agent, N)
-    def send_info(self, agent):
-        pub1 = Publisher('/car_client/info/map', Str, queue_size=1, latch=True)
-        pub1.publish(agent.map_handler.simplify())  # TODO: agent only holds restricted map, could this cause issues? (this only called by humans though, and they use full)
-        pub2 = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)
-        pub2.publish(self.agent_manager.simplify())
-        return 'sent'
-
-
-    """ Action Style """
-    def find_closest_agent(self, agent, agent_list):
-        loc = agent.location()
-        dist_list = {a.agent_id:self.dist(a, a.location(), loc) for a in agent_list.values() if a.registration and a.map_handler.is_node_restricted(loc)}
-        lst = {a.agent_id:[loc, a.location(), self.dist(a, a.location(), loc), a.registration, a.map_handler.is_node_restricted(loc)] for a in agent_list.values()}
-
-        if self.action_print: [logmsg(category="action", msg="    | %s location: [ %s | %s | %s ]"%(a.agent_id, a.location.current_node, a.location.closest_node, a.location.previous_node)) for a in agent_list.values()]
-        if self.action_print: logmsg(category="action", msg="Finding closest in: %s" % dist_list)
-        if self.action_print: logmsg(category="action", msg="Deets: %s" % lst)
-        if dist_list: return agent_list[min(dist_list, key=dist_list.get)]
-        return None
-    def find_closest_node(self, agent, node_list):
-        """ Find the closest node (via optimal route) to the given agent.
-
-        :param agent: The agent to query against.
-        :param node_list: The list of nodes to query.
-        :return: The node_id closest to the agent querying against.
-        """
-        dist_list = {n:self.dist(agent, agent.location(), n) for n in node_list}
-        if self.action_print: logmsg(category="action", msg="Finding closest in:")
-        if self.action_print: [logmsg(category='action', msg="    - %s: %s"%(n,dist_list[n])) for n in dist_list]
-        if dist_list:
-            return min(dist_list, key=dist_list.get)
-    def find_row_ends(self, agent, row_id):
-        return self.route_finder.planner.get_row_ends(agent, row_id)
-    def find_rows(self, agent, tunnel_id):
-        return self.route_finder.planner.get_rows(agent, tunnel_id)
-
-    """ Find Distance """
-    def dist(self, agent, start_node, goal_node):
-        try:
-            return agent.map_handler.get_route_length(agent, start_node, goal_node)
-        except Exception as e:
-            #print(e)
-            return None
-
-    """ Interrupt Task """
+    """ Interrupt Task (is this old?) """
     def interrupt_task(self):
         from time import sleep; sleep(0.5) #TODO: preventing log overwriting from interrupt attachments
         interrupts = {'pause': self.pause, 'resume': self.resume, 'reset': self.reset, 'disconnect':self.disconnect}
@@ -450,7 +320,7 @@ class RasberryCoordinator(object):
         a().delete_known_references(self)
 
 
-    """ Publish route if different from current """
+    """ Publish route if different from current (move to route planner base? or at least route planning folder) """
     def execute_policy_route(self, agent, trigger=False):
 
         logmsg(category="route", id=agent.agent_id, msg="Attempting to publish route.")
