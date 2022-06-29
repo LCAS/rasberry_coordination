@@ -12,7 +12,7 @@ from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
 
-from rasberry_data_collection.msg import RDCCollectDataAction
+from rasberry_data_collection.msg import CollectDataAction
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
@@ -34,7 +34,7 @@ class InterfaceDef(object):
             self.sub_row      = Subscriber('/%s/data_collection/initiate_task/row'      % agent.agent_id, TopoLocation, self.row)
             # self.sub_schedule = Subscriber('/%s/initiate_task/schedule' % agent.agent_id, Str, self.schedule)
 
-            self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data', RDCCollectDataAction)
+            self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data', CollectDataAction)
 
         def edge(self, msg):
             if self.agent.registration:
@@ -53,21 +53,21 @@ class InterfaceDef(object):
                 logmsg(category="DMTask", id=self.agent.agent_id, msg="Request to treat row")
                 self.agent.add_task(task_name='data_collection_scan_row', details={"row": row})
 
-        def publish_action(self, ???):
-            self.action_publisher.publish(???(???))
+        def publish_action(self, config):
+            #self.action_publisher.publish(???(???))
 
             collection_goal = rasberry_data_collection.msg.RDCCollectDataGoal()
             collection_goal.topological_map = config['topological_map']
             collection_goal.continuous = config['continuous']
             row = rasberry_data_collection.msg.DataCollectionRow()
-            row.origin = i['origin']
-            row.end = i['end']
-            row.orientation = i['orientation']
-            row.data_config = i['data_config']
+            row.origin = config['origin']
+            row.end = config['end']
+            row.orientation = config['orientation']
+            row.data_config = config['data_config']
             collection_goal.rows.append(row)
 
-            self.client.send_goal(collection_goal)  # ,self.done_cb, self.active_cb, self.feedback_cb)
-            ???
+            self.client.send_goal(collection_goal)
+
 
         def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
         def __setitem__(self, key, val): self.__setattr__(key, val)
@@ -172,7 +172,7 @@ class StageDef(object):
         """"""
         def _query(self):
             """Complete when the agents location is identical to the target location."""
-            success_conditions = [???self.client.wait_for_server()]
+            success_conditions = True #[???self.client.wait_for_server()]
             self.flag(any(success_conditions))
 
 
@@ -196,10 +196,10 @@ class StageDef(object):
         def _start(self):
             """format and publish msg to send to action server"""
             super(StageDef.PerformDCAction, self)._start()
-            self.agent.publish_action(self.target_node)
+            #self.agent.publish_action(self.target_node)
         def _query(self):
             """"""
-            success_conditions = [???self.client.wait_for_result()]
+            success_conditions = True #[???self.client.wait_for_result()]
             self.flag(any(success_conditions))
 
 
