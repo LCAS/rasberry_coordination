@@ -30,37 +30,24 @@ class InterfaceDef(object):
 
             self.sub_edge     = Subscriber('/%s/uv_treatment/initiate_task/edge'     % agent.agent_id, TopoLocation, self.edge)
             self.sub_row      = Subscriber('/%s/uv_treatment/initiate_task/row'      % agent.agent_id, TopoLocation, self.row)
-            self.sub_tunnel   = Subscriber('/%s/uv_treatment/initiate_task/tunnel'   % agent.agent_id, TopoLocation, self.tunnel)
             # self.sub_schedule = Subscriber('/%s/initiate_task/schedule' % agent.agent_id, Str, self.schedule)
 
         def edge(self, msg):
             if self.agent.registration:
-                # msg.type = "tall"
-                # msg.tunnel = 1
                 # msg.row = 3
                 # msg.edge_nodes = [0,1]
-                nodeA = "%s-t%s-r%s-c%s"%(msg.type, msg.tunnel, msg.row, msg.edge_node[0])
-                nodeB = "%s-t%s-r%s-c%s"%(msg.type, msg.tunnel, msg.row, msg.edge_node[1])
+                nodeA = "r%s-c%s"%(msg.row, msg.edge_node[0])
+                nodeB = "r%s-c%s"%(msg.row, msg.edge_node[1])
 
                 logmsg(category="UVTask", id=self.agent.agent_id, msg="Request to treat edge")
                 self.agent.add_task(task_name='uv_treatment_treat_edge', contacts={'row_ends': [nodeA, nodeB]})
         def row(self, msg):
             if self.agent.registration:
-                # msg.type = "tall"
-                # msg.tunnel = 1
                 # msg.row = 3
-                row = "%s-t%s-r%s"%(msg.type, msg.tunnel, msg.row)
+                row = "r%s"%(msg.row)
 
                 logmsg(category="UVTask", id=self.agent.agent_id, msg="Request to treat row")
                 self.agent.add_task(task_name='uv_treatment_treat_row', details={"row": row})
-        def tunnel(self, msg):
-            if self.agent.registration:
-                #msg.type = "tall"
-                #msg.tunnel = 1
-                tunnel = "%s-t%s"%(msg.type, msg.tunnel)
-
-                logmsg(category="UVTask", id=self.agent.agent_id, msg="Request to treat row")
-                self.agent.add_task(task_name='uv_treatment_treat_tunnel', details={"tunnel": tunnel})
 
         def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
         def __setitem__(self, key, val): self.__setattr__(key, val)
@@ -126,19 +113,6 @@ class TaskDef(object):
                          StageDef.NavigateToUVEndNode(agent),
                          StageDef.DisableUVLight(agent)
                      ]))
-    @classmethod
-    def uv_treatment_treat_tunnel(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return (Task(id=task_id,
-                     module='uv_treatment',
-                     name="uv_treatment_treat_tunnel",
-                     details=details,
-                     contacts=contacts,
-                     initiator_id=initiator_id,
-                     responder_id="",
-                     stage_list=[
-                         SDef.StartTask(agent, task_id),
-                         StageDef.FindRowsUV(agent, details['tunnel'])
-                     ]))
 
     """ Control from SAR """
     @classmethod
@@ -158,12 +132,6 @@ class TaskDef(object):
 
 
 class StageDef(object):
-
-    class FindRowsUV(SDef.FindRows):
-        """Used to assign the uv_treatment_treat_row task to all rows in the given tunnel."""
-        def __init__(self, agent, tunnel):
-            """Call super to set uv_treatment_treat_row as task to apply"""
-            super(StageDef.FindRowsUV, self).__init__(agent, tunnel, 'uv_treatment_treat_row')
 
     class NavigateToUVStartNode(SDef.NavigateToNode):
         """Used to navigate to a given start node"""

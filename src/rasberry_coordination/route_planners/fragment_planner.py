@@ -386,7 +386,7 @@ class FragmentPlanner_map_filter(object):
 
     @classmethod
     def unblock_parent_row(cls, agent, node_name):
-        #Exit early if the node is not in a tunnel
+        #Exit early if the node is not in a row
         if node_name.split('_')[0] not in ['tall_t', 'small_t']: return
 
         #Identify the parent row

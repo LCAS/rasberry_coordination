@@ -26,26 +26,7 @@ class BasePlanner(object):
     __metaclass__ = ABCMeta  # @abstractmethod
 
     def get_row_ends(self, agent, row_id):
-
-        row_nodes = [int(node["node"]["name"].replace("%s-c"%row_id, ''))
-                     for node in agent.map_handler.empty_map["nodes"]
-                     if node["node"]["name"].startswith(row_id)]
-        if not row_nodes:
-            logmsg(level="error", msg="No row ends found for row_id(%s): %s"%(row_id,row_nodes))
-
-        row_start = "%s-c%s"%(row_id, 0)
-        row_end   = "%s-c%s"%(row_id, max(row_nodes))
-
-        return [row_start, row_end]
-
-    def get_rows(self, agent, tunnel_id):
-        row_prefix = "%s-r"%tunnel_id
-
-        row_ids = set([int(node["node"]["name"].replace(row_prefix, '').split('-c')[0])
-                       for node in agent.map_handler.empty_map["nodes"]
-                       if node["node"]["name"].startswith(row_prefix)])
-
-        return ["%s%s"%(row_prefix, row_id) for row_id in row_ids]
+        return ["%s-cA" % row_id, "%s-cZ" % row_id]
 
     def get_route_distance_to_node(self, agent_id, node_id):
         """get the total distance to a node in a agent's route
