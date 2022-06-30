@@ -1,12 +1,13 @@
 """Health Monitoring"""
 
 from copy import deepcopy
-from std_msgs.msg import String as Str
+from std_msgs.msg import String as Str, Bool
 from rospy import Time, Duration, Subscriber, Publisher, Time
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
 from thorvald_base.msg import BatteryArray as Battery
+#from polytunnel_navigation_actions.msg import RowTraversalHealth
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
@@ -26,7 +27,7 @@ class InterfaceDef(object):
             self.auto_mode_sub = Subscriber('/%s/debug/auto_mode' % (self.agent.agent_id), Bool, self.auto_mode_cb)
 
             self.row_trav_paused = None
-            self.row_trav_sub = Subscriber('/%s/health_monitoring/row_traversal' % (self.agent.agent_id), RowTraversalHealth, self.row_trav_cb)
+            #self.row_trav_sub = Subscriber('/%s/health_monitoring/row_traversal' % (self.agent.agent_id), RowTraversalHealth, self.row_trav_cb)
 
 
         """ Battery Monitoring """
@@ -60,10 +61,10 @@ class InterfaceDef(object):
             if self.in_auto_mode == in_auto_mode.data: return
             self.in_auto_mode = in_auto_mode.data
             if self.in_auto_mode:
-                logmsg(level="warn", category="TEST", id=self.agent_id, msg="Agent is in AUTONOMOUS mode.")
+                logmsg(level="warn", category="TEST", id=self.agent.agent_id, msg="Agent is in AUTONOMOUS mode.")
                 self.speaker("deactivated... Enter auto mode")
             else:
-                logmsg(level="warn", category="TEST", id=self.agent_id, msg="Agent is in MANUAL mode.")
+                logmsg(level="warn", category="TEST", id=self.agent.agent_id, msg="Agent is in MANUAL mode.")
                 self.speaker("manual mode")
 
 
@@ -71,10 +72,10 @@ class InterfaceDef(object):
             if self.row_trav_paused == msg.paused.data: return
             self.row_trav_paused = msg.paused.data
             if self.row_trav_paused:
-                logmsg(level="warn", category="TEST", id=self.agent_id, msg="Row Traversal is Paused.")
+                logmsg(level="warn", category="TEST", id=self.agent.agent_id, msg="Row Traversal is Paused.")
                 self.speaker("error in row traversal")
             else:
-                logmsg(level="warn", category="TEST", id=self.agent_id, msg="Row Traverlsal is Active")
+                logmsg(level="warn", category="TEST", id=self.agent.agent_id, msg="Row Traverlsal is Active")
                 self.speaker("row traversal reengaged")
 
 
