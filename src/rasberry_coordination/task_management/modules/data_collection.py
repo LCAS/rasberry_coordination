@@ -18,21 +18,6 @@ try: from rasberry_coordination.task_management.__init__ import PropertiesDef as
 except: pass
 
 
-"""
-topological_map: 'tmap_stream.tmap2'
-continuous: True
-rows:
-# 1
-- origin: 't1-r3-c0'
-  end: 't1-r3-c2'
-  orientation: 'front'
-# 2
-- origin: 't1-r4-c2'
-  end: 't1-r4-c0'
-  orientation: 'back'
-
-"""
-
 class InterfaceDef(object):
 
     class scanner(object):
@@ -49,6 +34,8 @@ class InterfaceDef(object):
             self.sub_row      = Subscriber('/%s/data_collection/initiate_task/row'      % agent.agent_id, TopoLocation, self.row)
             # self.sub_schedule = Subscriber('/%s/initiate_task/schedule' % agent.agent_id, Str, self.schedule)
 
+            self.topo_map = fetch_property('health_monitoring', 'topological_map')
+            self.continuous = fetch_property('health_monitoring', 'continuous')
             self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data', CollectDataAction)
 
         def edge(self, msg):
@@ -68,17 +55,34 @@ class InterfaceDef(object):
                 logmsg(category="DMTask", id=self.agent.agent_id, msg="Request to treat row")
                 self.agent.add_task(task_name='data_collection_scan_row', details={"row": row})
 
-        def publish_action(self, config):
-            #self.action_publisher.publish(???(???))
-
+        def publish_action(self, origin, target):
+            """
+            topological_map: 'tmap_stream.tmap2'/'tmap_70cm.tmap'
+            continuous: True
+            rows:
+            - origin: 'r3-c0'
+              end: 'r3-c2'
+              orientation: 'front'/'back'/''
+              data_config: '{"force_orientation_to_origin":true,"capture_data":true}'
+            """
             collection_goal = rasberry_data_collection.msg.RDCCollectDataGoal()
-            collection_goal.topological_map = config['topological_map']
-            collection_goal.continuous = config['continuous']
+            collection_goal.topological_map = self.topo_map
+            collection_goal.continuous = self.continuous
+
+            #forward
             row = rasberry_data_collection.msg.DataCollectionRow()
-            row.origin = config['origin']
-            row.end = config['end']
-            row.orientation = config['orientation']
-            row.data_config = config['data_config']
+            row.origin = origin
+            row.end = end
+            row.orientation = ''
+            row.data_config = str({"force_orientation_to_origin": True, "capture_data": True})
+            collection_goal.rows.append(row)
+
+            #backward
+            row = rasberry_data_collection.msg.DataCollectionRow()
+            row.origin = end
+            row.end = origin
+            row.orientation = ''
+            row.data_config = str({"force_orientation_to_origin": True, "capture_data": True})
             collection_goal.rows.append(row)
 
             self.client.send_goal(collection_goal)
@@ -141,9 +145,7 @@ class TaskDef(object):
                          SDef.StartTask(agent, task_id),
                          SDef.FindStartNode(agent),
                          StageDef.NavigateToDCStartNode(agent),
-                         StageDef.EnableDMCamera(agent),
-                         StageDef.PerformDCAction(agent),
-                         StageDef.DisableDMCamera(agent)
+                         StageDef.PerformDCAction(agent)
                      ]))
     @classmethod
     def data_collection_scan_row(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
@@ -159,9 +161,7 @@ class TaskDef(object):
                          SDef.FindRowEnds(agent, details['row']),
                          SDef.FindStartNode(agent),
                          StageDef.NavigateToDCStartNode(agent),
-                         StageDef.EnableDMCamera(agent),
-                         StageDef.PerformDCAction(agent),
-                         StageDef.DisableDMCamera(agent)
+                         StageDef.PerformDCAction(agent)
                      ]))
 
     """ Control from SAR """
@@ -207,38 +207,18 @@ class StageDef(object):
         def __init__(self, agent):
             """"""
             super(StageDef.PerformDCAction, self).__init__(agent)
-            self.target_node = self.agent['contacts']['end_node']
+            self.origin = self.agent['contacts']['start_node']
+            self.end = self.agent['contacts']['end_node']
+            self.interface = self.agent.modules['data_collection'].interface
         def _start(self):
             """format and publish msg to send to action server"""
             super(StageDef.PerformDCAction, self)._start()
-            #self.agent.publish_action(self.target_node)
+            self.interface.publish_action(origin=self.origin, end=self.end)
         def _query(self):
             """"""
-            success_conditions = True #[???self.client.wait_for_result()]
+            success_conditions = [self.agent.location(accurate=True) == self.end]
+            #[???self.interface.client.wait_for_result()]
             self.flag(any(success_conditions))
-
-
-
-
-    class EnableDMCamera(SDef.NotifyTrigger):
-        """Used to enable the camera on the robot"""
-        def __init__(self, agent):
-            """Call to initialise a camera_status message of ENABLE_CAMERA to send on start and set rviz robot to green"""
-            super(StageDef.EnableDMCamera, self).__init__(agent, trigger='camera_status', msg="ENABLE_CAMERA", colour='green')
-        def _end(self):
-            if 'controller' in self.agent['contacts']:
-                self.agent['contacts']['controller'].modules['data_collection'].interface.notify("sar_AWAIT_TASK_COMPLETION")
-
-    class DisableDMCamera(SDef.NotifyTrigger):
-        """Used to disable the camera on the robot"""
-        def __init__(self, agent):
-            """Call to initialise a camera_status message of DISABLE_CAMERA to send on start and set rviz robot to clear"""
-            super(StageDef.DisableDMCamera, self).__init__(agent, trigger='camera_status', msg="DISABLE_CAMERA", colour='')
-        def _end(self):
-            if 'controller' in self.agent['contacts']:
-                if len([s for s in self.agent['stage_list'][:-1] if 'DisableDMCamera' in s.get_class()]) == 0:
-                    # if there is no more stages in stagslit, set flag on controller?
-                    self.agent['contacts']['controller']['scanner_completion_flag'] = True
 
     class AssignScanner(SDef.ActionResponse):
         """Used to identify the closest scanner."""
@@ -260,9 +240,6 @@ class StageDef(object):
                                                        details=self.details,
                                                        contacts=self.contacts,
                                                        initiator_id=self.agent.agent_id)
-
-
-
 
     class AwaitCompletion(SDef.Idle):
         def _start(self):
