@@ -1,0 +1,10 @@
+agent_id: picker101
+<<<<<<< HEAD
+# local_properties:
+  # initial_location: s0
+  #initial_location: WayPoint63
+=======
+#local_properties:
+#  initial_location: s0
+#  #initial_location: WayPoint63
+>>>>>>> atm_qol
