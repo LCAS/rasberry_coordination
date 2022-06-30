@@ -175,8 +175,6 @@ class AgentDetails(object):
         self.map_handler = Map(agent=self, topic=topic)
 
         #Debug
-        self.in_auto_mode = None
-        self.auto_mode_sub = Subscriber('/%s/debug/auto_mode'%self.agent_id, Bool, self.auto_mode_cb)
         self.speaker_pub = Publisher('/%s/ui/speaker'%self.agent_id, Str, queue_size=1)
 
     """ Task Starters """
@@ -287,20 +285,11 @@ class AgentDetails(object):
 
     """ Logging """
     def __repr__(self):
-        if self.in_auto_mode:
-            return "%s(%s)" % (self.get_class(), self.agent_id)
+        #if self.in_auto_mode:
+        #    return "%s(%s)" % (self.get_class(), self.agent_id)
         return "![%s(%s)]" % (self.get_class(), self.agent_id)
     def get_class(self):
         return str(self.__class__).replace("<class 'rasberry_coordination.agent_management.agent_manager.", "").replace("'>", "")
-    def auto_mode_cb(self, in_auto_mode):
-        if self.in_auto_mode == in_auto_mode.data: return
-        self.in_auto_mode = in_auto_mode.data
-        if self.in_auto_mode:
-            logmsg(level="warn", category="TEST", id=self.agent_id, msg="Agent is in AUTONOMOUS mode.")
-            self.speaker("deactivated... Enter auto mode")
-        else:
-            logmsg(level="warn", category="TEST", id=self.agent_id, msg="Agent is in MANUAL mode.")
-            self.speaker("manual mode")
     def speaker(self, msg):
         try:
             self.speaker_pub.publish(Str(msg))
