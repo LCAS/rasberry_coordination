@@ -1,0 +1,8 @@
+agent_id: picker02
+<<<<<<< HEAD
+# local_properties:
+  # initial_location: s0
+=======
+#local_properties:
+#  initial_location: s0
+>>>>>>> atm_qol

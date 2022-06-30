@@ -7,11 +7,10 @@ from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
 from thorvald_base.msg import BatteryArray as Battery
-#from polytunnel_navigation_actions.msg import RowTraversalHealth
+from polytunnel_navigation_actions.msg import RowTraversalHealth
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
-#row_traversal/health/paused/data
 
 
 class InterfaceDef(object):
@@ -27,7 +26,7 @@ class InterfaceDef(object):
             self.auto_mode_sub = Subscriber('/%s/debug/auto_mode' % (self.agent.agent_id), Bool, self.auto_mode_cb)
 
             self.row_trav_paused = None
-            #self.row_trav_sub = Subscriber('/%s/health_monitoring/row_traversal' % (self.agent.agent_id), RowTraversalHealth, self.row_trav_cb)
+            self.row_trav_sub = Subscriber('/%s/health_monitoring/row_traversal' % (self.agent.agent_id), RowTraversalHealth, self.row_trav_cb)
 
 
         """ Battery Monitoring """
@@ -76,7 +75,7 @@ class InterfaceDef(object):
                 self.speaker("error in row traversal")
             else:
                 logmsg(level="warn", category="TEST", id=self.agent.agent_id, msg="Row Traverlsal is Active")
-                self.speaker("row traversal reengaged")
+                self.speaker("row traversal engaged")
 
 
 
