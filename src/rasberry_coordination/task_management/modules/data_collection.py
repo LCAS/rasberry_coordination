@@ -12,7 +12,7 @@ from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
 
-from rasberry_data_collection.msg import CollectDataAction
+from rasberry_data_collection.msg import CollectDataAction, CollectDataGoal, DataCollectionRow
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
@@ -65,12 +65,12 @@ class InterfaceDef(object):
               orientation: 'front'/'back'/''
               data_config: '{"force_orientation_to_origin":true,"capture_data":true}'
             """
-            collection_goal = rasberry_data_collection.msg.RDCCollectDataGoal()
+            collection_goal = CollectDataGoal()
             collection_goal.topological_map = self.topo_map
             collection_goal.continuous = self.continuous
 
             #forward
-            row = rasberry_data_collection.msg.DataCollectionRow()
+            row = DataCollectionRow()
             row.origin = origin
             row.end = end
             row.orientation = ''
@@ -78,7 +78,7 @@ class InterfaceDef(object):
             collection_goal.rows.append(row)
 
             #backward
-            row = rasberry_data_collection.msg.DataCollectionRow()
+            row = DataCollectionRow()
             row.origin = end
             row.end = origin
             row.orientation = ''
