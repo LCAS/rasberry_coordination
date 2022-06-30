@@ -564,39 +564,6 @@ class StageDef(object):
             success_conditions = [len(self.agent.task_buffer) > 0]
             self.flag(any(success_conditions))
 
-    """ Assignment-Based Task Stages (involves coordinator) """
-    # class Assignment(StageBase):
-    #     """Base task for all Assignments"""
-    #     def _start(self):
-    #         """Set flag to perform multi-agent action"""
-    #         super(StageDef.Assignment, self)._start()
-    #         self.action_required = True
-    #     def _query(self):
-    #         """Complete once action has generated a result"""
-    #         success_conditions = [('response_location' in self.action and self.action['response_location'] != None)]
-    #         self.flag(any(success_conditions))
-    # class AssignAgent(Assignment):
-    #     """Handler for stages based around identifying an agent of interest."""
-    #     def __init__(self, agent, agent_type, action_style):
-    #         """Initialise the agent's type and the action style"""
-    #         super(StageDef.AssignAgent, self).__init__(agent)
-    #         self.agent_type = agent_type
-    #         self.action_style = action_style
-    #     def _start(self):
-    #         """Initiate action details to identify agent"""
-    #         super(StageDef.AssignAgent, self)._start()
-    #         self.action['action_type'] = 'find_agent'
-    #         self.action['action_style'] = self.action_style
-    #         self.action['agent_type'] = self.agent_type
-    #         self.action['response_location'] = None
-    #     def _end(self, contact_type='responder_id'):
-    #         """ On completion, save agent contact"""
-    #         super(StageDef.AssignAgent, self)._end()
-    #         resp = self.action['response_location']
-    #         self.agent[contact_type] = resp.agent_id
-    #         self.agent['contacts'][self.agent_type] = resp
-    # class AssignNode(Assignment): """Handler for stages based around itdntifying a node of interest."""; pass
-
     """ Node identification Stages"""
     class AssignBaseNode(ActionResponse):
         """Used to identify the closest available base_node."""
@@ -605,6 +572,10 @@ class StageDef(object):
             super(StageDef.AssignBaseNode, self).__init__(agent)
             self.action = ActionDetails(type='search', grouping='node_descriptor', descriptor='base_node', style='closest_node')
             self.contact = 'base_node'
+        def _start(self):
+            super(StageDef.AssignBaseNode, self)._start()
+            #self.accepting_new_tasks = True
+
     class AssignWaitNode(ActionResponse):
         """Used to identify the closest available wait_node."""
         def __init__(self, agent):
@@ -671,6 +642,8 @@ class StageDef(object):
         def _end(self):
             """End navigation by refreshing routes for other agents in motion."""
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
+            #self.agent.navigation_interface.cancel_execpolicy_goal()
+            #self.target = None
             self.agent.cb['trigger_replan']() #ReplanTrigger
     class NavigateToAgent(Navigation):
         """Used for navigating to a given agent"""
@@ -696,12 +669,11 @@ class StageDef(object):
         def _start(self):
             """ enable interuption """
             super(StageDef.NavigateToBaseNodeIdle, self)._start()
-            self.accepting_new_tasks = True
+            #self.accepting_new_tasks = True
         def _query(self):
             """Complete when the agents location is identical to the target location."""
-            success_conditions = [self.agent.location(accurate=True) == self.target, 
-                                  len(self.agent.task_buffer) > 0]
-
+            success_conditions = [self.agent.location(accurate=True) == self.target] #, 
+                                  #len(self.agent.task_buffer) > 0]
             self.flag(any(success_conditions))
 
     class NavigateToExitNode(NavigateToNode):

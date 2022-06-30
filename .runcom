@@ -42,6 +42,7 @@ function set_battery () { rostopic pub /$1/dummy_battery_data thorvald_base/Batt
 }
 
 function call () { echo $1 ; read -p "Press Enter to continue:" ; $1 ; }
+function force () { rostopic pub /rasberry_coordination/force_replan std_msgs/Empty "{}" --once ; }
 
 #Debug Functions
 function car () { roscd rasberry_coordination/callarobot/call_a_robot/www ; }
