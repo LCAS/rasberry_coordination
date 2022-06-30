@@ -204,6 +204,8 @@ class StageDef(object):
             super(StageDef.AssignFieldCourier, self)._end()
 
             self.agent.modules['transportation'].interface.notify("car_ACCEPT")
+            r,c = self.agent.location().split('-')
+            self.agent['contacts']['field_courier'].speaker("%s requested pickup at %s %s" % (self.agent.agent_id, r, c))
             self.agent['contacts']['field_courier'].add_task(task_name='transportation_retrieve_load',
                                                              task_id=self.agent['id'],
                                                              details={},
@@ -243,7 +245,7 @@ class StageDef(object):
         def __repr__(self):
             """Attach id of agent to class name"""
             if 'field_courier' in self.agent['contacts']:
-                return "%s(%s)"%(self.get_class(), self.agent['contacts']['field_courier'].agent_id)
+                return "%s(%s|%s)"%(self.get_class(), self.agent.location(), self.agent['contacts']['field_courier'].agent_id)
             else:
                 return "%s()" % (self.get_class())
         def _query(self):
@@ -299,7 +301,8 @@ class StageDef(object):
             self.default = default
             self.timeout = Duration(secs=fetch_property('transportation', timeout_type))
             self.timeout_prompt = False
-            self.agent['contacts']['field_courier'].speaker("I will leave in %s seconds. Please %s trays." % (str(self.timeout.secs), prompt))
+            self.agent['contacts']['field_courier'].speaker("Arrived to %s at %s... I will leave in %s seconds. Please %s trays." % 
+                                                             (self.agent.agent_id, self.agent.location(), str(self.timeout.secs), prompt))
         def _query(self):
             """Complete once has_tray flag is triggered by interface or timeout completes"""
             success_conditions = [Time.now() - self.start_time > self.timeout,
