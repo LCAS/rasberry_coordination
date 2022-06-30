@@ -1,1 +1,4 @@
 - name: debug
+  panes:
+  - uri_server ; rostopic list
+  tags: [coord] 
