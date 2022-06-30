@@ -23,10 +23,10 @@ class InterfaceDef(object):
             self.battery_data_sub = Subscriber("/%s/dummy_battery_data" % (self.agent.agent_id), Battery, self._battery_data_cb)  # TODO: point this to the correct location
 
             self.in_auto_mode = None
-            self.auto_mode_sub = Subscriber('/%s/debug/auto_mode'%self.agent_id, Bool, self.auto_mode_cb)
+            self.auto_mode_sub = Subscriber('/%s/debug/auto_mode' % (self.agent.agent_id), Bool, self.auto_mode_cb)
 
             self.row_trav_paused = None
-            self.row_trav_sub = Subscriber('/%s/health_monitoring/row_traversal'%self.agent_id, RowTraversalHealth, self.row_trav_cb)
+            self.row_trav_sub = Subscriber('/%s/health_monitoring/row_traversal' % (self.agent.agent_id), RowTraversalHealth, self.row_trav_cb)
 
 
         """ Battery Monitoring """
