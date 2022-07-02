@@ -9,7 +9,6 @@ from std_msgs.msg import Bool
 import std_srvs.srv
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
 from rasberry_coordination.coordinator_tools import logmsg
-import rasberry_coordination.srv
 import rasberry_coordination.msg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 

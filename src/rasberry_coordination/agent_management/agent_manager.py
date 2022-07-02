@@ -18,8 +18,7 @@ from std_msgs.msg import String as Str, Empty, Bool
 from std_srvs.srv import Trigger, TriggerResponse
 
 # from diagnostis_msgs.msg import KeyValue
-from rasberry_coordination.msg import AgentDetails as AgentDetailsMsg, MarkerDetails, KeyValuePair
-from rasberry_coordination.srv import AddAgent, AgentNodePair
+from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, KeyValuePair
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module, MapObj as Map
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
@@ -46,7 +45,7 @@ class AgentManager(object):
                     agent_dict = yaml.load(file, Loader=yaml.FullLoader)
                     pprint(agent_dict)
                     self.add_agents(agent_dict)
-        self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', AgentDetailsMsg, self.add_agent_cb)
+        self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', NewAgentConfig, self.add_agent_cb)
 
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
         self.get_markers_sub = Subscriber('/rasberry_coordination/get_markers', Empty, self.get_markers_cb)

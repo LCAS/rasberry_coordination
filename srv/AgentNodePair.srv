@@ -1,7 +1,0 @@
-string agent_id
-string node_id
----
-# State of result (0=fail,1=success)
-bool success
-# Success or failure details
-string msg

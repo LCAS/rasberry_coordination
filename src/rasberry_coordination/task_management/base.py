@@ -6,7 +6,6 @@ from std_msgs.msg import Bool, String as Str
 from diagnostic_msgs.msg import KeyValue
 import strands_executive_msgs.msg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
-from rasberry_coordination.srv import AgentNodePair
 from rasberry_coordination.actions.action_manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location

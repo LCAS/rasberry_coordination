@@ -4,7 +4,7 @@ import sys
 import rospy
 from std_msgs.msg import String
 import rasberry_coordination
-from rasberry_coordination.msg import AgentDetails, Module, KeyValuePair
+from rasberry_coordination.msg import NewAgentConfig, Module, KeyValuePair
 import rasberry_des.config_utils
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
 
@@ -42,7 +42,7 @@ def load_agent_obj(agent_input, setup_input, get_files_from_paths=False):
     setup_data = rasberry_des.config_utils.get_config_data(setup_file)
 
     # Build msg
-    agent = AgentDetails()
+    agent = NewAgentConfig()
     agent.agent_id = agent_data['agent_id']
     agent.local_properties = get_kvp_list(agent_data, 'local_properties')
     agent.setup.modules = [Module(m['name'], m['role']) for m in setup_data['modules']]
@@ -54,7 +54,7 @@ def load_agent_obj(agent_input, setup_input, get_files_from_paths=False):
 
 class AgentMonitor():
     def __init__(self):
-        self.pub = rospy.Publisher("/rasberry_coordination/dynamic_fleet/add_agent", AgentDetails, latch=True, queue_size=5)
+        self.pub = rospy.Publisher("/rasberry_coordination/dynamic_fleet/add_agent", NewAgentConfig, latch=True, queue_size=5)
         self.s1 = rospy.Subscriber("/car/new_agent", String, self.load,  callback_args='picker')
         self.s2 = rospy.Subscriber("/sar/new_agent", String, self.load,  callback_args='tall_controller')
         self.s3 = rospy.Subscriber("/car/new_store", String, self.load,  callback_args='field_storage')
@@ -92,7 +92,7 @@ if __name__ == '__main__':
         logmsg(category="DRM", msg="Details of Agent being launched:\n%s\n\n"%agent)
 
         # Create publisher
-        pub = rospy.Publisher("/rasberry_coordination/dynamic_fleet/add_agent", AgentDetails, latch=False, queue_size=5)
+        pub = rospy.Publisher("/rasberry_coordination/dynamic_fleet/add_agent", NewAgentConfig, latch=False, queue_size=5)
         rospy.sleep(1)
 
         while not rospy.is_shutdown():

@@ -6,7 +6,6 @@ import strands_executive_msgs.msg
 
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
-from rasberry_coordination.srv import AgentNodePair
 
 import yaml
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
