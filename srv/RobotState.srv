@@ -1,5 +1,0 @@
-string robot_id
----
-string state
-string goal_node
-time start_time

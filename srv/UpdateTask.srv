@@ -1,5 +1,0 @@
-# The task to be added to the executive system
-strands_executive_msgs/Task task
----
-bool success
-string message

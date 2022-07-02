@@ -1,5 +1,0 @@
-string agent_id
-string node
----
-bool success
-string message
