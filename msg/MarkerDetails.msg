@@ -4,3 +4,4 @@ string type
 string agent_id
 #accepts "none", "red", "green", "blue", "white", "black"
 string optional_color
+

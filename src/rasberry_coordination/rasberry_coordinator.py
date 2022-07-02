@@ -31,7 +31,6 @@ import strands_navigation_msgs.msg
 import strands_navigation_msgs.srv
 
 import rasberry_coordination.robot
-import rasberry_coordination.srv
 from rasberry_coordination.msg import MarkerDetails, KeyValuePair
 from rasberry_coordination.actions.action_manager import ActionManager
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, Rasberry_Logger
