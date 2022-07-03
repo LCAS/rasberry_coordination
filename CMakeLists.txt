@@ -61,16 +61,18 @@ catkin_python_setup()
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  AgentDetails.msg
-  AgentSetup.msg
+  AgentRegistrationList.msg
+  AgentRegistration.msg
+  AgentStateList.msg
+  AgentState.msg
   Interruption.msg
   KeyValuePair.msg
   MarkerDetails.msg
   Module.msg
+  NewAgentConfig.msg
+  NewAgentConfigSetup.msg
   TaskDetails.msg
-  TaskRole.msg
   TasksDetails.msg
-  TaskUpdates.msg
   TopoLocation.msg
 )
 
@@ -78,19 +80,8 @@ add_message_files(
 add_service_files(
   FILES
   AddNodeTask.srv
-  AddAgent.srv
-  AgentID.srv
-  AgentNodePair.srv
-  AllTasksInfo.srv
-  ConnectAgent.srv
-  RobotState.srv
-  RobotStates.srv
-  SetLocation.srv
+  StringList.srv
   String.srv
-  TrayLoaded.srv
-  TriggerRobot.srv
-  UnregisterAgent.srv
-  UpdateTask.srv
 )
 
 ## Generate actions in the 'action' folder
