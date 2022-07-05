@@ -21,7 +21,7 @@ from std_srvs.srv import Trigger, TriggerResponse
 from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, KeyValuePair
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module, MapObj as Map
-from rasberry_coordination.health_service import HealthService
+#from rasberry_coordination.health_service import HealthService
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
 import rasberry_des.config_utils
@@ -52,7 +52,7 @@ class AgentManager(object):
         self.get_markers_sub = Subscriber('/rasberry_coordination/get_markers', Empty, self.get_markers_cb)
 
         # Health Monitoring
-        self.health_service = HealthService(self.agent_details)
+        #self.health_service = HealthService(self.agent_details)
 
     """ Dynamic Fleet """
     def add_agent(self, agent_dict):
@@ -85,8 +85,9 @@ class AgentManager(object):
 
     """ Monitoring """
     def fleet_monitoring(self):
-        self.health_service.publish_registrations()
-        self.health_service.publish_states()
+        #self.health_service.publish_registrations()
+        #self.health_service.publish_states()
+        pass
 
 
     """ Visuals """

@@ -1,6 +1,6 @@
 import rospy
 from rospy import Subscriber, Service, Publisher
-from rasberry_monitors.srv import QueryBattery, QueryBatteryResponse
+from rasberry_coordination.srv import QueryBattery, QueryBatteryResponse
 from rasberry_coordination.msg import AgentRegistrationList, AgentRegistration, AgentStateList, AgentState
 
 class HealthService(object):
