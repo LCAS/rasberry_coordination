@@ -21,6 +21,7 @@ from std_srvs.srv import Trigger, TriggerResponse
 from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, KeyValuePair
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module, MapObj as Map
+from rasberry_coordination.health_service import HealthService
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
 import rasberry_des.config_utils
@@ -34,9 +35,6 @@ class AgentManager(object):
         self.agent_details = {}
         self.new_agent_buffer = dict()
 
-        self.cb = callback_dict
-        self.cb['format_agent_marker'] = self.format_agent_marker
-
         # Setup Connection for Dynamic Fleet
         file_name = 'coordinator-loaded-agents-save-state.yaml'  #logs to $HOME/.ros/coordinator-loaded-agents-save-state.yaml
         if os.path.isfile(file_name):
@@ -47,9 +45,14 @@ class AgentManager(object):
                     self.add_agents(agent_dict)
         self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', NewAgentConfig, self.add_agent_cb)
 
+        # Marker Management
+        self.cb = callback_dict
+        self.cb['format_agent_marker'] = self.format_agent_marker
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
         self.get_markers_sub = Subscriber('/rasberry_coordination/get_markers', Empty, self.get_markers_cb)
 
+        # Health Monitoring
+        self.health_service = HealthService(self.agent_details)
 
     """ Dynamic Fleet """
     def add_agent(self, agent_dict):
@@ -79,6 +82,11 @@ class AgentManager(object):
     """ Conveniences """
     def __getitem__(self, key):
         return self.agent_details[key] if key in self.agent_details else None
+
+    """ Monitoring """
+    def fleet_monitoring(self):
+        self.health_service.publish_registrations()
+        self.health_service.publish_states()
 
 
     """ Visuals """

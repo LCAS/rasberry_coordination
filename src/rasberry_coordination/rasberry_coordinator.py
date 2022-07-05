@@ -137,7 +137,6 @@ class RasberryCoordinator(object):
 
         # Remappings to for commonly used functions
         get_agents      = self.get_agents
-        # offer_service   = self.offer_service
         offer_service   = self.action_manager.offer_service
         find_routes     = self.route_finder.find_routes
         publish_route   = self.execute_policy_route
@@ -191,12 +190,13 @@ class RasberryCoordinator(object):
             logbreak("START TASK", [not a['stage_list'] for a in A])
             [a.start_next_task() for a in A if not a['stage_list']]; l(0);                   """ Start Buffered Task """
 
-            # Update TOC
-            Ut = Update_TOC(A, TOC, Ut);                                                              """ Update TOC """
-
             # Start Stage
             logbreak("START STAGE", [a().new_stage for a in A])
             [a.start_stage() for a in A if a().new_stage];                                           """ Start Stage """
+
+            # Monitoring
+            Ut = Update_TOC(A, TOC, Ut);
+            AM.fleet_monitoring()
 
             # Offer Action Services
             #logbreak("ACTION", [a().action_required if action_print() else False for a in A])
