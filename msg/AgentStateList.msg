@@ -1,1 +1,1 @@
-rasberry_coordination/AgentState[] agents
+rasberry_coordination/AgentState[] list
