@@ -18,7 +18,7 @@ from std_msgs.msg import String as Str, Empty, Bool
 from std_srvs.srv import Trigger, TriggerResponse
 
 # from diagnostis_msgs.msg import KeyValue
-from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, KeyValuePair
+from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, KeyValuePair, AgentRegistrationList, AgentRegistration, AgentStateList, AgentState
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module, MapObj as Map
 #from rasberry_coordination.health_service import HealthService
@@ -55,8 +55,8 @@ class AgentManager(object):
 
 
         # Fleet Monitoring
-        self.agent_registration = Publisher('/rasberry_coordination/fleet_monitoring/agent_registrations', AgentRegistrationList, latched=True, queue_size=2)
-        self.agent_states = Publisher('/rasberry_coordination/fleet_monitoring/agent_states', AgentStateList, latched=True, queue_size=2)
+        self.agent_registration = Publisher('/rasberry_coordination/fleet_monitoring/agent_registrations', AgentRegistrationList, latch=True, queue_size=2)
+        self.agent_states = Publisher('/rasberry_coordination/fleet_monitoring/agent_states', AgentStateList, latch=True, queue_size=2)
 
 
     """ Dynamic Fleet """
