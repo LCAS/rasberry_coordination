@@ -35,6 +35,7 @@ class AgentManager(object):
         self.agent_details = {}
         self.new_agent_buffer = dict()
 
+
         # Setup Connection for Dynamic Fleet
         file_name = 'coordinator-loaded-agents-save-state.yaml'  #logs to $HOME/.ros/coordinator-loaded-agents-save-state.yaml
         if os.path.isfile(file_name):
@@ -45,14 +46,18 @@ class AgentManager(object):
                     self.add_agents(agent_dict)
         self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', NewAgentConfig, self.add_agent_cb)
 
+
         # Marker Management
         self.cb = callback_dict
         self.cb['format_agent_marker'] = self.format_agent_marker
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
         self.get_markers_sub = Subscriber('/rasberry_coordination/get_markers', Empty, self.get_markers_cb)
 
-        # Health Monitoring
-        #self.health_service = HealthService(self.agent_details)
+
+        # Fleet Monitoring
+        self.agent_registration = Publisher('/rasberry_coordination/fleet_monitoring/agent_registrations', AgentRegistrationList, latched=True, queue_size=2)
+        self.agent_states = Publisher('/rasberry_coordination/fleet_monitoring/agent_states', AgentStateList, latched=True, queue_size=2)
+
 
     """ Dynamic Fleet """
     def add_agent(self, agent_dict):
@@ -78,16 +83,26 @@ class AgentManager(object):
                                    'visualisation_properties': kvp_list(msg.setup.visualisation_properties)
                                    }})
 
-
     """ Conveniences """
     def __getitem__(self, key):
         return self.agent_details[key] if key in self.agent_details else None
 
     """ Monitoring """
     def fleet_monitoring(self):
-        #self.health_service.publish_registrations()
-        #self.health_service.publish_states()
-        pass
+        self.publish_registrations()
+        self.publish_states()
+    def publish_registrations(self):
+        try:
+            lst = [AgentRegistration({'agent_id':a.agent_id, 'registered': a.registered()}) for a in self.agent_details.values()]
+            self.agent_registration.publish(AgentRegistrationList({'list':lst}))
+        except:
+            pass
+    def publish_states(self):
+        try:
+            lst = [AgentState({'agent_id': a.agent_id, 'current_task_id': a['id'], 'current_task': ['name'], 'stage': type(a()), 'details': a['details']}) for a in self.agent_details.values()]
+            self.agent_states.publish(AgentStateList({'agents':lst}))
+        except:
+            pass
 
 
     """ Visuals """
