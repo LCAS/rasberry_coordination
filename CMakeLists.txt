@@ -65,12 +65,15 @@ add_message_files(
   AgentRegistration.msg
   AgentStateList.msg
   AgentState.msg
+  FullLocation.msg
   Interruption.msg
   KeyValuePair.msg
   MarkerDetails.msg
   Module.msg
   NewAgentConfig.msg
   NewAgentConfigSetup.msg
+  ServiceQuery.msg
+  ServiceResponse.msg
   TaskDetails.msg
   TasksDetails.msg
   TopoLocation.msg
