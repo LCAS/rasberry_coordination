@@ -12,7 +12,7 @@ from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
 
-from rasberry_data_collection.msg import RDCCollectDataAction, RDCCollectDataGoal, DataCollectionRow
+from rasberry_data_collection.msg import RDCCollectDataAction, RDCCollectDataActionGoal, DataCollectionRow
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
@@ -36,7 +36,7 @@ class InterfaceDef(object):
 
             self.topo_map = fetch_property('health_monitoring', 'topological_map')
             self.continuous = fetch_property('health_monitoring', 'continuous')
-            self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data', CollectDataAction)
+            self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data', RDCCollectDataAction)
 
         def edge(self, msg):
             if self.agent.registration:
@@ -65,7 +65,7 @@ class InterfaceDef(object):
               orientation: 'front'/'back'/''
               data_config: '{"force_orientation_to_origin":true,"capture_data":true}'
             """
-            collection_goal = CollectDataGoal()
+            collection_goal = RDCCollectDataActionGoal()
             collection_goal.topological_map = self.topo_map
             collection_goal.continuous = self.continuous
 
