@@ -18,9 +18,10 @@ from std_msgs.msg import String as Str, Empty, Bool
 from std_srvs.srv import Trigger, TriggerResponse
 
 # from diagnostis_msgs.msg import KeyValue
-from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, KeyValuePair
+from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, KeyValuePair, AgentRegistrationList, AgentRegistration, AgentStateList, AgentState
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module, MapObj as Map
+#from rasberry_coordination.health_service import HealthService
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
 import rasberry_des.config_utils
@@ -34,8 +35,6 @@ class AgentManager(object):
         self.agent_details = {}
         self.new_agent_buffer = dict()
 
-        self.cb = callback_dict
-        self.cb['format_agent_marker'] = self.format_agent_marker
 
         # Setup Connection for Dynamic Fleet
         file_name = 'coordinator-loaded-agents-save-state.yaml'  #logs to $HOME/.ros/coordinator-loaded-agents-save-state.yaml
@@ -47,8 +46,17 @@ class AgentManager(object):
                     self.add_agents(agent_dict)
         self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', NewAgentConfig, self.add_agent_cb)
 
+
+        # Marker Management
+        self.cb = callback_dict
+        self.cb['format_agent_marker'] = self.format_agent_marker
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
         self.get_markers_sub = Subscriber('/rasberry_coordination/get_markers', Empty, self.get_markers_cb)
+
+
+        # Fleet Monitoring
+        self.agent_registration = Publisher('/rasberry_coordination/fleet_monitoring/agent_registrations', AgentRegistrationList, latch=True, queue_size=2)
+        self.agent_states = Publisher('/rasberry_coordination/fleet_monitoring/agent_states', AgentStateList, latch=True, queue_size=2)
 
 
     """ Dynamic Fleet """
@@ -75,10 +83,26 @@ class AgentManager(object):
                                    'visualisation_properties': kvp_list(msg.setup.visualisation_properties)
                                    }})
 
-
     """ Conveniences """
     def __getitem__(self, key):
         return self.agent_details[key] if key in self.agent_details else None
+
+    """ Monitoring """
+    def fleet_monitoring(self):
+        self.publish_registrations()
+        self.publish_states()
+    def publish_registrations(self):
+        try:
+            lst = [AgentRegistration({'agent_id':a.agent_id, 'registered': a.registered()}) for a in self.agent_details.values()]
+            self.agent_registration.publish(AgentRegistrationList({'list':lst}))
+        except:
+            pass
+    def publish_states(self):
+        try:
+            lst = [AgentState({'agent_id': a.agent_id, 'current_task_id': a['id'], 'current_task': ['name'], 'stage': type(a()), 'details': a['details']}) for a in self.agent_details.values()]
+            self.agent_states.publish(AgentStateList({'agents':lst}))
+        except:
+            pass
 
 
     """ Visuals """
