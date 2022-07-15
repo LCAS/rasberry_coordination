@@ -26,7 +26,7 @@ class BasePlanner(object):
     __metaclass__ = ABCMeta  # @abstractmethod
 
     def get_row_ends(self, agent, row_id):
-        return ["%s-cA" % row_id, "%s-cZ" % row_id]
+        return ["%s-ca" % row_id, "%s-cz" % row_id]
 
     def get_route_distance_to_node(self, agent_id, node_id):
         """get the total distance to a node in a agent's route
