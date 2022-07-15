@@ -162,10 +162,12 @@ class MapObj(object):
         return True
 
     def simplify(self):
-        R = {n.split('-')[0][1:]: {} for n in self.empty_node_list}
+        R = {n.split('-')[0][1:]: {} for n in self.empty_node_list if "-" in n and "WayPoint" not in n and "dock" not in n}
         for r in R:
             R[r] = [n.split('-')[1][1:] for n in self.empty_node_list if n.startswith('r' + r)]
-        return Str(str(R))
+        Map = {'tall':  {k:v for k,v in R.items() if '.' not in k},
+               'short': {k:v for k,v in R.items() if '.' in k} }
+        return Str(str(Map))
 
 
     """ The following are map query tools """

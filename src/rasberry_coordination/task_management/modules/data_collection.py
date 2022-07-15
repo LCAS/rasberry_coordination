@@ -12,7 +12,7 @@ from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
 
-from rasberry_data_collection.msg import RDCCollectDataAction, RDCCollectDataActionGoal, DataCollectionRow
+from rasberry_data_collection.msg import RDCCollectDataGoal, RDCCollectDataAction, RDCCollectDataActionGoal, DataCollectionRow
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
@@ -36,7 +36,7 @@ class InterfaceDef(object):
 
             self.topo_map = fetch_property('health_monitoring', 'topological_map')
             self.continuous = fetch_property('health_monitoring', 'continuous')
-            self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data', RDCCollectDataAction)
+            self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data' % agent.agent_id, RDCCollectDataAction)
 
         def edge(self, msg):
             if self.agent.registration:
@@ -65,27 +65,27 @@ class InterfaceDef(object):
               orientation: 'front'/'back'/''
               data_config: '{"force_orientation_to_origin":true,"capture_data":true}'
             """
-            collection_goal = RDCCollectDataActionGoal()
+            collection_goal = RDCCollectDataGoal()
             collection_goal.topological_map = self.topo_map
             collection_goal.continuous = self.continuous
 
             #forward
             row = DataCollectionRow()
             row.origin = origin
-            row.end = end
+            row.end = target
             row.orientation = ''
             row.data_config = str({"force_orientation_to_origin": True, "capture_data": True})
             collection_goal.rows.append(row)
 
             #backward
             row = DataCollectionRow()
-            row.origin = end
+            row.origin = target
             row.end = origin
             row.orientation = ''
             row.data_config = str({"force_orientation_to_origin": True, "capture_data": True})
             collection_goal.rows.append(row)
 
-            self.client.send_goal(collection_goal)
+            self.action_publisher.send_goal(collection_goal)
 
 
         def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
@@ -184,10 +184,10 @@ class TaskDef(object):
 class StageDef(object):
 
     class WaitForDCActionClient(SDef.StageBase):
-        """"""
+        """ f """
         def _query(self):
             """Complete when the agents location is identical to the target location."""
-            success_conditions = True #[???self.client.wait_for_server()]
+            success_conditions = [True] #[???self.client.wait_for_server()]
             self.flag(any(success_conditions))
 
 
@@ -203,19 +203,21 @@ class StageDef(object):
             super(StageDef.NavigateToDCStartNode, self)._start()
 
     class PerformDCAction(SDef.StageBase):
-        """"""
+        """ f """
         def __init__(self, agent):
-            """"""
+            """ f """
             super(StageDef.PerformDCAction, self).__init__(agent)
-            self.origin = self.agent['contacts']['start_node']
-            self.end = self.agent['contacts']['end_node']
+            #self.origin = self.agent['contacts']['start_node']
+            #self.end = self.agent['contacts']['end_node']
             self.interface = self.agent.modules['data_collection'].interface
         def _start(self):
             """format and publish msg to send to action server"""
             super(StageDef.PerformDCAction, self)._start()
-            self.interface.publish_action(origin=self.origin, end=self.end)
+            self.origin = self.agent['contacts']['start_node']
+            self.end = self.agent['contacts']['end_node']
+            self.interface.publish_action(origin=self.origin, target=self.end)
         def _query(self):
-            """"""
+            """ f """
             success_conditions = [self.agent.location(accurate=True) == self.end]
             #[???self.interface.client.wait_for_result()]
             self.flag(any(success_conditions))
