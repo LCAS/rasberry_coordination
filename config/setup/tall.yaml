@@ -10,6 +10,9 @@ modules:
 navigation_properties:
     restrictions: intra-row
     has_presence: true
+    #map_filters:
+    #  - only_restrictions
+    #  - no_rows_with_presence
 visualisation_properties:
     structure_type: tall
     rviz_model: tall_robot
