@@ -232,6 +232,7 @@ class FragmentPlanner(BasePlanner):
 
             # unblock start and goal nodes, then update map to block other agents
             FragmentPlanner_map_filter.generate_filtered_map(agent, start_node, goal_node, self.occupied_nodes)
+            #agent.map_manager.filtering.filter(filter_list=["only_restrictions", "no_nodes_with_presence", "allow_start_and_goal"])
 
             # generate route from start node to goal node
             route = agent.map_handler.filtered_route_search.search_route(start_node, goal_node)
