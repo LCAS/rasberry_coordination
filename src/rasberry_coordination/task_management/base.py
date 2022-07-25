@@ -357,7 +357,7 @@ class TaskDef(object):
                     stage_list=[
                         StageDef.StartTask(agent, task_id),
                         # StageDef.Exit(agent)
-                        StageDef.AssignBaseNode(agent),
+                        StageDef.AssignBaseNodeIdle(agent),
                         StageDef.NavigateToBaseNodeIdle(agent),
                         StageDef.Idle(agent)
                     ]))
@@ -571,9 +571,16 @@ class StageDef(object):
             super(StageDef.AssignBaseNode, self).__init__(agent)
             self.action = ActionDetails(type='search', grouping='node_descriptor', descriptor='base_node', style='closest_node')
             self.contact = 'base_node'
+    class AssignBaseNodeIdle(AssignBaseNode):
+        """Used to identify the closest available base_node."""
         def _start(self):
             super(StageDef.AssignBaseNode, self)._start()
-            #self.accepting_new_tasks = True
+            self.accepting_new_tasks = True
+        def _query(self):
+            """Complete once action has generated a result"""
+            success_conditions = [self.action.response != None,
+                                  len(self.agent.task_buffer) > 0]
+            self.flag(any(success_conditions))
 
     class AssignWaitNode(ActionResponse):
         """Used to identify the closest available wait_node."""
@@ -668,11 +675,11 @@ class StageDef(object):
         def _start(self):
             """ enable interuption """
             super(StageDef.NavigateToBaseNodeIdle, self)._start()
-            #self.accepting_new_tasks = True
+            self.accepting_new_tasks = True
         def _query(self):
             """Complete when the agents location is identical to the target location."""
-            success_conditions = [self.agent.location(accurate=True) == self.target] #, 
-                                  #len(self.agent.task_buffer) > 0]
+            success_conditions = [self.agent.location(accurate=True) == self.target, 
+                                  len(self.agent.task_buffer) > 0]
             self.flag(any(success_conditions))
 
     class NavigateToExitNode(NavigateToNode):
