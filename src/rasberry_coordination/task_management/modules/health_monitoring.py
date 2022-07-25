@@ -20,7 +20,8 @@ class InterfaceDef(object):
             self.agent = agent
             self.speaker = self.agent.speaker
 
-            self.battery_data_sub = Subscriber("/%s/dummy_battery_data" % (self.agent.agent_id), Battery, self._battery_data_cb)  # TODO: point this to the correct location
+            #self.battery_data_sub = Subscriber("/%s/dummy_battery_data" % (self.agent.agent_id), Battery, self._battery_data_cb)  # TODO: point this to the correct location
+            self.motor_battery_cb = Subscriber("/%s/motor_controller_data" % (self.agent.agent_id), ControllerArray, self._motor_battery_cb)
 
             self.in_auto_mode = None
             self.auto_mode_sub = Subscriber('/%s/debug/auto_mode' % (self.agent.agent_id), Bool, self.auto_mode_cb)
@@ -30,10 +31,14 @@ class InterfaceDef(object):
 
 
         """ Battery Monitoring """
-        def _battery_data_cb(self, msg):
-            total_voltage = sum(battery.battery_voltage for battery in msg.battery_data)
+        def _motor_battery_cb(self, msg):
+            total_voltage = mean([c.controller_state.battery_volts for c in msg.controller_data])
             self.agent.local_properties['battery_level'] = total_voltage
-
+            check_battery()
+        #def _battery_data_cb(self, msg):
+        #    total_voltage = sum(battery.battery_voltage for battery in msg.battery_data)
+        #    self.agent.local_properties['battery_level'] = total_voltage
+        def check_battery(self)
             # Add charging task if battery is critical, and agent isnt charging
             if self.battery_critical() and not self.is_charging():
                 self.agent.task_buffer = [t for t in self.agent.task_buffer if t.task_name != "charge_at_charging_station"]  # Filter charging task from buffer
@@ -43,7 +48,7 @@ class InterfaceDef(object):
             if self.battery_low() and not self.has_charging_task() and self.is_idle():
                 self.agent.add_task(task_name="charge_at_charging_station")
 
-        def is_idle(self): return self.agent().get_class() == "base.Idle"
+        def is_idle(self): return self.agent().accepting_new_tasks
         def is_charging(self): return self.agent['task_name'] is "charge_at_charging_station"
         def has_charging_task(self): return "charge_at_charging_station" in [t.task_name for t in self.agent.task_buffer]+[self.agent['task_name']]
         def battery_critical(self):
@@ -52,7 +57,7 @@ class InterfaceDef(object):
             if 'battery_level' in LP and LP['battery_level'] < CRIT: return True
         def battery_low(self):
             LP = self.agent.local_properties
-            MIN = fetch_property('health_monitoring', 'min_battery_limit')
+            MIN = fetch_property('health_monitoring', 'low_battery_limit')
             CRIT = fetch_property('health_monitoring', 'critical_battery_limit')
             if 'battery_level' in LP and CRIT < LP['battery_level'] <= MIN: return True
 
