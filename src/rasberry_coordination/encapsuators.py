@@ -204,21 +204,3 @@ class MapObj(object):
 
         return sum(route_distance)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
