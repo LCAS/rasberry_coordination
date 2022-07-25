@@ -267,8 +267,8 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
             return
 
         """ Format ID with conditions for when category or id is empty """
-        ids = " " * (13 - len(str(id))) + str(id) + ":"
-        if id == "empty": ids = " " * 14
+        ids = " " * (19 - len(str(id))) + str(id) + ":"
+        if id == "empty": ids = " " * 20
 
         """ Define colour values for printing """ #TODO: optimise this with re.sub(r'\[.*\]','[]',line)
         reset = '\033[00m'
