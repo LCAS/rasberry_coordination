@@ -53,8 +53,6 @@ categories:
 ids:
   - name: "COORDINATOR"
     colour: '42m'
-#  - name: "PLANNER"
-#    colour: '42m'
   - name: "SECTION"
     colour: '04;92m'
   - name: "storage01"
@@ -69,3 +67,11 @@ ids:
     colour: '35m'
   - name: "uv1"
     colour: '39m'
+  - name: thorvald_023
+    colour: '36m'
+  - name: thorvald_024
+    colour: '33m'
+  - name: thorvald_025
+    colour: '34m'
+  - name: STD_v2_246f284a6c94
+    colour: '35m'
