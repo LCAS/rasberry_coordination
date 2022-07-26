@@ -22,7 +22,7 @@ class InterfaceDef(object):
             self.speaker = self.agent.speaker
 
             #self.battery_data_sub = Subscriber("/%s/dummy_battery_data" % (self.agent.agent_id), Battery, self._battery_data_cb)  # TODO: point this to the correct location
-            #self.motor_battery_cb = Subscriber("/%s/health_monitoring/motor_controller_data" % (self.agent.agent_id), ControllerArray, self._motor_battery_cb)
+            self.motor_battery_cb = Subscriber("/%s/health_monitoring/motor_controller_data" % (self.agent.agent_id), ControllerArray, self._motor_battery_cb)
 
             self.in_auto_mode = None
             self.auto_mode_sub = Subscriber('/%s/debug/auto_mode' % (self.agent.agent_id), Bool, self.auto_mode_cb)
@@ -35,6 +35,9 @@ class InterfaceDef(object):
         def _motor_battery_cb(self, msg):
             all_voltages = [c.controller_state.battery_volts for c in msg.controller_data]
             total_voltage = sum(all_voltages)/len(all_voltages)
+            if total_voltage < fetch_property('health_monitoring', 'ignore_below'):
+                #Extremely low voltages only found if motors are disabled
+                return
             self.agent.local_properties['battery_level'] = total_voltage
             self.check_battery()
         #def _battery_data_cb(self, msg):
@@ -151,9 +154,16 @@ class StageDef(object):
             LP = self.agent.local_properties
             CRIT = fetch_property('health_monitoring', 'critical_battery_limit')
             MAX = fetch_property('health_monitoring', 'max_battery_limit')
-            PERCENTAGE = (LP['battery_level']-CRIT)/(MAX-CRIT)
+            PERCENTAGE = ((LP['battery_level']-CRIT)/(MAX-CRIT))*100
             return "%s(%s%%)"%(self.get_class(), str(PERCENTAGE).split('.')[0])
             #return "%s(%s%%)"%(self.get_class(), str(100*self.agent.local_properties['battery_level']).split('.')[0])
+        def _start(self):
+            super(StageDef.Charge, self)._start()
+            LP = self.agent.local_properties
+            CRIT = fetch_property('health_monitoring', 'critical_battery_limit')
+            MAX = fetch_property('health_monitoring', 'max_battery_limit')
+            PERCENTAGE = ((LP['battery_level']-CRIT)/(MAX-CRIT))*100
+            self.agent.speaker("My battery level is at %s%%, please put me on charge."%str(PERCENTAGE).split('.')[0])
         def _query(self):
             """Complete once battery level is safe"""
             LVL = self.agent.local_properties['battery_level']
