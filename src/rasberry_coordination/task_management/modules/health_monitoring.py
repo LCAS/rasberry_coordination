@@ -23,6 +23,7 @@ class InterfaceDef(object):
 
             #self.battery_data_sub = Subscriber("/%s/dummy_battery_data" % (self.agent.agent_id), Battery, self._battery_data_cb)  # TODO: point this to the correct location
             self.motor_battery_cb = Subscriber("/%s/health_monitoring/motor_controller_data" % (self.agent.agent_id), ControllerArray, self._motor_battery_cb)
+            #MOTOR CONTROLLER VERSION SHOULD BE 2.4.1 NOT ???, we can check script deletion using this method
 
             self.in_auto_mode = None
             self.auto_mode_sub = Subscriber('/%s/debug/auto_mode' % (self.agent.agent_id), Bool, self.auto_mode_cb)
