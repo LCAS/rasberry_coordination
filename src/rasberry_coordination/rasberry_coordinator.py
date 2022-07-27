@@ -62,6 +62,7 @@ class RasberryCoordinator(object):
         self.ns = ns.strip("/") + "/"
         self.is_parent = True
         self.trigger_fresh_replan = False #ReplanTrigger
+        self.force_replan_to_publish = False
         self.log_count = 0
         self.log_routes = True
         self.action_print = True
@@ -85,7 +86,7 @@ class RasberryCoordinator(object):
 
         """ Routing Details """
         self.route_finder = RouteFinder(planning_format=planning_format, agent_manager=self.agent_manager)
-        self.replan_trigger_cb = Subscriber('/rasberry_coordination/force_replan', Empty, self.trigger_replan, )
+        self.force_replan_cb = Subscriber('/rasberry_coordination/force_replan', Empty, self.force_replan)
 
 
         # """ Communications Setup """
@@ -379,7 +380,8 @@ class RasberryCoordinator(object):
                         reason_failed_to_publish = "Old route uses same path as new route."
 
         """ If publish_route is True, routes are different """
-        if publish_route: #or trigger:
+        if publish_route or self.force_replan_to_publish:
+            self.force_replan_to_publish = False
             if self.log_routes:
                 logmsg(category="route", msg="    - new route generated:\n%s" % policy)
                 logmsg(category="route", msg="    - previous route:\n%s" % agent.navigation_interface.execpolicy_goal)
@@ -402,7 +404,11 @@ class RasberryCoordinator(object):
         agent().route_found = False  # Route has now been published
 
 
-    def trigger_replan(self, msg=None):
+    def force_replan(self, msg=None):
+        logmsg(category="route", id="COORDINATOR", msg="Request to force replanning.")
+        self.trigger_fresh_replan = True #ReplanTrigger
+        self.force_replan_to_publish = True
+    def trigger_replan(self):
         logmsg(category="route", id="COORDINATOR", msg="A route has been completed, refreshing routes")
         self.trigger_fresh_replan = True #ReplanTrigger
     def trigger_routing(self, A, reset_trigger=True):
