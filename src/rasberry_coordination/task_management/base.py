@@ -169,8 +169,11 @@ class InterfaceDef(object):
             self.msg = None
             self.pub = Publisher('/car_client/set_states_kv', KeyValue, queue_size=5)
             self.sub = Subscriber('/car_client/get_states_kv', KeyValue, self.callback, agent.agent_id)
+            self.loc_pub = Publisher('/car_client/set_closest_node_kv', KeyValue, queue_size=5)
+            self.loc_sub = Subscriber('%s/closest_node'%self.agent.agent_id, Str, self.loc_cb)
             self.notify("CONNECTED")
-
+        def loc_cb(self, msg):
+            self.loc_pub.publish(KeyValue(key=self.agent.agent_id, value=msg.data))
         def callback(self, msg, agent_id):
             if msg.key == agent_id:
                 state = msg.value.split('-')[0]
