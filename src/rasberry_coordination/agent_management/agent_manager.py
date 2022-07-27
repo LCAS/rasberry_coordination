@@ -308,8 +308,8 @@ class AgentDetails(object):
 
     """ Logging """
     def __repr__(self):
-        #if self.in_auto_mode:
-        #    return "%s(%s)" % (self.get_class(), self.agent_id)
+        if self.modules['health_monitoring'].interface.in_auto_mode:
+            return "%s(%s)" % (self.get_class(), self.agent_id)
         return "![%s(%s)]" % (self.get_class(), self.agent_id)
     def get_class(self):
         return str(self.__class__).replace("<class 'rasberry_coordination.agent_management.agent_manager.", "").replace("'>", "")
@@ -317,7 +317,7 @@ class AgentDetails(object):
         try:
             self.speaker_pub.publish(Str(msg))
         except:
-            logmsg(level="debug", category="TEST", id=self.agent_id, msg="Speaker pub not set.")
+            logmsg(level="debug", category="AGENT", id=self.agent_id, msg="Speaker pub not set.")
 
 
     """ GC """

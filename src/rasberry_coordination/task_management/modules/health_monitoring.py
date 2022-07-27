@@ -70,10 +70,10 @@ class InterfaceDef(object):
             if self.in_auto_mode == in_auto_mode.data: return
             self.in_auto_mode = in_auto_mode.data
             if self.in_auto_mode:
-                logmsg(level="warn", category="TEST", id=self.agent.agent_id, msg="Agent is in AUTONOMOUS mode.")
+                logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent is in AUTONOMOUS mode.")
                 self.speaker("deactivated... Enter auto mode")
             else:
-                logmsg(level="warn", category="TEST", id=self.agent.agent_id, msg="Agent is in MANUAL mode.")
+                logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent is in MANUAL mode.")
                 self.speaker("manual mode")
 
 
@@ -81,10 +81,10 @@ class InterfaceDef(object):
             if self.row_trav_paused == msg.paused.data: return
             self.row_trav_paused = msg.paused.data
             if self.row_trav_paused:
-                logmsg(level="warn", category="TEST", id=self.agent.agent_id, msg="Row Traversal is Paused.")
+                logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Row Traversal is Paused.")
                 self.speaker("error in row traversal")
             else:
-                logmsg(level="warn", category="TEST", id=self.agent.agent_id, msg="Row Traverlsal is Active")
+                logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Row Traverlsal is Active")
                 self.speaker("row traversal engaged")
 
 
