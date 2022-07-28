@@ -1,12 +1,3 @@
-##SITE_PATH
-##APPLICATION
-##USE_SIM
-##SERVER_URI
-##HOME
-###TMAP_FILE
-###TASK_COORD_CONFIG
-
-
 - name: server_roscore
   panes:
   - uri_server ; roslaunch rasberry_bringup roscore.launch use_sim:=$USE_SIM #roscore -p 11411
