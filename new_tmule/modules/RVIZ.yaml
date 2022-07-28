@@ -1,6 +1,6 @@
 - name: server_rviz
   panes:
-  - uri_server ; DISPLAY=:0 rviz -d $(rospack find rasberry_bringup)/resources/$RVIZ_CONFIG.rviz
+  - uri_server ; DISPLAY=:0 rviz -d $(rospack find rasberry_core)/resources/$RVIZ_CONFIG.rviz
   - uri_server ; roslaunch rasberry_navigation map_server.launch map:="$METRIC_MAP" use_no_go:=true no_go_map:="$NOGO_MAP"
   - uri_server ; roslaunch rasberry_coordination agent_marker_publisher.launch config_file:=$TASK_COORD_CONFIG
   tags: [coord]
