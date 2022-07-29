@@ -77,6 +77,7 @@ class RasberryCoordinator(object):
 
         """ Initialise Agents: """
         callbacks = {'update_topo_map': None
+                     , 'force_replan': self.force_replan
                      , 'trigger_replan': self.trigger_replan #ReplanTrigger
                      , 'default_location': self.default_location } #TODO: redesign for this to be gone
         self.agent_manager = AgentManager(callbacks)
