@@ -21,10 +21,14 @@ class InterfaceDef(object):
             self.agent = agent
             self.speaker = self.agent.speaker
 
+            # self.motor_have_scripts = True
+            # self.motor_issues_sub = Subscriber('/%s/health_monitoring/motor_issues' % (self.agent.agent_id), Bool, self.motor_issues_cb)
+
+            self.motors_are_turned_on = None
+            self.motor_status_sub = Subscriber('/%s/health_monitoring/motor_status' % (self.agent.agent_id), Bool, self.motor_status_cb)
+
             self.agent.local_properties['battery_level'] = None
-            self.hundred_volts = [45]*100
-            self.motors_turned_off = None
-            self.motor_battery_cb = Subscriber("/%s/health_monitoring/motor_controller_data" % (self.agent.agent_id), ControllerArray, self._motor_battery_cb)
+            self.battery_estimate_sub = Subscriber('/%s/health_monitoring/battery_estimate' % (self.agent.agent_id), Float32, self.battery_estimate_cb)
 
             self.in_auto_mode = None
             self.auto_mode_sub = Subscriber('/%s/debug/auto_mode' % (self.agent.agent_id), Bool, self.auto_mode_cb)
@@ -35,54 +39,10 @@ class InterfaceDef(object):
 
         def enable_navigation(self):
             print('force replanning attempt')
-            if (not self.motors_turned_off) and self.in_auto_mode:
+            if (self.in_auto_mode) and (self.motors_turned_on): # and (self.motors_have_scripts)
                 print('replanning forced by health_monitoring')
                 self.agent.cb['force_replan']()
             pass
-
-
-        """ Battery Monitoring """
-        def _motor_battery_cb(self, msg):
-            all_voltages = [c.controller_state.battery_volts for c in msg.controller_data]
-            total_voltage = sum(all_voltages)/len(all_voltages)
-            motor_state = self.motors_turned_off
-            self.hundred_volts = self.hundred_volts[1:100]+[total_voltage]
-            if abs(self.hundred_volts[0] - self.hundred_volts[-1]) > 2:
-                pass
-                return
-
-            if total_voltage < fetch_property('health_monitoring', 'ignore_below'):
-                #Extremely low voltages only found if motors are disabled
-                if not self.motors_turned_off:
-                    logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Motors are Disabled.")
-                    self.speaker("motors have been turned off")
-                self.motors_turned_off = True
-                return
-            else:
-                if self.motors_turned_off:
-                    logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Motors are Enabled.")
-                    self.speaker("motors have been turned back on")
-                    self.motors_turned_off = False
-                    self.enable_navigation()
-                self.motors_turned_off = False
-            #if any([cd.controller_config.version == "?.??.?" for cd in msg.controller_data]):
-            #    print("dead motor")
-            self.hundred_volts = self.hundred_volts[1:100]+[total_voltage]
-            self.agent.local_properties['battery_level'] = sum(self.hundred_volts)/len(self.hundred_volts)
-            #self.agent.local_properties['battery_level'] = total_voltage
-            self.check_battery()
-
-        def check_battery(self):
-            # Add charging task if battery is critical, and agent isnt charging
-            if self.battery_critical() and not self.is_charging():
-                logmsg(level="error", category="HEALTH", id=self.agent.agent_id, msg="Battery crit check: %s"%self.agent.local_properties['battery_level'])
-                self.agent.task_buffer = [t for t in self.agent.task_buffer if t.name != "charge_at_charging_station"]  # Filter charging task from buffer
-                self.agent.add_task(task_name="charge_at_charging_station", index=0)
-
-            # Add charging task if battery is low, agent isnt planning to charge, and stage is idle
-            if self.battery_low() and not self.has_charging_task() and self.is_idle():
-                logmsg(level="error", category="HEALTH", id=self.agent.agent_id, msg="Battery low check: %s"%self.agent.local_properties['battery_level'])
-                self.agent.add_task(task_name="charge_at_charging_station")
 
         def is_idle(self):
             return self.agent().accepting_new_tasks
@@ -104,26 +64,67 @@ class InterfaceDef(object):
             CRIT = fetch_property('health_monitoring', 'critical_battery_limit')
             if 'battery_level' in LP and CRIT < LP['battery_level'] <= MIN: return True
 
+        # def motor_issues_cb(self, motor_status):
+        #     if self.motors_have_scripts != motor_status.data: return
+        #     self.motors_have_scripts = not motor_status.data
+        #     if self.motors_have_scripts:
+        #         logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent has no missing scripts.")
+        #         self.enable_navigation()
+        #     else:
+        #         logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent has missing scripts.")
+
+        def motor_status_cb(self, motor_status):
+            if self.motors_are_turned_on == motor_status.data: return
+            self.motors_are_turned_on = motor_status.data
+            if self.motors_are_turned_on:
+                logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent motors are turned ON.")
+                self.speaker("motors: on")
+                self.enable_navigation()
+            else:
+                logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent motors are turned OFF")
+                self.speaker("motors: off")
+
+
+        def battery_estimate_cb(self, battery_estimate):
+            # Save the data to the agent object
+            self.agent.local_properties['battery_level'] = battery_estimate.data
+
+            # Add charging task if battery is critical, and agent isnt charging
+            if self.battery_critical() and not self.is_charging():
+                logmsg(level="error", category="HEALTH", id=self.agent.agent_id, msg="Battery crit check: %s"%self.agent.local_properties['battery_level'])
+                self.agent.task_buffer = [t for t in self.agent.task_buffer if t.name != "charge_at_charging_station"]  # Filter charging task from buffer
+                self.agent.add_task(task_name="charge_at_charging_station", index=0)
+                self.speaker("battery: critical")
+
+
+            # Add charging task if battery is low, agent isnt planning to charge, and stage is idle
+            if self.battery_low() and not self.has_charging_task() and self.is_idle():
+                logmsg(level="error", category="HEALTH", id=self.agent.agent_id, msg="Battery low check: %s"%self.agent.local_properties['battery_level'])
+                self.agent.add_task(task_name="charge_at_charging_station")
+                self.speaker("battery: low")
+
+
         def auto_mode_cb(self, in_auto_mode):
             if self.in_auto_mode == in_auto_mode.data: return
             self.in_auto_mode = in_auto_mode.data
             if self.in_auto_mode:
                 logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent is in AUTONOMOUS mode.")
-                self.speaker("deactivated... Enter auto mode")
+                self.speaker("autonomy: enabled")
                 self.enable_navigation()
             else:
                 logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent is in MANUAL mode.")
-                self.speaker("manual mode")
+                self.speaker("autonomy: disabled")
 
         def row_trav_cb(self, msg):
             if self.row_trav_paused == msg.paused.data: return
             self.row_trav_paused = msg.paused.data
             if self.row_trav_paused:
                 logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Row Traversal is Paused.")
-                self.speaker("error in row traversal")
+                self.speaker("row traversal: paused")
             else:
                 logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Row Traverlsal is Active")
-                self.speaker("row traversal engaged")
+                self.speaker("row traversal: active")
+                self.enable_navigation()
 
 
 
