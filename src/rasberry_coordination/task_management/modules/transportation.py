@@ -248,9 +248,13 @@ class StageDef(object):
                 return "%s(%s|%s)"%(self.get_class(), self.agent.location(), self.agent['contacts']['field_courier'].agent_id)
             else:
                 return "%s()" % (self.get_class())
+        def _start(self):
+            super(StageDef.AwaitFieldCourier, self)._start()
+            self.initial_target = self.agent.location(accurate=True)
         def _query(self):
             """Complete once the associated field_courier has arrived at the agents location"""
-            success_conditions = [self.agent['contacts']['field_courier'].location(accurate=True) == self.agent.location()]
+            success_conditions = [self.agent['contacts']['field_courier'].location(accurate=True) == self.agent.location(),
+                                  self.agent['contacts']['field_courier'].location(accurate=True) == self.initial_target]
             self.flag(any(success_conditions))
         def _end(self):
             """On completion, notify the picker of ARRIVAL"""
@@ -284,6 +288,19 @@ class StageDef(object):
         def __init__(self, agent):
             """Set navigation target as associated picker"""
             super(StageDef.NavigateToPicker, self).__init__(agent,  association='picker')
+        def _query(self):
+            """Complete when the agents location is identical to the target location."""
+            success_conditions = [self.agent.location(accurate=True) == self.target,
+                                  self.agent.location(accurate=True) == self.agent['contacts']['picker'].location(accurate=False)]
+            self.flag(any(success_conditions))
+        def _end(self):
+            """End navigation by refreshing routes for other agents in motion."""
+            logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
+            self.agent.navigation_interface.cancel_execpolicy_goal()
+            self.target = None
+            self.route_required = False
+            self.agent.cb['trigger_replan']() #ReplanTrigger
+
     class NavigateToFieldStorage(SDef.NavigateToAgent):
         """Used to define the target for the navigation as the field_storage"""
         def __init__(self, agent):
@@ -301,7 +318,7 @@ class StageDef(object):
             self.default = default
             self.timeout = Duration(secs=fetch_property('transportation', timeout_type))
             self.timeout_prompt = False
-            self.agent['contacts']['field_courier'].speaker("Arrived to %s at %s... I will leave in %s seconds. Please %s trays." % 
+            self.agent['contacts']['field_courier'].speaker("Arrived to %s at %s... I will leave in %s seconds. Please %s trays." %
                                                              (self.agent.agent_id, self.agent.location(), str(self.timeout.secs), prompt))
         def _query(self):
             """Complete once has_tray flag is triggered by interface or timeout completes"""
