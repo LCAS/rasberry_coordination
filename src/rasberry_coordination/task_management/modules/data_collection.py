@@ -34,8 +34,10 @@ class InterfaceDef(object):
             self.sub_row      = Subscriber('/%s/data_collection/initiate_task/row'      % agent.agent_id, TopoLocation, self.row)
             # self.sub_schedule = Subscriber('/%s/initiate_task/schedule' % agent.agent_id, Str, self.schedule)
 
-            self.topo_map = fetch_property('health_monitoring', 'topological_map')
-            self.continuous = fetch_property('health_monitoring', 'continuous')
+            self.topo_map = fetch_property('data_collection', 'topological_map')
+            self.continuous = fetch_property('data_collection', 'continuous')
+
+            self.action_status = False
             self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data' % agent.agent_id, RDCCollectDataAction)
 
         def edge(self, msg):
@@ -66,7 +68,7 @@ class InterfaceDef(object):
               data_config: '{"force_orientation_to_origin":true,"capture_data":true}'
             """
             collection_goal = RDCCollectDataGoal()
-            collection_goal.topological_map = self.topo_map
+            collection_goal.topological_map = "" #self.topo_map
             collection_goal.continuous = self.continuous
 
             #forward
@@ -74,7 +76,7 @@ class InterfaceDef(object):
             row.origin = origin
             row.end = target
             row.orientation = ''
-            row.data_config = str({"force_orientation_to_origin": True, "capture_data": True})
+            row.data_config = str({"force_orientation_to_origin": False, "capture_data": True})
             collection_goal.rows.append(row)
 
             #backward
@@ -82,11 +84,14 @@ class InterfaceDef(object):
             row.origin = target
             row.end = origin
             row.orientation = ''
-            row.data_config = str({"force_orientation_to_origin": True, "capture_data": True})
+            row.data_config = str({"force_orientation_to_origin": False, "capture_data": True})
             collection_goal.rows.append(row)
 
-            self.action_publisher.send_goal(collection_goal)
+            self.action_status = False
+            self.action_publisher.send_goal(collection_goal, done_cb=self.action_done_cb)
 
+        def action_done_cb(self, msg, msg2):
+            self.action_status = True
 
         def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
         def __setitem__(self, key, val): self.__setattr__(key, val)
@@ -218,7 +223,8 @@ class StageDef(object):
             self.interface.publish_action(origin=self.origin, target=self.end)
         def _query(self):
             """ f """
-            success_conditions = [self.agent.location(accurate=True) == self.end]
+            success_conditions = [self.interface.action_status == True]
+            #self.agent.location(accurate=True) == self.end]
             #[???self.interface.client.wait_for_result()]
             self.flag(any(success_conditions))
 

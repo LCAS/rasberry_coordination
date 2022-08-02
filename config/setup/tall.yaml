@@ -3,8 +3,8 @@ modules:
     role: robot
   - name: health_monitoring
     role: robot
-  - name: uv_treatment
-    role: phototherapist
+  #- name: uv_treatment
+  #  role: phototherapist
   - name: data_collection
     role: scanner
 navigation_properties:
