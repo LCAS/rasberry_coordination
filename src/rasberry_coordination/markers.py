@@ -9,8 +9,10 @@
 import rospy
 import visualization_msgs.msg
 import tf
-from std_msgs.msg import ColorRGBA
+from std_msgs.msg import ColorRGBA, String
 from rasberry_coordination.coordinator_tools import logmsg
+import interactive_markers.interactive_marker_server
+
 
 class ThorvaldMarkerPublisher(object):
     """
@@ -402,9 +404,14 @@ class HumanMarkerPublisher(object):
         logmsg(msg="new marker initialised for %s"%picker_id)
         self.picker_id = picker_id
         self._marker_array = visualization_msgs.msg.MarkerArray()
+
+        self._selection_server = interactive_markers.interactive_marker_server.InteractiveMarkerServer("select_a_human")
+        self.click_pub = rospy.Publisher('/selected_marker', String, queue_size=1)
+
         self.frame_id = self.picker_id+"/base_link"
         self._create_markers()
         self.marker_pub = rospy.Publisher("/%s/vis" %(picker_id), visualization_msgs.msg.MarkerArray, queue_size=10)
+        self.marker_pub_all = rospy.Publisher("/vis", visualization_msgs.msg.MarkerArray, queue_size=10)
         self.publish()
 
     def publish(self):
@@ -414,6 +421,8 @@ class HumanMarkerPublisher(object):
         for marker in self._marker_array.markers:
             marker.header.stamp = time_now
         self.marker_pub.publish(self._marker_array)
+        self.marker_pub_all.publish(self._marker_array)
+        
 
     def _create_markers(self):
         """
@@ -443,6 +452,59 @@ class HumanMarkerPublisher(object):
         # name
         name_marker = self._name_marker("name", 6, (0, 0, 1.8))
         self._marker_array.markers.append(name_marker)
+
+        # interact box
+        interact_marker = self._interaction_marker()
+
+
+    def _interaction_marker(self):
+        print("wooo interactive")
+        # make the clickable hitbox
+        int_marker = visualization_msgs.msg.InteractiveMarker()
+        int_marker.header.frame_id = self.picker_id+"/base_link"
+        int_marker.scale = 1
+        int_marker.name = self.picker_id
+
+        # make the clickable visual?
+        box = visualization_msgs.msg.Marker()
+        box.type = visualization_msgs.msg.Marker.ARROW
+        box.scale.x = int_marker.scale * 0.5
+        box.scale.y = int_marker.scale * 0.25
+        box.scale.z = int_marker.scale * 0.15
+        box.lifetime.secs = 3
+        box.color.r = 0.1
+        box.color.g = 0.8
+        box.color.b = 0.1
+        box.color.a = 1.0
+
+        # create the interaction controller
+        control = visualization_msgs.msg.InteractiveMarkerControl()
+        control.interaction_mode = visualization_msgs.msg.InteractiveMarkerControl.BUTTON
+        control.always_visible = True
+
+        # attach the hitbox onto the controller
+        control.markers.append(box)
+
+        # attach the controller onto the hitbox
+        int_marker.controls.append(control)
+
+        # attach interactive marker to interaction server
+        self._selection_server.insert(int_marker, self.identify_clicked_human_cb)
+        self._selection_server.applyChanges()
+
+    def identify_clicked_human_cb(self, feedback):
+        if not self.in_feedback:
+            self.in_feedback=True
+            print('SELECTED: '+str(feedback.marker_name))
+            self.click_pub.publish(String(feedback.marker_name))
+            self.timer = Timer(1.0, self.timer_callback)
+            self.timer.start()
+    def timer_callback(self) :
+        self.in_feedback = False
+
+
+
+
 
     def _leg_marker(self, leg_id, marker_index, position):
         """
