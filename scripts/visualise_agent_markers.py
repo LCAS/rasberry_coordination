@@ -45,13 +45,15 @@ class MarkerPublisher(object):
         self.gps_sub = rospy.Subscriber('/gps_positions', PeopleStamped, self.gps_filter_cb)
 
     def gps_filter_cb(self, msg):
-        print("hi")
-        for person in msg.people:
-            print(person.name)
-            pos = PoseStamped()
-            pos.header = person.header
-            pos.position = person.position
-            self.agent[person.name].base_frame_publisher.pose_cb(pos)
+        for p in msg.people:
+            if p.person.name not in self.agents: continue
+            if p.person.position == geometry_msgs.msg.Point(): continue
+            #print(p)
+            pos = geometry_msgs.msg.PoseStamped()
+            pos.header = p.header
+            pos.pose.position = p.person.position
+            pos.pose.orientation.w = 1
+            self.agents[p.person.name].base_frame_publisher.pose_cb(pos)
 
     def set_marker_cb(self, msg):
         logmsg(category="rviz", id=msg.agent_id, msg="Setting %s %s(%s)"%(msg.type, msg.agent_id, msg.optional_color))
