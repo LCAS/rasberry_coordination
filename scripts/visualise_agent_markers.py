@@ -7,6 +7,7 @@
 
 import rospy
 from rasberry_coordination.base_frame_publisher import PoseBaseFramePublisher, PoseStampedBaseFramePublisher
+from bayes_people_tracker.msg import PeopleStamped
 import rasberry_coordination.markers as markers
 import rasberry_coordination.msg
 import sys
@@ -41,6 +42,16 @@ class MarkerPublisher(object):
         self.agents = dict()
         self.marker_set_sub = rospy.Subscriber('/rasberry_coordination/set_marker', MarkerDetails, self.set_marker_cb)
         self.get_marker_pub = rospy.Publisher('/rasberry_coordination/get_markers', Empty, queue_size=5)
+        self.gps_sub = rospy.Subscriber('/gps_positions', PeopleStamped, self.gps_filter_cb)
+
+    def gps_filter_cb(self, msg):
+        print("hi")
+        for person in msg.people:
+            print(person.name)
+            pos = PoseStamped()
+            pos.header = person.header
+            pos.position = person.position
+            self.agent[person.name].base_frame_publisher.pose_cb(pos)
 
     def set_marker_cb(self, msg):
         logmsg(category="rviz", id=msg.agent_id, msg="Setting %s %s(%s)"%(msg.type, msg.agent_id, msg.optional_color))
