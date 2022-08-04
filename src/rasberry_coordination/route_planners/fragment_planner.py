@@ -250,7 +250,7 @@ class FragmentPlanner(BasePlanner):
             route_nodes = route.source + [goal_node]
             route_edges = route.edge_id
 
-            # TODO: ?
+            # TODO: is thie needed anymore?
             agent.no_route_found_notification = True
 
             # save route details

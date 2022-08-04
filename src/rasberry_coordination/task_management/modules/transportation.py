@@ -71,10 +71,6 @@ class TaskDef(object):
 
     """ Idle Task Stages for Transportation Agents """
     @classmethod
-    def transportation_picker_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        pass
-        # agent.modules['transportation'].interface.notify("car_INIT2")
-    @classmethod
     def transportation_field_courier_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         LP = agent.local_properties
         MP = agent.module_properties
