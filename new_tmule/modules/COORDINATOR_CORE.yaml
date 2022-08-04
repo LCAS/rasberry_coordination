@@ -1,19 +1,19 @@
 - name: server_roscore
   panes:
-  - uri_server ; roslaunch rasberry_bringup roscore.launch use_sim:=$USE_SIM #roscore -p 11411
+  - roslaunch rasberry_bringup roscore.launch use_sim:=$USE_SIM #roscore -p 11411
   check: "ROS_MASTER_URI=${SERVER_URI} rostopic list | grep -q rosout"
   tags: [coord]
 
 - name: server_topomap
   panes:
-  - uri_server ; roslaunch rasberry_navigation topological_map_manager2_central.launch tmap_file:=$TMAP_FILE
-  - uri_server ; rosrun persistent_topics single_channel_persistent_topics_node _topics:="['/topological_map_2']" _file_name:="$HOME/.ros/rasberry.ptb"
+  - roslaunch rasberry_navigation topological_map_manager2_central.launch tmap_file:=$TMAP_FILE
+  - rosrun persistent_topics single_channel_persistent_topics_node _topics:="['/topological_map_2']" _file_name:="$HOME/.ros/rasberry.ptb"
   check: "ROS_MASTER_URI=${SERVER_URI} rostopic list | grep -q /topological_map_2"
   tags: [coord]
 
 - name: server_coordinator
   panes:
-  - uri_server ; rm $HOME/.ros/coordinator-loaded-agents-save-state.yaml ; rosservice call /rasberry_coordination/root_inspector "coordinator.agent_manager.agent_details"
-  - uri_server ; roslaunch rasberry_coordination abstract_task_coordinator.launch config_file:=$TASK_COORD_CONFIG
+  - rm $HOME/.ros/coordinator-loaded-agents-save-state.yaml ; rosservice call /rasberry_coordination/root_inspector "coordinator.agent_manager.agent_details"
+  - roslaunch rasberry_coordination abstract_task_coordinator.launch config_file:=$TASK_COORD_CONFIG
   check: "ROS_MASTER_URI=${SERVER_URI} rostopic list | grep -q dynamic_fleet"
   tags: [coord]
