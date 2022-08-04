@@ -75,22 +75,23 @@ class InterfaceDef(object):
             row = DataCollectionRow()
             row.origin = origin
             row.end = target
-            row.orientation = ''
-            row.data_config = str({"force_orientation_to_origin": False, "capture_data": True})
+            row.orientation = 'front'
+            row.data_config = str({"force_orientation_to_origin": True, "capture_data": True})
             collection_goal.rows.append(row)
 
             #backward
             row = DataCollectionRow()
             row.origin = target
             row.end = origin
-            row.orientation = ''
-            row.data_config = str({"force_orientation_to_origin": False, "capture_data": True})
+            row.orientation = 'front'
+            row.data_config = str({"force_orientation_to_origin": True, "capture_data": True})
             collection_goal.rows.append(row)
 
             self.action_status = False
             self.action_publisher.send_goal(collection_goal, done_cb=self.action_done_cb)
 
         def action_done_cb(self, msg, msg2):
+            #TODO: make this more robust to failed action server response
             self.action_status = True
 
         def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
@@ -135,6 +136,7 @@ class TaskDef(object):
                          StageDef.WaitForDCActionClient(agent),
                          SDef.SetRegister(agent)
                      ]))
+
 
     """ Tasks """
     @classmethod
@@ -203,6 +205,7 @@ class StageDef(object):
             """Call to super to set the navigation target as the node stored in the action association"""
             super(StageDef.NavigateToDCStartNode, self).__init__(agent, association='start_node')
         def _start(self):
+            self.agent.speaker('Navigating to data collection start node at %s' % self.agent['contacts']['start_node'])
             if 'controller' in self.agent['contacts']:
                 self.agent['contacts']['controller'].modules['data_collection'].interface.notify("sar_AWAIT_START")
             super(StageDef.NavigateToDCStartNode, self)._start()
@@ -212,20 +215,17 @@ class StageDef(object):
         def __init__(self, agent):
             """ f """
             super(StageDef.PerformDCAction, self).__init__(agent)
-            #self.origin = self.agent['contacts']['start_node']
-            #self.end = self.agent['contacts']['end_node']
             self.interface = self.agent.modules['data_collection'].interface
         def _start(self):
             """format and publish msg to send to action server"""
             super(StageDef.PerformDCAction, self)._start()
             self.origin = self.agent['contacts']['start_node']
             self.end = self.agent['contacts']['end_node']
+            self.agent.speaker('Performing data collection between %s and %s' % (self.origin, self.end))
             self.interface.publish_action(origin=self.origin, target=self.end)
         def _query(self):
             """ f """
             success_conditions = [self.interface.action_status == True]
-            #self.agent.location(accurate=True) == self.end]
-            #[???self.interface.client.wait_for_result()]
             self.flag(any(success_conditions))
 
     class AssignScanner(SDef.ActionResponse):
