@@ -271,7 +271,10 @@ class AgentDetails(object):
 
 
     """ Navigation """
-    def goal(self): return self().target
+    def goal(self):
+        if self().target_agent:
+            return self().target_agent.location(accurate=True)
+        return self().target
 
 
     """ Conveniences for Active Task """

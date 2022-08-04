@@ -62,6 +62,7 @@ class RasberryCoordinator(object):
         self.ns = ns.strip("/") + "/"
         self.is_parent = True
         self.trigger_fresh_replan = False #ReplanTrigger
+        self.last_replan_time = time.time()
         self.force_replan_to_publish = False
         self.log_count = 0
         self.log_routes = True
@@ -413,25 +414,16 @@ class RasberryCoordinator(object):
         logmsg(category="route", id="COORDINATOR", msg="A route has been completed, refreshing routes")
         self.trigger_fresh_replan = True #ReplanTrigger
     def trigger_routing(self, A, reset_trigger=True):
-        """
-        route_required => agent is doing navigation task
-        route_found => agent has been assigned a route
-
-        # a.Navigation:  REQUIRED=true
-        # replan:        TRIGGER=true
-        #
-        # find\REQUIRED: FOUND=true
-        #     |TRIGGER:  TRIGGER=false
-        #
-        # publish\FOUND: FOUND=false,
-        #                REQUIRED=false
-        """
-
         if self.trigger_fresh_replan:
+            logmsg(level="error", category="route", id="COORDINATOR", msg="Replanning due to trigger")
             if reset_trigger:
-                logmsg(level="error", category="route", id="COORDINATOR", msg="Replanning is triggered")
-                self.trigger_fresh_replan = False #ReplanTrigger
-            return True
+                self.trigger_fresh_replan = False
         elif any([a().route_required for a in A]):
-            return True
-        return False
+            logmsg(level="error", category="route", id="COORDINATOR", msg="Replanning due to agent needing a route")
+        elif (time.time() - self.last_replan_time) > 10:
+            logmsg(level="error", category="route", id="COORDINATOR", msg="Replanning due to timeout")
+            if reset_trigger:
+                self.last_replan_time = time.time()
+        else:
+            return False
+        return True
