@@ -435,6 +435,7 @@ class StageDef(object):
             self.stage_complete = False
             self.new_stage = True
             self.target = None
+            self.target_agent = None
             self.action = None
             self.accepting_new_tasks = False
             self.summaries = {}
@@ -659,6 +660,7 @@ class StageDef(object):
         def _start(self):
             """Start task by setting the target to be a defined agent's current location"""
             self.target = self.agent['contacts'][self.association].location(accurate=True)
+            self.target_agent = self.agent['contacts'][self.association]
             super(StageDef.NavigateToAgent, self)._start()
     class NavigateToNode(Navigation):
         """Used for navigating to a given node"""
