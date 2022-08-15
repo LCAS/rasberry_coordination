@@ -26,7 +26,7 @@ class AgentMarker(object):
 
         models = {'short_robot': markers.ColoredThorvaldMarkerPublisher,
                   'tall_robot':  markers.ColoredTallThorvaldMarkerPublisher,
-                  'human':       markers.HumanMarkerPublisher}
+                  'human':       markers.ColoredHumanMarkerPublisher}
         self.marker = models[self.type](self.agent_id, self.color)
 
         topics = {"short_robot": ["/%s/robot_pose",   PoseBaseFramePublisher],
@@ -48,7 +48,6 @@ class MarkerPublisher(object):
         for p in msg.people:
             if p.person.name not in self.agents: continue
             if p.person.position == geometry_msgs.msg.Point(): continue
-            #print(p)
             pos = geometry_msgs.msg.PoseStamped()
             pos.header = p.header
             pos.pose.position = p.person.position
@@ -70,6 +69,7 @@ class MarkerPublisher(object):
         rospy.sleep(5)
         self.get_marker_pub.publish(Empty())
         while not rospy.is_shutdown():
+            print("looping")
             for agent in self.agents.values():
                 agent.publish_marker()
             rospy.sleep(0.5)

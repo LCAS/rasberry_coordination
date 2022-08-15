@@ -179,12 +179,12 @@ class StageDef(object):
             success_conditions = [len(self.agent.request_admittance) > 0] #TODO: this may prove error prone w/ _start
             self.flag(any(success_conditions))
         def _end(self):
-            super(StageDef.AssignFieldCourier, self)._end()
+            super(StageDef.IdleStorage, self)._end()
             logmsg(category="stage", agent=self.agent.agent_id, msg="admittance required: %s"%self.agent.request_admittance)
     class IdleFieldStorage(IdleStorage):
         def _end(self):
             """On completion, add an idle field_storage to the end of the buffer"""
-            super(StageDef.AssignFieldCourier, self)._end()
+            super(StageDef.AssignFieldStorage, self)._end()
             self.agent.add_task('transportation_field_storage_idle')
 
     """ Assignment-Based Task Stages (involves coordinator) """
@@ -195,6 +195,9 @@ class StageDef(object):
             super(StageDef.AssignFieldCourier, self).__init__(agent)
             self.action = ActionDetails(type='search', grouping='agent_descriptor', descriptor='field_courier', style='closest_agent')
             self.contact = 'field_courier'
+        def _start(self):
+            super(StageDef.AssignFieldCourier, self)._start()
+            self.agent.cb['format_agent_marker'](self.agent, style='green')
         def _end(self):
             """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
             super(StageDef.AssignFieldCourier, self)._end()
@@ -331,12 +334,16 @@ class StageDef(object):
             """On Completion, set the field_courier's flag and notify picker"""
             super(StageDef.TimeoutFlagModifier, self)._end()
             self.agent['contacts']['field_courier'][self.trigger_flag] = self.default
-            self.agent.modules['transportation'].interface.notify("car_COMPLETE")
+            if "STD_v2_" in self.agent.agent_id:
+                self.agent.modules['transportation'].interface.notify("INIT")
+            else:
+                self.agent.modules['transportation'].interface.notify("car_COMPLETE")
     class LoadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be considered loaded"""
         def _start(self):
             """Define the flag default as True and the timeout as the transportation/wait_loading property"""
             super(StageDef.LoadFieldCourier, self)._start(timeout_type='wait_loading', flag='has_tray', default=True, prompt="load")
+            self.agent.cb['format_agent_marker'](self.agent, style='blue')
     class UnloadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be considered unloaded"""
         def _start(self):
@@ -345,6 +352,8 @@ class StageDef(object):
     """ Loading Modifiers for Courier """
     class Loading(SDef.StageBase):
         """Used for awaiting a change-of-state from the picker"""
+        def _start(self):
+            super(StageDef.Loading, self)._start()
         def _query(self):
             """Complete once agents's has_tray flag is true"""
             success_conditions = [self.agent['has_tray'] == True]

@@ -465,6 +465,7 @@ class StageDef(object):
             super(StageDef.StartTask, self)._start()
             self.agent['id'] = self.task_id #Set task_id as active_task_id for agent
             self.agent['start_time'] = Time.now()
+            self.agent.cb['format_agent_marker'](self.agent, style='')
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
