@@ -108,7 +108,7 @@ class ActionManager(object):
             I = self.get_dist(new_list)
 
         elif ST == 'head_node_allocator':
-            PLoc = {a.agent_id: a.location.closest_node.split("-c")[0][1:] for a in self.AllAgents$
+            PLoc = {a.agent_id: a.location.closest_node.split("-c")[0][1:] for a in self.AllAgents}
             I = function_goes_here(PLoc, list)
             I = {}
 
