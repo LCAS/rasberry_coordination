@@ -12,7 +12,7 @@ navigation_properties:
     #  - only_restricitons
     #  - no_nodes_with_presence
 module_properties:
-    max_load: 200
+    max_load: 1
 visualisation_properties:
     structure_type: short
     rviz_model: short_robot

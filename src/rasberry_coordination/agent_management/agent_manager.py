@@ -285,8 +285,9 @@ class AgentDetails(object):
     def __getitem__(A, key):  return A.task[key] if A.task else None
     def __setitem__(A, key, val):    A.task[key] = val
     def simple_agent_id(self):
-        return self.agent_id.replace('thorvald','T').replace('picker','P').replace('storage','S')
-
+        id = self.agent_id.replace('thorvald','T').replace('picker','P').replace('storage','S')
+        id = id if not id.startswith('STD_v2_') else "P%s"%id[-4:]
+        return id
 
     """ Standard Task Interactions """
     def start_stage(self):
