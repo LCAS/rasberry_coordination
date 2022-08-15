@@ -87,7 +87,7 @@ class ActionManager(object):
             #TODO make accepitng tasks a different generator
 
         elif GR == 'head_nodes':
-            L = [n for n in agent.map_manager.empty_node_list if n.endswith('ca')]
+            L = {n for n in agent.map_manager.empty_node_list if n.endswith('ca')}
 
         elif GR == 'new_list_generators_go_here':
             L = {}
@@ -108,8 +108,9 @@ class ActionManager(object):
             I = self.get_dist(new_list)
 
         elif ST == 'head_node_allocator':
-            new_list = {}
-            I = None
+            PLoc = {a.agent_id: a.location.closest_node.split("-c")[0][1:] for a in self.AllAgents$
+            I = function_goes_here(PLoc, list)
+            I = {}
 
         elif ST == 'new_identifications_go_here':
             I = None
