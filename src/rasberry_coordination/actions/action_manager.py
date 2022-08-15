@@ -86,6 +86,9 @@ class ActionManager(object):
                  (a is not agent) and a.registration and a().accepting_new_tasks and (descriptor in a.roles())}
             #TODO make accepitng tasks a different generator
 
+        elif GR == 'head_nodes':
+            L = [n for n in agent.map_manager.empty_node_list if n.endswith('ca')]
+
         elif GR == 'new_list_generators_go_here':
             L = {}
 
@@ -103,6 +106,10 @@ class ActionManager(object):
         elif ST == 'closest_node':
             new_list = {n: self.dist(agent, n, agent.location()) for n in list}
             I = self.get_dist(new_list)
+
+        elif ST == 'head_node_allocator':
+            new_list = {}
+            I = None
 
         elif ST == 'new_identifications_go_here':
             I = None

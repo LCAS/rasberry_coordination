@@ -420,7 +420,7 @@ class RasberryCoordinator(object):
                 self.trigger_fresh_replan = False
         elif any([a().route_required for a in A]):
             logmsg(level="error", category="route", id="COORDINATOR", msg="Replanning due to agent needing a route")
-        elif (time.time() - self.last_replan_time) > 10:
+        elif any([a for a in A if a.goal()]) and (time.time() - self.last_replan_time) > 10:
             logmsg(level="error", category="route", id="COORDINATOR", msg="Replanning due to timeout")
             if reset_trigger:
                 self.last_replan_time = time.time()
