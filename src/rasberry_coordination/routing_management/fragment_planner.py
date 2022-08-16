@@ -5,17 +5,13 @@
 # @date:
 # ----------------------------------
 
-import copy
-import rospy
-import threading
-import yaml
 
-from rasberry_coordination.route_planners.base_planner import BasePlanner
+import threading
+
+
+from rasberry_coordination.routing_management.base_planner import BasePlanner
 from rasberry_coordination.coordinator_tools import logmsg
 
-from strands_navigation_msgs.msg import NavRoute
-
-from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
 class FragmentPlanner(BasePlanner):
     def __init__(self, all_agent_details_pointer, heterogeneous_map):

@@ -100,7 +100,6 @@ class BasePlanner(object):
     @abstractmethod
     def find_routes(self):
         self.agent_details = {a.agent_id: a for a in self.agent_manager.agent_details.values() if a.location.has_presence}
-        for agent in self.agent_details.values(): agent.cb['update_topo_map'] = self.update_available_topo_map
         pass
 
     def update_available_topo_map(self, agent):

@@ -16,11 +16,10 @@ class ActionDetails(object):
         self.silence = False
 
 class ActionManager(object):
-    def __init__(self, agent_manager, route_finder, special_nodes, get_agents_fcn):
+    def __init__(self, agent_manager, routing_manager, special_nodes):
         self.agent_manager = agent_manager
-        self.route_finder = route_finder
+        self.routing_manager = routing_manager
         self.special_nodes = special_nodes
-        self.get_agents_fcn = get_agents_fcn
         pass
 
     """ Services offerd by Coordinator to assist with tasks """
@@ -28,7 +27,7 @@ class ActionManager(object):
         action = agent().action
         TP = action.type
 
-        self.AllAgentsList = self.get_agents_fcn()  # TODO: add enter and exit commands for agent manager.agent_details.copy()?
+        self.AllAgentsList = self.agent_manager.agent_details.copy()  # TODO: try enter and exit instead of .copy()?
         if TP == 'search':
             list = self.get_list(agent)
             item = self.get_item(agent, list)
@@ -62,7 +61,7 @@ class ActionManager(object):
 
         elif FO == 'find_row_ends':
             row_id = action.descriptor
-            return self.route_finder.planner.get_row_ends(agent, row_id)
+            return self.routing_manager.planner.get_row_ends(agent, row_id)
 
     def get_list(self, agent):
         action = agent().action

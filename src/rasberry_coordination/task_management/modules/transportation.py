@@ -3,7 +3,7 @@
 from copy import deepcopy
 from std_msgs.msg import String as Str
 from rospy import Time, Duration, Subscriber, Publisher, Time
-from rasberry_coordination.actions.action_manager import ActionDetails
+from rasberry_coordination.action_management.manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
@@ -216,7 +216,7 @@ class StageDef(object):
             self.contact = 'field_courier'
         def _start(self):
             super(StageDef.AssignFieldCourier, self)._start()
-            self.agent.cb['format_agent_marker'](self.agent, style='green')
+            self.agent.format_marker(style='green')
         def _end(self):
             """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
             super(StageDef.AssignFieldCourier, self)._end()
@@ -330,10 +330,10 @@ class StageDef(object):
         def _end(self):
             """End navigation by refreshing routes for other agents in motion."""
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
-            self.agent.navigation_interface.cancel_execpolicy_goal()
+            self.agent.navigation_interface.cancel_execpolicy_goal() #<- since checking if at picker early, we need to end route manually
             self.target = None
             self.route_required = False
-            self.agent.cb['trigger_replan']() #ReplanTrigger
+            self.agent.cb['trigger_replan']()  # ReplanTrigger
 
     class NavigateToFieldStorage(SDef.NavigateToAgent):
         """Used to define the target for the navigation as the field_storage"""
@@ -392,7 +392,7 @@ class StageDef(object):
         def _start(self):
             """Define the flag default as True and the timeout as the transportation/wait_loading property"""
             super(StageDef.LoadFieldCourier, self)._start(timeout_type='wait_loading', flag='has_tray', default=True, prompt="load")
-            self.agent.cb['format_agent_marker'](self.agent, style='blue')
+            self.agent.format_marker(style='blue')
     class UnloadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be considered unloaded"""
         def _start(self):
