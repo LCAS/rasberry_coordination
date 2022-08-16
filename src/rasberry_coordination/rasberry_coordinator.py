@@ -1,11 +1,11 @@
-#! /usr/bin/env python #
+#! /usr/bin/env python
 # -----------------------------------
 # @author: jheselden
 # @email: jheselden@lincoln.ac.uk
 # @date: 16/aug/2022
 # -----------------------------------
-#
-#
+
+
 # Standard Modules
 import copy, os, time, datetime
 import sys
@@ -16,7 +16,7 @@ from pprint import pprint
 import rospy, rospkg
 from rospy import Subscriber, Publisher
 from std_msgs.msg import String as Str, Empty
-
+#
 from rasberry_coordination.action_management.manager import ActionManager
 from rasberry_coordination.task_management.manager import TaskManager
 from rasberry_coordination.agent_management.manager import AgentManager
@@ -37,15 +37,12 @@ class RasberryCoordinator(object):
         self.routing_manager = RoutingManager(self.agent_manager, planning_format=planning_format)
         self.action_manager = ActionManager(self.agent_manager, self.routing_manager, special_nodes)
         self.task_manager = TaskManager(self)
-
         # Inisialise cross-references
         self.agent_manager.cb['force_replan'] = self.routing_manager.force_replan
         self.agent_manager.cb['trigger_replan'] = self.routing_manager.trigger_replan
-
         ## Initialise any agents  #TODO: utilise this for rapid testing without having to initialise agents on relaunch
         #self.agent_manager.add_agents(agent_list)
         #self.AllAgentsList = self.agent_manager.get_agent_list_copy()
-
         return
 
     def on_shutdown(self, ):
@@ -56,7 +53,6 @@ class RasberryCoordinator(object):
         logmsg(level='warn', msg='AgentManager shutting down, saving agent_list')
         dict_list = [a.agent_dict for a in self.agent_manager.agent_details.values()]
         with open('coordinator-loaded-agents-save-state.yaml', 'w') as file: yaml.dump(dict_list, file)
-
     def run(self):
 
         # Remappings to for commonly used functions

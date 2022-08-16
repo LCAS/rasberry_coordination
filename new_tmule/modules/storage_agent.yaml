@@ -1,0 +1,3 @@
+- name: server_rviz
+  panes:
+  - 'rostopic pub /car/new_store std_msgs/String "data: storage01"'
