@@ -21,7 +21,7 @@ class InterfaceDef(object):
             self.agent = agent
             self.speaker = self.agent.speaker
 
-            self.motor_have_scripts = True
+            self.motors_have_scripts = True
             self.motor_issues_sub = Subscriber('/%s/health_monitoring/motor_issues' % (self.agent.agent_id), Bool, self.motor_issues_cb)
 
             self.motors_turned_on = False
