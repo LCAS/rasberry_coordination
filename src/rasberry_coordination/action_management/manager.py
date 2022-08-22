@@ -16,11 +16,10 @@ class ActionDetails(object):
         self.silence = False
 
 class ActionManager(object):
-    def __init__(self, agent_manager, route_finder, special_nodes, get_agents_fcn):
+    def __init__(self, agent_manager, routing_manager, special_nodes):
         self.agent_manager = agent_manager
-        self.route_finder = route_finder
+        self.routing_manager = routing_manager
         self.special_nodes = special_nodes
-        self.get_agents_fcn = get_agents_fcn
         pass
 
     """ Services offerd by Coordinator to assist with tasks """
@@ -28,7 +27,7 @@ class ActionManager(object):
         action = agent().action
         TP = action.type
 
-        self.AllAgentsList = self.get_agents_fcn()  # TODO: add enter and exit commands for agent manager.agent_details.copy()?
+        self.AllAgentsList = self.agent_manager.agent_details.copy()  # TODO: try enter and exit instead of .copy()?
         if TP == 'search':
             list = self.get_list(agent)
             item = self.get_item(agent, list)
@@ -62,7 +61,7 @@ class ActionManager(object):
 
         elif FO == 'find_row_ends':
             row_id = action.descriptor
-            return self.route_finder.planner.get_row_ends(agent, row_id)
+            return self.routing_manager.planner.get_row_ends(agent, row_id)
 
     def get_list(self, agent):
         action = agent().action
@@ -86,6 +85,9 @@ class ActionManager(object):
                  (a is not agent) and a.registration and a().accepting_new_tasks and (descriptor in a.roles())}
             #TODO make accepitng tasks a different generator
 
+        elif GR == 'head_nodes':
+            L = {n for n in agent.map_manager.empty_node_list if n.endswith('ca')}
+
         elif GR == 'new_list_generators_go_here':
             L = {}
 
@@ -102,6 +104,14 @@ class ActionManager(object):
 
         elif ST == 'closest_node':
             new_list = {n: self.dist(agent, n, agent.location()) for n in list}
+            I = self.get_dist(new_list)
+
+        elif ST == 'head_node_allocator':
+            PLoc = {a.agent_id: a.location.closest_node.split("-c")[0][1:] for a in self.AllAgents}
+            from parking_spot_locator import ideal_parking_spot
+            parking_spots = ["r%s-ca"% spot for spot in ideal_parking_spot(PLoc, list)]
+            occupied = self.get_occupied_nodes(agent)
+            new_list = [spot for spot in parkin_spots if spot not in occupied]
             I = self.get_dist(new_list)
 
         elif ST == 'new_identifications_go_here':

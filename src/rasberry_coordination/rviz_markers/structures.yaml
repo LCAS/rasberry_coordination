@@ -1,0 +1,64 @@
+#Marker Components:
+
+short_robot:
+  wheel_marker:
+    - [wheel0, 0, [0.65, 0.3, 0.15]]
+    - [wheel1, 1, [0.65, -0.3, 0.15]]
+    - [wheel2, 2, [-0.65, -0.3, 0.15]]
+    - [wheel3, 3, [-0.65, 0.3, 0.15]]
+  tower_marker:
+    - [tower0, 4, [0.6, 0.3, 0.45]]
+    - [tower1, 5, [0.6, -0.3, 0.45]]
+    - [tower2, 6, [-0.6, -0.3, 0.45]]
+    - [tower3, 7, [-0.6, 0.3, 0.45]]
+  front_back_pipe_marker:
+    - [pipe0, 8, [0.0, 0.32, 0.5]]
+    - [pipe1, 9, [0.0, 0.32, 0.4]]
+    - [pipe2, 10, [0.0, -0.32, 0.5]]
+    - [pipe3, 11, [0.0, -0.32, 0.4]]
+  left_right_pipe_marker:
+    - [pipe4, 12, [0.65, 0.0, 0.5]]
+    - [pipe5, 13, [0.65, 0.0, 0.4]]
+    - [pipe6, 14, [-0.65, 0.0, 0.5]]
+    - [pipe7, 15, [-0.65, 0.0, 0.4]]
+  name_marker:
+    - [name, 16, [0, 0, 0.7]]
+
+
+tall_robot:
+  wheel_marker:
+    - [wheel0, 0, [0.65, 0.3, 0.15]]
+    - [wheel1, 1, [0.65, -0.3, 0.15]]
+    - [wheel2, 2, [-0.65, -0.3, 0.15]]
+    - [wheel3, 3, [-0.65, 0.3, 0.15]]
+  tower_marker:
+    - [tower0, 4, [0.6, 0.3, 0.45]]
+    - [tower1, 5, [0.6, -0.3, 0.45]]
+    - [tower2, 6, [-0.6, -0.3, 0.45]]
+    - [tower3, 7, [-0.6, 0.3, 0.45]]
+  front_back_pipe_marker:
+    - [pipe0, 8, [0.0, 0.32, 0.5]]
+    - [pipe1, 9, [0.0, 0.32, 0.4]]
+    - [pipe2, 10, [0.0, -0.32, 0.5]]
+    - [pipe3, 11, [0.0, -0.32, 0.4]]
+  arch_marker:
+    - [arch, 12, [-0.68, -0.37, 0.4]]
+  name_marker:
+    - [name, 16, [0, 0, 0.7]]
+
+
+human:
+  leg_marker:
+    - [left_leg, 0, [0, 0.05, 0.4]]
+    - [right_leg, 1, [0, -0.05, 0.4]]
+  body_marker:
+    - [body, 2, [0, 0, 1.05]]
+  arm_marker:
+    - [left_arm, 3, [0, 0.15, 1.0]]
+    - [right_arm, 4, [0, -0.15, 1.0]]
+  head_marker:
+    - [head, 5, [0, 0, 1.40]]
+  name_marker:
+    - [name, 6, [0, 0, 1.8]]
+
+

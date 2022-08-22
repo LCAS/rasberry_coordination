@@ -2,7 +2,9 @@
   panes:
   - rviz -d $(rospack find rasberry_core)/resources/$RVIZ_CONFIG.rviz
   - roslaunch rasberry_navigation map_server.launch map:="$METRIC_MAP" use_no_go:=true no_go_map:="$NOGO_MAP"
-  - roslaunch rasberry_coordination agent_marker_publisher.launch config_file:=$TASK_COORD_CONFIG
+#  - roslaunch rasberry_coordination agent_marker_publisher.launch config_file:=$TASK_COORD_CONFIG
+  - rosrun rasberry_coordination rviz_markers.py
+  - echo "hi"
   tags: [coord]
 
 

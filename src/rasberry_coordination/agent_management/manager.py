@@ -5,12 +5,8 @@
 # @date:
 # ----------------------------------
 
-import copy
-from copy import deepcopy
-import os
-from pprint import pprint
+import copy, gc, os, pprint, yaml
 import whiptail
-import yaml
 
 from rospy import Subscriber, Publisher, Service, Time
 
@@ -31,7 +27,7 @@ from topological_navigation.route_search2 import TopologicalRouteSearch2 as Topo
 class AgentManager(object):
 
     """ Initialisation """
-    def __init__(self, callback_dict):
+    def __init__(self):
         self.agent_details = {}
         self.new_agent_buffer = dict()
 
@@ -42,14 +38,13 @@ class AgentManager(object):
             if whiptail.Whiptail(title="Agent Management").confirm("Save-state detected, would you like to load it?"):
                 with open(file_name) as file:
                     agent_dict = yaml.load(file, Loader=yaml.FullLoader)
-                    pprint(agent_dict)
+                    pprint.pprint(agent_dict)
                     self.add_agents(agent_dict)
         self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', NewAgentConfig, self.add_agent_cb)
 
 
         # Marker Management
-        self.cb = callback_dict
-        self.cb['format_agent_marker'] = self.format_agent_marker
+        self.cb = dict()
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
         self.get_markers_sub = Subscriber('/rasberry_coordination/get_markers', Empty, self.get_markers_cb)
 
@@ -69,7 +64,6 @@ class AgentManager(object):
         buffer, self.new_agent_buffer = self.new_agent_buffer, dict()
         for agent_dict in buffer.values():
             self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
-            self.format_agent_marker(self.agent_details[agent_dict['agent_id']], style='red')
             logmsg(category="null")
     def add_agents(self, agent_list):
         for agent in agent_list: self.add_agent(agent)
@@ -83,9 +77,12 @@ class AgentManager(object):
                                    'visualisation_properties': kvp_list(msg.setup.visualisation_properties)
                                    }})
 
+
     """ Conveniences """
     def __getitem__(self, key):
         return self.agent_details[key] if key in self.agent_details else None
+    def get_agent_list_copy(self):
+        return self.agent_details.copy()
 
     """ Monitoring """
     def fleet_monitoring(self):
@@ -105,26 +102,7 @@ class AgentManager(object):
             pass
 
 
-    """ Visuals """
-    def format_agent_marker(self, agent, style):
-        """ Add/modify marker to display in rviz """
-        """
-           Add Marker: call self.format_agent_marker(agent_id, "")
-        Modify Marker: call self.format_agent_marker(agent_id, "red")
-        Remove Marker: call self.format_agent_marker(agent_id, "remove")
-        """
-        marker = MarkerDetails()
-        marker.agent_id = agent.agent_id
-        marker.type = agent.visualisation_properties['rviz_model']
-
-        #Define marker color ["remove", "red", "green", "blue", "black", "white", ""]
-        style = style or agent.visualisation_properties['default_colour']
-        marker.optional_color = style
-
-        logmsg(category="rviz", msg="Setting %s %s(%s)" % (marker.type, marker.agent_id, marker.optional_color))
-
-        agent.visualisation_properties['marker'] = marker
-        self.set_marker_pub.publish(marker)
+    """ RViZ Visuals """
     def get_markers_cb(self, empty):
         """ Request from RViz to resend all markers """
         for a in self.agent_details.values():
@@ -158,7 +136,7 @@ class AgentDetails(object):
 
         self.cb = callbacks
 
-        setup = deepcopy(agent_dict['setup'])
+        setup = copy.deepcopy(agent_dict['setup'])
         self.module_properties = setup['module_properties']
         self.navigation_properties = setup['navigation_properties']
         self.visualisation_properties = setup['visualisation_properties']
@@ -169,6 +147,7 @@ class AgentDetails(object):
         vp = setup['visualisation_properties']
 
         self.visualisation_properties['default_colour'] = lp['rviz_default_colour'] if 'rviz_default_colour' in lp else ''
+        self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
 
         #Subscriptions
         self.subs = {}
@@ -199,6 +178,9 @@ class AgentDetails(object):
 
         #Debug
         self.speaker_pub = Publisher('/%s/ui/speaker'%self.agent_id, Str, queue_size=1)
+
+        #Final Setup
+        self.format_marker(style='red')
 
     """ Task Starters """
     def add_idle_tasks(self):
@@ -285,15 +267,15 @@ class AgentDetails(object):
     def __getitem__(A, key):  return A.task[key] if A.task else None
     def __setitem__(A, key, val):    A.task[key] = val
     def simple_agent_id(self):
-        return self.agent_id.replace('thorvald','T').replace('picker','P').replace('storage','S')
-
+        id = self.agent_id.replace('thorvald','T').replace('picker','P').replace('storage','S')
+        id = id if not id.startswith('STD_v2_') else "P%s"%id[-4:]
+        return id
 
     """ Standard Task Interactions """
     def start_stage(self):
         self()._start()
         self().new_stage = False
     def end_stage(self):
-        # from time import sleep; sleep(0.2) #TODO: this can be removed once add task to buffer is removed from async
         logmsg(category="stage", id=self.agent_id, msg="Stage %s is over" % self['stage_list'][0])
         self()._end()
         self['stage_list'].pop(0)
@@ -302,11 +284,11 @@ class AgentDetails(object):
 
     """ Task Interruption """
     def set_interrupt(self, type, module, task_id, scope, quiet=False):
-        self.interruption = (type, module, task_id, scope)
         if quiet:
             logmsg(category="DTM", msg="    - interrupt attached to %s of type: (%s,%s,%s)." % (self.agent_id, type, module, task_id))
         else:
             logmsg(category="DTM", msg="Interrupt attached to %s of type: (%s,%s,%s)." % (self.agent_id, type, module, task_id))
+        self.interruption = (type, module, task_id, scope)
 
 
     """ Logging """
@@ -322,6 +304,28 @@ class AgentDetails(object):
         except:
             logmsg(level="debug", category="AGENT", id=self.agent_id, msg="Speaker pub not set.")
 
+
+    """ Visuals """
+    def format_marker(self, style):
+        """
+        Add/modify marker to display in rviz
+
+        Create Marker: call self.format_marker("")
+        Modify Marker: call self.format_marker("red")
+        Remove Marker: call self.format_marker("remove")
+        """
+        marker = MarkerDetails()
+        marker.agent_id = self.agent_id
+        marker.type = self.visualisation_properties['rviz_model']
+
+        #Define marker color ["remove", "red", "green", "blue", "black", "white", ""]
+        style = style or self.visualisation_properties['default_colour']
+        marker.optional_color = style
+
+        logmsg(category="rviz", msg="Setting %s %s(%s)" % (marker.type, marker.agent_id, marker.optional_color))
+
+        self.visualisation_properties['marker'] = marker
+        self.set_marker_pub.publish(marker)
 
     """ GC """
     def delete_known_references(self, coordinator):
