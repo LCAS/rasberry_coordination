@@ -86,7 +86,7 @@ class ActionManager(object):
             #TODO make accepitng tasks a different generator
 
         elif GR == 'head_nodes':
-            L = {n for n in agent.map_manager.empty_node_list if n.endswith('ca')}
+            L = [n for n in agent.map_manager.empty_node_list if n.endswith('ca')]
 
         elif GR == 'new_list_generators_go_here':
             L = {}
@@ -108,11 +108,11 @@ class ActionManager(object):
 
         elif ST == 'head_node_allocator':
             PLoc = {a.agent_id: a.location.closest_node.split("-c")[0][1:] for a in self.AllAgents}
-            from parking_spot_locator import ideal_parking_spot
-            parking_spots = ["r%s-ca"% spot for spot in ideal_parking_spot(PLoc, list)]
+            from ideal_parking_spot import ideal_parking_spot as ips
+            parking_spots = ["r%s-ca"% spot for spot in ips(PLoc, list)]
             occupied = self.get_occupied_nodes(agent)
-            new_list = [spot for spot in parkin_spots if spot not in occupied]
-            I = self.get_dist(new_list)
+            new_list = [spot for spot in parking_spots if spot not in occupied]
+            I = new_list[0]
 
         elif ST == 'new_identifications_go_here':
             I = None
