@@ -9,6 +9,7 @@
 import rospy
 import visualization_msgs.msg
 import tf
+from threading import Timer
 from std_msgs.msg import ColorRGBA, String
 from rasberry_coordination.coordinator_tools import logmsg
 import interactive_markers.interactive_marker_server
@@ -21,10 +22,13 @@ class ThorvaldMarkerPublisher(object):
         """
         """
         self.robot_name = robot_name
+        self.interactive = False
         self._marker_array = visualization_msgs.msg.MarkerArray()
         self.frame_id = self.robot_name+"/base_link"
         self._create_markers()
-        self.marker_pub = rospy.Publisher("/%s/vis" %(robot_name), visualization_msgs.msg.MarkerArray, queue_size=10)
+
+        self.marker_pub_all = rospy.Publisher("/vis_all/robots", visualization_msgs.msg.MarkerArray, queue_size=10)
+        self.marker_pub = rospy.Publisher("/vis/%s" %(robot_name), visualization_msgs.msg.MarkerArray, queue_size=10)
         self.publish()
 
     def publish(self):
@@ -34,6 +38,7 @@ class ThorvaldMarkerPublisher(object):
         for marker in self._marker_array.markers:
             marker.header.stamp = time_now
             marker.lifetime = rospy.Duration(2)
+        self.marker_pub_all.publish(self._marker_array)
         self.marker_pub.publish(self._marker_array)
 
     def _create_markers(self):
@@ -228,41 +233,6 @@ class ThorvaldMarkerPublisher(object):
 
         return name_marker
 
-class ColoredThorvaldMarkerPublisher(ThorvaldMarkerPublisher):
-
-    def __init__(self, robot_name, color=''):
-        """
-        """
-
-        # Format marker object
-        logmsg(msg="new marker initialised for %s"%robot_name)
-        self.robot_name = robot_name
-        self._marker_array = visualization_msgs.msg.MarkerArray()
-        self.frame_id = self.robot_name+"/base_link"
-        self._create_markers()
-
-        # Define colors associated to specific marker components
-        color_swaps = {
-          'label': ('pipe',                 'wheel',            'tower'),
-          'red':   (ColorRGBA(.5, 0, 0, 1), ColorRGBA(0,0,0,1), ColorRGBA(1,0,0,1)),
-          'green': (ColorRGBA( 0,.5, 0, 1), ColorRGBA(0,0,0,1), ColorRGBA(0,1,0,1)),
-          'blue':  (ColorRGBA( 0, 0,.5, 1), ColorRGBA(0,0,0,1), ColorRGBA(0,0,1,1)),
-          'black': (ColorRGBA( 0, 0, 0, 1), ColorRGBA(0,0,0,1), ColorRGBA(0,0,0,1)),
-          'white': (ColorRGBA( 1, 1, 1, 1), ColorRGBA(0,0,0,1), ColorRGBA(1,1,1,1))
-        } #TODO: transpose this
-
-        # Assign color to respective marker component
-        if color in color_swaps:
-            for marker in self._marker_array.markers:
-                starts = [i for i, s in enumerate(color_swaps['label']) if marker.ns.startswith(s)]
-                # print("Setting: marker component(%s) to color %s" % (marker.ns,str(starts)))
-                if starts:
-                    marker.color = color_swaps[color][starts[0]]
-
-        # Publish marker to rviz
-        self.marker_pub = rospy.Publisher("/%s/vis" %(robot_name), visualization_msgs.msg.MarkerArray, queue_size=10)
-        self.publish()
-
 class TallThorvaldMarkerPublisher(ThorvaldMarkerPublisher):
 
     def __init__(self, robot_name, color=''):
@@ -346,11 +316,13 @@ class TallThorvaldMarkerPublisher(ThorvaldMarkerPublisher):
 
 class ColoredTallThorvaldMarkerPublisher(TallThorvaldMarkerPublisher):
 
-    def __init__(self, robot_name, color=''):
+    def __init__(self, robot_name, color='', selection_server_ref=None):
         """
         """
         logmsg(msg="new marker initialised for %s"%robot_name)
         self.robot_name = robot_name
+        self.interactive = False
+        self.publish_needed = False
         self._marker_array = visualization_msgs.msg.MarkerArray()
         self.frame_id = self.robot_name+"/base_link"
         self._create_markers()
@@ -392,7 +364,9 @@ class ColoredTallThorvaldMarkerPublisher(TallThorvaldMarkerPublisher):
                 if marker.ns.startswith('arch'):
                     marker.color = arch
 
-        self.marker_pub = rospy.Publisher("/%s/vis" %(robot_name), visualization_msgs.msg.MarkerArray, queue_size=10)
+        self.marker_pub_all = rospy.Publisher("/vis_all/robots", visualization_msgs.msg.MarkerArray, queue_size=10)
+        self.marker_pub = rospy.Publisher("/vis/%s" %(robot_name), visualization_msgs.msg.MarkerArray, queue_size=10)
+
         self.publish()
 
 class HumanMarkerPublisher(object):
@@ -404,15 +378,19 @@ class HumanMarkerPublisher(object):
         logmsg(msg="new marker initialised for %s"%picker_id)
         self.picker_id = picker_id
         self._marker_array = visualization_msgs.msg.MarkerArray()
-
-        self._selection_server = interactive_markers.interactive_marker_server.InteractiveMarkerServer("select_a_human")
-        self.click_pub = rospy.Publisher('/selected_marker', String, queue_size=1)
-
+        self.interactive = False
         self.frame_id = self.picker_id+"/base_link"
         self._create_markers()
-        self.marker_pub = rospy.Publisher("/%s/vis" %(picker_id), visualization_msgs.msg.MarkerArray, queue_size=10)
-        self.marker_pub_all = rospy.Publisher("/vis", visualization_msgs.msg.MarkerArray, queue_size=10)
+        self.marker_pub_all = rospy.Publisher("/vis_all/humans", visualization_msgs.msg.MarkerArray, queue_size=10)
+        self.marker_pub = rospy.Publisher("/vis/%s" %(picker_id), visualization_msgs.msg.MarkerArray, queue_size=10)
+
         self.publish()
+
+    def generate_marker(self):
+        self._create_markers()
+        self.set_color(self.color)
+        if self.interactive:
+            self.generate_interactive_wrapper()
 
     def publish(self):
         """
@@ -422,7 +400,6 @@ class HumanMarkerPublisher(object):
             marker.header.stamp = time_now
         self.marker_pub.publish(self._marker_array)
         self.marker_pub_all.publish(self._marker_array)
-        
 
     def _create_markers(self):
         """
@@ -452,59 +429,6 @@ class HumanMarkerPublisher(object):
         # name
         name_marker = self._name_marker("name", 6, (0, 0, 1.8))
         self._marker_array.markers.append(name_marker)
-
-        # interact box
-        interact_marker = self._interaction_marker()
-
-
-    def _interaction_marker(self):
-        print("wooo interactive")
-        # make the clickable hitbox
-        int_marker = visualization_msgs.msg.InteractiveMarker()
-        int_marker.header.frame_id = self.picker_id+"/base_link"
-        int_marker.scale = 1
-        int_marker.name = self.picker_id
-
-        # make the clickable visual?
-        box = visualization_msgs.msg.Marker()
-        box.type = visualization_msgs.msg.Marker.ARROW
-        box.scale.x = int_marker.scale * 0.5
-        box.scale.y = int_marker.scale * 0.25
-        box.scale.z = int_marker.scale * 0.15
-        box.lifetime.secs = 3
-        box.color.r = 0.1
-        box.color.g = 0.8
-        box.color.b = 0.1
-        box.color.a = 1.0
-
-        # create the interaction controller
-        control = visualization_msgs.msg.InteractiveMarkerControl()
-        control.interaction_mode = visualization_msgs.msg.InteractiveMarkerControl.BUTTON
-        control.always_visible = True
-
-        # attach the hitbox onto the controller
-        control.markers.append(box)
-
-        # attach the controller onto the hitbox
-        int_marker.controls.append(control)
-
-        # attach interactive marker to interaction server
-        self._selection_server.insert(int_marker, self.identify_clicked_human_cb)
-        self._selection_server.applyChanges()
-
-    def identify_clicked_human_cb(self, feedback):
-        if not self.in_feedback:
-            self.in_feedback=True
-            print('SELECTED: '+str(feedback.marker_name))
-            self.click_pub.publish(String(feedback.marker_name))
-            self.timer = Timer(1.0, self.timer_callback)
-            self.timer.start()
-    def timer_callback(self) :
-        self.in_feedback = False
-
-
-
-
 
     def _leg_marker(self, leg_id, marker_index, position):
         """
@@ -646,3 +570,169 @@ class HumanMarkerPublisher(object):
         name_marker.frame_locked = True
 
         return name_marker
+
+
+
+
+
+
+
+class ColoredHumanMarkerPublisher(HumanMarkerPublisher):
+
+    def __init__(self, picker_id, color=''):
+        """
+        """
+        logmsg(msg="new marker initialised for %s"%picker_id)
+        self.picker_id = picker_id
+        self.interactive = True
+        self._marker_array = visualization_msgs.msg.MarkerArray()
+        self.frame_id = self.picker_id+"/base_link"
+        self.color = color
+        self.click_pub = rospy.Publisher("/selected_human", String, queue_size=1)
+        self.marker_pub = rospy.Publisher("/vis/%s" %(picker_id), visualization_msgs.msg.MarkerArray, queue_size=10)
+
+    def change_color(color):
+        self.color = color
+        self.generate_marker()
+        self.new_updates = True
+
+    def generate_marker(self, interaction_server=None):
+        self._create_markers()
+        self.set_color(self.color)
+        if self.interactive:
+            self.generate_interactive_wrapper()
+
+#    def publish(self):
+#        time_now = rospy.get_rostime()
+#
+#        if self.interactive:
+#            self.generate_interaction_marker()
+#        else:
+#            for marker in self._marker_array.markers:
+#                marker.header.stamp = time_now
+#            self.marker_pub.publish(self._marker_array)
+#            self.marker_pub_all.publish(self._marker_array)
+
+    def set_color(self, color):
+        if color != '':
+            if color == "red":
+                limb = ColorRGBA(.5, 0, 0, 1)
+                body = ColorRGBA(1, 0, 0, 1)
+                head = ColorRGBA(1, 0, 0, 1)
+            if color == "green":
+                limb = ColorRGBA(0, .5, 0, 1)
+                body = ColorRGBA(0, 1, 0, 1)
+                head = ColorRGBA(0, 1, 0, 1)
+            if color == "blue":
+                limb = ColorRGBA(0, 0, .5, 1)
+                body = ColorRGBA(0, 0, 1, 1)
+                head = ColorRGBA(0, 0, 1, 1)
+            if color == "black":
+                limb = ColorRGBA(0, 0, 0, 1)
+                body = ColorRGBA(0, 0, 0, 1)
+                head = ColorRGBA(0, 0, 0, 1)
+            if color == "white":
+                limb = ColorRGBA(1, 1, 1, 1)
+                body = ColorRGBA(1, 1, 1, 1)
+                head = ColorRGBA(1, 1, 1, 1)
+
+            for marker in self._marker_array.markers:
+                if any([ns in marker.ns for ns in ['arm','leg']]):
+                    marker.color = limb
+                if 'body' in marker.ns:
+                    marker.color = body
+                if 'head' in marker.ns:
+                    marker.color = head
+        print("new color: %s"%color)
+
+    def generate_interaction_marker(self):
+        #create an interactive marker for our server
+        self.int_marker = visualization_msgs.msg.InteractiveMarker()
+        self.int_marker.header.frame_id = self.picker_id+"/base_link"
+        self.int_marker.scale = 1
+        self.int_marker.name = self.picker_id
+
+        #create a non-interactive control which contains the box
+        self.box_control = visualization_msgs.msg.InteractiveMarkerControl()
+        self.box_control.interaction_mode = visualization_msgs.msg.InteractiveMarkerControl.BUTTON
+        self.box_control.always_visible = True
+        self.box_control.markers += self._marker_array.markers
+
+        #add the control to the interactive marker
+        self.int_marker.controls.append( self.box_control )
+
+        # attach interactive marker to interaction server
+        self.in_feedback = False
+        self._selection_server_ref.insert(self.int_marker, self.identify_clicked_human_cb)
+        #;self._selection_server_ref.applyChanges()
+
+    def identify_clicked_human_cb(self, feedback):
+        print("clicky %s"%self.picker_id)
+        if not self.in_feedback:
+            self.in_feedback=True
+            print('SELECTED: '+str(feedback.marker_name))
+            self.click_pub.publish(String(feedback.marker_name))
+            self.set_color('red')
+            self.publish_needed = True
+            self.timer = Timer(5.0, self.timer_callback)
+            self.timer.start()
+    def timer_callback(self) :
+        print("timer cb?")
+        self.in_feedback = False
+        self.set_color(self.color)
+        self.publish_needed = True
+
+
+
+class ColoredThorvaldMarkerPublisher(ThorvaldMarkerPublisher):
+
+    def __init__(self, robot_name, color='', selection_server_ref=None):
+        # Format marker object
+        logmsg(msg="new marker initialised for %s"%robot_name)
+        self.robot_name = robot_name
+        self._marker_array = visualization_msgs.msg.MarkerArray()
+        self.frame_id = self.robot_name+"/base_link"
+        self._create_markers()
+        
+
+        # Publish marker to rviz
+        self.marker_pub_all = rospy.Publisher("/vis_all/robots", visualization_msgs.msg.MarkerArray, queue_size=10)
+        self.marker_pub = rospy.Publisher("/vis/%s" %(robot_name), visualization_msgs.msg.MarkerArray, queue_size=10)
+
+        self.publish()
+
+    def change_color(color):
+        self.color = color
+        self.generate_marker()
+        self.new_updates = True
+
+    def generate_marker(self, interaction_server=None):
+        self._create_markers()
+        self.set_color(self.color)
+        if self.interactive:
+            self.generate_interactive_wrapper()
+
+
+
+    def set_color(self, color):
+        # Define colors associated to specific marker components
+        color_swaps = {
+          'label': ('pipe',                 'wheel',            'tower'),
+          'red':   (ColorRGBA(.5, 0, 0, 1), ColorRGBA(0,0,0,1), ColorRGBA(1,0,0,1)),
+          'green': (ColorRGBA( 0,.5, 0, 1), ColorRGBA(0,0,0,1), ColorRGBA(0,1,0,1)),
+          'blue':  (ColorRGBA( 0, 0,.5, 1), ColorRGBA(0,0,0,1), ColorRGBA(0,0,1,1)),
+          'black': (ColorRGBA( 0, 0, 0, 1), ColorRGBA(0,0,0,1), ColorRGBA(0,0,0,1)),
+          'white': (ColorRGBA( 1, 1, 1, 1), ColorRGBA(0,0,0,1), ColorRGBA(1,1,1,1))
+        } #TODO: transpose this
+
+        # Assign color to respective marker component
+        if color in color_swaps:
+            for marker in self._marker_array.markers:
+                starts = [i for i, s in enumerate(color_swaps['label']) if marker.ns.startswith(s)]
+                # print("Setting: marker component(%s) to color %s" % (marker.ns,str(starts)))
+                if starts:
+                    marker.color = color_swaps[color][starts[0]]
+        print("new color: %s"%color)
+
+
+

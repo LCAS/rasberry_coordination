@@ -9,7 +9,7 @@
 import rospy
 import tf
 import geometry_msgs.msg
-
+from bayes_people_tracker.msg import PeopleStamped
 
 class PoseBaseFramePublisher(object):
     """
@@ -60,3 +60,34 @@ class PoseStampedBaseFramePublisher(object):
                                           rospy.Time.now(),
                                           self.base_frame,
                                           "map")
+
+
+class GPSPositionsBaseFramePublisher(object):
+    """
+    """
+    def __init__(self, agent_name, posestamped_topic, log=False):
+        """
+        """
+        self.log = log
+        self.agent_name = agent_name
+        self.gps_sub = rospy.Subscriber(posestamped_topic, PeopleStamped, self.gps_cb)
+        if agent_name == "":
+            self.base_frame = "base_link"
+        else:
+            self.base_frame = self.agent_name + "/base_link"
+        self.tf_broadcaster = tf.TransformBroadcaster()
+
+    def gps_cb(self, msg):
+        person = [p.person for p in msg.people if p.person.name == self.agent_name and p.person.position != geometry_msgs.msg.Point()]
+        if len(person) < 1: return 
+        person = person[0]
+            
+        if self.log:
+            rospy.loginfo(msg.pose)
+        self.tf_broadcaster.sendTransform((p.person.position.x, p.person.position.y, p.person.position.z), 
+                                          (0, 0, 0, 1),
+                                          rospy.Time.now(), self.base_frame,"map")
+
+
+
+

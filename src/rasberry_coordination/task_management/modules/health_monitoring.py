@@ -3,7 +3,7 @@
 from copy import deepcopy
 from std_msgs.msg import String as Str, Bool, Float32
 from rospy import Time, Duration, Subscriber, Publisher, Time
-from rasberry_coordination.actions.action_manager import ActionDetails
+from rasberry_coordination.action_management.manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
@@ -21,8 +21,8 @@ class InterfaceDef(object):
             self.agent = agent
             self.speaker = self.agent.speaker
 
-            # self.motor_have_scripts = True
-            # self.motor_issues_sub = Subscriber('/%s/health_monitoring/motor_issues' % (self.agent.agent_id), Bool, self.motor_issues_cb)
+            self.motors_have_scripts = True
+            self.motor_issues_sub = Subscriber('/%s/health_monitoring/motor_issues' % (self.agent.agent_id), Bool, self.motor_issues_cb)
 
             self.motors_turned_on = False
             self.motors_turned_on_sub = Subscriber('/%s/health_monitoring/motors_turned_on' % (self.agent.agent_id), Bool, self.motors_turned_on_cb)
@@ -39,7 +39,7 @@ class InterfaceDef(object):
 
         def enable_navigation(self):
             print('force replanning attempt')
-            if (self.in_auto_mode) and (self.motors_turned_on): # and (self.motors_have_scripts)
+            if (self.in_auto_mode) and (self.motors_turned_on) and (self.motors_have_scripts):
                 print('replanning forced by health_monitoring')
                 self.agent.cb['force_replan']()
             pass
@@ -64,14 +64,14 @@ class InterfaceDef(object):
             CRIT = fetch_property('health_monitoring', 'critical_battery_limit')
             if 'battery_level' in LP and CRIT < LP['battery_level'] <= MIN: return True
 
-        # def motor_issues_cb(self, motor_status):
-        #     if self.motors_have_scripts != motor_status.data: return
-        #     self.motors_have_scripts = not motor_status.data
-        #     if self.motors_have_scripts:
-        #         logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent has no missing scripts.")
-        #         self.enable_navigation()
-        #     else:
-        #         logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent has missing scripts.")
+        def motor_issues_cb(self, motor_status):
+            if self.motors_have_scripts != motor_status.data: return
+            self.motors_have_scripts = not motor_status.data
+            if self.motors_have_scripts:
+                logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent has no missing scripts.")
+                self.enable_navigation()
+            else:
+                logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent has missing scripts.")
 
         def motors_turned_on_cb(self, motors_turned_on):
             if self.motors_turned_on == motors_turned_on.data: return
