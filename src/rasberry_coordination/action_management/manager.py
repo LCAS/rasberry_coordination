@@ -108,8 +108,11 @@ class ActionManager(object):
 
         elif ST == 'head_node_allocator':
             PLoc = {a.agent_id: a.location.closest_node.split("-c")[0][1:] for a in self.AllAgents}
-            I = function_goes_here(PLoc, list)
-            I = {}
+            from parking_spot_locator import ideal_parking_spot
+            parking_spots = ["r%s-ca"% spot for spot in ideal_parking_spot(PLoc, list)]
+            occupied = self.get_occupied_nodes(agent)
+            new_list = [spot for spot in parkin_spots if spot not in occupied]
+            I = self.get_dist(new_list)
 
         elif ST == 'new_identifications_go_here':
             I = None
