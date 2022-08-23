@@ -16,7 +16,7 @@ from pprint import pprint
 import rospy, rospkg
 from rospy import Subscriber, Publisher
 from std_msgs.msg import String as Str, Empty
-#
+
 from rasberry_coordination.action_management.manager import ActionManager
 from rasberry_coordination.task_management.manager import TaskManager
 from rasberry_coordination.agent_management.manager import AgentManager
@@ -97,9 +97,10 @@ class RasberryCoordinator(object):
             A = get_agents()
 
             # Interrupt Stage Execution
-            interrupts = [a.interruption for a in A] ; a = None; del A
+            interrupts = [a.interruption for a in A]
             logbreak("INTERRUPTS", interrupts)
-            if any(interrupts): interrupt_task();                                      """ Interrupt Stage Execution """
+            if any(interrupts): interrupt_task(A);                                      """ Interrupt Stage Execution """
+            a = None; del A
 
             # Update local list of Agents (existing might have been removed)
             A = get_agents()
