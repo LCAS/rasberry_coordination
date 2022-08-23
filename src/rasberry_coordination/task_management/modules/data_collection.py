@@ -4,6 +4,7 @@ from copy import deepcopy
 from pprint import pprint
 from rospy import Time, Duration, Subscriber, Publisher, Time
 from actionlib import SimpleActionClient as SAC
+from actionlib_msgs.msg import GoalStatusArray
 from std_msgs.msg import String as Str
 from rasberry_coordination.msg import TopoLocation
 
@@ -37,6 +38,9 @@ class InterfaceDef(object):
             self.topo_map = fetch_property('data_collection', 'topological_map')
             self.continuous = fetch_property('data_collection', 'continuous')
 
+            self.action_server_status = False
+            self.action_server_status_sub = Subscriber('/%s/data_collection/data_collection_server/status' % agent.agent_id, GoalStatusArray, self.server_status_cb)
+
             self.action_status = False
             self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data' % agent.agent_id, RDCCollectDataAction)
 
@@ -56,6 +60,9 @@ class InterfaceDef(object):
 
                 logmsg(category="DMTask", id=self.agent.agent_id, msg="Request to treat row")
                 self.agent.add_task(task_name='data_collection_scan_row', details={"row": row})
+
+        def server_status_cb(self, msg):
+            self.action_server_status = True
 
         def publish_action(self, origin, target):
             """
@@ -191,10 +198,10 @@ class TaskDef(object):
 class StageDef(object):
 
     class WaitForDCActionClient(SDef.StageBase):
-        """ f """
+        """ Prevent progression till action server is up and running """
         def _query(self):
             """Complete when the agents location is identical to the target location."""
-            success_conditions = [True] #[???self.client.wait_for_server()]
+            success_conditions = [self.agent.modules['data_collection'].interface.action_server_status]
             self.flag(any(success_conditions))
 
 
