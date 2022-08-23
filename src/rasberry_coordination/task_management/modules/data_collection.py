@@ -39,7 +39,7 @@ class InterfaceDef(object):
             self.continuous = fetch_property('data_collection', 'continuous')
 
             self.action_server_status = False
-            self.action_server_status_sub = Subscriber('/%s/data_collection/data_collection_server/status' % agent.agent_id, GoalStatusArray, self.server_status_cb)
+            self.action_server_status_sub = Subscriber('/%s/data_collection/data_collection_server/collect_data/status' % agent.agent_id, GoalStatusArray, self.server_status_cb)
 
             self.action_status = False
             self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data' % agent.agent_id, RDCCollectDataAction)
