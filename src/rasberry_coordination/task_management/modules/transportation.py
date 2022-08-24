@@ -80,7 +80,7 @@ class TaskDef(object):
         if LP['load'] >= int(MP['max_load']):
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
-        #    return TaskDef.transportation_wait_at_head(agent=agent, task_id=task_id, details=details, contacts=contacts)
+            return TaskDef.transportation_wait_at_head(agent=agent, task_id=task_id, details=details, contacts=contacts)
             pass
 
     @classmethod
@@ -134,10 +134,10 @@ class TaskDef(object):
                     initiator_id=agent.agent_id,
                     responder_id="",
                     stage_list=[
-                        StageDef.StartTask(agent, task_id),
-                        SDef.AssignHeadNodeIdle(agent),
-                        SDef.NavigateToHeadNodeIdle(agent),
-                        StageDef.Idle(agent)
+                        SDef.StartTask(agent, task_id),
+                        StageDef.AssignHeadNodeIdle(agent),
+                        StageDef.NavigateToHeadNodeIdle(agent),
+                        SDef.Idle(agent)
                     ]))
 
     @classmethod
@@ -199,11 +199,11 @@ class StageDef(object):
             self.flag(any(success_conditions))
         def _end(self):
             super(StageDef.IdleStorage, self)._end()
-            logmsg(category="stage", agent=self.agent.agent_id, msg="admittance required: %s"%self.agent.request_admittance)
+            logmsg(category="stage", id=self.agent.agent_id, msg="admittance required: %s"%self.agent.request_admittance)
     class IdleFieldStorage(IdleStorage):
         def _end(self):
             """On completion, add an idle field_storage to the end of the buffer"""
-            super(StageDef.AssignFieldStorage, self)._end()
+            super(StageDef.IdleFieldStorage, self)._end()
             self.agent.add_task('transportation_field_storage_idle')
 
     """ Assignment-Based Task Stages (involves coordinator) """
@@ -257,12 +257,12 @@ class StageDef(object):
         """Used to identify the closest available head node."""
         def __init__(self, agent):
             """ Mark the details of the associated Action """
-            super(StageDef.AssignBaseNode, self).__init__(agent)
+            super(StageDef.AssignHeadNodeIdle, self).__init__(agent)
             self.action = ActionDetails(type='search', grouping='head_nodes', style='head_node_allocator')
             self.contact = 'head_node'
         """Used to identify the closest available base_node."""
         def _start(self):
-            super(StageDef.AssignHeadNode, self)._start()
+            super(StageDef.AssignHeadNodeIdle, self)._start()
             self.accepting_new_tasks = True
         def _query(self):
             """Complete once action has generated a result"""
@@ -344,7 +344,7 @@ class StageDef(object):
         """ Used to Navigate To Base node, but with interruption enabled """
         def __init__(self, agent):
             """Call super to set association to base_node"""
-            super(StageDef.NavigateToBaseNode, self).__init__(agent, association='head_node')
+            super(StageDef.NavigateToHeadNodeIdle, self).__init__(agent, association='head_node')
         def _start(self):
             """ enable interuption """
             super(StageDef.NavigateToHeadNodeIdle, self)._start()
