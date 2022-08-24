@@ -17,7 +17,6 @@ from std_srvs.srv import Trigger, TriggerResponse
 from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, KeyValuePair, AgentRegistrationList, AgentRegistration, AgentStateList, AgentState
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module, MapObj as Map
-#from rasberry_coordination.health_service import HealthService
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
 import rasberry_des.config_utils
@@ -293,7 +292,7 @@ class AgentDetails(object):
 
     """ Logging """
     def __repr__(self):
-        if self.modules['health_monitoring'].interface.in_auto_mode:
+        if 'health_monitoring' in self.modules and self.modules['health_monitoring'].interface.in_auto_mode:
             return "%s(%s)" % (self.get_class(), self.agent_id)
         return "![%s(%s)]" % (self.get_class(), self.agent_id)
     def get_class(self):
