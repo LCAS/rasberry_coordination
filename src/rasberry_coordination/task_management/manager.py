@@ -1,6 +1,8 @@
-""" Interrupt Task (is this old?) """
+""" Interrupt Task """
 
+import weakref
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
+from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, Rasberry_Logger
 
 
 class TaskManager(object):
@@ -9,15 +11,13 @@ class TaskManager(object):
         self.coordinator_ref = coordinator_ref
         self.toc_interface = InterfaceDef.TOC_Interface(coordinator_ref)
 
-
     def interrupt_task(self, agent_list):
         interrupts = {'pause': self.pause, 'resume': self.resume, 'reset': self.reset, 'disconnect': self.disconnect}
         logmsg(category="null")
         logmsg(category="DTM", msg="Interrupt detected!", speech=False)
-        [logmsg(category="DTM", msg="    | %s : %s" % (a.agent_id, a.interruption[0])) for a in agent_list.values()
-         if a.interruption]
+        [logmsg(category="DTM", msg="    | %s : %s" % (a.agent_id, a.interruption[0])) for a in agent_list.values() if a.interruption]
         interrupt_ids = [a.agent_id for a in agent_list.values() if a.interruption and a.interruption[0] in interrupts]
-        for aid in interrupt_ids: interrupts[A[aid].interruption[0]](A[aid], agent_list)
+        for aid in interrupt_ids: interrupts[agent_list[aid].interruption[0]](agent_list[aid], agent_list)
 
 
     def pause(self, agent, agent_list):
