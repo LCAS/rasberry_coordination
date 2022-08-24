@@ -1,6 +1,7 @@
 """ Interrupt Task (is this old?) """
 
 from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
+from rasberry_coordination.coordinator_tools import logmsg
 
 
 class TaskManager(object):
