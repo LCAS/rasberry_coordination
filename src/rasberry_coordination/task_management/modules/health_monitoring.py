@@ -180,6 +180,13 @@ class StageDef(object):
         def __init__(self, agent):
             """Identify associated contact as 'charging_station'"""
             super(StageDef.NavigateToChargeNode, self).__init__(agent, association='charging_station')
+        def _start(self):
+            super(StageDef.NavigateToChargeNode, self)._start()
+            LP = self.agent.local_properties
+            CRIT = fetch_property('health_monitoring', 'critical_battery_limit')
+            MAX = fetch_property('health_monitoring', 'max_battery_limit')
+            PERCENTAGE = ((LP['battery_level']-CRIT)/(MAX-CRIT))*100
+            self.agent.speaker("My battery level is at %s%%. I am going to charge at %s"%(str(PERCENTAGE).split('.')[0]), self.target)
         def _query(self):
             """Complete navigation if agents location is the target of if battery level is set to be above threshold"""
             LVL = self.agent.local_properties['battery_level']
