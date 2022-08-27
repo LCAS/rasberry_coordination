@@ -89,15 +89,17 @@ class AgentManager(object):
         self.publish_states()
     def publish_registrations(self):
         try:
-            lst = [AgentRegistration({'agent_id':a.agent_id, 'registered': a.registered()}) for a in self.agent_details.values()]
-            self.agent_registration.publish(AgentRegistrationList({'list':lst}))
-        except:
+            lst = [AgentRegistration(agent_id=a.agent_id, registered=a.registration) for a in self.agent_details.values()]
+            self.agent_registration.publish(AgentRegistrationList(list=lst))
+        except Exception as e:
+            print(e)
             pass
     def publish_states(self):
         try:
-            lst = [AgentState({'agent_id': a.agent_id, 'current_task_id': a['id'], 'current_task': ['name'], 'stage': type(a()), 'details': a['details']}) for a in self.agent_details.values()]
-            self.agent_states.publish(AgentStateList({'agents':lst}))
-        except:
+            lst = [AgentState(agent_id=a.agent_id, current_task_id=a['id'], current_task=a['name'], stage=a().__repr__(), details=str(a['details'])) for a in self.agent_details.values()]
+            self.agent_states.publish(AgentStateList(list=lst))
+        except Exception as e:
+            print(e)
             pass
 
 
