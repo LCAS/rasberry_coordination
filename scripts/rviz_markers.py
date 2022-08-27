@@ -81,7 +81,6 @@ class MarkerPublisher(object):
                     m.header.stamp = self.publish_time
                     m.lifetime = rospy.Duration(10)
 
-                print("marker_array published")
                 self.marker_pub_all.publish(marker_array)
 
             rospy.sleep(0.5)
