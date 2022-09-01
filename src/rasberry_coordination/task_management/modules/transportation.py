@@ -223,7 +223,7 @@ class StageDef(object):
 
             self.agent.modules['transportation'].interface.notify("car_ACCEPT")
             loc = self.agent.location()
-            self.agent['contacts']['field_courier'].speaker("%s requested pickup at %s" % (self.agent.agent_id, loc))
+            self.agent['contacts']['field_courier'].speaker("%s requested collection at %s" % (self.agent.agent_id, loc))
             self.agent['contacts']['field_courier'].add_task(task_name='transportation_retrieve_load',
                                                              task_id=self.agent['id'],
                                                              details={},
