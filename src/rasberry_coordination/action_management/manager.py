@@ -29,8 +29,12 @@ class ActionManager(object):
 
         self.AllAgentsList = self.agent_manager.agent_details.copy()  # TODO: try enter and exit instead of .copy()?
         if TP == 'search':
-            list = self.get_list(agent)
-            item = self.get_item(agent, list)
+            try:
+                list = self.get_list(agent)
+                item = self.get_item(agent, list)
+            except Exception as e:
+                print(e)
+                item = None
             action.response = item
         elif TP == 'info':
             resp = self.get_info(agent)
