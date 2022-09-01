@@ -111,6 +111,10 @@ def ideal_parking_spot(header_rows, picker_dictionary):
 #picker_dictionary = {'p2':3.5,'p3':5.7, 'p1':0.7, 'p4':6.5, 'p5':9.5}
 
 
+#{'Mrga': '3.5'}
+#['r5.7-ca', 'r6.5-ca', 'r7.5-ca', 'r8.5-ca', 'r9.5-ca', 'r10.3-ca', 'r0.7-ca', 'r1.5-ca', 'r2.5-ca', 'r3.5-ca', 'r4.5-ca', 'r5.3-ca']
+
+
 #print(ideal_parking_spot(header_rows, picker_dictionary))
     
 
