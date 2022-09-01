@@ -29,8 +29,12 @@ class ActionManager(object):
 
         self.AllAgentsList = self.agent_manager.agent_details.copy()  # TODO: try enter and exit instead of .copy()?
         if TP == 'search':
-            list = self.get_list(agent)
-            item = self.get_item(agent, list)
+            try:
+                list = self.get_list(agent)
+                item = self.get_item(agent, list)
+            except Exception as e:
+                print(e)
+                item = None
             action.response = item
         elif TP == 'info':
             resp = self.get_info(agent)
@@ -86,7 +90,7 @@ class ActionManager(object):
             #TODO make accepitng tasks a different generator
 
         elif GR == 'head_nodes':
-            L = [n for n in agent.map_manager.empty_node_list if n.endswith('ca')]
+            L = [float(n.split("-c")[0][1:]) for n in agent.map_handler.empty_node_list if n.endswith('ca')]
 
         elif GR == 'new_list_generators_go_here':
             L = {}
@@ -107,12 +111,17 @@ class ActionManager(object):
             I = self.get_dist(new_list)
 
         elif ST == 'head_node_allocator':
-            PLoc = {a.agent_id: a.location.closest_node.split("-c")[0][1:] for a in self.AllAgents}
-            from ideal_parking_spot import ideal_parking_spot as ips
-            parking_spots = ["r%s-ca"% spot for spot in ips(PLoc, list)]
-            occupied = self.get_occupied_nodes(agent)
-            new_list = [spot for spot in parking_spots if spot not in occupied]
-            I = new_list[0]
+            print([(a.agent_id, a.location.current_node, a.location.closest_node, a.registration, a.modules['transportation'].role == 'picker') for a in self.AllAgentsList.values()])
+            PLoc = {a.agent_id:float(a.location.current_node.split("-c")[0][1:]) for a in self.AllAgentsList.values() if a.registration and ('-c' in a.location.current_node) and (a.modules['transportation'].role == 'picker')}
+            print(PLoc)
+            if PLoc:
+                from ideal_parking_spot import ideal_parking_spot as ips
+                parking_spots = ["r%s-ca"% spot for spot in ips(list, PLoc)]
+                occupied = self.get_occupied_nodes(agent)
+                new_list = [spot for spot in parking_spots if spot not in occupied]
+                I = new_list[0]
+            else:
+                I = None
 
         elif ST == 'new_identifications_go_here':
             I = None
@@ -123,6 +132,7 @@ class ActionManager(object):
 
     def get_occupied_nodes(self, agent):
         AExcl = [a for _id, a in self.AllAgentsList.items() if (_id is not agent.agent_id)]
+        print(AExcl)
         occupied = [a.location.current_node for a in AExcl if a.location.current_node]  # Check if node is occupied
         occupied += [a().action.response for a in AExcl if a().action and a().action.response and a.map_handler.is_node(a().action.response)]  # Include navigation targets
         occupied += [a.goal() for a in AExcl if a.goal()] # Include navigation targets

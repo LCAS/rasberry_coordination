@@ -319,7 +319,8 @@ class TaskDef(object):
     """ Idle Tasks """
     @classmethod
     def base_robot_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
+        if len(agent.task_buffer) == 0:
+            return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
     def base_virtual_robot_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
