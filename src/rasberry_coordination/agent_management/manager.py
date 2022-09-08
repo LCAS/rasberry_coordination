@@ -174,7 +174,8 @@ class AgentDetails(object):
         self.location = Location(self, has_presence=has_presence, initial_location=initial_location)
 
         #Map
-        topic = "/%s/restricted_topological_map_2" % self.agent_id if 'restrictions' in np else None
+        #topic = "/%s/restricted_topological_map_2" % self.agent_id if 'restrictions' in np else None
+        topic = "/%s/restricted_topological_map_2" % np['restrictions'] if 'restrictions' in np else None
         self.map_handler = Map(agent=self, topic=topic)
 
         #Debug
