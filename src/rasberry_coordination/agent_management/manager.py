@@ -175,7 +175,7 @@ class AgentDetails(object):
 
         #Map
         #topic = "/%s/restricted_topological_map_2" % self.agent_id if 'restrictions' in np else None
-        topic = "/%s/restricted_topological_map_2" % np['restrictions'] if 'restrictions' in np else None
+        topic = "/restricted_topological_map_generators/%s_topological_map_2" % np['restrictions'] if 'restrictions' in np else None
         self.map_handler = Map(agent=self, topic=topic)
 
         #Debug
