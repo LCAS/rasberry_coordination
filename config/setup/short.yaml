@@ -7,7 +7,7 @@ modules:
     role: field_courier
 navigation_properties:
     has_presence: true
-    restrictions: inter-row
+    restrictions: short
     #map_filters:
     #  - only_restricitons
     #  - no_nodes_with_presence
