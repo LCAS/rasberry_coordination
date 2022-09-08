@@ -8,7 +8,7 @@ modules:
   - name: data_collection
     role: scanner
 navigation_properties:
-    restrictions: intra-row
+    restrictions: tall
     has_presence: true
     #map_filters:
     #  - only_restrictions
