@@ -163,10 +163,18 @@ class MapObj(object):
 
     def simplify(self):
         R = {n.split('-')[0][1:]: {} for n in self.empty_node_list if "-" in n and "WayPoint" not in n and "dock" not in n}
-        for r in R:
-            R[r] = [n.split('-')[1][1:] for n in self.empty_node_list if n.startswith('r' + r)]
-        Map = {'tall':  {k:v for k,v in R.items() if '.' not in k},
-               'short': {k:v for k,v in R.items() if '.' in k} }
+        tall = {}
+	short = {}
+	for k, v in R.items():
+            if '.' in k:
+                short[k] = [n.split('-')[1][1:] for n in self.empty_nodes_list if n.startswith('r' + k ) and '.' in n] 
+            else: 
+                tall[k] = [n.split('-')[1][1:] for n in self.empty_nodes_list if n.startswith('r' + k) and '.' not in n ]
+
+#            R[r] = [n.split('-')[1][1:] for n in self.empty_node_list if n.startswith('r' + r)]
+#        Map = {'tall':  {k:v for k,v in R.items() if '.' not in k},
+#               'short': {k:v for k,v in R.items() if '.' in k} }
+        Map = { 'tall' : tall , 'short' : short }
         return Str(str(Map))
 
 
