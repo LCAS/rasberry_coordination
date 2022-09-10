@@ -384,7 +384,7 @@ class StageDef(object):
             super(StageDef.TimeoutFlagModifier, self)._end()
             self.agent['contacts']['field_courier'][self.trigger_flag] = self.default
             if "STD_v2_" in self.agent.agent_id:
-                self.agent.modules['transportation'].interface.notify("INIT")
+                self.agent.modules['transportation'].interface.notify("car_INIT")
             else:
                 self.agent.modules['transportation'].interface.notify("car_COMPLETE")
     class LoadFieldCourier(TimeoutFlagModifier):
