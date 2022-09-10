@@ -1,31 +1,22 @@
 categories:
   #Core
   - name: "ROBOT"
-#    reject: true
   - name: "PICKER"
-#    reject: true
   - name: "TASK"
-#    colour: false
   - name: "STAGE"
-#    reject: false
   - name: "MODULE"
-#    reject: true
   - name: "IDEF"
-#    reject: true
     colour: '46m'
 
   #Interruptions
   - name: "DRM"
   - name: "DTM"
   - name: "TOC"
-#    reject: true
   - name: "COMMS"
   - name: "RVIZ"
-#    reject: true
 
   #Navigation
   - name: "ROB_PY"
-#    reject: true
   - name: "VR_ROB"
     colour: '45m'
   - name: "ROUTE"
@@ -38,6 +29,7 @@ categories:
   - name: "SETUP"
   - name: "LOG"
   - name: "TEST"
+  - name: "DEBUG"
 
   #Task-Generic
   - name: "ACTION"
@@ -46,6 +38,8 @@ categories:
   #Task Specific
   - name: "TPTASK"
   - name: "UVTASK"
+  - name: "DCTASK"
+  - name: "HEALTH"
 
   - name: "SECT"
     colour: '04;92m'
@@ -53,8 +47,6 @@ categories:
 ids:
   - name: "COORDINATOR"
     colour: '42m'
-#  - name: "PLANNER"
-#    colour: '42m'
   - name: "SECTION"
     colour: '04;92m'
   - name: "storage01"
@@ -69,3 +61,11 @@ ids:
     colour: '35m'
   - name: "uv1"
     colour: '39m'
+  - name: thorvald_023
+    colour: '36m'
+  - name: thorvald_024
+    colour: '33m'
+  - name: thorvald_025
+    colour: '34m'
+  - name: STD_v2_246f284a6c94
+    colour: '35m'

@@ -40,7 +40,7 @@ class LocationObj(object):
         self.closest_node = None if msg.data == "none" else msg.data
 
     def disable_localisation(self, msg):
-        if True: #self.agent.map.is_node(msg):
+        if True: #self.agent.map.is_node(msg): msg in self.agent/.empty_node_list!??!?!
             self.current_node_sub.unregister()
             self.closest_node_sub.unregister()
             self.current_node_cb(msg)
@@ -203,22 +203,4 @@ class MapObj(object):
             route_distance.append(self.get_edge_length(route_nodes[i], route_nodes[i + 1]))
 
         return sum(route_distance)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

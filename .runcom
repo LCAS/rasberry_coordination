@@ -1,4 +1,4 @@
-echo "    - Sourced: \$rasberry_coordination/.runcom" | awk '{ gsub("\$rasberry_coordination",  "\033[1;33m&\033[0m"); print }' ;
+echo "    - Sourced: \$rasberry_coordination/.runcom" | awk '{ gsub("\\$rasberry_coordination",  "\033[1;33m&\033[0m"); print }' ;
 export rasberry_coordination=$(dirname "${BASH_SOURCE[0]}")
 
 

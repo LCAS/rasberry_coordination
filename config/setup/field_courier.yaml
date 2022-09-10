@@ -9,7 +9,7 @@ navigation_properties:
     has_presence: true
     restrictions: inter-row
 module_properties:
-    max_load: 200
+    max_load: 1
 visualisation_properties:
     structure_type: short
     rviz_model: short_robot

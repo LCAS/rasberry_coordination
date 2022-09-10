@@ -1,0 +1,6 @@
+- name: short_restrictions
+  panes:
+  - 'rostopic pub /short_agent_type std_msgs/String "data: short"'
+  - 'rostopic pub /tall_agent_type std_msgs/String "data: tall"'
+  - roslaunch rasberry_coordination restricted_maps.launch
+  tags: [coord]
