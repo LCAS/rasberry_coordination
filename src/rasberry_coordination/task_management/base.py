@@ -6,7 +6,7 @@ from std_msgs.msg import Bool, String as Str
 from diagnostic_msgs.msg import KeyValue
 import strands_executive_msgs.msg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
-from rasberry_coordination.actions.action_manager import ActionDetails
+from rasberry_coordination.action_management.manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.robot import Robot, VirtualRobot
@@ -59,7 +59,7 @@ class InterfaceDef(object):
         def generate_active_tasks_list(self):
             """ Publish updated list of Active Tasks to TOC """
             task_list = TasksDetailsList()
-            for agent in self.coordinator.get_agents():
+            for agent in self.coordinator.agent_manager.get_agent_list_copy().values():
 
                 # If a task exists
                 if agent['id']:
@@ -96,13 +96,12 @@ class InterfaceDef(object):
         def publish_task_list(self, task_list):
             logmsg(level="info", category="SECT", id="SECTION", msg="\033[01;04;92mTOC\033[38;5;231m\033[0m")
             logmsg(category="TOC", msg="Active Tasks:")
-            [logmsg(category="TOC", msg="    | %s\t-- %s [%s,%s]" % (t.task_id, t.state.replace("Idle", "\033[01;32mIdle\033[0m"), t.initiator_id, t.responder_id)) for t in task_list.tasks]
+            [logmsg(category="TOC", msg="    | %s\t  -- %s [%s,%s]" % (t.task_id, t.state.replace("Idle", "\033[01;32mIdle\033[0m"), t.initiator_id, t.responder_id)) for t in task_list.tasks]
             # logmsg(category="null")
             self.active_tasks_pub.publish(task_list)
 
         """ Dynamic Task Management """
         def InterruptTask(self, m):
-            #For targets, set interruption to [toc_cancel|toc_pause|toc_unpause]
             logmsg(category="null")
             logmsg(category="DTM", id="toc", msg="Interruption made on TOC channels of type: %s" % m.interrupt)
             A = {a.agent_id:a for a in self.coordinator.get_agents()}
@@ -110,8 +109,6 @@ class InterfaceDef(object):
             if m.scope in [0, "Coord", "Coordinator"]:
                 # Modify all tasks
                 logmsg(category="DTM", msg="    - to affect all agents.")
-                # [a.set_interrupt(m.interrupt, a.module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
-
                 if m.interrupt == "reset":
                     for a in A.values():
                         if a['task_id'] and a.agent_id == a['initiator_id']:
@@ -169,8 +166,11 @@ class InterfaceDef(object):
             self.msg = None
             self.pub = Publisher('/car_client/set_states_kv', KeyValue, queue_size=5)
             self.sub = Subscriber('/car_client/get_states_kv', KeyValue, self.callback, agent.agent_id)
+            self.loc_pub = Publisher('/car_client/set_closest_node_kv', KeyValue, queue_size=5)
+            self.loc_sub = Subscriber('%s/closest_node'%self.agent.agent_id, Str, self.loc_cb)
             self.notify("CONNECTED")
-
+        def loc_cb(self, msg):
+            self.loc_pub.publish(KeyValue(key=self.agent.agent_id, value=msg.data))
         def callback(self, msg, agent_id):
             if msg.key == agent_id:
                 state = msg.value.split('-')[0]
@@ -284,7 +284,6 @@ class TaskDef(object):
 
     @classmethod
     def base_human_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        agent.current_node = agent.cb['default_location']
         return(Task(id=task_id,
                     module='base',
                     name="base_human_init",
@@ -320,7 +319,8 @@ class TaskDef(object):
     """ Idle Tasks """
     @classmethod
     def base_robot_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
+        if len(agent.task_buffer) == 0:
+            return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
     @classmethod
     def base_virtual_robot_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
@@ -357,7 +357,7 @@ class TaskDef(object):
                     stage_list=[
                         StageDef.StartTask(agent, task_id),
                         # StageDef.Exit(agent)
-                        StageDef.AssignBaseNode(agent),
+                        StageDef.AssignBaseNodeIdle(agent),
                         StageDef.NavigateToBaseNodeIdle(agent),
                         StageDef.Idle(agent)
                     ]))
@@ -432,6 +432,7 @@ class StageDef(object):
             self.stage_complete = False
             self.new_stage = True
             self.target = None
+            self.target_agent = None
             self.action = None
             self.accepting_new_tasks = False
             self.summaries = {}
@@ -461,6 +462,7 @@ class StageDef(object):
             super(StageDef.StartTask, self)._start()
             self.agent['id'] = self.task_id #Set task_id as active_task_id for agent
             self.agent['start_time'] = Time.now()
+            self.agent.format_marker(style='')
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
@@ -491,7 +493,7 @@ class StageDef(object):
             """Mark agent as unregistered and send a message to rviz to display the agent as red"""
             super(StageDef.SetUnregister, self)._start()
             self.agent.registration = False
-            self.agent.cb['format_agent_marker'](self.agent, style='red')
+            self.agent.format_marker(style='red')
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
@@ -530,7 +532,7 @@ class StageDef(object):
             """Mark agent as unregistered and send a message to rviz to display the agent without modified colour"""
             super(StageDef.SetRegister, self)._start()
             self.agent.registration = True
-            self.agent.cb['format_agent_marker'](self.agent, style='')
+            self.agent.format_marker(style='')
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
@@ -571,9 +573,16 @@ class StageDef(object):
             super(StageDef.AssignBaseNode, self).__init__(agent)
             self.action = ActionDetails(type='search', grouping='node_descriptor', descriptor='base_node', style='closest_node')
             self.contact = 'base_node'
+    class AssignBaseNodeIdle(AssignBaseNode):
+        """Used to identify the closest available base_node."""
         def _start(self):
             super(StageDef.AssignBaseNode, self)._start()
-            #self.accepting_new_tasks = True
+            self.accepting_new_tasks = True
+        def _query(self):
+            """Complete once action has generated a result"""
+            success_conditions = [self.action.response != None,
+                                  len(self.agent.task_buffer) > 0]
+            self.flag(any(success_conditions))
 
     class AssignWaitNode(ActionResponse):
         """Used to identify the closest available wait_node."""
@@ -636,19 +645,20 @@ class StageDef(object):
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is begun." % (self.agent.location(accurate=True), self.target))
         def _query(self):
             """Complete when the agents location is identical to the target location."""
-            success_conditions = [self.agent.location(accurate=True) == self.target]
+            success_conditions = [self.agent.location(accurate=True) == self.target] #TODO: maybe we should query execpolicy success?
             self.flag(any(success_conditions))
         def _end(self):
             """End navigation by refreshing routes for other agents in motion."""
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
-            #self.agent.navigation_interface.cancel_execpolicy_goal()
-            #self.target = None
-            self.agent.cb['trigger_replan']() #ReplanTrigger
+            # self.agent.navigation_interface.cancel_execpolicy_goal() # <- this will prevent robot from rotating to align
+            self.agent.cb['trigger_replan']()  # ReplanTrigger
+
     class NavigateToAgent(Navigation):
         """Used for navigating to a given agent"""
         def _start(self):
             """Start task by setting the target to be a defined agent's current location"""
             self.target = self.agent['contacts'][self.association].location(accurate=True)
+            self.target_agent = self.agent['contacts'][self.association]
             super(StageDef.NavigateToAgent, self)._start()
     class NavigateToNode(Navigation):
         """Used for navigating to a given node"""
@@ -668,11 +678,11 @@ class StageDef(object):
         def _start(self):
             """ enable interuption """
             super(StageDef.NavigateToBaseNodeIdle, self)._start()
-            #self.accepting_new_tasks = True
+            self.accepting_new_tasks = True
         def _query(self):
             """Complete when the agents location is identical to the target location."""
-            success_conditions = [self.agent.location(accurate=True) == self.target] #, 
-                                  #len(self.agent.task_buffer) > 0]
+            success_conditions = [self.agent.location(accurate=True) == self.target, 
+                                  len(self.agent.task_buffer) > 0]
             self.flag(any(success_conditions))
 
     class NavigateToExitNode(NavigateToNode):
@@ -706,7 +716,7 @@ class StageDef(object):
             super(StageDef.NotifyTrigger, self)._start()
             self.interface = self.agent.modules[self.agent['module']].interface
             self.interface.notify(self.msg)
-            self.agent.cb['format_agent_marker'](self.agent, style=self.colour)
+            self.agent.format_marker(style=self.colour)
             self.interface[self.trigger] = True  # PSEUDO
         def _query(self):
             """Wait for flag to be set by message response (os #PSUEDO)"""
@@ -719,13 +729,12 @@ class StageDef(object):
         def __repr__(self):
             """Display scopes actively contributing to the blocking"""
             return "%s(C%s|T%s|A%s)" % (self.get_class(), int(self.pause_state['Coord']), int(self.pause_state['Task']), int(self.pause_state['Agent']))
-        def __init__(self, agent, format_agent_marker):
+        def __init__(self, agent):
             """Initialise blocking properties"""
             super(StageDef.Pause, self).__init__(agent)
             logmsg(category="DTM", msg="      | pause init")
             self.agent.registration = False
             self.pause_state = {'Coord':False, 'Task':False, 'Agent':False}
-            self.format_agent_marker = format_agent_marker
         def _start(self):
             """On start, cancel any active navigation"""
             super(StageDef.Pause, self)._start()
@@ -739,7 +748,7 @@ class StageDef(object):
         def _end(self):
             """On end, reenable registration"""
             self.agent.registration = True
-            self.format_agent_marker(self.agent, style='')
+            self.agent.format_marker(style='')
     class Exit(StageBase):
         """Used for controlled removal of agent connections"""
         def _start(self):
@@ -755,5 +764,5 @@ class StageDef(object):
         def _end(self):
             """Set marker to black and initiate disconnection interruption-"""
             super(StageDef.Exit, self)._end()
-            self.agent.cb['format_agent_marker'](self.agent, 'black')
+            self.agent.format_marker('black')
             self.agent.set_interrupt('disconnect', 'base', self.agent['id'], "Task")

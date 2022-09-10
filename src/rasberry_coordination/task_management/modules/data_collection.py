@@ -4,10 +4,11 @@ from copy import deepcopy
 from pprint import pprint
 from rospy import Time, Duration, Subscriber, Publisher, Time
 from actionlib import SimpleActionClient as SAC
+from actionlib_msgs.msg import GoalStatusArray
 from std_msgs.msg import String as Str
 from rasberry_coordination.msg import TopoLocation
 
-from rasberry_coordination.actions.action_manager import ActionDetails
+from rasberry_coordination.action_management.manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
@@ -34,8 +35,13 @@ class InterfaceDef(object):
             self.sub_row      = Subscriber('/%s/data_collection/initiate_task/row'      % agent.agent_id, TopoLocation, self.row)
             # self.sub_schedule = Subscriber('/%s/initiate_task/schedule' % agent.agent_id, Str, self.schedule)
 
-            self.topo_map = fetch_property('health_monitoring', 'topological_map')
-            self.continuous = fetch_property('health_monitoring', 'continuous')
+            self.topo_map = fetch_property('data_collection', 'topological_map')
+            self.continuous = fetch_property('data_collection', 'continuous') == "True"
+
+            self.action_server_status = False
+            self.action_server_status_sub = Subscriber('/%s/data_collection/data_collection_server/collect_data/status' % agent.agent_id, GoalStatusArray, self.server_status_cb)
+
+            self.action_status = False
             self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data' % agent.agent_id, RDCCollectDataAction)
 
         def edge(self, msg):
@@ -55,6 +61,9 @@ class InterfaceDef(object):
                 logmsg(category="DMTask", id=self.agent.agent_id, msg="Request to treat row")
                 self.agent.add_task(task_name='data_collection_scan_row', details={"row": row})
 
+        def server_status_cb(self, msg):
+            self.action_server_status = True
+
         def publish_action(self, origin, target):
             """
             topological_map: 'tmap_stream.tmap2'/'tmap_70cm.tmap'
@@ -66,14 +75,14 @@ class InterfaceDef(object):
               data_config: '{"force_orientation_to_origin":true,"capture_data":true}'
             """
             collection_goal = RDCCollectDataGoal()
-            collection_goal.topological_map = self.topo_map
+            collection_goal.topological_map = "" #self.topo_map
             collection_goal.continuous = self.continuous
 
             #forward
             row = DataCollectionRow()
             row.origin = origin
             row.end = target
-            row.orientation = ''
+            row.orientation = 'front'
             row.data_config = str({"force_orientation_to_origin": True, "capture_data": True})
             collection_goal.rows.append(row)
 
@@ -81,12 +90,16 @@ class InterfaceDef(object):
             row = DataCollectionRow()
             row.origin = target
             row.end = origin
-            row.orientation = ''
+            row.orientation = 'front'
             row.data_config = str({"force_orientation_to_origin": True, "capture_data": True})
             collection_goal.rows.append(row)
 
-            self.action_publisher.send_goal(collection_goal)
+            self.action_status = False
+            self.action_publisher.send_goal(collection_goal, done_cb=self.action_done_cb)
 
+        def action_done_cb(self, msg, msg2):
+            #TODO: make this more robust to failed action server response
+            self.action_status = True
 
         def __getitem__(self, key): return self.__getattribute__(key) if key in self.__dict__ else None
         def __setitem__(self, key, val): self.__setattr__(key, val)
@@ -130,6 +143,7 @@ class TaskDef(object):
                          StageDef.WaitForDCActionClient(agent),
                          SDef.SetRegister(agent)
                      ]))
+
 
     """ Tasks """
     @classmethod
@@ -184,10 +198,10 @@ class TaskDef(object):
 class StageDef(object):
 
     class WaitForDCActionClient(SDef.StageBase):
-        """ f """
+        """ Prevent progression till action server is up and running """
         def _query(self):
             """Complete when the agents location is identical to the target location."""
-            success_conditions = [True] #[???self.client.wait_for_server()]
+            success_conditions = [self.agent.modules['data_collection'].interface.action_server_status]
             self.flag(any(success_conditions))
 
 
@@ -198,6 +212,7 @@ class StageDef(object):
             """Call to super to set the navigation target as the node stored in the action association"""
             super(StageDef.NavigateToDCStartNode, self).__init__(agent, association='start_node')
         def _start(self):
+            self.agent.speaker('Navigating to data collection start node at %s' % self.agent['contacts']['start_node'])
             if 'controller' in self.agent['contacts']:
                 self.agent['contacts']['controller'].modules['data_collection'].interface.notify("sar_AWAIT_START")
             super(StageDef.NavigateToDCStartNode, self)._start()
@@ -207,19 +222,17 @@ class StageDef(object):
         def __init__(self, agent):
             """ f """
             super(StageDef.PerformDCAction, self).__init__(agent)
-            #self.origin = self.agent['contacts']['start_node']
-            #self.end = self.agent['contacts']['end_node']
             self.interface = self.agent.modules['data_collection'].interface
         def _start(self):
             """format and publish msg to send to action server"""
             super(StageDef.PerformDCAction, self)._start()
             self.origin = self.agent['contacts']['start_node']
             self.end = self.agent['contacts']['end_node']
+            self.agent.speaker('Performing data collection between %s and %s' % (self.origin, self.end))
             self.interface.publish_action(origin=self.origin, target=self.end)
         def _query(self):
             """ f """
-            success_conditions = [self.agent.location(accurate=True) == self.end]
-            #[???self.interface.client.wait_for_result()]
+            success_conditions = [self.interface.action_status == True]
             self.flag(any(success_conditions))
 
     class AssignScanner(SDef.ActionResponse):

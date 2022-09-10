@@ -1,18 +1,5 @@
 # File to hold planned core-tasks
 
-from pprint import pprint
-from copy import deepcopy
-from std_msgs.msg import String as Str
-import strands_executive_msgs.msg
-import std_msgs.msg
-from std_msgs.msg import Bool
-import std_srvs.srv
-from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
-from rasberry_coordination.coordinator_tools import logmsg
-import rasberry_coordination.msg
-from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
-
-
 class StageDef(object):
     """ Active Navigation """
     class FollowAgent(StageBase):

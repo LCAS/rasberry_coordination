@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import rospy, sys
-print(sys.version)
 
 def validate_field(file, config, key, datatype, mandatory=False):
     """
@@ -64,7 +63,6 @@ def validate_types(file, config):
 if __name__ == '__main__':
     print("Recommended to set 'force_color_prompt=yes' on line 46 of .bashrc.")
 
-    import sys
     if len(sys.argv) < 2:
         usage = "rosrun rasberry_coordination abstract_task_executor_node.py config_file.yaml"
         print("Not enough arguments passed. Correct usage is:\n\t"+usage)
@@ -87,21 +85,6 @@ if __name__ == '__main__':
 
     # Ensure all required fields are filled with the correct data types
     validate_types(config_file, config_data)
-    print("Config file validated:")
-
-    """ TOPOLOGY (Node Descriptors) """
-    base_station_nodes_pool = set()
-    wait_nodes_pool = set()
-    charging_station_pool = set()
-    for node in config_data['special_nodes']:
-        if 'default' in node:
-            continue
-        if 'base_station' in node['descriptors']:
-            base_station_nodes_pool.add(node['id'])
-        if 'wait_node' in node['descriptors']:
-            wait_nodes_pool.add(node['id'])
-        if 'charging_station' in node['descriptors']:
-            charging_station_pool.add(node['id'])
 
     """ ROUTING """
     planning_format = dict()
@@ -150,8 +133,6 @@ if __name__ == '__main__':
     import rasberry_coordination.rasberry_coordinator
     coordinator = rasberry_coordination.rasberry_coordinator.RasberryCoordinator(
         agent_list=config_data['agent_list'],
-        base_station_nodes_pool=base_station_nodes_pool,
-        wait_nodes_pool=wait_nodes_pool,
         planning_format=planning_format,
         ns="rasberry_coordination",
         special_nodes=config_data['special_nodes'][1:])  # We are not certain of ordering?

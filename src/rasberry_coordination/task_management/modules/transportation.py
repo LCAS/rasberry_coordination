@@ -3,7 +3,7 @@
 from copy import deepcopy
 from std_msgs.msg import String as Str
 from rospy import Time, Duration, Subscriber, Publisher, Time
-from rasberry_coordination.actions.action_manager import ActionDetails
+from rasberry_coordination.action_management.manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
@@ -71,10 +71,6 @@ class TaskDef(object):
 
     """ Idle Task Stages for Transportation Agents """
     @classmethod
-    def transportation_picker_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-        pass
-        # agent.modules['transportation'].interface.notify("car_INIT2")
-    @classmethod
     def transportation_field_courier_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         LP = agent.local_properties
         MP = agent.module_properties
@@ -83,6 +79,10 @@ class TaskDef(object):
         agent.local_properties['load'] = int(agent.local_properties['load'])
         if LP['load'] >= int(MP['max_load']):
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
+        else:
+            #return TaskDef.transportation_wait_at_head(agent=agent, task_id=task_id, details=details, contacts=contacts)
+            pass
+
     @classmethod
     def transportation_field_storage_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         #If agents are waiting to visit, begin transportation field_storage
@@ -109,7 +109,6 @@ class TaskDef(object):
                         StageDef.AwaitFieldCourier(agent),
                         StageDef.LoadFieldCourier(agent),
                     ]))
-
     """ FieldCourier Tasks """
     @classmethod
     def transportation_retrieve_load(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
@@ -125,6 +124,22 @@ class TaskDef(object):
                         StageDef.NavigateToPicker(agent),
                         StageDef.Loading(agent)
                     ]))
+    @classmethod
+    def transportation_wait_at_head(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='transportation',
+                    name="wait_at_head",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        SDef.StartTask(agent, task_id),
+                        StageDef.AssignHeadNodeIdle(agent),
+                        StageDef.NavigateToHeadNodeIdle(agent),
+                        SDef.Idle(agent)
+                    ]))
+
     @classmethod
     def transportation_deliver_load(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
@@ -183,12 +198,12 @@ class StageDef(object):
             success_conditions = [len(self.agent.request_admittance) > 0] #TODO: this may prove error prone w/ _start
             self.flag(any(success_conditions))
         def _end(self):
-            super(StageDef.AssignFieldCourier, self)._end()
-            logmsg(category="stage", agent=self.agent.agent_id, msg="admittance required: %s"%self.agent.request_admittance)
+            super(StageDef.IdleStorage, self)._end()
+            logmsg(category="stage", id=self.agent.agent_id, msg="admittance required: %s"%self.agent.request_admittance)
     class IdleFieldStorage(IdleStorage):
         def _end(self):
             """On completion, add an idle field_storage to the end of the buffer"""
-            super(StageDef.AssignFieldCourier, self)._end()
+            super(StageDef.IdleFieldStorage, self)._end()
             self.agent.add_task('transportation_field_storage_idle')
 
     """ Assignment-Based Task Stages (involves coordinator) """
@@ -199,13 +214,16 @@ class StageDef(object):
             super(StageDef.AssignFieldCourier, self).__init__(agent)
             self.action = ActionDetails(type='search', grouping='agent_descriptor', descriptor='field_courier', style='closest_agent')
             self.contact = 'field_courier'
+        def _start(self):
+            super(StageDef.AssignFieldCourier, self)._start()
+            self.agent.format_marker(style='green')
         def _end(self):
             """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
             super(StageDef.AssignFieldCourier, self)._end()
 
             self.agent.modules['transportation'].interface.notify("car_ACCEPT")
             loc = self.agent.location()
-            self.agent['contacts']['field_courier'].speaker("%s requested pickup at %s" % (self.agent.agent_id, loc))
+            self.agent['contacts']['field_courier'].speaker("%s requested collection at %s" % (self.agent.agent_id, loc))
             self.agent['contacts']['field_courier'].add_task(task_name='transportation_retrieve_load',
                                                              task_id=self.agent['id'],
                                                              details={},
@@ -235,6 +253,22 @@ class StageDef(object):
             logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent['contacts']['field_courier'].agent_id, self.agent.request_admittance))
             logmsg(category="stage", msg="AcceptFieldCourier: stage_complete=%s" % self.stage_complete)
             self.agent.request_admittance.remove(self.agent['contacts']['field_courier'].agent_id)
+    class AssignHeadNodeIdle(SDef.ActionResponse):
+        """Used to identify the closest available head node."""
+        def __init__(self, agent):
+            """ Mark the details of the associated Action """
+            super(StageDef.AssignHeadNodeIdle, self).__init__(agent)
+            self.action = ActionDetails(type='search', grouping='head_nodes', style='head_node_allocator')
+            self.contact = 'head_node'
+        """Used to identify the closest available base_node."""
+        def _start(self):
+            super(StageDef.AssignHeadNodeIdle, self)._start()
+            self.accepting_new_tasks = True
+        def _query(self):
+            """Complete once action has generated a result"""
+            success_conditions = [self.action.response != None,
+                                  len(self.agent.task_buffer) > 0]
+            self.flag(any(success_conditions))
 
 
 
@@ -248,9 +282,13 @@ class StageDef(object):
                 return "%s(%s|%s)"%(self.get_class(), self.agent.location(), self.agent['contacts']['field_courier'].agent_id)
             else:
                 return "%s()" % (self.get_class())
+        def _start(self):
+            super(StageDef.AwaitFieldCourier, self)._start()
+            self.initial_target = self.agent.location(accurate=True)
         def _query(self):
             """Complete once the associated field_courier has arrived at the agents location"""
-            success_conditions = [self.agent['contacts']['field_courier'].location(accurate=True) == self.agent.location()]
+            success_conditions = [self.agent['contacts']['field_courier'].location(accurate=True) == self.agent.location(),
+                                  self.agent['contacts']['field_courier'].location(accurate=True) == self.initial_target]
             self.flag(any(success_conditions))
         def _end(self):
             """On completion, notify the picker of ARRIVAL"""
@@ -284,11 +322,38 @@ class StageDef(object):
         def __init__(self, agent):
             """Set navigation target as associated picker"""
             super(StageDef.NavigateToPicker, self).__init__(agent,  association='picker')
+        def _query(self):
+            """Complete when the agents location is identical to the target location."""
+            success_conditions = [self.agent.location(accurate=True) == self.target,
+                                  self.agent.location(accurate=True) == self.agent['contacts']['picker'].location(accurate=False)]
+            self.flag(any(success_conditions))
+        def _end(self):
+            """End navigation by refreshing routes for other agents in motion."""
+            logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
+            self.agent.navigation_interface.cancel_execpolicy_goal() #<- since checking if at picker early, we need to end route manually
+            self.target = None
+            self.route_required = False
+            self.agent.cb['trigger_replan']()  # ReplanTrigger
+
     class NavigateToFieldStorage(SDef.NavigateToAgent):
         """Used to define the target for the navigation as the field_storage"""
         def __init__(self, agent):
             """Set navigation target as associated field_storage"""
             super(StageDef.NavigateToFieldStorage, self).__init__(agent, association='field_storage')
+    class NavigateToHeadNodeIdle(SDef.NavigateToNode):
+        """ Used to Navigate To Base node, but with interruption enabled """
+        def __init__(self, agent):
+            """Call super to set association to base_node"""
+            super(StageDef.NavigateToHeadNodeIdle, self).__init__(agent, association='head_node')
+        def _start(self):
+            """ enable interuption """
+            super(StageDef.NavigateToHeadNodeIdle, self)._start()
+            self.accepting_new_tasks = True
+        def _query(self):
+            """Complete when the agents location is identical to the target location."""
+            success_conditions = [self.agent.location(accurate=True) == self.target,
+                                  len(self.agent.task_buffer) > 0]
+            self.flag(any(success_conditions))
 
     """ FieldCourier Load Modifiers """
     class TimeoutFlagModifier(SDef.StageBase):
@@ -301,7 +366,7 @@ class StageDef(object):
             self.default = default
             self.timeout = Duration(secs=fetch_property('transportation', timeout_type))
             self.timeout_prompt = False
-            self.agent['contacts']['field_courier'].speaker("Arrived to %s at %s... I will leave in %s seconds. Please %s trays." % 
+            self.agent['contacts']['field_courier'].speaker("Arrived to %s at %s... I will leave in %s seconds. Please %s trays." %
                                                              (self.agent.agent_id, self.agent.location(), str(self.timeout.secs), prompt))
         def _query(self):
             """Complete once has_tray flag is triggered by interface or timeout completes"""
@@ -318,12 +383,16 @@ class StageDef(object):
             """On Completion, set the field_courier's flag and notify picker"""
             super(StageDef.TimeoutFlagModifier, self)._end()
             self.agent['contacts']['field_courier'][self.trigger_flag] = self.default
-            self.agent.modules['transportation'].interface.notify("car_COMPLETE")
+            if "STD_v2_" in self.agent.agent_id:
+                self.agent.modules['transportation'].interface.notify("INIT")
+            else:
+                self.agent.modules['transportation'].interface.notify("car_COMPLETE")
     class LoadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be considered loaded"""
         def _start(self):
             """Define the flag default as True and the timeout as the transportation/wait_loading property"""
             super(StageDef.LoadFieldCourier, self)._start(timeout_type='wait_loading', flag='has_tray', default=True, prompt="load")
+            self.agent.format_marker(style='blue')
     class UnloadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be considered unloaded"""
         def _start(self):
@@ -332,6 +401,8 @@ class StageDef(object):
     """ Loading Modifiers for Courier """
     class Loading(SDef.StageBase):
         """Used for awaiting a change-of-state from the picker"""
+        def _start(self):
+            super(StageDef.Loading, self)._start()
         def _query(self):
             """Complete once agents's has_tray flag is true"""
             success_conditions = [self.agent['has_tray'] == True]

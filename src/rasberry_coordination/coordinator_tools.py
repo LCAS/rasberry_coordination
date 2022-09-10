@@ -53,7 +53,6 @@ class Rasberry_Logger(object):
         self.enable_task_logging = True
         self.task_progression_log = 'task_progression.csv' #logs to $HOME/.ros/task_progression.csv
         self.log_routes = True
-        self.action_print = True
         self.timestep = 0
         self.iteration = 0
         self.previous_log_iteration = ""
@@ -267,8 +266,8 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
             return
 
         """ Format ID with conditions for when category or id is empty """
-        ids = " " * (13 - len(str(id))) + str(id) + ":"
-        if id == "empty": ids = " " * 14
+        ids = " " * (19 - len(str(id))) + str(id) + ":"
+        if id == "empty": ids = " " * 20
 
         """ Define colour values for printing """ #TODO: optimise this with re.sub(r'\[.*\]','[]',line)
         reset = '\033[00m'

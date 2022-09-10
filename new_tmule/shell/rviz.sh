@@ -1,4 +1,5 @@
 # RViZ Config
+export_default DISPLAY ":0"
 if ! $USE_SIM; then
   export_default RVIZ_CONFIG "server"
 else
