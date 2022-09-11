@@ -34,10 +34,10 @@ def load_custom_modules(clean_module_list):
     logmsg(category="null")
 
     clean_module_list = [t for t in clean_module_list if t != 'base']
-    module_list = ['rasberry_coordination.task_management.modules.%s' % module for module in clean_module_list]
-
-    if 'rasberry_coordination.task_management.base' not in module_list:
-        module_list.insert(0, 'rasberry_coordination.task_management.base')
+    module_list = ['%s.coordination.task_module' % module for module in clean_module_list] #change to import the three from seperate files
+    module_list.insert(0, 'rasberry_coordination.task_management.modules.base')
+    module_list.insert(1, 'rasberry_coordination.task_management.modules.navigation')
+    module_list.insert(2, 'rasberry_coordination.task_management.modules.assignment')
 
     logmsg(category="START",  msg="Collecting Interface, Task, and Stage Definitions for modules: ")
     [logmsg(category="START", msg="    | %s" % module) for module in clean_module_list]
@@ -46,11 +46,19 @@ def load_custom_modules(clean_module_list):
     interface_definitions = dict()
     task_definitions = dict()
     stage_definitions = dict()
+
     for module in module_list:
-        module_class = __import__(module, globals(), locals(), ['TaskDef','StageDef','InterfaceDef'], -1)
-        interface_definitions[module] = rename(module_class.InterfaceDef, module.split('.')[-1])
-        task_definitions[module] = module_class.TaskDef
-        stage_definitions[module] = module_class.StageDef
+        stage_def = __import__(module, globals(), locals(), ['stage_definitions'], -1)
+        stage_definitions[module] = stage_def.stage_definitions
+
+    for module in module_list:
+        task_def = __import__(module, globals(), locals(), ['task_definitions'], -1)
+        task_definitions[module] = task_def.task_definitions
+
+    for module in module_list:
+        interface_def = __import__(module, globals(), locals(), ['interface_definitions'], -1)
+        name = module.split('.')[-1] if module.startswith('rasberry_coordination') else module.split('.')[0]
+        interface_definitions[module] = rename(interface_def.interface_definitions, name)
 
     # Compile containers down to single global objects to import from within rasberry_coordination
     global TaskDef, StageDef, InterfaceDef
