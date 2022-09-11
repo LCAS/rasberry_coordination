@@ -103,40 +103,40 @@ class InterfaceDef(object):
         """ Dynamic Task Management """
         def InterruptTask(self, m):
             logmsg(category="null")
-            logmsg(category="DTM", id="toc", msg="Interruption made on TOC channels of type: %s" % m.interrupt)
+            logmsg(category="DTM", id="TOC", msg="Interruption made on TOC channels of type: %s" % m.interrupt)
             A = {a.agent_id:a for a in self.coordinator.get_agents()}
 
-            if m.scope in [0, "Coord", "Coordinator"]:
+            if m.scope == 0 or m.scope[0].lower() == 'c':
                 # Modify all tasks
                 logmsg(category="DTM", msg="    - to affect all agents.")
                 if m.interrupt == "reset":
                     for a in A.values():
-                        if a['task_id'] and a.agent_id == a['initiator_id']:
+                        if a['id'] and a.agent_id == a['initiator_id']:
                             logmsg(category="DTM", msg="      | release")
-                            a.set_interrupt("reset", a.module, a['task_id'], m.scope, quiet=True)
+                            a.set_interrupt("reset", a.modules, a['id'], m.scope, quiet=True)
                 else:
-                    [a.set_interrupt(m.interrupt, a.module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
+                    [a.set_interrupt(m.interrupt, a.modules, a['id'], m.scope, quiet=True) for a in A.values() if a['id']]
 
 
-            elif m.scope in [1, "Task"]:
+            elif m.scope == 1 or m.scope[0].lower() == 't':
                 # Modify all agents on specific task
-                logmsg(category="DTM", msg="    - to affect task: %s." % m.target)
+                logmsg(category="DTM", msg="    | to affect task: %s." % m.target)
                 # [a.set_interrupt(m.interrupt, a.module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
 
                 if m.interrupt == "reset":
                     for a in A.values():
-                        if (a['task_id']) and (a['task_id'] == m.target) and (a.agent_id == a['initiator_id']):
+                        if (a['id']) and (a['id'] == m.target) and (a.agent_id == a['initiator_id']):
                             logmsg(category="DTM", msg="      | release")
-                            a.set_interrupt("reset", a.module, a['task_id'], m.scope, quiet=True)
+                            a.set_interrupt("reset", a.modules, a['id'], m.scope, quiet=True)
                 else:
-                    [a.set_interrupt(m.interrupt, a.module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
+                    [a.set_interrupt(m.interrupt, a.modules, a['id'], m.scope, quiet=True) for a in A.values() if a['id'] and a['id'] == m.target]
 
 
 
-            elif m.scope in [2, "Agent"]:
+            elif m.scope == 2 or m.scope[0].lower() == 'a':
                 # Modify specific agent's task
                 logmsg(category="DTM", msg="    - to affect agent: %s." % m.target)
-                A[m.target].set_interrupt(m.interrupt, A[m.target].module, A[m.target]['task_id'], m.scope, quiet=True)
+                A[m.target].set_interrupt(m.interrupt, A[m.target].modules, A[m.target]['id'], m.scope, quiet=True)
 
             else:
                 print(m)
@@ -728,13 +728,13 @@ class StageDef(object):
         """Inserted on Pause for use as a 3-stage controlled blocker, used on Coordinator, Task, or Agent scopes"""
         def __repr__(self):
             """Display scopes actively contributing to the blocking"""
-            return "%s(C%s|T%s|A%s)" % (self.get_class(), int(self.pause_state['Coord']), int(self.pause_state['Task']), int(self.pause_state['Agent']))
+            return "%s(C%s|T%s|A%s)" % (self.get_class(), int(self.pause_state['c']), int(self.pause_state['t']), int(self.pause_state['a']))
         def __init__(self, agent):
             """Initialise blocking properties"""
             super(StageDef.Pause, self).__init__(agent)
             logmsg(category="DTM", msg="      | pause init")
             self.agent.registration = False
-            self.pause_state = {'Coord':False, 'Task':False, 'Agent':False}
+            self.pause_state = {'c':False, 't':False, 'a':False}
         def _start(self):
             """On start, cancel any active navigation"""
             super(StageDef.Pause, self)._start()
