@@ -2,6 +2,7 @@
 
 import sys
 import rospy
+import json
 from std_msgs.msg import String
 import rasberry_coordination
 from rasberry_coordination.msg import NewAgentConfig, Module, KeyValuePair
@@ -23,7 +24,7 @@ def get_file_path(agent, setup):
     return agent_file, setup_file
 
 
-def load_agent_obj(agent_input, setup_input, get_files_from_paths=False):
+def load_agent_obj(agent_input, setup_input, get_files_from_paths=False, printer=True):
 
     # Identify agent and setup filepaths
     if get_files_from_paths:
@@ -35,10 +36,10 @@ def load_agent_obj(agent_input, setup_input, get_files_from_paths=False):
     try:
         agent_data = rasberry_des.config_utils.get_config_data(agent_file)
     except Exception as e:
-        print(e)
-        logmsg(level="warn", category="DRM", msg="File not Loaded: %s" % (agent_file))
+        if printer: print(e)
+        if printer: logmsg(level="warn", category="DRM", msg="File not Loaded: %s" % (agent_file))
         agent_data = {'agent_id': agent_input.split("/")[-1].split(".")[0]}
-        logmsg(level="warn", category="DRM", msg="Launching with agent_data: %s" % (agent_data))
+        if printer: logmsg(level="warn", category="DRM", msg="Launching with agent_data: %s" % (agent_data))
     setup_data = rasberry_des.config_utils.get_config_data(setup_file)
 
     # Build msg
@@ -58,11 +59,19 @@ class AgentMonitor():
         self.s1 = rospy.Subscriber("/car/new_agent", String, self.load,  callback_args='picker')
         self.s2 = rospy.Subscriber("/sar/new_agent", String, self.load,  callback_args='tall_controller')
         self.s3 = rospy.Subscriber("/car/new_store", String, self.load,  callback_args='field_storage')
+        self.s4 = rospy.Subscriber('/car_client/get_gps', String, self.add_car_agent)
 
-    def load(self, msg, agent_type):
+    """ Dynamic Fleet """
+    def add_car_agent(self, msg):
+        details = json.loads(msg.data)
+        id = str(details['user'])
+        if 'STD_v2' in id:
+            self.load(String(id), 'picker', printer=False)
+
+    def load(self, msg, agent_type, printer=True):
         logmsg(category="DRM", msg="Recieved new %s information: %s"%(msg.data, agent_type))
-        agent = load_agent_obj(agent_input=msg.data, setup_input=agent_type, get_files_from_paths=True)
-        print(agent)
+        agent = load_agent_obj(agent_input=msg.data, setup_input=agent_type, get_files_from_paths=True, printer=printer)
+        if printer: print(agent)
         self.pub.publish(agent)
 
 

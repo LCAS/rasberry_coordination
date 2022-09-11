@@ -13,7 +13,7 @@
 
 - name: coordinator
   panes:
-  - rm $HOME/.ros/coordinator-loaded-agents-save-state.yaml ; rosservice call /rasberry_coordination/root_inspector "coordinator.agent_manager.agent_details"
+  - rm $HOME/.ros/coordinator-loaded-agents-save-state.yaml ; rosservice call /rasberry_coordination/root_inspector "coordinator.agent_manager.agent_details"; rostopic echo -c /rasberry_coordination/active_tasks_details
   - roslaunch rasberry_coordination abstract_task_coordinator.launch config_file:=$TASK_COORD_CONFIG
   check: "ROS_MASTER_URI=${SERVER_URI} rostopic list | grep -q dynamic_fleet"
   tags: [coord]
