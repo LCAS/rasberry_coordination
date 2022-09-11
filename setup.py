@@ -5,7 +5,7 @@ from catkin_pkg.python_setup import generate_distutils_setup
 
 d = generate_distutils_setup(
     install_requires=["whiptail==0.2"],
-    packages=['rasberry_coordination'],
+    packages=['rasberry_coordination', 'rasberry_health_monitoring', 'rasberry_uv_treatment'],
     package_dir={'': 'src'}
 )
 

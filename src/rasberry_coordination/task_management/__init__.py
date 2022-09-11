@@ -1,3 +1,4 @@
+from pprint import pprint
 from rospy import set_param, get_param
 from rasberry_coordination.coordinator_tools import logmsg
 
@@ -38,7 +39,7 @@ def load_custom_modules(clean_module_list):
     module_list.insert(0, 'rasberry_coordination.task_management.modules.base')
     module_list.insert(1, 'rasberry_coordination.task_management.modules.navigation')
     module_list.insert(2, 'rasberry_coordination.task_management.modules.assignment')
-
+    pprint(module_list)
     logmsg(category="START",  msg="Collecting Interface, Task, and Stage Definitions for modules: ")
     [logmsg(category="START", msg="    | %s" % module) for module in clean_module_list]
 
@@ -48,6 +49,7 @@ def load_custom_modules(clean_module_list):
     stage_definitions = dict()
 
     for module in module_list:
+        print(module)
         stage_def = __import__(module, globals(), locals(), ['stage_definitions'], -1)
         stage_definitions[module] = stage_def.stage_definitions
 

@@ -9,6 +9,7 @@ from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDeta
 from rasberry_coordination.action_management.manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
+from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
 from rasberry_coordination.robot import Robot, VirtualRobot
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
@@ -18,7 +19,7 @@ except: pass
 
 
 """ Navigation Controllers for Courier """
-class Navigation(StageBase):
+class Navigation(SDef.StageBase):
     """Base task for all Navigation"""
     def __repr__(self):
         """Display class with idle navigation target """
