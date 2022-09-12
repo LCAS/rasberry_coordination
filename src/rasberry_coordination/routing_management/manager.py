@@ -107,7 +107,7 @@ class RoutingManager(object):
             if len(new_edge) > len(old_edge):
                 publish_route = True
                 rationalle_to_publish = "New route is larger then old route."
-                logmsg(category="route", msg="    - new route longer than existing one")
+                logmsg(category="navig", msg="    - new route longer than existing one")
             else:
                 publish_route = False
                 reason_failed_to_publish = "New shorter route could just be a partially used route"
@@ -123,7 +123,7 @@ class RoutingManager(object):
                     if o != n:
                         publish_route = True
                         rationalle_to_publish = "New route takes a different route to target."
-                        logmsg(category="route", msg="    - new route different from existing route")
+                        logmsg(category="navig", msg="    - new route different from existing route")
                         break
                     else:
                         publish_route = False
@@ -133,15 +133,15 @@ class RoutingManager(object):
         if publish_route or self.force_replan_to_publish:
             self.force_replan_to_publish = False
             if self.log_routes:
-                logmsg(category="route", msg="    - new route generated:\n%s" % policy)
-                logmsg(category="route", msg="    - previous route:\n%s" % agent.navigation_interface.execpolicy_goal)
+                logmsg(category="navig", msg="    - new route generated:\n%s" % policy)
+                logmsg(category="navig", msg="    - previous route:\n%s" % agent.navigation_interface.execpolicy_goal)
 
             agent.navigation_interface.cancel_execpolicy_goal()
             agent.navigation_interface.set_execpolicy_goal(policy)
-            agent.speaker("Hello. I am about to move. Be careful!")
+            agent.speaker("caution: moving")
 
             agent().route_required = False  # Route has now been published
-            logmsg(category="route", id=agent.agent_id, msg="    - route published: %s" % rationalle_to_publish)
+            logmsg(category="navig", id=agent.agent_id, msg="    - route published: %s" % rationalle_to_publish)
 
             now = str(datetime.datetime.utcnow())
             path = "%s/routing/filtered_map_%s.prof" % (rospkg.RosPack().get_path('rasberry_coordination'), now.replace(' ','-'))
