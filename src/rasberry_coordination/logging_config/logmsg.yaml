@@ -20,6 +20,8 @@ categories:
   - name: "VR_ROB"
     colour: '45m'
   - name: "ROUTE"
+#    reject: true
+  - name: "NAVIG"
   - name: "ROBNAV"
 #    reject: true
 
