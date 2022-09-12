@@ -324,12 +324,21 @@ class StageDef(object):
             super(StageDef.NavigateToPicker, self).__init__(agent,  association='picker')
         def _query(self):
             """Complete when the agents location is identical to the target location."""
-            success_conditions = [self.agent.location(accurate=True) == self.target,
-                                  self.agent.location(accurate=True) == self.agent['contacts']['picker'].location(accurate=False)]
+            picker_loc = self.agent['contacts']['picker'].location(accurate=False)
+            robot_loc = self.agent.location(accurate=True)
+            success_conditions = [robot_loc == self.target,
+                                  robot_loc == picker_loc,
+                                  self.agent.location.current_node == None and picker_loc in self.agent.closest_edge]
             self.flag(any(success_conditions))
         def _end(self):
             """End navigation by refreshing routes for other agents in motion."""
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
+            picker_loc = self.agent['contacts']['picker'].location(accurate=False)
+            robot_loc = self.agent.location(accurate=True)
+            if robot_loc == self.target: print("check condition 1 passed")
+            if robot_loc == picker_loc: print("check condition 2 passed")
+            if self.agent.location.current_node == None and picker_loc in self.agent.closest_edge: print("check condition 3 passed")
+
             self.agent.navigation_interface.cancel_execpolicy_goal() #<- since checking if at picker early, we need to end route manually
             self.target = None
             self.route_required = False
