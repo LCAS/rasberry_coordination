@@ -15,147 +15,147 @@ from topological_navigation.route_search2 import TopologicalRouteSearch2 as Topo
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
 
+class TaskDef(object):
 
+    """ Runtime Method for Init Task Definitions """
+    @classmethod
+    def base_robot_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return (Task(id=task_id,
+                     module='base',
+                     name="base_robot_init",
+                     details=details,
+                     contacts=contacts,
+                     initiator_id=agent.agent_id,
+                     responder_id="",
+                     stage_list=[
+                         StageDef.StartTask(agent, task_id),
+                         StageDef.SetUnregister(agent),
+                         StageDef.WaitForMap(agent),
+                         StageDef.WaitForLocalisation(agent),
+                         StageDef.SetRegister(agent)
+                     ]))
 
-""" Runtime Method for Init Task Definitions """
-@classmethod
-def base_robot_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    return (Task(id=task_id,
-                 module='base',
-                 name="base_robot_init",
-                 details=details,
-                 contacts=contacts,
-                 initiator_id=agent.agent_id,
-                 responder_id="",
-                 stage_list=[
-                     StageDef.StartTask(agent, task_id),
-                     StageDef.SetUnregister(agent),
-                     StageDef.WaitForMap(agent),
-                     StageDef.WaitForLocalisation(agent),
-                     StageDef.SetRegister(agent)
-                 ]))
+    @classmethod
+    def base_virtual_robot_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return (Task(id=task_id,
+                     module='base',
+                     name="base_virtual_robot_init",
+                     details=details,
+                     contacts=contacts,
+                     initiator_id=agent.agent_id,
+                     responder_id="",
+                     stage_list=[
+                         StageDef.StartTask(agent, task_id),
+                         StageDef.SetUnregister(agent),
+                         StageDef.WaitForMap(agent),
+                         StageDef.EnableVirtualLocalisation(agent),
+                         StageDef.WaitForLocalisation(agent),
+                         StageDef.SetRegister(agent)
+                     ]))
 
-@classmethod
-def base_virtual_robot_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    return (Task(id=task_id,
-                 module='base',
-                 name="base_virtual_robot_init",
-                 details=details,
-                 contacts=contacts,
-                 initiator_id=agent.agent_id,
-                 responder_id="",
-                 stage_list=[
-                     StageDef.StartTask(agent, task_id),
-                     StageDef.SetUnregister(agent),
-                     StageDef.WaitForMap(agent),
-                     StageDef.EnableVirtualLocalisation(agent),
-                     StageDef.WaitForLocalisation(agent),
-                     StageDef.SetRegister(agent)
-                 ]))
+    @classmethod
+    def base_human_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='base',
+                    name="base_human_init",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.SetUnregister(agent),
+                        StageDef.WaitForMap(agent),
+                        StageDef.SendInfo(agent),
+                        StageDef.SetRegister(agent)
+                    ]))
+    @classmethod
+    def base_localised_human_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='base',
+                    name="base_human_init",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.SetUnregister(agent),
+                        StageDef.WaitForMap(agent),
+                        StageDef.WaitForLocalisation(agent),
+                        StageDef.SendInfo(agent),
+                        StageDef.SetRegister(agent)
+                    ]))
 
-@classmethod
-def base_human_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    return(Task(id=task_id,
-                module='base',
-                name="base_human_init",
-                details=details,
-                contacts=contacts,
-                initiator_id=agent.agent_id,
-                responder_id="",
-                stage_list=[
-                    StageDef.StartTask(agent, task_id),
-                    StageDef.SetUnregister(agent),
-                    StageDef.WaitForMap(agent),
-                    StageDef.SendInfo(agent),
-                    StageDef.SetRegister(agent)
-                ]))
-@classmethod
-def base_localised_human_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    return(Task(id=task_id,
-                module='base',
-                name="base_human_init",
-                details=details,
-                contacts=contacts,
-                initiator_id=agent.agent_id,
-                responder_id="",
-                stage_list=[
-                    StageDef.StartTask(agent, task_id),
-                    StageDef.SetUnregister(agent),
-                    StageDef.WaitForMap(agent),
-                    StageDef.WaitForLocalisation(agent),
-                    StageDef.SendInfo(agent),
-                    StageDef.SetRegister(agent)
-                ]))
-
-""" Idle Tasks """
-@classmethod
-def base_robot_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    if len(agent.task_buffer) == 0:
+    """ Idle Tasks """
+    @classmethod
+    def base_robot_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        if len(agent.task_buffer) == 0:
+            return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
+    @classmethod
+    def base_virtual_robot_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
-@classmethod
-def base_virtual_robot_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    return TaskDef.wait_at_base(agent=agent, task_id=task_id, details=details, contacts=contacts)
-@classmethod
-def base_human_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    return TaskDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
-@classmethod
-def base_localised_human_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    return TaskDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
+    @classmethod
+    def base_human_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return TaskDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
+    @classmethod
+    def base_localised_human_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return TaskDef.idle(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
-""" Runtime Method for Idle Task Definitions """
-@classmethod
-def idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    return(Task(id=task_id,
-                module='base',
-                name="idle",
-                details=details,
-                contacts=contacts,
-                initiator_id=agent.agent_id,
-                responder_id="",
-                stage_list=[
-                    StageDef.StartTask(agent, task_id),
-                    StageDef.Idle(agent)
-                ]))
-@classmethod
-def wait_at_base(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    return(Task(id=task_id,
-                module='base',
-                name="wait_at_base",
-                details=details,
-                contacts=contacts,
-                initiator_id=agent.agent_id,
-                responder_id="",
-                stage_list=[
-                    StageDef.StartTask(agent, task_id),
-                    # StageDef.Exit(agent)
-                    StageDef.AssignBaseNodeIdle(agent),
-                    StageDef.NavigateToBaseNodeIdle(agent),
-                    StageDef.Idle(agent)
-                ]))
-@classmethod
-def exit_at_node(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    return(Task(id=task_id,
-                module='base',
-                name="exit_at_node",
-                details=details,
-                contacts=contacts,
-                initiator_id=agent.agent_id,
-                responder_id="",
-                stage_list=[
-                    StageDef.SetUnregister(agent),
-                    StageDef.NavigateToExitNode(agent),
-                    StageDef.Exit(agent)
-                ]))
+    """ Runtime Method for Idle Task Definitions """
+    @classmethod
+    def idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='base',
+                    name="idle",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.Idle(agent)
+                    ]))
+    @classmethod
+    def wait_at_base(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='base',
+                    name="wait_at_base",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        StageDef.StartTask(agent, task_id),
+                        # StageDef.Exit(agent)
+                        StageDef.AssignBaseNodeIdle(agent),
+                        StageDef.NavigateToBaseNodeIdle(agent),
+                        StageDef.Idle(agent)
+                    ]))
+    @classmethod
+    def exit_at_node(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='base',
+                    name="exit_at_node",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        StageDef.SetUnregister(agent),
+                        StageDef.NavigateToExitNode(agent),
+                        StageDef.Exit(agent)
+                    ]))
 
-""" Dynamic Task Management """
-@classmethod
-def release_task(cls, agent):
-    logmsg(category="DTM", msg="    | releasing task %s" % (agent['name']))
-    agent.task = None
-@classmethod
-def restart_task(cls, agent):
-    logmsg(category="DTM", msg="    | restarting task %s" % (agent['name']))
-    agent.add_task(task_name=agent['name'], task_id=agent['id'], index=0, quiet=True)
-    agent.task = None
+    """ Dynamic Task Management """
+    @classmethod
+    def release_task(cls, agent):
+        logmsg(category="DTM", msg="    | releasing task %s" % (agent['name']))
+        agent.task = None
+    @classmethod
+    def restart_task(cls, agent):
+        logmsg(category="DTM", msg="    | restarting task %s" % (agent['name']))
+        agent.add_task(task_name=agent['name'], task_id=agent['id'], index=0, quiet=True)
+        agent.task = None
 
 

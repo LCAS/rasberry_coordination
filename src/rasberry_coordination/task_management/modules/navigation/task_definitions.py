@@ -16,19 +16,20 @@ try: from rasberry_coordination.task_management.__init__ import PropertiesDef as
 except: pass
 
 
+class TaskDef(object):
 
-@classmethod
-def move_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
-    return(Task(id=task_id,
-                module='base',
-                name="move_idle",
-                details=details,
-                contacts=contacts,
-                initiator_id=agent.agent_id,
-                responder_id="",
-                stage_list=[
-                    StageDef.StartTask(agent, task_id),
-                    StageDef.NavigateToTargetNode(agent),
-                    StageDef.Idle(agent)
-                ]))
+    @classmethod
+    def move_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='base',
+                    name="move_idle",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.NavigateToTargetNode(agent),
+                        StageDef.Idle(agent)
+                    ]))
 
