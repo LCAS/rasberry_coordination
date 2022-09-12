@@ -9,7 +9,6 @@ class TaskManager(object):
 
     def __init__(self, coordinator_ref):
         self.coordinator_ref = coordinator_ref
-        print(dir(InterfaceDef))
         self.toc_interface = InterfaceDef.TOC_Interface(coordinator_ref)
 
     def interrupt_task(self, agent_list):
