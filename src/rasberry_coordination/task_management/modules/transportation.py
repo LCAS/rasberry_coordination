@@ -284,11 +284,11 @@ class StageDef(object):
                 return "%s()" % (self.get_class())
         def _start(self):
             super(StageDef.AwaitFieldCourier, self)._start()
+            self.agent['details']['arrived'] = False
             self.initial_target = self.agent.location(accurate=True)
         def _query(self):
             """Complete once the associated field_courier has arrived at the agents location"""
-            success_conditions = [self.agent['contacts']['field_courier'].location(accurate=True) == self.agent.location(),
-                                  self.agent['contacts']['field_courier'].location(accurate=True) == self.initial_target]
+            success_conditions = [self.agent['details']['arrived']]
             self.flag(any(success_conditions))
         def _end(self):
             """On completion, notify the picker of ARRIVAL"""
@@ -338,7 +338,7 @@ class StageDef(object):
             if robot_loc == self.target: print("check condition 1 passed")
             if robot_loc == picker_loc: print("check condition 2 passed")
             if self.agent.location.current_node == None and picker_loc in self.agent.location.closest_edge: print("check condition 3 passed")
-
+            self.agent['contacts']['picker']['details']['arrived'] = True
             self.agent.navigation_interface.cancel_execpolicy_goal() #<- since checking if at picker early, we need to end route manually
             self.target = None
             self.route_required = False
