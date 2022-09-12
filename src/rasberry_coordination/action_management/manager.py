@@ -144,5 +144,8 @@ class ActionManager(object):
         return None
 
     def dist(self, agent, start_node, goal_node):
-        return agent.map_handler.get_route_length(agent, start_node, goal_node)
-
+        try:
+            return agent.map_handler.get_route_length(agent, start_node, goal_node)
+        except:
+            print("Try-Except in manager.py for Action_Management modules")
+            return 0.0
