@@ -115,11 +115,11 @@ class InterfaceDef(object):
             self.in_auto_mode = in_auto_mode.data
             if self.in_auto_mode:
                 logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent is in AUTONOMOUS mode.")
-                self.speaker("autonomy: enabled")
+                #self.speaker("autonomy: enabled")
                 self.enable_navigation()
             else:
                 logmsg(level="warn", category="HEALTH", id=self.agent.agent_id, msg="Agent is in MANUAL mode.")
-                self.speaker("autonomy: disabled")
+                #self.speaker("autonomy: disabled")
 
         def row_trav_cb(self, msg):
             if self.row_trav_paused == msg.paused.data: return
