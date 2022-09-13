@@ -1,5 +1,6 @@
 """Base"""
 
+from time import sleep
 from copy import deepcopy
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, get_param
 from std_msgs.msg import Bool, String as Str
@@ -167,7 +168,8 @@ class InterfaceDef(object):
             self.pub = Publisher('/car_client/set_states_kv', KeyValue, queue_size=5)
             self.sub = Subscriber('/car_client/get_states_kv', KeyValue, self.callback, agent.agent_id)
             self.loc_pub = Publisher('/car_client/set_closest_node_kv', KeyValue, queue_size=5)
-            self.loc_sub = Subscriber('%s/closest_node'%self.agent.agent_id, Str, self.loc_cb)
+            self.loc_sub = Subscriber('/%s/closest_node'%self.agent.agent_id, Str, self.loc_cb)
+            sleep(1)
             self.notify("CONNECTED")
         def loc_cb(self, msg):
             self.loc_pub.publish(KeyValue(key=self.agent.agent_id, value=msg.data))

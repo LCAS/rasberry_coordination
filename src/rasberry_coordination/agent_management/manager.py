@@ -62,8 +62,9 @@ class AgentManager(object):
     def add_agent_from_buffer(self):
         buffer, self.new_agent_buffer = self.new_agent_buffer, dict()
         for agent_dict in buffer.values():
-            self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
-            logmsg(category="null")
+            if agent_dict['agent_id'] not in self.agent_details.keys():
+                self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
+                logmsg(category="null")
     def add_agents(self, agent_list):
         for agent in agent_list: self.add_agent(agent)
     def add_agent_cb(self, msg):
