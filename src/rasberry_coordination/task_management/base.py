@@ -607,21 +607,21 @@ class StageDef(object):
         """Used to identify of two nodes, which one is closest ot the agent."""
         def __repr__(self):
             """Display row ends in the repr"""
-            if 'row_ends' in self.agent['details'] and self.agent['details']['row_ends']:
-                return "%s(%s)" % (self.get_class(), self.agent['details']['row_ends'])
+            if 'row_ends' in self.agent['contacts'] and self.agent['contacts']['row_ends']:
+                return "%s(%s)" % (self.get_class(), self.agent['contacts']['row_ends'])
             return self.get_class()
         def _start(self):
             """Define action to find which node of the ends is the closest to start from"""
             super(StageDef.FindStartNode, self)._start()
-            print(self.agent['details'] ) 
-            lst = self.agent['details']['row_ends']
+            print(self.agent['contacts'] ) 
+            lst = self.agent['contacts']['row_ends']
             self.action = ActionDetails(type='search', grouping='node_list', list=lst, style='closest_node')
         def _end(self):
             """Save the closest and furthest node to be the row start and row end"""
             super(StageDef.FindStartNode, self)._end()
             self.agent['contacts']['start_node'] = self.action.response
-            self.agent['details']['row_ends'].remove(self.action.response)
-            self.agent['contacts']['end_node'] = self.agent['details']['row_ends'][0]
+            self.agent['contacts']['row_ends'].remove(self.action.response)
+            self.agent['contacts']['end_node'] = self.agent['contacts']['row_ends'][0]
             logmsg(category="stage", msg="Task to move from %s to %s" % (self.agent['contacts']['start_node'], self.agent['contacts']['end_node']))
 
     """ Navigation Controllers for Courier """

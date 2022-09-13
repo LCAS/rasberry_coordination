@@ -51,7 +51,7 @@ class InterfaceDef(object):
                 nodeA = "r%s-c%s"%(msg.row, msg.edge_nodes[0])
                 nodeB = "r%s-c%s"%(msg.row, msg.edge_nodes[1])
                 logmsg(category="DCTASK", id=self.agent.agent_id, msg="Request to treat edge")
-                self.agent.add_task(task_name='data_collection_scan_edge', details={"row_ends": [nodeA, nodeB]})
+                self.agent.add_task(task_name='data_collection_scan_edge', contacts={"row_ends": [nodeA, nodeB]})
 
         def row(self, msg):
             if self.agent.registration:
