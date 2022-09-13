@@ -8,6 +8,7 @@ modules:
 navigation_properties:
     has_presence: true
     restrictions: short
+    wait_node_name: base_tp_node
     #map_filters:
     #  - only_restricitons
     #  - no_nodes_with_presence

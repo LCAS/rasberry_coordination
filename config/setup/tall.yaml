@@ -3,13 +3,12 @@ modules:
     role: robot
   - name: health_monitoring
     role: robot
-  #- name: uv_treatment
-  #  role: phototherapist
   - name: data_collection
     role: scanner
 navigation_properties:
     restrictions: tall
     has_presence: true
+    wait_node_name: base_dc_node
     #map_filters:
     #  - only_restrictions
     #  - no_rows_with_presence
