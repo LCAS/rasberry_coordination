@@ -237,7 +237,7 @@ class FragmentPlanner(BasePlanner):
             if route.source == [] and route.edge_id == []:
                 logmsg(level="warn", category="route", msg="failed to find route, waiting idle")
                 logmsg(level="warn", category="route", msg="modify here for wait_node addition")
-                # self.no_route_found(agent)
+                self.no_route_found(agent)
                 inactives += [agent]
                 agent().route_required = False
                 continue

@@ -333,11 +333,6 @@ class StageDef(object):
         def _end(self):
             """End navigation by refreshing routes for other agents in motion."""
             logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
-            picker_loc = self.agent['contacts']['picker'].location(accurate=False)
-            robot_loc = self.agent.location(accurate=True)
-            if robot_loc == self.target: print("check condition 1 passed")
-            if robot_loc == picker_loc: print("check condition 2 passed")
-            if self.agent.location.current_node == None and picker_loc in self.agent.location.closest_edge: print("check condition 3 passed")
             self.agent['contacts']['picker']['details']['arrived'] = True
             self.agent.navigation_interface.cancel_execpolicy_goal() #<- since checking if at picker early, we need to end route manually
             self.target = None
@@ -349,6 +344,8 @@ class StageDef(object):
         def __init__(self, agent):
             """Set navigation target as associated field_storage"""
             super(StageDef.NavigateToFieldStorage, self).__init__(agent, association='field_storage')
+        def _end(self):
+            self.agent['contacts']['field_storage']['details']['arrived'] = True
     class NavigateToHeadNodeIdle(SDef.NavigateToNode):
         """ Used to Navigate To Base node, but with interruption enabled """
         def __init__(self, agent):
