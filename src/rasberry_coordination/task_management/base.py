@@ -573,7 +573,7 @@ class StageDef(object):
         def __init__(self, agent):
             """ Mark the details of the associated Action """
             super(StageDef.AssignBaseNode, self).__init__(agent)
-            self.action = ActionDetails(type='search', grouping='node_descriptor', descriptor='base_node', style='closest_node')
+            self.action = ActionDetails(type='search', grouping='node_descriptor', descriptor=self.agent.navigation_properties['wait_node_name'], style='closest_node')
             self.contact = 'base_node'
     class AssignBaseNodeIdle(AssignBaseNode):
         """Used to identify the closest available base_node."""
