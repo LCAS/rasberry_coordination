@@ -2,6 +2,6 @@
   panes:
   - 'rostopic pub /car/new_store std_msgs/String "data: storage02" -r 0.2'
   - 'sleep 5; rostopic pub /storage02/localisation/disable std_msgs/String "data: s0"'
-  - 'rostopic pub /car/new_store std_msgs/String "data: storage03" -r 0.2'
-  - 'sleep 5; rostopic pub /storage03/localisation/disable std_msgs/String "data: s1"'
+#  - 'rostopic pub /car/new_store std_msgs/String "data: storage03" -r 0.2'
+#  - 'sleep 5; rostopic pub /storage03/localisation/disable std_msgs/String "data: s1"'
 
