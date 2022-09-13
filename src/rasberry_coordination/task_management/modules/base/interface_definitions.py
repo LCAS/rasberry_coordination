@@ -201,42 +201,6 @@ class InterfaceDef(object):
                                  'scope': task_scope})
 
 
-    class robot(object):
-        def __init__(self, agent, Type):
-            self.agent = agent
-            self.agent.navigation_interface = Type
-            self.disconnect_sub = Subscriber('/%s/base/disconnect' % agent.agent_id, Str, self.disconnect)
-            self.move_idle_sub = Subscriber('/%s/base/move_idle' % agent.agent_id, Str, self.move_idle)
-        def disconnect(self, msg):
-            logmsg(category="Task", id=self.agent.agent_id, msg="Request to disconnect")
-            node_id = msg.data or self.agent.goal or self.agent.location(accurate=True)
-            self.agent.add_task(task_name='exit_at_node', contacts={"exit_node":node_id}, index=0)
-        def move_idle(self, msg):
-            logmsg(category="Task", id=self.agent.agent_id, msg="Request to Move while Idle")
-
-            # if idle:
-            if not isinstance(self.agent(), StageDef.Idle):
-                logmsg(category="Task", msg="    - agent not idle")
-                return
-
-            # if node valid:
-            if not self.agent.map_handler.is_node(msg.data):
-                logmsg(category="Task", msg="    - node is invalid")
-                return
-
-            # add task
-            self.agent.add_task(task_name='move_idle', contacts={"target":msg.data})
-
-    class base_robot(robot):
-        def __init__(self, agent):
-            super(InterfaceDef.base_robot, self).__init__(agent, Robot(agent.agent_id, agent.speaker))
-    class base_virtual_robot(robot):
-        def __init__(self, agent):
-            sd = fetch_property('base', 'virtual_robot_step_delay')
-            VR = VirtualRobot(agent.agent_id, agent, step_delay=sd)
-            super(InterfaceDef.base_virtual_robot, self).__init__(agent, VR)
-
-
     class base_human(object):
         def __init__(self, agent):
             self.agent = agent

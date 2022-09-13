@@ -9,6 +9,7 @@ from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as L
 from rasberry_coordination.task_management.base import TaskDef as TDef, StageDef as SDef, InterfaceDef as IDef
 from thorvald_base.msg import BatteryArray as Battery, ControllerArray
 from polytunnel_navigation_actions.msg import RowTraversalHealth
+from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
