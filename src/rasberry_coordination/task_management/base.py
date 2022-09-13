@@ -704,6 +704,7 @@ class StageDef(object):
         def __init__(self, agent):
             """Call super to set association to wait_node"""
             super(StageDef.NavigateToTargetNode, self).__init__(agent, association='target')
+            self.accepting_new_tasks = True
 
     """ Communications """
     class NotifyTrigger(StageBase):
