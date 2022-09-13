@@ -1,6 +1,6 @@
 modules:
   - name: base
-    role: human
+    role: localised_human
   - name: transportation
     role: field_storage
 navigation_properties:

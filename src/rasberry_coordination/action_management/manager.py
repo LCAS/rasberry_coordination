@@ -86,7 +86,12 @@ class ActionManager(object):
         elif GR == 'agent_descriptor':
             descriptor = agent().action.descriptor
             L = {a.agent_id: a for a in self.AllAgentsList.values() if
-                 (a is not agent) and a.registration and a().accepting_new_tasks and (descriptor in a.roles())}
+                     (a is not agent) and #not the agent making the call
+                     (a.registration) and #agent is registered
+                     (a().accepting_new_tasks) and #agent is accepting new tasks / active task is interruptable
+                     (descriptor in a.roles()) #agent is of the type required
+                     #TODO: we need to make sure here that the robot has not been assigned to a picker on the same cycle
+                }
             #TODO make accepitng tasks a different generator
 
         elif GR == 'head_nodes':
