@@ -18,11 +18,13 @@ class InterfaceDef(object):
 
     class picker(IDef.RasberryInterfacing_ProtocolManager):
         def car_CALLED(self):
-            self.agent.add_task(task_name='transportation_request_field_courier')
-            self.agent['start_time'] = Time.now()
+            if 'transportation_request_field_courier' not in [self.agent['name']+[T.name for T in self.agent.task_buffer]:
+                self.agent.add_task(task_name='transportation_request_field_courier')
+                self.agent['start_time'] = Time.now()
 
         def car_LOADED(self):
-            self.agent['has_tray'] = False
+            if self.agent['id'] and self.agent['name'] == 'transportation_request_field_courier' and if agent().get_class() == "transportation.Loading":
+                self.agent['has_tray'] = False
 
         def car_CANCEL(self):
             if self.agent['id'] and self.agent['name']=='transportation_request_field_courier':
