@@ -5,4 +5,4 @@
 #  - 'rostopic pub /car/new_store std_msgs/String "data: storage03" -r 0.2'
 #  - 'sleep 5; rostopic pub /storage03/localisation/disable std_msgs/String "data: s1"'
   - 'rostopic pub /STD_v2_30c6f7e65af8/localisation/disable std_msgs/String "data: r13.5-ca"'
-  - 'rostopic pub /STD_v2_246f284a6c94/localisation/disable std_msgs/String "data: r15.5-ca"'
+  - 'rostopic pub /STD_v2_246f284a6c94/localisation/disable std_msgs/String "data: r15.5-c1"'
