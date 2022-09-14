@@ -91,6 +91,7 @@ class ActionManager(object):
                      (a().accepting_new_tasks) and #agent is accepting new tasks / active task is interruptable
                      (descriptor in a.roles()) #agent is of the type required
                      #TODO: we need to make sure here that the robot has not been assigned to a picker on the same cycle
+                     #and a.id not in self.cycle_repsonse? #todo: this will have tons of problems...
                 }
             #TODO make accepitng tasks a different generator
 
