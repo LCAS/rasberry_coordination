@@ -117,7 +117,7 @@ class RasberryCoordinator(object):
             AM.fleet_monitoring()
 
             # Offer Action Services
-            sevicees = [a for a in A if a().action_required]
+            servicees = [a for a in A if a().action_required]
             if servicees: offer_service(servicees[0]); l(2);
             #[offer_service(a) for a in A if a().action_required]; l(2);                            """ Offer Service """
 
