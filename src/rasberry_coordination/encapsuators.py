@@ -85,6 +85,7 @@ class ModuleObj(object):
         self.role = role
         interface_name = '%s_%s' % (name, role)
         from rasberry_coordination.task_management.__init__ import InterfaceDef, PropertiesDef
+        print("create new interface")
         print(dir(InterfaceDef))
         definition = getattr(InterfaceDef, interface_name)
 
