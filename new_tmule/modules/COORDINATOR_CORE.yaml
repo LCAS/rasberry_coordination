@@ -15,5 +15,6 @@
   panes:
   - rm $HOME/.ros/coordinator-loaded-agents-save-state.yaml ; rosservice call /rasberry_coordination/root_inspector "coordinator.agent_manager.agent_details"
   - roslaunch rasberry_coordination abstract_task_coordinator.launch config_file:=$TASK_COORD_CONFIG
+  - roslaunch rasberry_coordination add_agent.launch namespace:=/thorvald_020 agent_file_id:=thorvald_020 setup_file_id:=short
   check: "ROS_MASTER_URI=${SERVER_URI} rostopic list | grep -q dynamic_fleet"
   tags: [coord]
