@@ -1,9 +1,9 @@
 modules:
   - name: base
     role: robot
-  - name: health_monitoring
+  - name: rasberry_health_monitoring
     role: robot
-  - name: transportation
+  - name: rasberry_transportation
     role: field_courier
 navigation_properties:
     has_presence: true

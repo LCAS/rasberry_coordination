@@ -83,9 +83,9 @@ class ModuleObj(object):
         self.agent = agent
         self.name = name
         self.role = role
-
         interface_name = '%s_%s' % (name, role)
         from rasberry_coordination.task_management.__init__ import InterfaceDef, PropertiesDef
+        print(dir(InterfaceDef))
         definition = getattr(InterfaceDef, interface_name)
 
         self.interface = definition(agent=agent)

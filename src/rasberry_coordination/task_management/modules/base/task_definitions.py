@@ -12,15 +12,17 @@ from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as L
 from rasberry_coordination.robot import Robot, VirtualRobot
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
-from rasberry_coordination.task_management.modules.base.stage_definitions import StageDefBase
+from rasberry_coordination.task_management.__init__ import StageDef
+
+#from rasberry_coordination.task_management.modules.base.stage_definitions import StageDef as StageDefBase
 #from rasberry_coordination.task_management.modules.base.task_definitions import TaskDef
 #from rasberry_coordination.task_management.modules.base.interface_definitions import InterfaceDef
-from rasberry_coordination.task_management.modules.navigation.stage_definitions import StageDefNavigation
+#from rasberry_coordination.task_management.modules.navigation.stage_definitions import StageDef as StageDefNavigation
 #from rasberry_coordination.task_management.modules.navigation.task_definitions import TaskDefNavigation
 #from rasberry_coordination.task_management.modules.navigation.interface_definitions import InterfaceDef
--> move robot navigation to here?
-from rasberry_coordination.task_management.modules.assignment.stage_definitions import StageDefAssignments
-from rasberry_coordination.task_management.modules.assignment.task_definitions import TaskDef
+#-> move robot navigation to here?
+#from rasberry_coordination.task_management.modules.assignment.stage_definitions import StageDef as StageDefAssignments
+#from rasberry_coordination.task_management.modules.assignment.task_definitions import TaskDef as TaskDefAssignments
 #from rasberry_coordination.task_management.modules.assignment.interface_definitions import InterfaceDef
 
 
@@ -40,11 +42,11 @@ class TaskDef(object):
                      initiator_id=agent.agent_id,
                      responder_id="",
                      stage_list=[
-                         StageDefBase.StartTask(agent, task_id),
-                         StageDefBase.SetUnregister(agent),
-                         StageDefBase.WaitForMap(agent),
-                         StageDefBase.WaitForLocalisation(agent),
-                         StageDefBase.SetRegister(agent)
+                         StageDef.StartTask(agent, task_id),
+                         StageDef.SetUnregister(agent),
+                         StageDef.WaitForMap(agent),
+                         StageDef.WaitForLocalisation(agent),
+                         StageDef.SetRegister(agent)
                      ]))
 
     @classmethod
@@ -57,12 +59,12 @@ class TaskDef(object):
                      initiator_id=agent.agent_id,
                      responder_id="",
                      stage_list=[
-                         StageDefBase.StartTask(agent, task_id),
-                         StageDefBase.SetUnregister(agent),
-                         StageDefBase.WaitForMap(agent),
-                         StageDefBase.EnableVirtualLocalisation(agent),
-                         StageDefBase.WaitForLocalisation(agent),
-                         StageDefBase.SetRegister(agent)
+                         StageDef.StartTask(agent, task_id),
+                         StageDef.SetUnregister(agent),
+                         StageDef.WaitForMap(agent),
+                         StageDef.EnableVirtualLocalisation(agent),
+                         StageDef.WaitForLocalisation(agent),
+                         StageDef.SetRegister(agent)
                      ]))
 
     @classmethod
@@ -75,11 +77,11 @@ class TaskDef(object):
                     initiator_id=agent.agent_id,
                     responder_id="",
                     stage_list=[
-                        StageDefBase.StartTask(agent, task_id),
-                        StageDefBase.SetUnregister(agent),
-                        StageDefBase.WaitForMap(agent),
-                        StageDefBase.SendInfo(agent),
-                        StageDefBase.SetRegister(agent)
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.SetUnregister(agent),
+                        StageDef.WaitForMap(agent),
+                        StageDef.SendInfo(agent),
+                        StageDef.SetRegister(agent)
                     ]))
     @classmethod
     def base_localised_human_init(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
@@ -91,12 +93,12 @@ class TaskDef(object):
                     initiator_id=agent.agent_id,
                     responder_id="",
                     stage_list=[
-                        StageDefBase.StartTask(agent, task_id),
-                        StageDefBase.SetUnregister(agent),
-                        StageDefBase.WaitForMap(agent),
-                        StageDefBase.WaitForLocalisation(agent),
-                        StageDefBase.SendInfo(agent),
-                        StageDefBase.SetRegister(agent)
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.SetUnregister(agent),
+                        StageDef.WaitForMap(agent),
+                        StageDef.WaitForLocalisation(agent),
+                        StageDef.SendInfo(agent),
+                        StageDef.SetRegister(agent)
                     ]))
 
     """ Idle Tasks """
@@ -125,8 +127,8 @@ class TaskDef(object):
                     initiator_id=agent.agent_id,
                     responder_id="",
                     stage_list=[
-                        StageDefBase.StartTask(agent, task_id),
-                        StageDefBase.Idle(agent)
+                        StageDef.StartTask(agent, task_id),
+                        StageDef.Idle(agent)
                     ]))
     @classmethod
     def wait_at_base(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
@@ -138,11 +140,11 @@ class TaskDef(object):
                     initiator_id=agent.agent_id,
                     responder_id="",
                     stage_list=[
-                        StageDefBase.StartTask(agent, task_id),
-                        # StageDefBase.Exit(agent)
-                        StageDefAssignment.AssignBaseNodeIdle(agent),
-                        StageDefNavigation.NavigateToBaseNodeIdle(agent),
-                        StageDefBase.Idle(agent)
+                        StageDef.StartTask(agent, task_id),
+                        # StageDef.Exit(agent)
+                        StageDef.AssignBaseNodeIdle(agent),
+                        StageDef.NavigateToBaseNodeIdle(agent),
+                        StageDef.Idle(agent)
                     ]))
     @classmethod
     def exit_at_node(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
@@ -154,9 +156,9 @@ class TaskDef(object):
                     initiator_id=agent.agent_id,
                     responder_id="",
                     stage_list=[
-                        StageDefBase.SetUnregister(agent),
-                        StageDefNavigation.NavigateToExitNode(agent),
-                        StageDefBase.Exit(agent)
+                        StageDef.SetUnregister(agent),
+                        StageDef.NavigateToExitNode(agent),
+                        StageDef.Exit(agent)
                     ]))
 
     """ Dynamic Task Management """

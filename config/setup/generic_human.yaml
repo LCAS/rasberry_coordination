@@ -1,11 +1,11 @@
 modules:
   - name: base
     role: human
-  - name: transportation
+  - name: rasberry_transportation
     role: picker
-  - name: uv_treatment
+  - name: rasberry_uv_treatment
     role: controller
-  - name: data_collection
+  - name: rasberry_data_collection
     role: controller
 navigation_properties:
     has_presence: false
