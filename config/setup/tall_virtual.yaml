@@ -1,11 +1,11 @@
 modules:
   - name: base
     role: virtual_robot
-  - name: health_monitoring
+  - name: rasberry_health_monitoring
     role: robot
-  - name: uv_treatment
+  - name: rasberry_uv_treatment
     role: phototherapist
-  - name: data_collection
+  - name: rasberry_data_collection
     role: scanner
 navigation_properties:
     restrictions: intra-row
