@@ -1,0 +1,28 @@
+from rospy import Publisher, Subscriber
+from diagnostis_msgs.msg import KeyValue
+
+from rasberry_coordination.task_management.modules.base.interfaces.interface import Interface
+
+
+class StateInterface(Interface):
+    def __init__(self, agent, properties, state_publisher, state_subscriber):
+        #setup communication channels
+        super(StateInterface, self).__init__(agent, properties)
+        self.pub = Publisher(state_publisher, KeyValue, queue_size=5)
+        self.sub = Subscriber(state_subscriber, KeyValue, self.callback, self.agent.agent_id)
+
+    def callback(self, msg, agent_id):
+        #recieve new states from remotes
+        if msg.key == agent_id:
+            state = msg.value.split('-')[0]
+            if state in dir(self):
+                logmsg(category="IDef", id=agent_id, msg="State changed to: %s" % state)
+                getattr(self, "_"+state)()
+
+    def notify(self, state):
+        #publish state update to remote
+        msg = KeyValue(key=self.agent.agent_id, value=state)
+        logmsg(category="IDef", msg="        - Publishing: (%s)" % str(msg).replace('\n',' | '))
+        self.pub.publish(msg)
+
+

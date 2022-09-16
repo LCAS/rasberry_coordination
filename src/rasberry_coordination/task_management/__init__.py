@@ -11,7 +11,7 @@ def get_module_host(module):
        host = module.split('.')[3].upper()
     else:
        host = module.split('.')[0].upper()
-    return host.replace('_PKG','') #.replace('RASBERRY_','')
+    return host.replace('_PKG','')
 
 
 def set_properties(module_dict):

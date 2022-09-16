@@ -3,7 +3,15 @@ modules:
     role: localised_human
   - name: rasberry_transportation
     role: picker
+
+module_properties:
+  - name: rasberry_transportation
+    state_listener: /car_client/get_states_kv
+    state_publisher: /car_client/set_states_kv
+
 navigation_properties:
     has_presence: false
+
 visualisation_properties:
     rviz_model: human
+    
