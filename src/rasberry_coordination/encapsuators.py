@@ -86,9 +86,10 @@ class ModuleObj(object):
         interface_name = '%s_%s' % (name, role)
         from rasberry_coordination.task_management.__init__ import InterfaceDef, PropertiesDef
         print("create new interface")
-        print(dir(InterfaceDef))
+        from pprint import pprint
+        pprint(dir(InterfaceDef))
         definition = getattr(InterfaceDef, interface_name)
-
+        print(definition)
         self.interface = definition(agent=agent)
         self.properties = PropertiesDef[name] if name in PropertiesDef else dict()
 

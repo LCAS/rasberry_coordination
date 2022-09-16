@@ -18,7 +18,7 @@ except: pass
 
 class InterfaceDef(object):
 
-    class robot(object):
+    class super_robot(object):
         def __init__(self, agent, Type):
             self.agent = agent
             self.agent.navigation_interface = Type
@@ -44,14 +44,14 @@ class InterfaceDef(object):
             # add task
             self.agent.add_task(task_name='move_idle', contacts={"target":msg.data})
 
-    class base_robot(robot):
+    class robot(super_robot):
         def __init__(self, agent):
             super(InterfaceDef.base_robot, self).__init__(agent, Robot(agent.agent_id, agent.speaker))
-    class base_virtual_robot(robot):
+    class virtual_robot(super_robot):
         def __init__(self, agent):
             sd = fetch_property('base', 'virtual_robot_step_delay')
             VR = VirtualRobot(agent.agent_id, agent, step_delay=sd)
-            super(InterfaceDef.base_virtual_robot, self).__init__(agent, VR)
+            super(InterfaceDef.virtual_robot, self).__init__(agent, VR)
 
 
     class base_human(object):

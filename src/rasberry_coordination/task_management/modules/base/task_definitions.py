@@ -14,18 +14,6 @@ from topological_navigation.route_search2 import TopologicalRouteSearch2 as Topo
 
 from rasberry_coordination.task_management.__init__ import StageDef
 
-#from rasberry_coordination.task_management.modules.base.stage_definitions import StageDef as StageDefBase
-#from rasberry_coordination.task_management.modules.base.task_definitions import TaskDef
-#from rasberry_coordination.task_management.modules.base.interface_definitions import InterfaceDef
-#from rasberry_coordination.task_management.modules.navigation.stage_definitions import StageDef as StageDefNavigation
-#from rasberry_coordination.task_management.modules.navigation.task_definitions import TaskDefNavigation
-#from rasberry_coordination.task_management.modules.navigation.interface_definitions import InterfaceDef
-#-> move robot navigation to here?
-#from rasberry_coordination.task_management.modules.assignment.stage_definitions import StageDef as StageDefAssignments
-#from rasberry_coordination.task_management.modules.assignment.task_definitions import TaskDef as TaskDefAssignments
-#from rasberry_coordination.task_management.modules.assignment.interface_definitions import InterfaceDef
-
-
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
 

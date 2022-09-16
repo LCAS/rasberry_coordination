@@ -1,5 +1,5 @@
 modules:
-  - name: base
+  - name: navigation
     role: virtual_robot
   - name: rasberry_health_monitoring
     role: robot
