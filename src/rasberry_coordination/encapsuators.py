@@ -78,32 +78,24 @@ class ModuleObj(object):
     def __repr__(self):
         return "Module( name:%s | role:%s | interface:%s )" % (self.name, self.role, self.interface!=None)
 
-    def __init__(self, agent, name, role):
+    def __init__(self, agent, name, role, details):
         logmsg(category="module", msg="%s (%s)"%(name.upper(),role.upper()))
         self.agent = agent
         self.name = name
         self.role = role
         interface_name = '%s_%s' % (name, role)
-        from rasberry_coordination.task_management.__init__ import InterfaceDef, PropertiesDef
-        print("create new interface")
-        from pprint import pprint
-        pprint(dir(InterfaceDef))
-        definition = getattr(InterfaceDef, interface_name)
-        print(definition)
-        self.interface = definition(agent=agent)
+        from rasberry_coordination.task_management.__init__ import Interfaces, PropertiesDef
+        self.interface = Interfaces[name][role](agent=agent, details=details)
         self.properties = PropertiesDef[name] if name in PropertiesDef else dict()
+        self.details = details
 
         self.init_task_name = '%s_init' % (interface_name)
         self.idle_task_name = '%s_idle' % (interface_name)
 
-        self.add_init_task()
+        #self.add_init_task()
 
     def add_init_task(self):
-        self.agent.add_task(task_name=self.init_task_name)
-
-    # def add_idle_task(self):
-    #     if getattr(TaskDef, self.idle_task_name):
-    #         self.agent.add_task(task_name=self.idle_task_name)
+        self.agent.add_task(module=self.name, name='init')
 
 class MapObj(object):
     """
@@ -159,7 +151,7 @@ class MapObj(object):
 
     def is_node_restricted(self, node_id):
         """check if given node is in agent's map"""
-        if 'restrictions' in self.agent.navigation_properties:
+        if 'restrictions' in self.modules['navigation'].details:
             return (self.empty_node_list and node_id in self.empty_node_list)
         return True
 

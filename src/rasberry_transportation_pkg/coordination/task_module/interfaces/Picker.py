@@ -2,11 +2,11 @@ from  diagnostic_msgs.msg import KeyValue
 
 from rasberry_coordination.encapsuators import TaskObj as Task
 
-from rasberry_coordination.task_management.modules.base.interfaces import StateInterface
-from rasberry_coordination.task_management import Stages
+from rasberry_coordination.task_management.modules.base.interfaces.StateInterface import StateInterface
+#from rasberry_coordination.task_management import Stages
 
 
-class picker(StateInterface):
+class Picker(StateInterface):
 
     def __init__(self, agent):
         state_publisher = agent.module_properties['rasberry_transportation']['state_publisher']
@@ -22,8 +22,8 @@ class picker(StateInterface):
         self.agent['has_tray'] = False
 
     def _car_CANCEL(self):
-        if self.agent['id'] and
-           self.agent['name']=='request_collection' and
+        if self.agent['id'] and \
+           self.agent['name']=='request_collection' and \
            self.agent['module']=='rasberry_transportation':
             self.agent.set_interrupt('reset', 'rasberry_transportation', self.agent['id'], "Task")
 

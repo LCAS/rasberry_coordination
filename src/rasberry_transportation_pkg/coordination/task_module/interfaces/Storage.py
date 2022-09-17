@@ -1,15 +1,14 @@
 from rasberry_coordination.encapsuators import TaskObj as Task
 
-from rasberry_coordination.task_management.modules.base.interfaces import StateInterface
-from rasberry_coordination.task_management import Stages
+from rasberry_coordination.task_management.modules.base.interfaces.StateInterface import StateInterface
+#from rasberry_coordination.task_management import Stages
 
+class Storage(StateInterface):
 
-class storage(StateInterface):
-
-    def __init__(self, agent):
-        state_publisher = agent.module_properties['rasberry_transportation']['state_publisher']
-        state_subscriber = agent.module_properties['rasberry_transportation']['state_subscriber']
-        super(storage, self).__init__(agent, state_publisher, state_subscriber)
+    def __init__(self, agent, details=None):
+        state_publisher = agent.modules['rasberry_transportation_pkg'].details['state_publisher']
+        state_subscriber = agent.modules['rasberry_transportation_pkg'].details['state_subscriber']
+        super(storage, self).__init__(agent, details, state_publisher, state_subscriber)
         self.agent.local_properties['request_admittance'] = []
         self.notify("CONNECTED")
 
@@ -18,13 +17,13 @@ class storage(StateInterface):
 
     def idle(cls, task_id=None, details=None, contacts=None, initiator_id=""):
         #If agents are waiting to visit, accept one, otherwise wait
-        if len(self.agent.local_properties['request_admittance']) > 0:
+        if len(self.agent.modules['rasberry_transportation_pkg'].details['request_admittance']) > 0:
             return self.admit_dropoff(task_id=task_id, details=details, contacts=contacts)
         return self.wait_for_request(task_id=task_id, details=details, contacts=contacts)
 
     def wait_for_request(self, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
-                    module='rasberry_transportation',
+                    module=__name__.split('.')[0],
                     name="wait_for_request",
                     details=details,
                     contacts=contacts,
@@ -37,7 +36,7 @@ class storage(StateInterface):
 
     def admit_dropoff(self, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
-                    module='rasberry_transportation',
+                    module=__name__.split('.')[0],
                     name="admit_dropoff",
                     details=details,
                     contacts=contacts,

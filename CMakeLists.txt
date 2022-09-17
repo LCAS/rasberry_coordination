@@ -4,6 +4,7 @@ project(rasberry_coordination)
 find_package(catkin REQUIRED COMPONENTS
   actionlib
   geometry_msgs
+  diagnostic_msgs
   message_generation
   rasberry_des
   rasberry_people_perception
@@ -30,11 +31,9 @@ add_message_files(
   AgentState.msg
   FullLocation.msg
   Interruption.msg
-  KeyValuePair.msg
   MarkerDetails.msg
   Module.msg
   NewAgentConfig.msg
-  NewAgentConfigSetup.msg
   ServiceQuery.msg
   ServiceResponse.msg
   TaskDetails.msg
@@ -51,7 +50,7 @@ add_service_files(
 )
 
 generate_messages(
-  DEPENDENCIES std_msgs strands_executive_msgs
+  DEPENDENCIES std_msgs strands_executive_msgs diagnostic_msgs
 )
 
 catkin_package(
@@ -75,7 +74,7 @@ install(PROGRAMS
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-foreach (dir launch config srv msg callarobot)
+foreach (dir launch config srv msg)
     install(DIRECTORY ${dir}/
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/${dir}/)
 endforeach(dir)

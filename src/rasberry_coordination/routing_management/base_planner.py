@@ -18,7 +18,7 @@ from topological_navigation.route_search2 import TopologicalRouteSearch2 as Topo
 from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, get_distance_to_node_tmap2 as GetNodeDist
 
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
-from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
+from rasberry_coordination.task_management.__init__ import Stages
 
 from abc import ABCMeta, abstractmethod
 

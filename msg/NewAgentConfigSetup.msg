@@ -1,4 +1,0 @@
-rasberry_coordination/Module[] modules
-rasberry_coordination/KeyValuePair[] module_properties
-rasberry_coordination/KeyValuePair[] navigation_properties
-rasberry_coordination/KeyValuePair[] visualisation_properties

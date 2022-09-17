@@ -16,7 +16,7 @@ try: from rasberry_coordination.task_management.__init__ import PropertiesDef as
 except: pass
 
 
-class TaskDef(object):
+class TtaskDef(object):
 
     @classmethod
     def move_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):

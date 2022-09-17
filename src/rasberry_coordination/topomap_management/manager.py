@@ -55,7 +55,7 @@ class MapObj(object):
 
     def is_node_restricted(self, node_id):
         """check if given node is in agent's map"""
-        if 'restrictions' in self.agent.navigation_properties:
+        if 'restrictions' in self.modules['navigation'].details:
             return (self.empty_node_list and node_id in self.empty_node_list)
         return True
 

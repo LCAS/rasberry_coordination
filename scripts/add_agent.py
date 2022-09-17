@@ -4,14 +4,16 @@ import sys
 import rospy
 from std_msgs.msg import String
 import rasberry_coordination
-from rasberry_coordination.msg import NewAgentConfig, Module, KeyValuePair
+from rasberry_coordination.msg import NewAgentConfig, Module
+from diagnostic_msgs.msg import KeyValue
 import rasberry_des.config_utils
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
+from pprint import pprint
 
 
 def get_kvp_list(dict, item):
     if item in dict:
-        return [KeyValuePair(k, str(v)) for k, v in dict[item].items()]
+        return [KeyValue(k, str(v)) for k, v in dict[item].items()]
     return []
 
 
@@ -42,13 +44,14 @@ def load_agent_obj(agent_input, setup_input, get_files_from_paths=False):
     setup_data = rasberry_des.config_utils.get_config_data(setup_file)
 
     # Build msg
+    pprint(setup_data)
+    print("\n")
     agent = NewAgentConfig()
     agent.agent_id = agent_data['agent_id']
     agent.local_properties = get_kvp_list(agent_data, 'local_properties')
-    agent.setup.modules = [Module(m['name'], m['role']) for m in setup_data['modules']]
-    agent.setup.module_properties = get_kvp_list(setup_data, 'module_properties')
-    agent.setup.navigation_properties = get_kvp_list(setup_data, 'navigation_properties')
-    agent.setup.visualisation_properties = get_kvp_list(setup_data, 'visualisation_properties')
+    for m in setup_data['modules']: m['details'] = m['details'] if 'details' in m else [{'key':'value'}]
+    agent.modules = [Module(m['name'], m['role'], [KeyValue(k,str(v)) for k, v in m['details'][0].items()]) for m in setup_data['modules']]
+    print("\n\n")
     return agent
 
 
@@ -57,7 +60,7 @@ class AgentMonitor():
         self.pub = rospy.Publisher("/rasberry_coordination/dynamic_fleet/add_agent", NewAgentConfig, latch=True, queue_size=5)
         self.s1 = rospy.Subscriber("/car/new_agent", String, self.load,  callback_args='picker')
         self.s2 = rospy.Subscriber("/sar/new_agent", String, self.load,  callback_args='tall_controller')
-        self.s3 = rospy.Subscriber("/car/new_store", String, self.load,  callback_args='field_storage')
+        self.s3 = rospy.Subscriber("/car/new_store", String, self.load,  callback_args='storage')
 
     def load(self, msg, agent_type):
         logmsg(category="DRM", msg="Recieved new %s information: %s"%(msg.data, agent_type))

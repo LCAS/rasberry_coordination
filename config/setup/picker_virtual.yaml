@@ -1,9 +1,14 @@
 modules:
   - name: base
-    role: human #virtual_human
-  - name: rasberry_transportation
-    role: picker
-navigation_properties:
-    has_presence: false
-visualisation_properties:
-    rviz_model: human
+    role: VirtualHuman
+    details:
+      - rviz_model: human
+
+  - name: navigation
+    role: Human
+    details:
+      - has_presence: false
+      - restrictions: short
+
+  - name: rasberry_transportation_pkg
+    role: Picker

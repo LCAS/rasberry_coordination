@@ -13,11 +13,10 @@ from rospy import Subscriber, Publisher, Service, Time
 from std_msgs.msg import String as Str, Empty, Bool
 from std_srvs.srv import Trigger, TriggerResponse
 
-# from diagnostis_msgs.msg import KeyValue
-from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, KeyValuePair, AgentRegistrationList, AgentRegistration, AgentStateList, AgentState
+from diagnostic_msgs.msg import KeyValue
+from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, AgentRegistrationList, AgentRegistration, AgentStateList, AgentState
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module, MapObj as Map
-from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
 
 import rasberry_des.config_utils
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
@@ -70,12 +69,7 @@ class AgentManager(object):
         def kvp_list(msg): return {kvp.key: kvp.value for kvp in msg}
         self.add_agent({'agent_id': msg.agent_id,
                         'local_properties': kvp_list(msg.local_properties),
-                        'setup': { 'modules': [{'name':m.name,'role':m.role} for m in msg.setup.modules],
-                                   'module_properties': kvp_list(msg.setup.module_properties),
-                                   'navigation_properties': kvp_list(msg.setup.navigation_properties),
-                                   'visualisation_properties': kvp_list(msg.setup.visualisation_properties)
-                                   }})
-
+                        'modules': [{'name':m.name,'role':m.role, 'details':kvp_list(m.details)} for m in msg.modules]})
 
     """ Conveniences """
     def __getitem__(self, key):
@@ -107,16 +101,16 @@ class AgentManager(object):
     def get_markers_cb(self, empty):
         """ Request from RViz to resend all markers """
         for a in self.agent_details.values():
-            if 'marker' in a.visualisation_properties:
-                m = a.visualisation_properties['marker']
+            if 'marker' in a.modules['base'].details:
+                m = a.moduled['base'].details['marker']
                 self.set_marker_pub.publish(m)
 
     """ Data """
     def simplify(self):
         out = {}
         for a in self.agent_details.values():
-            if 'structure_type' not in a.visualisation_properties: continue
-            st = a.visualisation_properties['structure_type']
+            if 'structure_type' not in a.modules['base'].details: continue
+            st = a.modules['base'].details['structure_type']
             if st not in out: out[st] = {}
             for t in a.modules:
                 if t in ['base', 'health_monitoring']: continue
@@ -130,25 +124,8 @@ class AgentDetails(object):
 
     """ Initialisations """
     def __init__(self, agent_dict, callbacks):
-        self.agent_dict = agent_dict
-
         self.agent_id = agent_dict['agent_id']
         self.local_properties = agent_dict['local_properties']
-
-        self.cb = callbacks
-
-        setup = copy.deepcopy(agent_dict['setup'])
-        self.module_properties = setup['module_properties']
-        self.navigation_properties = setup['navigation_properties']
-        self.visualisation_properties = setup['visualisation_properties']
-
-        lp = agent_dict['local_properties']
-        mp = setup['module_properties']
-        np = setup['navigation_properties']
-        vp = setup['visualisation_properties']
-
-        self.visualisation_properties['default_colour'] = lp['rviz_default_colour'] if 'rviz_default_colour' in lp else ''
-        self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
 
         #Subscriptions
         self.subs = {}
@@ -160,13 +137,12 @@ class AgentDetails(object):
         self.total_tasks = 0
         self.task = Task()
         self.task_buffer = []
-
         self.interruption = None
         self.registration = False
 
         # Define interface for each role
         logmsg(category="MODULE", id=self.agent_id, msg="Initialising Module Interfaces:")
-        self.modules = {t['name']: Module(agent=self, name=t['name'], role=t['role']) for t in setup['modules']}
+        self.modules = {t['name']: Module(agent=self, name=t['name'], role=t['role'], details=t['details']) for t in agent_dict['modules']}
 
         #Location and Callbacks
         initial_location = lp['initial_location'] if 'initial_location' in lp else ''
@@ -174,45 +150,50 @@ class AgentDetails(object):
         self.location = Location(self, has_presence=has_presence, initial_location=initial_location)
 
         #Map
-        #topic = "/%s/restricted_topological_map_2" % self.agent_id if 'restrictions' in np else None
         topic = "/restricted_topological_map_generators/%s_topological_map_2" % np['restrictions'] if 'restrictions' in np else None
         self.map_handler = Map(agent=self, topic=topic)
+
+        #Visualisers
+        lp = agent_dict['local_properties']
+        self.modules['base'].details['default_colour'] = lp['rviz_default_colour'] if 'rviz_default_colour' in lp else ''
+        self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
 
         #Debug
         self.speaker_pub = Publisher('/%s/ui/speaker'%self.agent_id, Str, queue_size=1)
 
         #Final Setup
         self.format_marker(style='red')
+        for m in self.modules: m.add_init_task()
 
     """ Task Starters """
     def add_idle_tasks(self):
-        [self.add_task(task_name=m.idle_task_name) for m in self.modules.values() if m.name != "base"]
-        if 'base' in self.modules: self.add_task(task_name=self.modules['base'].idle_task_name)
+        [self.add_task(module=m.name, name='idle') for m in self.modules.values() if m.name != "base"]
+        if 'base' in self.modules: self.add_task(module='base', name=self.modules['base'].idle_task_name)
 
         if not self.task_buffer:
             logmsg(level="error", category="task", id=self.agent_id, msg="WARNING! Agent has no idle tasks.")
             logmsg(level="error", category="task", msg="    | All agents must be assigned a module.")
             logmsg(level="error", category="task", msg="    | Should each module have an idle task for each agent?")
             logmsg(level="error", category="task", msg="    \ Agent to be assigned a basic idle task.")
-            self.add_task(task_name='idle')
-    def add_task(self, task_name, task_id=None, task_stage_list=None, details=None, contacts=None, index=None, quiet=False, initiator_id=""):
+            self.add_task(module='base', name='idle')
+    def add_task(self, module, name, task_id=None, task_stage_list=None, details=None, contacts=None, index=None, quiet=False, initiator_id=""):
         """ Called by task stages, used to buffer new tasks for the agent """
         task_stage_list = task_stage_list if task_stage_list else []
         details = details if details else {}
         contacts = contacts if contacts else {}
-        # #picker.interface.called(): self.agent.add_task('transportation_request_courier')
-        # 1. #find TaskDef
-        # 2. #task = TaskDef()
-        # 3. #buffer += [task] OR buffer.insert(0, [task])
 
-        # logmsg(category="TASK", id=self.agent_id, msg="Attempting to add task: %s" % task_name)
-        # logmsg(category="TASK", msg="    | Adding task: %s" % task_name)
+        from pprint import pprint
+        pprint(dir(self))
 
-        if task_name not in dir(TaskDef):
-            logmsg(category="TASK", msg="    | %s (not found)"%task_name)
+        if module not in self.modules:
+            logmsg(category="TASK", msg="    | module: %s (not valid)"%task_name)
             return
 
-        task_def = getattr(TaskDef, task_name)
+        if name not in self.modules.interface[module]:
+            logmsg(category="TASK", msg="    | task: %s (not found)"%task_name)
+            return
+
+        task_def = self.interfaces[module][name]
         task = task_def(self, task_id=task_id, details=details, contacts=contacts, initiator_id=initiator_id)
 
         if not task:
@@ -240,8 +221,14 @@ class AgentDetails(object):
         logmsg(category="TASK",  msg="  Task details:")
         [logmsg(category="TASK", msg="      | %s" % stage) for stage in self['stage_list']]
     def extend_task(self, task_name, task_id, details):
-        task_def = getattr(TaskDef, task_name)
-        task = task_def(self, details=details, task_id=task_id)
+        if module not in self.interfaces:
+            logmsg(category="TASK", msg="    | module: %s (not valid)"%task_name)
+            return
+        if name not in self.interfaces[module]:
+            logmsg(category="TASK", msg="    | task: %s (not found)"%task_name)
+            return
+        task_def = self.interfaces[module][name]
+        task = task_def(self, task_id=task_id, details=details)
         self['stage_list'] += task.stage_list
 
 
@@ -318,15 +305,15 @@ class AgentDetails(object):
         """
         marker = MarkerDetails()
         marker.agent_id = self.agent_id
-        marker.type = self.visualisation_properties['rviz_model']
+        marker.type = self.modules['base'].details['rviz_model']
 
         #Define marker color ["remove", "red", "green", "blue", "black", "white", ""]
-        style = style or self.visualisation_properties['default_colour']
+        style = style or self.modules['base'].details['default_colour']
         marker.optional_color = style
 
         logmsg(category="rviz", msg="Setting %s %s(%s)" % (marker.type, marker.agent_id, marker.optional_color))
 
-        self.visualisation_properties['marker'] = marker
+        self.modules['base'].details['marker'] = marker
         self.set_marker_pub.publish(marker)
 
     """ GC """

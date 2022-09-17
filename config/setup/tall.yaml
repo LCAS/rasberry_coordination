@@ -1,18 +1,22 @@
 modules:
+  - name: base
+    role: Robot
+    details:
+      - structure_type: tall
+      - rviz_model: tall_robot
+
   - name: navigation
-    role: robot
-  - name: rasberry_health_monitoring
-    role: robot
+    role: Robot
+    details:   
+      - has_presence: true
+      - restrictions: tall
+
+  - name: rasberry_health_monitoring_pkg
+    role: Robot
+
   #- name: rasberry_uv_treatment
-  #  role: phototherapist
+  #  role: Phototherapist
+
   - name: rasberry_data_collection
-    role: scanner
-navigation_properties:
-    restrictions: tall
-    has_presence: true
-    #map_filters:
-    #  - only_restrictions
-    #  - no_rows_with_presence
-visualisation_properties:
-    structure_type: tall
-    rviz_model: tall_robot
+    role: Scanner
+
