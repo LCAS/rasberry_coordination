@@ -1,30 +1,34 @@
+import importlib
 from pprint import pprint
 from rospy import set_param, get_param
 from rasberry_coordination.coordinator_tools import logmsg
 
-global TaskDef, StageDef, InterfaceDef, PropertiesDef
+global Stages, Interfaces, PropertiesDef
 
 
 
 def get_module_host(module):
     if 'rasberry_coordination' in module:
-       host = module.split('.')[3].upper()
+       host = module.split('.')[3]
     else:
-       host = module.split('.')[0].upper()
-    return host.replace('_PKG','')
+       host = module.split('.')[0]
+    return host
 
 
 def set_properties(module_dict):
     global PropertiesDef
-    PropertiesDef = {M['name']: M['properties'] for M in module_dict}
+    PropertiesDef = {M['name']: M['properties'] for M in module_dict if 'properties' in M}
     PropertiesDef.update({'base': {}})
     namespace = '/rasberry_coordination/task_modules/%s/%s'
 
     logmsg(category="START",  msg="Properties: ")
     for M in module_dict:
         logmsg(category="START",  msg="    | %s" % get_module_host(M['name']))
-        [logmsg(category="START", msg="    :    | %s -> %s" % (key, val)) for key, val in M['properties'].items()]
-        [set_param(namespace % (M['name'], k), v) for k, v in M['properties'].items()]
+        try:
+            [logmsg(category="START", msg="    :    | %s -> %s" % (key, val)) for key, val in M['properties'].items()]
+            [set_param(namespace % (M['name'], k), v) for k, v in M['properties'].items()]
+        except:
+           pass
 
 
 def fetch_property(module, key, default=None):
@@ -41,54 +45,79 @@ def rename(cls, prefix):
 
 def load_custom_modules(clean_module_list):
     clean_module_list = [t for t in clean_module_list if t != 'base']
-    module_list = ['%s_pkg.coordination.task_module' % module for module in clean_module_list] #change to import the three from seperate files
+    module_list = ['%s.coordination.task_module' % module for module in clean_module_list] #change to import the three from seperate files
     module_list.insert(0, 'rasberry_coordination.task_management.modules.base')
     module_list.insert(1, 'rasberry_coordination.task_management.modules.navigation')
     module_list.insert(2, 'rasberry_coordination.task_management.modules.assignment')
 
-    logmsg(category="START",  msg="Collecting Interface, Task, and Stage Definitions for modules: ")
+    logmsg(category="START",  msg="Collecting Interfaces and Stage Definitions for modules: ")
     [logmsg(category="START", msg="    | %s" % module) for module in module_list]
 
 
-    # For each module, import the TaskDef, StageDef, and InterfaceDef to their respective containers
+    # For each module, import the Stages, and Interfaces to their respective containers
     # these containers can then be imported directly to access all components irrespective of location
     # thus it allows for the coordinator to not be modified when new python classes are added for modules
-    global TaskDef, StageDef, InterfaceDef
+    global Stages, Interfaces
 
-    logmsg(category="START",  msg="STAGES: ")
-    stage_definitions = dict()
+    logmsg(category="START", msg="STAGES: ")
+    from rasberry_coordination.task_management.modules.base.stage_definitions import StageBase
+    Stages = dict()
     for module in module_list:
-        stage_def = __import__(module, globals(), locals(), ['stage_definitions'], -1)
-        if hasattr(stage_def, 'stage_definitions'):
-            stage_definitions[module] = stage_def.stage_definitions.StageDef
-            logmsg(category="START",  msg="    | %s " % get_module_host(module))
-            [logmsg(category="START", msg="    :    |  %s" % s) for s in dir(stage_definitions[module]) if not s.startswith('__')]
-    StageDef = type('StageDef', tuple(stage_definitions.values()), dict())
+        host = get_module_host(module)
+        Stages[host] = dict()
+        logmsg(category="START", msg="    | %s" % host.upper())
 
+        ### module_obj = __import__(module+".stage_definitions", globals(), locals(), [''], -1) #this looked cooler
+        try:
+            module_obj = importlib.import_module(module+".stage_definitions")
+        except ImportError:
+            continue
 
-    logmsg(category="START",  msg="TASKS: ")
-    task_definitions = dict()
-    for module in module_list:
-        task_def = __import__(module, globals(), locals(), ['task_definitions'], -1)
-        if hasattr(task_def, 'task_definitions'):
-            task_definitions[module] = task_def.task_definitions.TaskDef
-            logmsg(category="START",  msg="    | %s " % get_module_host(module))
-            [logmsg(category="START", msg="    :    | %s" % t) for t in dir(task_definitions[module]) if not t.startswith('__')]
-    TaskDef = type('TaskDef', tuple(task_definitions.values()), dict())
+        for obj in dir(module_obj):
+            cls = getattr(module_obj, obj)
 
+            if type(cls)!=type(StageBase) or not issubclass(cls, StageBase): continue
+            Stages[host][obj] = cls
+            logmsg(category="START", msg="    :    | %s" % obj)
 
+    # Import Interfaces
     logmsg(category="START",  msg="INTERFACES: ")
-    interface_definitions = dict()
+    from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface as InterfaceBase
+    Interfaces = dict()
     for module in module_list:
-        interface_def = __import__(module, globals(), locals(), ['interface_definitions'], -1)
-        if hasattr(interface_def, 'interface_definitions'):
-            name = module.split('.')[-1] if module.startswith('rasberry_coordination') else module.split('.')[0].replace('_pkg','')
-            interface_definitions[module] = rename(interface_def.interface_definitions.InterfaceDef, name)
-            logmsg(category="START",  msg="    | %s " % get_module_host(module))
-            [logmsg(category="START", msg="    :    | %s" % i) for i in dir(interface_definitions[module]) if not i.startswith('__')]
-    InterfaceDef = type('InterfaceDef', tuple(interface_definitions.values()), dict())
+        host = get_module_host(module)
+        Interfaces[host] = dict()
+        logmsg(category="START", msg="    | %s" % host.upper())
 
+        ### module_obj = __import__(module, globals(), locals(), ['interfaces'], -1).interfaces #this looked cooler
+        try:
+            module_obj = importlib.import_module(module+".interfaces")
+        except ImportError:
+            continue
+        for obj in [d for d in dir(module_obj) if not d.startswith('__')]:
+            file = getattr(module_obj, obj)
 
+            if not hasattr(file, obj):
+                print("HI")
+                continue
+            cls = getattr(file, obj)
+
+            if type(cls)!=type(InterfaceBase) or not issubclass(cls, InterfaceBase): continue
+            Interfaces[host][obj] = cls
+            logmsg(category="START", msg="    :    | %s" % obj)
+
+#    print("\n"*5)
+#    m = module_list[-1]
+#    print(m)
+#    mo = importlib.import_module(m)
+#    print([d for d in dir(mo) if not d.startswith('__')])
+#
+#    m2 = module_list[-1]+".interfaces"
+#    print(m2)
+#    mo2 = importlib.import_module(m2)
+#    print([d for d in dir(mo2) if not d.startswith('__')])
+#
+#    input()
 
 class Stg(object):
     from math import ceil, floor

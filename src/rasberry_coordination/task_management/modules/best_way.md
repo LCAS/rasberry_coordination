@@ -11,16 +11,16 @@ python_pkg.coordination.task_module
 
 each file in coordinator calls
 from coordinator.task_management import compile_all_task_modules; # ~= compile_all_task_modules()
-from coordinator.task_management import StageDef, TaskDef, InterfaceDef
+from coordinator.task_management import StageDef, TtaskDef, InterfaceDef
 
 
 StageDef = [<python_pkg>_<stage_name>, ...]
-TaskDef = [<python_pkg>_<task_name>, ...]
+TtaskDef = [<python_pkg>_<task_name>, ...]
 InterfaceDef = [<python_pkg>_<interface_name>, ...]
 
 This approach allows the following: 
     - getattr(StageDef, "navigation_NavigateToAgent")
-    - TaskDef.navigation_robot_idle
+    - TtaskDef.navigation_robot_idle
 
 If we were to generate dictionaries we could use:
     - Interfaces.transportation.robot.tasks.idle
@@ -71,7 +71,7 @@ from rasberry_coordination.task_management import Stages
 class robot(Interface):
     def __init__(self, agent):
         super(robot, self).__init__(agent)
-        if 'load' not in self.properties:
+        if 'load' not in self.agent.local_properties:
             self.agent.local_properties['load'] = 0
 
     @taskmethod
@@ -211,9 +211,9 @@ class storage(Interface):
         #If agents are waiting to visit, begin transportation field_storage
         #Otherwise wait idle
         if len(agent.request_admittance) > 0:
-            return TaskDef.transportation_field_storage(agent=agent, task_id=task_id, details=details, contacts=contacts)
+            return TtaskDef.transportation_field_storage(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
-            return TaskDef.wait_for_request(agent=agent, task_id=task_id, details=details, contacts=contacts)
+            return TtaskDef.wait_for_request(agent=agent, task_id=task_id, details=details, contacts=contacts)
 
 
     @classmethod
@@ -230,7 +230,7 @@ class storage(Interface):
                         StageDef.IdleFieldStorage(agent)
                     ]))
     @classmethod
-    def field_storage(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+    def admit_dropoff(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
                     module='transportation',
                     name="transportation_field_storage",
@@ -246,6 +246,18 @@ class storage(Interface):
 
 
 
+-----------------------------------------------
+
+
+
+TOC
+
+class base_human(object):
+    def __init__(self, agent):
+        self.agent = agent
+
+class base_localised_human(base_human):
+    pass
 
 
 
@@ -265,6 +277,34 @@ class storage(Interface):
 
 
 
+Interfaces:
+
+  BASE:
+    robot
+      - idle
+    human
+    localised_human
+
+#  NAV:
+#    robot
+#      - exit_at_node
+#      - wait_at_node
+
+#  TP:
+#    robot
+#      - wait_at_base
+#    picker
+#    storage
+
+#-  DC:
+#-    robot
+#-      - wait_at_dc_base
+#-    controller
 
 
 
+> coor.task.mod.base.human.human()
+Interfaces['base']['Human']()
+
+> coor.task.mod.base.stages.Idle()
+Stages['base']['Idle']()

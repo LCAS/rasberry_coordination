@@ -4,9 +4,6 @@ Sent by the coordinator detailing the task state of all connected agents.
 #Interruption.msg
 Recieved by the coordinator to interrupt an active task by pausing or cancelling it.
 
-#KeyValuePair.msg
-TODO: replace this with diagnostic_msgs/keyvalue.
-
 #MarkerDetails.msg
 Sent by coordinator to visualise_agent_markers, detailing how to spawn/modify an agent marker.
 

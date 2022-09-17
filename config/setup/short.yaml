@@ -1,18 +1,20 @@
 modules:
+  - name: base
+    role: Robot
+    details:
+      - structure_type: short
+      - rviz_model: short_robot
+
   - name: navigation
-    role: robot
-  - name: rasberry_health_monitoring
-    role: robot
-  - name: rasberry_transportation
-    role: field_courier
-navigation_properties:
-    has_presence: true
-    restrictions: short
-    #map_filters:
-    #  - only_restricitons
-    #  - no_nodes_with_presence
-module_properties:
-    max_load: 1
-visualisation_properties:
-    structure_type: short
-    rviz_model: short_robot
+    role: Robot
+    details:
+      - has_presence: true
+      - restrictions: short
+
+  - name: rasberry_health_monitoring_pkg
+    role: Robot
+
+  - name: rasberry_transportation_pkg
+    role: Robot
+    details:
+      - max_load: 1

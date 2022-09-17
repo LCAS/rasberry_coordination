@@ -1,15 +1,15 @@
 """ Interrupt Task """
 
 import weakref
-from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
+from rasberry_coordination.task_management.__init__ import Stages, Interfaces
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, Rasberry_Logger
-
+from rasberry_coordination.task_management.dynamic_task_management import DTM
 
 class TaskManager(object):
 
     def __init__(self, coordinator_ref):
         self.coordinator_ref = coordinator_ref
-        self.toc_interface = InterfaceDef.TOC_Interface(coordinator_ref)
+        self.toc_interface = DTM(coordinator_ref)
 
     def interrupt_task(self, agent_list):
         interrupts = {'pause': self.pause, 'resume': self.resume, 'reset': self.reset, 'disconnect': self.disconnect}
@@ -67,19 +67,19 @@ class TaskManager(object):
         logmsg(category="DTM", msg="    | Task Details: %s" % agent.task)
         init, resp, tid = agent['initiator_id'], agent['responder_id'], agent['id']
 
-        logmsg(category="DTM", msg="If the request came from TOC, it needs to release both?")
+        logmsg(category="DTM", msg="If the request came from DTM, it needs to release both?")
 
         if agent.agent_id == init:
-            TaskDef.release_task(agent_list[init])
+            task_def = self.interfaces['base']['release_task'](agent_list[init])
             self.unregister(init, agent_list)
         elif agent.agent_id == resp:
-            TaskDef.restart_task(agent_list[init])
+            task_def = self.interfaces['base']['restart_task'](agent_list[init])
             self.unregister(resp, agent_list)
         agent_list[init].interruption = None  # reset interruption trigger
 
         if resp and resp in agent_list.keys():
             logmsg(category="DTM", msg="    | responder exists: %s" % (resp))
-            TaskDef.release_task(agent_list[resp])
+            task_def = self.interfaces['base']['release_task'](agent_list[resp])
             agent_list[resp].interruption = None  # reset interruption trigger
         else:
             logmsg(category="DTM", msg="    | responder does not exist: %s" % (resp))

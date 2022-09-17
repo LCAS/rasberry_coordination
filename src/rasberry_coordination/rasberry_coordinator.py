@@ -24,8 +24,7 @@ from rasberry_coordination.routing_management.manager import RoutingManager
 
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, Rasberry_Logger
 from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module
-from rasberry_coordination.msg import MarkerDetails, KeyValuePair
-from rasberry_coordination.task_management.__init__ import TaskDef, StageDef, InterfaceDef
+from rasberry_coordination.msg import MarkerDetails
 
 
 class RasberryCoordinator(object):
@@ -75,12 +74,12 @@ class RasberryCoordinator(object):
                 content = ('\033[01;04;92m', section, '\033[38;5;231m\033[0m')
                 logmsg(level="info", category="SECT", id="SECTION", msg="%s%s%s"%content)
 
-        # Timeout function for logging TOC updates
-        TOC = self.task_manager.toc_interface
-        Ut = Now(); #time since last TOC update
-        def Update_TOC(A, TOC, Ut):
+        # Timeout function for logging DTM updates
+        DTM = self.task_manager.toc_interface
+        Ut = Now(); #time since last DTM update
+        def Update_DTM(A, DTM, Ut):
             if any([a().new_stage for a in A]) or (Now() - Ut > 5):
-                TOC.UpdateTaskList();
+                DTM.UpdateTaskList();
                 return Now();
             return Ut
 
@@ -113,7 +112,7 @@ class RasberryCoordinator(object):
             [a.start_stage() for a in A if a().new_stage];                                           """ Start Stage """
 
             # Monitoring
-            Ut = Update_TOC(A, TOC, Ut);
+            Ut = Update_DTM(A, DTM, Ut);
             AM.fleet_monitoring()
 
             # Offer Action Services
@@ -135,8 +134,8 @@ class RasberryCoordinator(object):
             logbreak("END", [a().stage_complete for a in A])
             E=[a.end_stage() for a in A if a().stage_complete];                                        """ End Stage """
 
-            # Update TOC
-            if any(E): TOC.EndTask(E);                                                   """ Update TOC w/ Completed """
+            # Update DTM
+            if any(E): DTM.EndTask(E);                                                   """ Update DTM w/ Completed """
 
             # Publish Log and Wait
             l(-2); rospy.sleep(0.2)

@@ -1,9 +1,0 @@
-modules:
-  - name: base
-    role: human
-  - name: rasberry_transportation
-    role: field_storage
-navigation_properties:
-    has_presence: false
-visualisation_properties:
-    rviz_model: human
