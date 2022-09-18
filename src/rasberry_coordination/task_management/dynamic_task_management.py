@@ -4,12 +4,10 @@ from std_msgs.msg import Bool, String as Str
 from diagnostic_msgs.msg import KeyValue
 import strands_executive_msgs.msg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
-from rasberry_coordination.action_management.manager import ActionDetails
+from rasberry_coordination.task_management.containers.Task import TaskObj as Task
+from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
+from rasberry_coordination.task_management.__init__ import Stages
 from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
-from rasberry_coordination.robot import Robot, VirtualRobot
-from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
-
 
 
 class DTM(object):

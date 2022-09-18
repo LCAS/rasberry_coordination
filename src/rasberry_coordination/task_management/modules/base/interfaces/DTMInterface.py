@@ -2,7 +2,7 @@ from rospy import Publisher, Subscriber
 from diagnostic_msgs.msg import KeyValue
 
 from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
-
+from rasberry_coordination.coordinator_tools import logmsg
 
 class DTMInterface(Interface):
     def __init__(self, agent, details, coordinator):

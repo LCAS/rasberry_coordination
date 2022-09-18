@@ -8,9 +8,6 @@
 import os
 import rospy
 
-from rasberry_coordination.srv import String as StringRequest, StringResponse as StringResponse
-
-
 class Lock:
     def __init__(self): self.status = False
     def __enter__(self): self.status = True
@@ -18,11 +15,14 @@ class Lock:
 
 
 class RootInspector(object):
+
     def __init__(self, topic, root):
+        from rasberry_coordination.srv import String as StringRequest
         self.root = root
         rospy.Service(topic, StringRequest, self.root_inspector_srv)
 
     def root_inspector_srv(self, req):
+        from rasberry_coordination.srv import StringResponse as StringResponse
         resp = StringResponse()
         resp.success = True
 

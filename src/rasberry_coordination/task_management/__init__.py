@@ -6,7 +6,6 @@ from rasberry_coordination.coordinator_tools import logmsg
 global Stages, Interfaces, PropertiesDef
 
 
-
 def get_module_host(module):
     if 'rasberry_coordination' in module:
        host = module.split('.')[3]
@@ -70,7 +69,8 @@ def load_custom_modules(clean_module_list):
         ### module_obj = __import__(module+".stage_definitions", globals(), locals(), [''], -1) #this looked cooler
         try:
             module_obj = importlib.import_module(module+".stage_definitions")
-        except ImportError:
+        except ImportError as e:
+            print(e)
             continue
 
         for obj in dir(module_obj):
@@ -81,7 +81,9 @@ def load_custom_modules(clean_module_list):
             logmsg(category="START", msg="    :    | %s" % obj)
 
     # Import Interfaces
-    logmsg(category="START",  msg="INTERFACES: ")
+    logmsg(category="START", msg="INTERFACES: ")
+    logmsg(category="START", msg="    | if an expected interface has not appeard")
+    logmsg(category="START", msg="    | try importing directly in a python terminal")
     from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface as InterfaceBase
     Interfaces = dict()
     for module in module_list:
@@ -92,32 +94,21 @@ def load_custom_modules(clean_module_list):
         ### module_obj = __import__(module, globals(), locals(), ['interfaces'], -1).interfaces #this looked cooler
         try:
             module_obj = importlib.import_module(module+".interfaces")
-        except ImportError:
+        except ImportError as e:
+            logmsg(category="START", msg="    :    | "+str(e))
+            logmsg(category="START", msg="    :    | ensure ...interfaces.__init__.py imports to your modules")
             continue
+
         for obj in [d for d in dir(module_obj) if not d.startswith('__')]:
             file = getattr(module_obj, obj)
 
             if not hasattr(file, obj):
-                print("HI")
                 continue
             cls = getattr(file, obj)
 
             if type(cls)!=type(InterfaceBase) or not issubclass(cls, InterfaceBase): continue
             Interfaces[host][obj] = cls
             logmsg(category="START", msg="    :    | %s" % obj)
-
-#    print("\n"*5)
-#    m = module_list[-1]
-#    print(m)
-#    mo = importlib.import_module(m)
-#    print([d for d in dir(mo) if not d.startswith('__')])
-#
-#    m2 = module_list[-1]+".interfaces"
-#    print(m2)
-#    mo2 = importlib.import_module(m2)
-#    print([d for d in dir(mo2) if not d.startswith('__')])
-#
-#    input()
 
 class Stg(object):
     from math import ceil, floor

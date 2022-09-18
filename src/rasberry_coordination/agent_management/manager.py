@@ -16,7 +16,10 @@ from std_srvs.srv import Trigger, TriggerResponse
 from diagnostic_msgs.msg import KeyValue
 from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, AgentRegistrationList, AgentRegistration, AgentStateList, AgentState
 from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module, MapObj as Map
+from rasberry_coordination.encapsuators import LocationObj as Location, MapObj as Map
+from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
+from rasberry_coordination.task_management.containers.Task import TaskObj as Task
+from rasberry_coordination.task_management.__init__ import Interfaces
 
 import rasberry_des.config_utils
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
@@ -102,7 +105,7 @@ class AgentManager(object):
         """ Request from RViz to resend all markers """
         for a in self.agent_details.values():
             if 'marker' in a.modules['base'].details:
-                m = a.moduled['base'].details['marker']
+                m = a.modules['base'].details['marker']
                 self.set_marker_pub.publish(m)
 
     """ Data """
@@ -124,6 +127,7 @@ class AgentDetails(object):
 
     """ Initialisations """
     def __init__(self, agent_dict, callbacks):
+        self.agent_dict = agent_dict
         self.agent_id = agent_dict['agent_id']
         self.local_properties = agent_dict['local_properties']
 
@@ -145,6 +149,8 @@ class AgentDetails(object):
         self.modules = {t['name']: Module(agent=self, name=t['name'], role=t['role'], details=t['details']) for t in agent_dict['modules']}
 
         #Location and Callbacks
+        lp = self.local_properties
+        np = self.modules['navigation'].interface.details
         initial_location = lp['initial_location'] if 'initial_location' in lp else ''
         has_presence = True if 'has_presence' in np and np['has_presence'] == 'True' else False
         self.location = Location(self, has_presence=has_presence, initial_location=initial_location)
@@ -154,21 +160,20 @@ class AgentDetails(object):
         self.map_handler = Map(agent=self, topic=topic)
 
         #Visualisers
-        lp = agent_dict['local_properties']
         self.modules['base'].details['default_colour'] = lp['rviz_default_colour'] if 'rviz_default_colour' in lp else ''
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
+        self.format_marker(style='red')
 
         #Debug
         self.speaker_pub = Publisher('/%s/ui/speaker'%self.agent_id, Str, queue_size=1)
 
         #Final Setup
-        self.format_marker(style='red')
-        for m in self.modules: m.add_init_task()
+        for m in self.modules.values(): m.add_init_task()
 
     """ Task Starters """
     def add_idle_tasks(self):
         [self.add_task(module=m.name, name='idle') for m in self.modules.values() if m.name != "base"]
-        if 'base' in self.modules: self.add_task(module='base', name=self.modules['base'].idle_task_name)
+        if 'base' in self.modules: self.add_task(module='base', name='idle')
 
         if not self.task_buffer:
             logmsg(level="error", category="task", id=self.agent_id, msg="WARNING! Agent has no idle tasks.")
@@ -182,34 +187,35 @@ class AgentDetails(object):
         details = details if details else {}
         contacts = contacts if contacts else {}
 
-        from pprint import pprint
-        pprint(dir(self))
+        #from pprint import pprint
+        #pprint(dir(self))
 
         if module not in self.modules:
-            logmsg(category="TASK", msg="    | module: %s (not valid)"%task_name)
+            logmsg(category="TASK", msg="    | module: %s (not valid)"%name)
             return
 
-        if name not in self.modules.interface[module]:
-            logmsg(category="TASK", msg="    | task: %s (not found)"%task_name)
+        if not hasattr(self.modules[module].interface, name):
+            logmsg(category="TASK", msg="    | task: %s (not found)"%name)
             return
 
-        task_def = self.interfaces[module][name]
-        task = task_def(self, task_id=task_id, details=details, contacts=contacts, initiator_id=initiator_id)
+        task_def = getattr(self.modules[module].interface, name)
+        task = task_def(task_id=task_id, details=details, contacts=contacts, initiator_id=initiator_id)
 
         if not task:
-            logmsg(category="TASK", msg="    | %s (empty)" % task_name)
+            logmsg(category="TASK", msg="    | %s (empty)" % name)
             return
 
-        task_name = task_name if task.name == task_name else "%s/%s"%(task_name,task.name)
+        name = name if task.name == name else "%s/%s"%(name,task.name)
 
         if not index: self.task_buffer += [task]
         else: self.task_buffer.insert(index, [task])
 
         if quiet:
-            logmsg(category="DTM", msg="    |    | buffering %s to task_buffer[%i]" % (task_name, index or len(self.task_buffer)))
+            logmsg(category="DTM", msg="    |    | buffering %s to task_buffer[%i]" % (name, index or len(self.task_buffer)))
         else:
-            logmsg(category="TASK",  msg="    | Buffering %s to task_buffer[%i]:" % (task_name, index or len(self.task_buffer)))
+            logmsg(category="TASK",  msg="    | Buffering %s to task_buffer[%i]:" % (name, index or len(self.task_buffer)))
             [logmsg(category="TASK", msg="    |    | %s"%t) for t in task.stage_list]
+
     def start_next_task(self, idx=0):
         logmsg(category="TASK", id=self.agent_id, msg="Beginning next task", speech=False)
 
@@ -220,6 +226,7 @@ class AgentDetails(object):
         logmsg(category="TASK",  msg="- Active task: %s" % self['name'], speech=False)
         logmsg(category="TASK",  msg="  Task details:")
         [logmsg(category="TASK", msg="      | %s" % stage) for stage in self['stage_list']]
+
     def extend_task(self, task_name, task_id, details):
         if module not in self.interfaces:
             logmsg(category="TASK", msg="    | module: %s (not valid)"%task_name)
@@ -236,7 +243,7 @@ class AgentDetails(object):
     def roles(self):
         return [m.role for m in self.modules.values()]
     def send_car_msg(self, msg):
-        interface = [v.interface for k,v in self.modules.items() if issubclass(type(v.interface), InterfaceDef.RasberryInterfacing_ProtocolManager)]
+        interface = [v.interface for k,v in self.modules.items() if issubclass(type(v.interface), Interfaces['base']['StateInterface'])]
         if interface:
             interface[0].notify(msg)
 

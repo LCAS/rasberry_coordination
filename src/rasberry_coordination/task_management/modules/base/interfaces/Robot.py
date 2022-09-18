@@ -1,7 +1,7 @@
-from rasberry_coordination.encapsuators import TaskObj as Task
+from rasberry_coordination.task_management.containers.Task import TaskObj as Task
 
 from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
-#from rasberry_coordination.task_management.__init__ import Stages
+from rasberry_coordination.task_management.__init__ import Stages
 
 
 class Robot(Interface):
@@ -15,9 +15,9 @@ class Robot(Interface):
                      initiator_id=self.agent.agent_id,
                      responder_id="",
                      stage_list=[
-                         Stages.StartTask(agent, task_id),
-                         Stages.SetUnregister(agent),
-                         Stages.WaitForMap(agent),
-                         Stages.WaitForLocalisation(agent),
-                         Stages.SetRegister(agent)
+                         Stages['base']['StartTask'](self.agent, task_id),
+                         Stages['base']['SetUnregister'](self.agent),
+                         Stages['base']['WaitForMap'](self.agent),
+                         Stages['base']['WaitForLocalisation'](self.agent),
+                         Stages['base']['SetRegister'](self.agent)
                      ]))
