@@ -8,7 +8,9 @@ import strands_executive_msgs.msg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 from rasberry_coordination.action_management.manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
+from rasberry_coordination.encapsuators import LocationObj as Location, MapObj as Map
+from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
+from rasberry_coordination.task_management.containers.Task import TaskObj as Task
 from rasberry_coordination.robot import Robot, VirtualRobot
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
@@ -116,6 +118,7 @@ class WaitForLocalisation(StageBase):
         """Enable location monitoring"""
         super(WaitForLocalisation, self)._start()
         self.agent.location.enable_location_monitoring(self.agent.agent_id)
+        print("waiting for location begun")
     def _query(self):
         """Complete once location has been identified"""
         success_conditions = [self.agent.location() is not None]

@@ -23,7 +23,9 @@ from rasberry_coordination.agent_management.manager import AgentManager
 from rasberry_coordination.routing_management.manager import RoutingManager
 
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, Rasberry_Logger
-from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location, ModuleObj as Module
+from rasberry_coordination.encapsuators import LocationObj as Location, MapObj as Map
+from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
+from rasberry_coordination.task_management.containers.Task import TaskObj as Task
 from rasberry_coordination.msg import MarkerDetails
 
 

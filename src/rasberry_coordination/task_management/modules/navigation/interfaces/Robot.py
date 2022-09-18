@@ -1,10 +1,10 @@
-from rasberry_coordination.encapsuators import TaskObj as Task
+from rasberry_coordination.task_management.containers.Task import TaskObj as Task
 
 from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
-#from rasberry_coordination.task_management.__init__ import Stages
+from rasberry_coordination.task_management.__init__ import Stages
 
 
-class robot(Interface):
+class Robot(Interface):
     def wait_at_node(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
                     module='navigation',
@@ -14,10 +14,10 @@ class robot(Interface):
                     initiator_id=agent.agent_id,
                     responder_id="",
                     stage_list=[
-                        StageDef.StartTask(agent, task_id),
-                        StageDef.AssignNode(agent),
-                        StageDef.NavigateToNode(agent),
-                        StageDef.Idle(agent)
+                        Stages['base']['StartTask'](self.agent, task_id),
+                        Stages['assignment']['AssignNode'](self.agent),
+                        Stages['navigation']['NavigateToNode'](self.agent),
+                        Stages['base']['Idle'](self.agent)
                     ]))
 
     def exit_at_node(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
@@ -29,8 +29,8 @@ class robot(Interface):
                     initiator_id=agent.agent_id,
                     responder_id="",
                     stage_list=[
-                        StageDef.SetUnregister(agent),
-                        StageDef.NavigateToExitNode(agent),
-                        StageDef.Exit(agent)
+                        Stages['base']['SetUnregister'](self.agent),
+                        Stages['navigation']['NavigateToExitNode'](self.agent),
+                        Stages['base']['Exit'](self.agent)
                     ]))
 
