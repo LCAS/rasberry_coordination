@@ -5,7 +5,7 @@ from std_msgs.msg import String as Str
 from rospy import Time, Duration, Subscriber, Publisher, Time
 from rasberry_coordination.action_management.manager import ActionDetails
 from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.encapsuators import TaskObj as Task, LocationObj as Location
+from rasberry_coordination.encapsuators import LocationObj as Location
 from rasberry_coordination.robot import Robot as RobotInterface_Old
 from rospy import Time, Duration
 
@@ -24,11 +24,11 @@ class IdleStorage(Idle):
     #TODO: change this to idle, and make this condition an interface response?
     def _query(self):
         """Complete once there exists any agents requiring storage"""
-        success_conditions = [len(self.agent.request_admittance) > 0] #TODO: this may prove error prone w/ _start
+        success_conditions = [len(self.agent.modules['rasberry_transportation_pkg'].interface.details['request_admittance']) > 0] #TODO: this may prove error prone w/ _start
         self.flag(any(success_conditions))
     def _end(self):
         super(IdleStorage, self)._end()
-        logmsg(category="stage", id=self.agent.agent_id, msg="admittance required: %s"%self.agent.request_admittance)
+        logmsg(category="stage", id=self.agent.agent_id, msg="admittance required: %s"%self.agent.modules['rasberry_transportation_pkg'].interface.details['request_admittance'])
 class IdleFieldStorage(IdleStorage):
     def _end(self):
         """On completion, add an idle field_storage to the end of the buffer"""

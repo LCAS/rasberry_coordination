@@ -1,27 +1,28 @@
-from rasberry_coordination.encapsuators import TaskObj as Task
+from rasberry_coordination.task_management.containers.Task import TaskObj as Task
 
 from rasberry_coordination.task_management.modules.base.interfaces.StateInterface import StateInterface
-#from rasberry_coordination.task_management import Stages
+from rasberry_coordination.task_management.__init__ import Stages
 
 class Storage(StateInterface):
 
     def __init__(self, agent, details=None):
-        state_publisher = agent.modules['rasberry_transportation_pkg'].details['state_publisher']
-        state_subscriber = agent.modules['rasberry_transportation_pkg'].details['state_subscriber']
-        super(storage, self).__init__(agent, details, state_publisher, state_subscriber)
-        self.agent.local_properties['request_admittance'] = []
+        state_publisher = details['state_publisher']
+        state_subscriber = details['state_subscriber']
+        super(Storage, self).__init__(agent, details, state_publisher, state_subscriber)
+        self.details['request_admittance'] = []
         self.notify("CONNECTED")
 
     def _uar_UNLOADED(self):
         self.agent['has_tray'] = True
 
-    def idle(cls, task_id=None, details=None, contacts=None, initiator_id=""):
+    def idle(self, task_id=None, details=None, contacts=None, initiator_id=""):
         #If agents are waiting to visit, accept one, otherwise wait
-        if len(self.agent.modules['rasberry_transportation_pkg'].details['request_admittance']) > 0:
+        if len(self.details['request_admittance']) > 0:
             return self.admit_dropoff(task_id=task_id, details=details, contacts=contacts)
         return self.wait_for_request(task_id=task_id, details=details, contacts=contacts)
 
     def wait_for_request(self, task_id=None, details=None, contacts=None, initiator_id=""):
+        #from pprint import pprint; pprint(Stages)
         return(Task(id=task_id,
                     module=__name__.split('.')[0],
                     name="wait_for_request",
@@ -30,8 +31,8 @@ class Storage(StateInterface):
                     initiator_id=self.agent.agent_id,
                     responder_id="",
                     stage_list=[
-                        Stages.rasberry_transportation.StartTask(self.agent, task_id),
-                        Stages.rasberry_transportation.IdleFieldStorage(self.agent)
+                        Stages['base']['StartTask'](self.agent, task_id),
+                        Stages['rasberry_transportation_pkg']['IdleFieldStorage'](self.agent)
                     ]))
 
     def admit_dropoff(self, task_id=None, details=None, contacts=None, initiator_id=""):
@@ -43,9 +44,9 @@ class Storage(StateInterface):
                     initiator_id="",
                     responder_id=self.agent.agent_id,
                     stage_list=[
-                        Stages.rasberry_transportation.AcceptFieldCourier(self.agent),
-                        Stages.rasberry_transportation.AwaitFieldCourier(self.agent),
-                        Stages.rasberry_transportation.UnloadFieldCourier(self.agent)
+                        Stages['rasberry_transportation_pkg']['AcceptFieldCourier'](self.agent),
+                        Stages['rasberry_transportation_pkg']['AwaitFieldCourier'](self.agent),
+                        Stages['rasberry_transportation_pkg']['UnloadFieldCourier'](self.agent)
                     ]))
 
 

@@ -1,9 +1,9 @@
 from  diagnostic_msgs.msg import KeyValue
 
-from rasberry_coordination.encapsuators import TaskObj as Task
+from rasberry_coordination.task_management.containers.Task import TaskObj as Task
 
 from rasberry_coordination.task_management.modules.base.interfaces.StateInterface import StateInterface
-#from rasberry_coordination.task_management import Stages
+from rasberry_coordination.task_management.__init__ import Stages
 
 
 class Picker(StateInterface):
