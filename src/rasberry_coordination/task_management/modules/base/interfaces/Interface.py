@@ -1,4 +1,5 @@
 from rasberry_coordination.task_management.__init__ import Stages
+from rasberry_coordination.task_management.containers.Task import TaskObj as Task
 
 class Interface(object):
 
@@ -16,7 +17,7 @@ class Interface(object):
                         name="idle",
                         details=details,
                         contacts=contacts,
-                        initiator_id=agent.agent_id,
+                        initiator_id=self.agent.agent_id,
                         responder_id="",
                         stage_list=[
                             Stages['base']['StartTask'](self.agent, task_id),

@@ -44,7 +44,7 @@ class Robot(Interface):
     def idle(self, task_id=None, details=None, contacts=None, initiator_id=""):
         # Low battery is added here as new task once idle
         # Critical battery is forced into next task when identified
-        if agent.modules['rasberry_health_monitoring_pkg'].interface.battery_low():
+        if self.agent.modules['rasberry_health_monitoring_pkg'].interface.battery_low():
             return self.charge_at_charging_station(task_id=task_id, details=details, contacts=contacts)
 
 

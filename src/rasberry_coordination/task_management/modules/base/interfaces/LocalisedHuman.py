@@ -6,9 +6,6 @@ from rasberry_coordination.task_management.__init__ import Stages
 
 class LocalisedHuman(Interface):
 
-    def idle(self, task_id=None, details=None, contacts=None, initiator_id=""):
-        return Interface.idle(agent=self.agent, task_id=task_id, details=details, contacts=contacts)
-
     def init(self, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
                     module='base',

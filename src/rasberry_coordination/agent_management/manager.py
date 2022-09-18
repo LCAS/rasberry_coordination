@@ -127,6 +127,7 @@ class AgentDetails(object):
 
     """ Initialisations """
     def __init__(self, agent_dict, callbacks):
+        self.cb = callbacks
         self.agent_dict = agent_dict
         self.agent_id = agent_dict['agent_id']
         self.local_properties = agent_dict['local_properties']

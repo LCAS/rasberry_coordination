@@ -8,10 +8,11 @@ from rasberry_coordination.task_management.__init__ import Stages
 
 class Picker(StateInterface):
 
-    def __init__(self, agent):
-        state_publisher = agent.module_properties['rasberry_transportation']['state_publisher']
-        state_subscriber = agent.module_properties['rasberry_transportation']['state_subscriber']
-        super(picker, self).__init__(agent, state_publisher, state_subscriber)
+    def __init__(self, agent, details):
+        print(details)
+        state_publisher = details['state_publisher']
+        state_subscriber = details['state_listener']
+        super(Picker, self).__init__(agent, details, state_publisher, state_subscriber)
         self.notify("CONNECTED")
 
     def _car_CALLED(self):
