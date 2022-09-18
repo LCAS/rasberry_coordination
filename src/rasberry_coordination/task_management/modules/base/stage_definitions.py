@@ -118,7 +118,6 @@ class WaitForLocalisation(StageBase):
         """Enable location monitoring"""
         super(WaitForLocalisation, self)._start()
         self.agent.location.enable_location_monitoring(self.agent.agent_id)
-        print("waiting for location begun")
     def _query(self):
         """Complete once location has been identified"""
         success_conditions = [self.agent.location() is not None]

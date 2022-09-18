@@ -21,14 +21,11 @@ class LocationObj(object):
         self.closest_node = None
 
     def enable_location_monitoring(self, agent_id):
-        print("waiting for location enabled")
-
         # callback are enabled in base.StageDef.WaitForLocalisation._start()
         self.current_node_sub = Subscriber('/%s/current_node'    % agent_id, Str, self.current_node_cb)
         self.closest_node_sub = Subscriber('/%s/closest_node'    % agent_id, Str, self.closest_node_cb)
         self.disable_loc = Subscriber('/%s/localisation/disable' % agent_id, Str, self.disable_localisation)
         self.enable_loc  = Subscriber('/%s/localisation/enable'  % agent_id, Emp, self.enable_localisation)
-        print("waiting for loc enable")
 
     def __call__(self, accurate=False):
         if accurate:
@@ -43,7 +40,6 @@ class LocationObj(object):
         self.closest_node = None if msg.data == "none" else msg.data
 
     def disable_localisation(self, msg):
-        print('called')
         if True: #self.agent.map.is_node(msg): msg in self.agent.empty_node_list!??!?!
             self.current_node_sub.unregister()
             self.closest_node_sub.unregister()
@@ -51,10 +47,8 @@ class LocationObj(object):
             self.closest_node_cb(msg)
         else:
             logmsg(level='warn', agent=self.agent.agent_id, msg="canot fake localisation to node: %s" % str(msg))
-        print(self())
 
     def enable_localisation(self, msg):
-        print("venmo'd")
         self.previous_node, self.current_node, self.closest_node = None, None, None
         self.current_node_sub = Sub(self.picker_id + "/current_node", Str, self.current_node_cb)
         self.closest_node_sub = Sub(self.picker_id + "/closest_node", Str, self.closest_node_cb)

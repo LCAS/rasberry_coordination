@@ -12,7 +12,7 @@ class Robot(Interface):
 
     def idle(self, task_id=None, details=None, contacts=None, initiator_id=""):
         load = self.agent.local_properties['load']
-        max_load = self.agent.module_properties['rasberry_transportation_pkg']['max_load']
+        max_load = self.agent.modules['rasberry_transportation_pkg'].details['max_load']
         return self.deliver_load() if int(load) >= int(max_load) else self.wait_at_base()
 
     def wait_at_base(self, task_id=None, details=None, contacts=None, initiator_id=""):
