@@ -74,8 +74,7 @@ install(PROGRAMS
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-foreach (dir launch config srv msg)
+foreach (dir launch config scripts msg srv)
     install(DIRECTORY ${dir}/
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/${dir}/)
 endforeach(dir)
-
