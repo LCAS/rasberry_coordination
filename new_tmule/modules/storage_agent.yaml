@@ -1,4 +1,4 @@
 - name: storage_agent
   panes:
-  - 'rostopic pub /car/new_store std_msgs/String "data: storage01"'
+  - 'rostopic pub /car/new_store std_msgs/String "data: storage01" -r 1'
   - 'rostopic pub /storage01/localisation/disable std_msgs/String "data: WayPoint68"'

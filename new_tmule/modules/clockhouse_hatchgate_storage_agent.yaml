@@ -1,7 +1,7 @@
 - name: storage_agent
   panes:
-  - 'rostopic pub /car/new_store std_msgs/String "data: storage02"'
+  - 'rostopic pub /car/new_store std_msgs/String "data: storage02" -r 1'
   - 'rostopic pub /storage02/localisation/disable std_msgs/String "data: s0"'
-  - 'sleep 5; rostopic pub /car/new_store std_msgs/String "data: storage03"'
+  - 'sleep 5; rostopic pub /car/new_store std_msgs/String "data: storage03" -r 1'
   - 'sleep 5; rostopic pub /storage03/localisation/disable std_msgs/String "data: s1"'
 

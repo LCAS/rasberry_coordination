@@ -3,7 +3,7 @@
 from copy import deepcopy
 from std_msgs.msg import String as Str
 from rospy import Time, Duration, Subscriber, Publisher, Time
-from rasberry_coordination.action_management.manager import ActionDetails
+from rasberry_coordination.interaction_management.manager import InteractionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import LocationObj as Location
 from rasberry_coordination.robot import Robot as RobotInterface_Old
@@ -11,7 +11,7 @@ from rospy import Time, Duration
 
 from rasberry_coordination.task_management.modules.base.stage_definitions import StageBase, Idle
 from rasberry_coordination.task_management.modules.navigation.stage_definitions import Navigation, NavigateToAgent, NavigateToNode
-from rasberry_coordination.task_management.modules.assignment.stage_definitions import ActionResponse
+from rasberry_coordination.task_management.modules.assignment.stage_definitions import InteractionResponse
 
 
 
@@ -36,12 +36,13 @@ class IdleFieldStorage(IdleStorage):
         self.agent.add_task('transportation_field_storage_idle')
 
 """ Assignment-Based Task Stages (involves coordinator) """
-class AssignFieldCourier(ActionResponse):
+class AssignFieldCourier(InteractionResponse):
     """Used to identify the closest field_courier."""
     def __init__(self, agent):
-        """ Mark the details of the associated Action """
+        """ Mark the details of the associated Interaction """
         super(AssignFieldCourier, self).__init__(agent)
-        self.action = ActionDetails(type='search', grouping='agent_descriptor', descriptor='field_courier', style='closest_agent')
+        descriptor = {'module':'rasberry_transportation_pkg', 'role':'Robot'}
+        self.interaction = InteractionDetails(type='search', grouping='agent_descriptor', descriptor=descriptor, style='closest_agent')
         self.contact = 'field_courier'
     def _start(self):
         super(AssignFieldCourier, self)._start()
@@ -58,23 +59,24 @@ class AssignFieldCourier(ActionResponse):
                                                          details={},
                                                          contacts={'picker': self.agent},
                                                          initiator_id=self.agent.agent_id)
-class AssignFieldStorage(ActionResponse):
+class AssignFieldStorage(InteractionResponse):
     """Used to identify the closest field_storage."""
     def __init__(self, agent):
-        """ Mark the details of the associated Action """
+        """ Mark the details of the associated Interaction """
         super(AssignFieldStorage, self).__init__(agent)
-        self.action = ActionDetails(type='search', grouping='agent_descriptor', descriptor='field_storage', style='closest_agent')
+        descriptor = {'module':'rasberry_transportation_pkg', 'role':'Storage'}
+        self.interaction = InteractionDetails(type='search', grouping='agent_descriptor', descriptor=descriptor, style='closest_agent')
         self.contact = 'field_storage'
     def _end(self):
         """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
         super(AssignFieldStorage, self)._end()
         self.agent['contacts']['field_storage'].request_admittance.append(self.agent.agent_id)
-class AcceptFieldCourier(ActionResponse):
+class AcceptFieldCourier(InteractionResponse):
     """Used to identify the closest field_storage."""
     def __init__(self, agent):
-        """ Mark the details of the associated Action """
+        """ Mark the details of the associated Interaction """
         super(AcceptFieldCourier, self).__init__(agent)
-        self.action = ActionDetails(type='search', grouping='agent_list', list=self.agent.request_admittance, style='closest_agent')
+        self.interaction = InteractionDetails(type='search', grouping='agent_list', list=self.agent.request_admittance, style='closest_agent')
         self.contact = 'field_courier'
     def _end(self):
         """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
@@ -82,12 +84,12 @@ class AcceptFieldCourier(ActionResponse):
         logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent['contacts']['field_courier'].agent_id, self.agent.request_admittance))
         logmsg(category="stage", msg="AcceptFieldCourier: stage_complete=%s" % self.stage_complete)
         self.agent.request_admittance.remove(self.agent['contacts']['field_courier'].agent_id)
-class AssignHeadNodeIdle(ActionResponse):
+class AssignHeadNodeIdle(InteractionResponse):
     """Used to identify the closest available head node."""
     def __init__(self, agent):
-        """ Mark the details of the associated Action """
+        """ Mark the details of the associated Interaction """
         super(AssignHeadNodeIdle, self).__init__(agent)
-        self.action = ActionDetails(type='search', grouping='head_nodes', style='head_node_allocator')
+        self.interaction = InteractionDetails(type='search', grouping='head_nodes', style='head_node_allocator')
         self.contact = 'head_node'
     """Used to identify the closest available base_node."""
     def _start(self):
@@ -95,7 +97,7 @@ class AssignHeadNodeIdle(ActionResponse):
         self.accepting_new_tasks = True
     def _query(self):
         """Complete once action has generated a result"""
-        success_conditions = [self.action.response != None,
+        success_conditions = [self.interaction.response != None,
                               len(self.agent.task_buffer) > 0]
         self.flag(any(success_conditions))
 
