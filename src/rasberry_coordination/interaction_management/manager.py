@@ -81,7 +81,7 @@ class InteractionManager(object):
         elif GR == 'node_descriptor':
             descriptor = interaction.descriptor
             occupied = self.get_occupied_nodes(agent)
-            print("occupied: %s" % str(occupied))
+            #print("occupied: %s" % str(occupied))
             L = [n['id'] for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)]
 
         elif GR == 'agent_descriptor':
@@ -91,9 +91,7 @@ class InteractionManager(object):
                  a.registration and \
                  a().accepting_new_tasks and \
                  descriptor['module'] in a.modules and \
-                 descriptor['role'] is a.modules[descriptor['module']].role }
-            #print([[a.agent_id, a.registration, a().accepting_new_tasks, a.modules[descriptor['module']].role] for a in self.AllAgentsList.values()])
-            print(L)
+                 descriptor['role'] == a.modules[descriptor['module']].role }
 
         elif GR == 'head_nodes':
             L = [float(n.split("-c")[0][1:]) for n in agent.map_handler.empty_node_list if n.endswith('ca')]

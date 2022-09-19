@@ -32,7 +32,6 @@ class AgentManager(object):
         self.agent_details = {}
         self.new_agent_buffer = dict()
 
-
         # Setup Connection for Dynamic Fleet
         file_name = 'coordinator-loaded-agents-save-state.yaml'  #logs to $HOME/.ros/coordinator-loaded-agents-save-state.yaml
         if os.path.isfile(file_name):
@@ -291,7 +290,7 @@ class AgentDetails(object):
             return "%s(%s)" % (self.get_class(), self.agent_id)
         return "![%s(%s)]" % (self.get_class(), self.agent_id)
     def get_class(self):
-        return str(self.__class__).replace("<class 'rasberry_coordination.agent_management.agent_manager.", "").replace("'>", "")
+        return str(self.__class__).replace("<class 'rasberry_coordination.agent_management.manager.", "").replace("'>", "")
     def speaker(self, msg):
         try:
             self.speaker_pub.publish(Str(msg))
