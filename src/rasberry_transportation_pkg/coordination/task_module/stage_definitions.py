@@ -33,7 +33,7 @@ class IdleFieldStorage(IdleStorage):
     def _end(self):
         """On completion, add an idle field_storage to the end of the buffer"""
         super(IdleFieldStorage, self)._end()
-        self.agent.add_task('transportation_field_storage_idle')
+        self.agent.add_task(module='rasberry_transportation_pkg', name='idle')
 
 """ Assignment-Based Task Stages (involves coordinator) """
 class AssignFieldCourier(InteractionResponse):
@@ -51,10 +51,11 @@ class AssignFieldCourier(InteractionResponse):
         """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
         super(AssignFieldCourier, self)._end()
 
-        self.agent.modules['transportation'].interface.notify("car_ACCEPT")
+        self.agent.modules['rasberry_transportation_pkg'].interface.notify("car_ACCEPT")
         loc = self.agent.location()
         self.agent['contacts']['field_courier'].speaker("%s requested collection at %s" % (self.agent.agent_id, loc))
-        self.agent['contacts']['field_courier'].add_task(task_name='transportation_retrieve_load',
+        self.agent['contacts']['field_courier'].add_task(module="rasberry_transportation_pkg",
+                                                         name='retrieve_load',
                                                          task_id=self.agent['id'],
                                                          details={},
                                                          contacts={'picker': self.agent},
@@ -70,20 +71,20 @@ class AssignFieldStorage(InteractionResponse):
     def _end(self):
         """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
         super(AssignFieldStorage, self)._end()
-        self.agent['contacts']['field_storage'].request_admittance.append(self.agent.agent_id)
+        self.agent['contacts']['field_storage'].modules['rasberry_transportation_pkg'].interface.details['request_admittance'].append(self.agent.agent_id)
 class AcceptFieldCourier(InteractionResponse):
     """Used to identify the closest field_storage."""
     def __init__(self, agent):
         """ Mark the details of the associated Interaction """
         super(AcceptFieldCourier, self).__init__(agent)
-        self.interaction = InteractionDetails(type='search', grouping='agent_list', list=self.agent.request_admittance, style='closest_agent')
+        self.interaction = InteractionDetails(type='search', grouping='agent_list', list=self.agent.modules['rasberry_transportation_pkg'].interface.details['request_admittance'], style='closest_agent')
         self.contact = 'field_courier'
     def _end(self):
         """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
         super(AcceptFieldCourier, self)._end()
-        logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent['contacts']['field_courier'].agent_id, self.agent.request_admittance))
+        logmsg(category="stage", msg="Admitted: %s from %s" % (self.agent['contacts']['field_courier'].agent_id, self.agent.modules['rasberry_transportation_pkg'].interface.details['request_admittance']))
         logmsg(category="stage", msg="AcceptFieldCourier: stage_complete=%s" % self.stage_complete)
-        self.agent.request_admittance.remove(self.agent['contacts']['field_courier'].agent_id)
+        self.agent.modules['rasberry_transportation_pkg'].interface.details['request_admittance'].remove(self.agent['contacts']['field_courier'].agent_id)
 class AssignHeadNodeIdle(InteractionResponse):
     """Used to identify the closest available head node."""
     def __init__(self, agent):
@@ -123,7 +124,7 @@ class AwaitFieldCourier(Idle):
         self.flag(any(success_conditions))
     def _end(self):
         """On completion, notify the picker of ARRIVAL"""
-        self.agent.modules['transportation'].interface.notify("car_ARRIVED")
+        self.agent.modules['rasberry_transportation_pkg'].interface.notify("car_ARRIVED")
 class AwaitStoreAccess(Idle):
     """Used to idle the field_courier until the storage location has accepted admittance"""
     def __repr__(self):
@@ -195,7 +196,7 @@ class TimeoutFlagModifier(StageBase):
         self.agent[flag] = default
         self.trigger_flag = flag
         self.default = default
-        self.timeout = Duration(secs=fetch_property('transportation', timeout_type))
+        self.timeout = Duration(secs=fetch_property('rasberry_transportation_pkg', timeout_type))
         self.timeout_prompt = False
         self.agent['contacts']['field_courier'].speaker("Arrived to %s at %s... I will leave in %s seconds. Please %s trays." %
                                                          (self.agent.agent_id, self.agent.location(), str(self.timeout.secs), prompt))
@@ -215,9 +216,9 @@ class TimeoutFlagModifier(StageBase):
         super(TimeoutFlagModifier, self)._end()
         self.agent['contacts']['field_courier'][self.trigger_flag] = self.default
         if "STD_v2_" in self.agent.agent_id:
-            self.agent.modules['transportation'].interface.notify("car_INIT")
+            self.agent.modules['rasberry_transportation_pkg'].interface.notify("car_INIT")
         else:
-            self.agent.modules['transportation'].interface.notify("car_COMPLETE")
+            self.agent.modules['rasberry_transportation_pkg'].interface.notify("car_COMPLETE")
 class LoadFieldCourier(TimeoutFlagModifier):
     """Used to define completion details for when the field_courier can be considered loaded"""
     def _start(self):

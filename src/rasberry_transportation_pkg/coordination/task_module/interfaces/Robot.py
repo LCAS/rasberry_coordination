@@ -55,8 +55,8 @@ class Robot(Interface):
                     stage_list=[
                         Stages['base']['StartTask'](self.agent, task_id),
                         Stages['rasberry_transportation_pkg']['AssignFieldStorage'](self.agent),
-                        Stages['base']['AssignWaitNode'](self.agent),
+                        Stages['assignment']['AssignWaitNode'](self.agent),
                         Stages['rasberry_transportation_pkg']['AwaitFieldStorageAccess'](self.agent),
                         Stages['rasberry_transportation_pkg']['NavigateToFieldStorage'](self.agent),
-                        Stages['rasberry_transportation_pkg.Unloading'](self.agent)
+                        Stages['rasberry_transportation_pkg']['Unloading'](self.agent)
                     ]))
