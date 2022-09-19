@@ -17,7 +17,7 @@ import rospy, rospkg
 from rospy import Subscriber, Publisher
 from std_msgs.msg import String as Str, Empty
 
-from rasberry_coordination.action_management.manager import ActionManager
+from rasberry_coordination.interaction_management.manager import InteractionManager
 from rasberry_coordination.task_management.manager import TaskManager
 from rasberry_coordination.agent_management.manager import AgentManager
 from rasberry_coordination.routing_management.manager import RoutingManager
@@ -36,7 +36,7 @@ class RasberryCoordinator(object):
         # Construct Sub-System Managers
         self.agent_manager = AgentManager()
         self.routing_manager = RoutingManager(self.agent_manager, planning_format=planning_format)
-        self.action_manager = ActionManager(self.agent_manager, self.routing_manager, special_nodes)
+        self.interaction_manager = InteractionManager(self.agent_manager, self.routing_manager, special_nodes)
         self.task_manager = TaskManager(self)
         # Inisialise cross-references
         self.agent_manager.cb['force_replan'] = self.routing_manager.force_replan
@@ -58,7 +58,7 @@ class RasberryCoordinator(object):
 
         # Remappings to for commonly used functions
         get_agents      = self.get_agents
-        offer_service   = self.action_manager.offer_service
+        offer_service   = self.interaction_manager.offer_service
         find_routes     = self.routing_manager.find_routes
         publish_routes  = self.routing_manager.publish_routes
         trigger_routing = self.routing_manager.trigger_routing
@@ -117,8 +117,8 @@ class RasberryCoordinator(object):
             Ut = Update_DTM(A, DTM, Ut);
             AM.fleet_monitoring()
 
-            # Offer Action Services
-            [offer_service(a) for a in A if a().action_required]; l(2);                            """ Offer Service """
+            # Offer Interaction Services
+            [offer_service(a) for a in A if a().interaction_required]; l(2);                            """ Offer Service """
 
             # Find Routes
             trigger = trigger_routing(A)

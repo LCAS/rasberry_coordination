@@ -2,7 +2,7 @@ from std_msgs.msg import String as Str
 from rospy import Publisher
 from rasberry_coordination.coordinator_tools import logmsg
 
-class ActionDetails(object):
+class InteractionDetails(object):
     """TODO: move to encapsulators"""
     def __init__(self, type, grouping=None, descriptor=None, style=None, info=None, list=None):
         self.type = type #[search, info]
@@ -15,7 +15,7 @@ class ActionDetails(object):
         self.response = None
         self.silence = False
 
-class ActionManager(object):
+class InteractionManager(object):
     def __init__(self, agent_manager, routing_manager, special_nodes):
         self.agent_manager = agent_manager
         self.routing_manager = routing_manager
@@ -24,8 +24,8 @@ class ActionManager(object):
 
     """ Services offerd by Coordinator to assist with tasks """
     def offer_service(self, agent):
-        action = agent().action
-        TP = action.type
+        interaction = agent().interaction
+        TP = interaction.type
 
         self.AllAgentsList = self.agent_manager.agent_details.copy()  # TODO: try enter and exit instead of .copy()?
         if TP == 'search':
@@ -33,28 +33,29 @@ class ActionManager(object):
                 list = self.get_list(agent)
                 item = self.get_item(agent, list)
             except Exception as e:
+                print("Error on interaction manager:")
                 print(e)
                 item = None
-            action.response = item
+            interaction.response = item
         elif TP == 'info':
             resp = self.get_info(agent)
-            action.response = resp
+            interaction.response = resp
 
-        if action.response:
-            logmsg(category="action", msg="    - Performing action: %s" % {k: v for k, v in action.__dict__.items() if v})
+        if interaction.response:
+            logmsg(category="action", msg="    - Performing interaction search: %s" % {k: v for k, v in interaction.__dict__.items() if v})
             if TP=="search":
                 logmsg(category="action", msg="        - list: %s" % str(list))
-            logmsg(category="action", msg="    - Action result found: %s" % action.response)
-        elif not action.silence:
-            logmsg(category="action", msg="    - Performing action: %s" % {k: v for k, v in action.__dict__.items() if v})
-            logmsg(category="action", msg="    - Action result not found, will notify when result found")
-            action.silence = True
+            logmsg(category="action", msg="    - Interaction result found: %s" % interaction.response)
+        elif not interaction.silence:
+            logmsg(category="action", msg="    - Performing interaction search: %s" % {k: v for k, v in interaction.__dict__.items() if v})
+            logmsg(category="action", msg="    - Interaction result not found, will notify when result found")
+            interaction.silence = True
 
         self.AllAgentsList = None
 
     def get_info(self, agent):
-        action = agent().action
-        FO = action.info
+        interaction = agent().interaction
+        FO = interaction.info
 
         if FO == 'send_info':
             pub1 = Publisher('/car_client/info/map', Str, queue_size=1, latch=True)
@@ -64,30 +65,35 @@ class ActionManager(object):
             return 'sent'
 
         elif FO == 'find_row_ends':
-            row_id = action.descriptor
+            row_id = interaction.descriptor
             return self.routing_manager.planner.get_row_ends(agent, row_id)
 
     def get_list(self, agent):
-        action = agent().action
-        GR = action.grouping
+        interaction = agent().interaction
+        GR = interaction.grouping
 
         if GR == 'node_list':
-            L = action.list
+            L = interaction.list
 
         elif GR == 'agent_list':
-            L = {agent_id: self.AllAgentsList[agent_id] for agent_id in action.list}
+            L = {agent_id: self.AllAgentsList[agent_id] for agent_id in interaction.list}
 
         elif GR == 'node_descriptor':
-            descriptor = agent().action.descriptor
+            descriptor = interaction.descriptor
             occupied = self.get_occupied_nodes(agent)
             print("occupied: %s" % str(occupied))
             L = [n['id'] for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)]
 
         elif GR == 'agent_descriptor':
-            descriptor = agent().action.descriptor
+            descriptor = interaction.descriptor
             L = {a.agent_id: a for a in self.AllAgentsList.values() if
-                 (a is not agent) and a.registration and a().accepting_new_tasks and (descriptor in a.roles())}
-            #TODO make accepitng tasks a different generator
+                 a is not agent and \
+                 a.registration and \
+                 a().accepting_new_tasks and \
+                 descriptor['module'] in a.modules and \
+                 descriptor['role'] is a.modules[descriptor['module']].role }
+            #print([[a.agent_id, a.registration, a().accepting_new_tasks, a.modules[descriptor['module']].role] for a in self.AllAgentsList.values()])
+            print(L)
 
         elif GR == 'head_nodes':
             L = [float(n.split("-c")[0][1:]) for n in agent.map_handler.empty_node_list if n.endswith('ca')]
@@ -98,9 +104,9 @@ class ActionManager(object):
         return L
 
     def get_item(self, agent, list):
-        action = agent().action
+        interaction = agent().interaction
         location = agent.location()
-        ST = action.style
+        ST = interaction.style
         if ST == 'closest_agent':
             new_list = {k: self.dist(v, v.location(), location) for k, v in list.items()}
             i = self.get_dist(new_list)
@@ -128,13 +134,13 @@ class ActionManager(object):
 
         return I
 
-    """ Action Tools """
+    """ Interaction Tools """
 
     def get_occupied_nodes(self, agent):
         AExcl = [a for _id, a in self.AllAgentsList.items() if (_id is not agent.agent_id)]
         print(AExcl)
         occupied = [a.location.current_node for a in AExcl if a.location.current_node]  # Check if node is occupied
-        occupied += [a().action.response for a in AExcl if a().action and a().action.response and a.map_handler.is_node(a().action.response)]  # Include navigation targets
+        occupied += [a().interaction.response for a in AExcl if a().interaction and a().interaction.response and a.map_handler.is_node(a().interaction.response)]  # Include navigation targets
         occupied += [a.goal() for a in AExcl if a.goal()] # Include navigation targets
         return occupied
 

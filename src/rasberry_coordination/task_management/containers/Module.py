@@ -17,7 +17,7 @@ class ModuleObj(object):
         return "Module( name:%s | role:%s | interface:%s )" % (self.name, self.role, self.interface!=None)
 
     def __init__(self, agent, name, role, details):
-        logmsg(category="module", msg="%s (%s)"%(name.upper(),role.upper()))
+        #logmsg(category="module", msg="%s (%s)"%(name.upper(),role.upper()))
         self.agent = agent
         self.name = name
         self.role = role
@@ -27,5 +27,8 @@ class ModuleObj(object):
         self.details = details
 
     def add_init_task(self):
+        logmsg(category="module", msg="%s" % self.name.upper())
+        logmsg(category="module", msg="    | Role: %s" % self.role)
+        logmsg(category="module", msg="    | Searching for init task:")
         self.agent.add_task(module=self.name, name='init')
 

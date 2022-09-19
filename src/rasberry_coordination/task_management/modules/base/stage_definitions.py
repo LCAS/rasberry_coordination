@@ -6,7 +6,7 @@ from std_msgs.msg import Bool, String as Str
 from diagnostic_msgs.msg import KeyValue
 import strands_executive_msgs.msg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
-from rasberry_coordination.action_management.manager import ActionDetails
+from rasberry_coordination.interaction_management.manager import InteractionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import LocationObj as Location, MapObj as Map
 from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
@@ -23,9 +23,14 @@ class StageBase(object):
     def get_class(self):
         """Cleaned class name for explicit class-type queries"""
         return str(self.__class__)\
-            .replace("<class 'rasberry_coordination.task_management.","")\
-            .replace("'>","")\
-            .replace("modules.","")
+            .replace("<class '","")\
+            .replace("rasberry_coordination.", "")\
+            .replace("task_management.","")\
+            .replace("modules.","")\
+            .replace("coordination.","")\
+            .replace("task_module.","")\
+            .replace("stage_definitions.","")\
+            .replace("'>","")
     def __repr__(self):
         """Simplified representation of class for clean informative logging"""
         return self.get_class()
@@ -40,14 +45,14 @@ class StageBase(object):
     def __init__(self, agent):
         """Class initialisation for populating default values"""
         self.agent = agent
-        self.action_required = False
+        self.interaction_required = False
         self.route_required = False  #True: trigger a route search
         self.route_found = False  #True: trigger a route publish
         self.stage_complete = False
         self.new_stage = True
         self.target = None
         self.target_agent = None
-        self.action = None
+        self.interaction = None
         self.accepting_new_tasks = False
         self.summaries = {}
     def _start(self):

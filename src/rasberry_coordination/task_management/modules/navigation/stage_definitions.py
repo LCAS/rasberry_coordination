@@ -7,7 +7,7 @@ from diagnostic_msgs.msg import KeyValue
 import strands_executive_msgs.msg
 
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
-from rasberry_coordination.action_management.manager import ActionDetails
+from rasberry_coordination.interaction_management.manager import InteractionDetails
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import LocationObj as Location, MapObj as Map
 from rasberry_coordination.task_management.containers.Module import ModuleObj as Module

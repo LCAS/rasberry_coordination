@@ -163,13 +163,13 @@ class AgentDetails(object):
         #Visualisers
         self.modules['base'].details['default_colour'] = lp['rviz_default_colour'] if 'rviz_default_colour' in lp else ''
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
-        self.format_marker(style='red')
 
         #Debug
         self.speaker_pub = Publisher('/%s/ui/speaker'%self.agent_id, Str, queue_size=1)
 
         #Final Setup
         for m in self.modules.values(): m.add_init_task()
+        self.format_marker(style='red')
 
     """ Task Starters """
     def add_idle_tasks(self):
@@ -187,9 +187,6 @@ class AgentDetails(object):
         task_stage_list = task_stage_list if task_stage_list else []
         details = details if details else {}
         contacts = contacts if contacts else {}
-
-        #from pprint import pprint
-        #pprint(dir(self))
 
         if module not in self.modules:
             logmsg(category="TASK", msg="    | module: %s (not valid)"%name)
@@ -212,10 +209,10 @@ class AgentDetails(object):
         else: self.task_buffer.insert(index, [task])
 
         if quiet:
-            logmsg(category="DTM", msg="    |    | buffering %s to task_buffer[%i]" % (name, index or len(self.task_buffer)))
+            logmsg(category="DTM", msg="    :    | buffering %s to task_buffer[%i]" % (name, index or len(self.task_buffer)))
         else:
             logmsg(category="TASK",  msg="    | Buffering %s to task_buffer[%i]:" % (name, index or len(self.task_buffer)))
-            [logmsg(category="TASK", msg="    |    | %s"%t) for t in task.stage_list]
+            [logmsg(category="TASK", msg="    :    | %s"%t) for t in task.stage_list]
 
     def start_next_task(self, idx=0):
         logmsg(category="TASK", id=self.agent_id, msg="Beginning next task", speech=False)

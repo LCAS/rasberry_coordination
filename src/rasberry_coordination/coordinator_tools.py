@@ -105,7 +105,7 @@ class Rasberry_Logger(object):
         for a in self.AllAgentsList.values():
             switch = {'_start':a().new_stage,
                       '_notify_start':a().new_stage,
-                      '_action':a().action_required,
+                      '_interaction':a().interaction_required,
                       '_query':a().stage_complete,
                       '_notify_end':a().stage_complete,
                       '_del':a().stage_complete}
@@ -127,7 +127,7 @@ class Rasberry_Logger(object):
                               'new_stage':self.log_new_stage,
                               'linebreak': self.log_linebreak}
         switch_group_value = {'route':self.log_not_none,          #('route')
-                              'action_required':self.log_value,   #('action_required')
+                              'interaction_required':self.log_value,   #('interaction_required')
                               'route_required':self.log_value,    #('route_required')
                               'stage_complete':self.log_value}    #('stage_complete')
         switch_group_summary = {'_start':self.log_summary,        #('_start')

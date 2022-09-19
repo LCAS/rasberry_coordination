@@ -3,7 +3,7 @@
 from copy import deepcopy
 from std_msgs.msg import String as Str, Bool, Float32
 from rospy import Time, Duration, Subscriber, Publisher, Time
-from rasberry_coordination.action_management.manager import ActionDetails
+from rasberry_coordination.interaction_management.manager import InteractionDetails
 
 from rasberry_coordination.encapsuators import LocationObj as Location
 from rasberry_coordination.coordinator_tools import logmsg
@@ -20,7 +20,7 @@ except: pass
 
 from rasberry_coordination.task_management.modules.base.stage_definitions import StageBase, StartTask
 from rasberry_coordination.task_management.modules.navigation.stage_definitions import NavigateToNode
-from rasberry_coordination.task_management.modules.assignment.stage_definitions import ActionResponse
+from rasberry_coordination.task_management.modules.assignment.stage_definitions import InteractionResponse
 
 
 class StartChargeTask(StartTask):
@@ -30,12 +30,12 @@ class StartChargeTask(StartTask):
         super(StartChargeTask, self)._start()
         self.agent.registration = False
 
-class AssignChargeNode(ActionResponse):
+class AssignChargeNode(InteractionResponse):
     """Used to identify the closest available charging_station."""
     def __init__(self, agent):
-        """ Mark the details of the associated Action """
+        """ Mark the details of the associated Interaction """
         super(AssignChargeNode, self).__init__(agent)
-        self.action = ActionDetails(type='search', grouping='node_descriptor', descriptor='charging_station', style='closest_node')
+        self.interaction = InteractionDetails(type='search', grouping='node_descriptor', descriptor='charging_station', style='closest_node')
         self.contact = 'charging_station'
 
 class NavigateToChargeNode(NavigateToNode):

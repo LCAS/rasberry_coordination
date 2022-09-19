@@ -15,7 +15,7 @@ class StateInterface(Interface):
         #recieve new states from remotes
         if msg.key == agent_id:
             state = msg.value.split('-')[0]
-            if state in dir(self):
+            if "_"+state in dir(self):
                 logmsg(category="IDef", id=agent_id, msg="State changed to: %s" % state)
                 getattr(self, "_"+state)()
 
