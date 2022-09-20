@@ -297,7 +297,7 @@ class FragmentPlanner_map_filter(object):
         and update the available_route_search object with the new map
         :param agent_nodes: list of nodes occupied by other agents, list
         """
-
+        print("blocking %s for %s"%(str(occupied_nodes), agent.agent_id))
         # # Nothing to do if restrictions are not used
         # if 'restrictions' not in agent.navigation_properties: return
 
@@ -320,6 +320,7 @@ class FragmentPlanner_map_filter(object):
     @classmethod
     def unblock_node(cls, agent, node_to_unblock):
         """ unblock a node by adding details from unfiltered map """
+        print("unblocking %s for %s"%(node_to_unblock, agent.agent_id))
         nodes_to_append = []
         edges_to_append = []
 
@@ -338,6 +339,7 @@ class FragmentPlanner_map_filter(object):
 
     @classmethod
     def block_rows(cls, agent, occupied_nodes):
+        print("blocking %s for %s"%(str(occupied_nodes), agent.agent_id))
         """ block access to each row if the row is occupied """
         #This only works on the assumption that small rows are staggered left of the tall rows
         for node in occupied_nodes:
@@ -361,6 +363,14 @@ class FragmentPlanner_map_filter(object):
                 #lock tall rows:
                 cls.block_row_ends(agent, 'tall_%s_r%i' % ( t , int(r[1:])-1 ))
                 cls.block_row_ends(agent, 'tall_%s_r%i' % ( t , int(r[1:])   ))
+                pass
+            elif name.startswith('r'):
+                #_,t,r,_ = name.split('_')
+                ##lock short rows:
+                #cls.block_row_(agent, 'small_%s_r%i' % ( t , int(r[1:])   ))
+                ##lock tall rows:
+                #cls.block_node(agent, 'tall_%s_r%i' % ( t , int(r[1:])-1 ))
+                #cls.block_node(agent, 'tall_%s_r%i' % ( t , int(r[1:])   ))
                 pass
             else:
                 pass
