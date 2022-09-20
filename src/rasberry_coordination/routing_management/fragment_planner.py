@@ -7,7 +7,7 @@
 
 
 import threading
-
+from pprint import pprint
 
 from rasberry_coordination.routing_management.base_planner import BasePlanner
 from rasberry_coordination.coordinator_tools import logmsg
@@ -297,30 +297,21 @@ class FragmentPlanner_map_filter(object):
         and update the available_route_search object with the new map
         :param agent_nodes: list of nodes occupied by other agents, list
         """
-        print("blocking %s for %s"%(str(occupied_nodes), agent.agent_id))
         # # Nothing to do if restrictions are not used
         # if 'restrictions' not in agent.navigation_properties: return
-
         ocn = occupied_nodes
-        # if agent.location() in occupied_nodes: ocn.remove(agent.location())
-
-        # for node in agent.map_handler.filtered_map["nodes"]:
-        #     to_pop = []
-        #     for i in range(len(node["node"]["edges"])):
-        #         if node["node"]["edges"][i]["node"] in ocn:
-        #             to_pop.append(i)
-        #     if to_pop:
-        #         to_pop.reverse()
-        #         for j in to_pop:
-        #             node["node"]["edges"].pop(j)
 
         for node in agent.map_handler.filtered_map["nodes"]:
-            node["node"]["edges"] = [e for e in node["node"]["edges"] if e not in ocn]
+
+            # Remove any edges which go into an occupied node
+            node["node"]["edges"] = [e for e in node["node"]["edges"] if e["node"] not in ocn]
+
+            # Remove any edges leaving an occupied node (this will fail unless unblock_node is updated to match)
+            #if node["node"]["name"] in ocn: node["node"]["edges"] = []
 
     @classmethod
     def unblock_node(cls, agent, node_to_unblock):
         """ unblock a node by adding details from unfiltered map """
-        print("unblocking %s for %s"%(node_to_unblock, agent.agent_id))
         nodes_to_append = []
         edges_to_append = []
 
