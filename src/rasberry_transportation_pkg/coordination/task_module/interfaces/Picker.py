@@ -17,11 +17,13 @@ class Picker(StateInterface):
         self.notify("CONNECTED")
 
     def _car_CALLED(self):
-        self.agent.add_task(module="rasberry_transportation_pkg", name='request_collection')
-        self.agent['start_time'] = Time.now()
+        if 'transportation_request_field_courier' not in [self.agent['name']]+[T.name for T in self.agent.task_buffer]:
+            self.agent.add_task(module="rasberry_transportation_pkg", name='request_collection')
+            self.agent['start_time'] = Time.now()
 
     def _car_LOADED(self):
-        self.agent['has_tray'] = False
+        if self.agent['id'] and self.agent['name'] == 'transportation_request_field_courier' and self.agent().get_class() == "transportation.LoadFieldCourier":
+            self.agent['has_tray'] = False
 
     def _car_CANCEL(self):
         if self.agent['id'] and \
