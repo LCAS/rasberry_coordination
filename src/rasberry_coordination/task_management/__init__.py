@@ -96,7 +96,7 @@ def load_custom_modules(clean_module_list):
             module_obj = importlib.import_module(module+".interfaces")
         except ImportError as e:
             logmsg(category="START", msg="    :    | "+str(e))
-            logmsg(category="START", msg="    :    | ensure ...interfaces.__init__.py imports to your modules")
+            #logmsg(category="START", msg="    :    | ensure ...interfaces.__init__.py imports to your modules")
             continue
 
         for obj in [d for d in dir(module_obj) if not d.startswith('__')]:
