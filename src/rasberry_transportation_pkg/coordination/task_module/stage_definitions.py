@@ -53,7 +53,7 @@ class AssignFieldCourier(InteractionResponse):
 
         self.agent.modules['rasberry_transportation_pkg'].interface.notify("car_ACCEPT")
         loc = self.agent.location()
-        self.agent['contacts']['field_courier'].speaker("%s requested collection at %s" % (self.agent.agent_id, loc))
+        self.agent['contacts']['field_courier'].speaker("picker requested collection at %s" % (loc))
         self.agent['contacts']['field_courier'].add_task(module="rasberry_transportation_pkg",
                                                          name='retrieve_load',
                                                          task_id=self.agent['id'],
@@ -116,11 +116,11 @@ class AwaitFieldCourier(Idle):
             return "%s()" % (self.get_class())
     def _start(self):
         super(AwaitFieldCourier, self)._start()
+        self.agent['details']['arrived'] = False
         self.initial_target = self.agent.location(accurate=True)
     def _query(self):
         """Complete once the associated field_courier has arrived at the agents location"""
-        success_conditions = [self.agent['contacts']['field_courier'].location(accurate=True) == self.agent.location(),
-                              self.agent['contacts']['field_courier'].location(accurate=True) == self.initial_target]
+        success_conditions = [self.agent['details']['arrived']]
         self.flag(any(success_conditions))
     def _end(self):
         """On completion, notify the picker of ARRIVAL"""
@@ -156,12 +156,16 @@ class NavigateToPicker(NavigateToAgent):
         super(NavigateToPicker, self).__init__(agent,  association='picker')
     def _query(self):
         """Complete when the agents location is identical to the target location."""
-        success_conditions = [self.agent.location(accurate=True) == self.target,
-                              self.agent.location(accurate=True) == self.agent['contacts']['picker'].location(accurate=False)]
+        picker_loc = self.agent['contacts']['picker'].location(accurate=False)
+        robot_loc = self.agent.location(accurate=True)
+        success_conditions = [robot_loc == self.target,
+                              robot_loc == picker_loc,
+                              self.agent.location.current_node == None and picker_loc in self.agent.location.closest_edge]
         self.flag(any(success_conditions))
     def _end(self):
         """End navigation by refreshing routes for other agents in motion."""
         logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
+        self.agent['contacts']['picker']['details']['arrived'] = True
         self.agent.navigation_interface.cancel_execpolicy_goal() #<- since checking if at picker early, we need to end route manually
         self.target = None
         self.route_required = False
@@ -172,6 +176,8 @@ class NavigateToFieldStorage(NavigateToAgent):
     def __init__(self, agent):
         """Set navigation target as associated field_storage"""
         super(NavigateToFieldStorage, self).__init__(agent, association='field_storage')
+    def _end(self):
+        self.agent['contacts']['field_storage']['details']['arrived'] = True
 class NavigateToHeadNodeIdle(NavigateToNode):
     """ Used to Navigate To Base node, but with interruption enabled """
     def __init__(self, agent):
@@ -198,8 +204,8 @@ class TimeoutFlagModifier(StageBase):
         self.default = default
         self.timeout = Duration(secs=fetch_property('rasberry_transportation_pkg', timeout_type))
         self.timeout_prompt = False
-        self.agent['contacts']['field_courier'].speaker("Arrived to %s at %s... I will leave in %s seconds. Please %s trays." %
-                                                         (self.agent.agent_id, self.agent.location(), str(self.timeout.secs), prompt))
+        self.agent['contacts']['field_courier'].speaker("Arrived to %s... I will leave in %s seconds. Please %s trays." %
+                                                         (self.agent.location(), str(self.timeout.secs), prompt))
     def _query(self):
         """Complete once has_tray flag is triggered by interface or timeout completes"""
         success_conditions = [Time.now() - self.start_time > self.timeout,

@@ -186,13 +186,13 @@ class Pause(StageBase):
     """Inserted on Pause for use as a 3-stage controlled blocker, used on Coordinator, Task, or Agent scopes"""
     def __repr__(self):
         """Display scopes actively contributing to the blocking"""
-        return "%s(C%s|T%s|A%s)" % (self.get_class(), int(self.pause_state['Coord']), int(self.pause_state['Task']), int(self.pause_state['Agent']))
+        return "%s(C%s|T%s|A%s)" % (self.get_class(), int(self.pause_state['c']), int(self.pause_state['t']), int(self.pause_state['a']))
     def __init__(self, agent):
         """Initialise blocking properties"""
         super(Pause, self).__init__(agent)
         logmsg(category="DTM", msg="      | pause init")
         self.agent.registration = False
-        self.pause_state = {'Coord':False, 'Task':False, 'Agent':False}
+        self.pause_state = {'c':False, 't':False, 'a':False}
     def _start(self):
         """On start, cancel any active navigation"""
         super(Pause, self)._start()
