@@ -27,10 +27,10 @@ class TaskManager(object):
         """
         agent().suspend()  # suspend active stage
         if agent().get_class() != "base.Pause":
-            agent['stage_list'].insert(0, StageDef.Pause(agent, agent.format_marker))  # add paused stage
+            agent['stage_list'].insert(0, StageDef.Pause(agent))  # add paused stage
 
         scope = agent.interruption[3]
-        agent().pause_state[scope] = True
+        agent().pause_state[scope[0].lower()] = True
         logmsg(category="DTM", msg="      | pause trigger ['%s'] set to True" % scope)
         logmsg(category="DTM", msg="      | stage state: %s" % agent().__repr__())
 
@@ -47,7 +47,7 @@ class TaskManager(object):
         scope = agent.interruption[3]
         # agent.registration = True  # enable generic query success condition
         if agent().get_class() == "base.Pause":
-            agent().pause_state[scope] = False
+            agent().pause_state[scope[0].lower()] = False
             logmsg(category="DTM", msg="      | pause trigger ['%s'] set to False" % scope)
             logmsg(category="DTM", msg="      | stage state: %s" % agent().__repr__())
 

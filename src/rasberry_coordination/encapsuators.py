@@ -10,6 +10,7 @@ from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDeta
 import yaml
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, get_distance_to_node_tmap2 as GetNodeDist
+from topological_navigation_msgs.msg import ClosestEdges
 
 class LocationObj(object):
 
@@ -19,11 +20,13 @@ class LocationObj(object):
         self.current_node = initial_location
         self.previous_node = None
         self.closest_node = None
+        self.closest_edge = None
 
     def enable_location_monitoring(self, agent_id):
         # callback are enabled in base.StageDef.WaitForLocalisation._start()
         self.current_node_sub = Subscriber('/%s/current_node'    % agent_id, Str, self.current_node_cb)
         self.closest_node_sub = Subscriber('/%s/closest_node'    % agent_id, Str, self.closest_node_cb)
+        self.closest_node_sub = Subscriber('/%s/closest_edges'    % agent_id, ClosestEdges, self.closest_edges_cb)
         self.disable_loc = Subscriber('/%s/localisation/disable' % agent_id, Str, self.disable_localisation)
         self.enable_loc  = Subscriber('/%s/localisation/enable'  % agent_id, Emp, self.enable_localisation)
 
@@ -38,6 +41,10 @@ class LocationObj(object):
 
     def closest_node_cb(self, msg):
         self.closest_node = None if msg.data == "none" else msg.data
+
+    def closest_edges_cb(self, msg):
+        self.closest_edge = msg.edge_ids[msg.distances.index(min(msg.distances))]
+        #print(self.closest_edge)
 
     def disable_localisation(self, msg):
         if True: #self.agent.map.is_node(msg): msg in self.agent.empty_node_list!??!?!
@@ -118,13 +125,10 @@ class MapObj(object):
 	short = {}
 	for k, v in R.items():
             if '.' in k:
-                short[k] = [n.split('-')[1][1:] for n in self.empty_node_list if n.startswith('r' + k ) and '.' in n]
+                short[k] = [n.split('-')[1][1:] for n in self.empty_node_list if n.split('-')[0] == ('r' + k ) and '.' in n]
             else:
-                tall[k] = [n.split('-')[1][1:] for n in self.empty_node_list if n.startswith('r' + k) and '.' not in n ]
-
-#            R[r] = [n.split('-')[1][1:] for n in self.empty_node_list if n.startswith('r' + r)]
-#        Map = {'tall':  {k:v for k,v in R.items() if '.' not in k},
-#               'short': {k:v for k,v in R.items() if '.' in k} }
+                tall[k] = [n.split('-')[1][1:] for n in self.empty_node_list if  n.split('-')[0] == ('r' + k) and '.' not in n ]
+ 
         Map = { 'tall' : tall , 'short' : short }
         return Str(str(Map))
 

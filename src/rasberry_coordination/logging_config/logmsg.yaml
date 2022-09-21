@@ -20,6 +20,8 @@ categories:
   - name: "VR_ROB"
     colour: '45m'
   - name: "ROUTE"
+#    reject: true
+  - name: "NAVIG"
   - name: "ROBNAV"
 #    reject: true
 
@@ -68,4 +70,6 @@ ids:
   - name: thorvald_025
     colour: '34m'
   - name: STD_v2_246f284a6c94
+    colour: '35m'
+  - name: STD_v2_70b8f606c710
     colour: '35m'
