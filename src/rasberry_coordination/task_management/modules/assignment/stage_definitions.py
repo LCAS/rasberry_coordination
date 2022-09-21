@@ -56,7 +56,7 @@ class AssignBaseNode(InteractionResponse):
     def __init__(self, agent):
         """ Mark the details of the associated Interaction """
         super(AssignBaseNode, self).__init__(agent)
-        self.interaction = InteractionDetails(type='search', grouping='node_descriptor', descriptor=self.agent.navigation_properties['wait_node_name'], style='closest_node')
+        self.interaction = InteractionDetails(type='search', grouping='node_descriptor', descriptor=self.agent.modules['navigation'].details['wait_node_name'], style='closest_node')
         self.contact = 'base_node'
 class AssignBaseNodeIdle(AssignBaseNode):
     """Used to identify the closest available base_node."""
