@@ -298,7 +298,7 @@ class FragmentPlanner_map_filter(object):
         :param agent_nodes: list of nodes occupied by other agents, list
         """
         # # Nothing to do if restrictions are not used
-        # if 'restrictions' not in agent.navigation_properties: return
+        # if 'restrictions' not in agent.modules['navigation'].details: return
         ocn = occupied_nodes
 
         for node in agent.map_handler.filtered_map["nodes"]:

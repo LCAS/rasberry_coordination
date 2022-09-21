@@ -87,10 +87,10 @@ class InteractionManager(object):
         elif GR == 'agent_descriptor':
             descriptor = interaction.descriptor
             L = {a.agent_id: a for a in self.AllAgentsList.values() if
-                     (a is not agent) and \ #not the agent making the call
-                     (a.registration) and \ #agent is registered
-                     (a().accepting_new_tasks) and \ #agent is accepting new tasks / active task is interruptable
-                     (descriptor['module'] in a.modules) and \ #agent has the required module
+                     (a is not agent) and #not the agent making the call
+                     (a.registration) and #agent is registered
+                     (a().accepting_new_tasks) and #agent is accepting new tasks / active task is interruptable
+                     (descriptor['module'] in a.modules) and #agent has the required module
                      (descriptor['role'] == a.modules[descriptor['module']].role) #agent is of the type required
                  #TODO: we need to make sure here that the robot has not been assigned to a picker on the same cycle
                  #and a.id not in self.cycle_repsonse? #todo: this will have tons of problems...
