@@ -1,49 +1,33 @@
 echo "    - Sourced: \$rasberry_coordination/.runcom" | awk '{ gsub("\\$rasberry_coordination",  "\033[1;33m&\033[0m"); print }' ;
 export rasberry_coordination=$(dirname "${BASH_SOURCE[0]}")
 
-
-#Dynamic Task Interruption
-#function can ()  { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_cancel',  target: '$1'}" -1 ; }
-#function pau ()  { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_pause',   target: '$1'}" -1 ; }
-#function upau () { rostopic pub /rasberry_coordination/dtm rasberry_coordination/Interruption "{interrupt: 'toc_unpause', target: '$1'}" -1 ; }
-
-#Dynamic Fleet Management
-function rem () { rosservice call /rasberry_coordination/dfm/remove_agent "{agent_id: '$1', node_id: '$2'}" ; }
-function add () { rosrun rasberry_coordination add_agent.py ; }
-
-
-function add_agent () {
-  roslaunch rasberry_coordination add_agent.launch \
-    namespace:=$1 \
-    agent_file_id:=$2 \
-    setup_file_id:=$3
-}
-function t1 () { add_agent thorvald_001 thorvald_001        courier ; }
-function t2 () { add_agent thorvald_002 thorvald_002_tall   tall    ; }
-function p1 () { add_agent picker01     picker01            picker  ; }
-function p2 () { add_agent picker02     picker02            picker  ; }
-function s1 () { add_agent storage01    storage01           storage ; }
-
 #Convenience
 function tall () {
   read -p "Press Enter to run $1 for $2 tunnel:$4 row:$5"
   rostopic pub /$1/$2/initiate_task/$3 rasberry_coordination/TopoLocation "{type: 'tall', tunnel: $4, row: $5}" -1
 }
 
-function leave () {
-  read -p "Press Enter to set $1 to exit at $2"
-  rostopic pub /$1/base/disconnect std_msgs/String "data: '$2'" -1
-}
-
-
-#Dummy Functions
-function set_battery () { rostopic pub /$1/dummy_battery_data thorvald_base/BatteryArray "battery_data:
-- battery_voltage: $2" -1
-}
-
 function call () { echo $1 ; read -p "Press Enter to continue:" ; $1 ; }
 function force () { rostopic pub /rasberry_coordination/force_replan std_msgs/Empty "{}" --once ; }
 
 #Debug Functions
-function car () { roscd rasberry_coordination/callarobot/call_a_robot/www ; }
 function coord () { tmux capture-pane -pS -50000 -t server:server_coordinator.1 > "`date` - coordinator_output.txt" ; }
+
+
+function rasset () {
+  sudo ls | grep zzz
+  
+  #Find local server ip by querying 10.8.0.* ip
+  shared="$(traceroute -m 5 8.8.8.8 | grep -v "*\|traceroute\|_gateway\|192.168.0.1" | sed '$d' | cut -d "(" -f2 | cut -d ")" -f1 )"
+  net="${str%.*}."
+  host="$(ifconfig | grep $shared | sed "s/  netmask.*//" | sed "s/        inet //" )"
+  echo "Identified new server ip"
+
+  #Set the openvpn config to point to this ip (remote 10.101.8.51 1194)
+  sed -i 's/remote .*/remote $host 1194/' /etc/openvpn/local_server_${ROBOT_NAME}.conf
+  echo "Updated ovpn.conf to use server ip"
+
+  #Reload daemons
+  sudo systemctl daemon-reload
+  sudo service openvpn restart
+}
