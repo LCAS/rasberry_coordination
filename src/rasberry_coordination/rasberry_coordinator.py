@@ -117,8 +117,9 @@ class RasberryCoordinator(object):
             Ut = Update_DTM(A, DTM, Ut);
             AM.fleet_monitoring()
 
-            # Offer Interaction Services
-            [offer_service(a) for a in A if a().interaction_required]; l(2);                            """ Offer Service """
+            # Offer Action Services
+            servicees = [a for a in A if a().interaction_required]
+            if servicees: offer_service(servicees[0]); l(2);                                       """ Offer Service """
 
             # Find Routes
             trigger = trigger_routing(A)

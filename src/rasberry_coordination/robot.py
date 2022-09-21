@@ -191,7 +191,8 @@ class Robot(object):
         """
         logmsg(category='rob_py', id=self.robot_id, msg='_done_execpolicy_cb, route has been completed with result: {%s}'%(result))
         if result and result.success == False:
-            self.speaker_fn("routing cancelled")
+            pass
+            #self.speaker_fn("routing cancelled")
         self.execpolicy_status = status
         self.execpolicy_result = result
         self.execpolicy_goal = ExecutePolicyModeGoal()

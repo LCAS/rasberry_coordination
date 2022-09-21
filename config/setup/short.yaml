@@ -10,6 +10,7 @@ modules:
     details:
       - has_presence: true
       - restrictions: short
+      - wait_node_name: base_tp_node
 
   - name: rasberry_health_monitoring_pkg
     role: Robot

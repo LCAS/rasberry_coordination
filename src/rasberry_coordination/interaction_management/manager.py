@@ -87,11 +87,15 @@ class InteractionManager(object):
         elif GR == 'agent_descriptor':
             descriptor = interaction.descriptor
             L = {a.agent_id: a for a in self.AllAgentsList.values() if
-                 a is not agent and \
-                 a.registration and \
-                 a().accepting_new_tasks and \
-                 descriptor['module'] in a.modules and \
-                 descriptor['role'] == a.modules[descriptor['module']].role }
+                     (a is not agent) and \ #not the agent making the call
+                     (a.registration) and \ #agent is registered
+                     (a().accepting_new_tasks) and \ #agent is accepting new tasks / active task is interruptable
+                     (descriptor['module'] in a.modules) and \ #agent has the required module
+                     (descriptor['role'] == a.modules[descriptor['module']].role) #agent is of the type required
+                 #TODO: we need to make sure here that the robot has not been assigned to a picker on the same cycle
+                 #and a.id not in self.cycle_repsonse? #todo: this will have tons of problems...
+                 }
+            #TODO make accepitng tasks a different generator
 
         elif GR == 'head_nodes':
             L = [float(n.split("-c")[0][1:]) for n in agent.map_handler.empty_node_list if n.endswith('ca')]
@@ -148,5 +152,8 @@ class InteractionManager(object):
         return None
 
     def dist(self, agent, start_node, goal_node):
-        return agent.map_handler.get_route_length(agent, start_node, goal_node)
-
+        try:
+            return agent.map_handler.get_route_length(agent, start_node, goal_node)
+        except:
+            print("Try-Except in manager.py for Action_Management modules")
+            return 0.0

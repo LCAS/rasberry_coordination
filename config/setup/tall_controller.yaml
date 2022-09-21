@@ -14,4 +14,3 @@ modules:
 
   - name: rasberry_data_collection
     role: Controller
-

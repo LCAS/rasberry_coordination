@@ -7,7 +7,7 @@
 
 
 import threading
-
+from pprint import pprint
 
 from rasberry_coordination.routing_management.base_planner import BasePlanner
 from rasberry_coordination.coordinator_tools import logmsg
@@ -237,7 +237,7 @@ class FragmentPlanner(BasePlanner):
             if route.source == [] and route.edge_id == []:
                 logmsg(level="warn", category="route", msg="failed to find route, waiting idle")
                 logmsg(level="warn", category="route", msg="modify here for wait_node addition")
-                # self.no_route_found(agent)
+                self.no_route_found(agent)
                 inactives += [agent]
                 agent().route_required = False
                 continue
@@ -297,25 +297,17 @@ class FragmentPlanner_map_filter(object):
         and update the available_route_search object with the new map
         :param agent_nodes: list of nodes occupied by other agents, list
         """
-
         # # Nothing to do if restrictions are not used
         # if 'restrictions' not in agent.navigation_properties: return
-
         ocn = occupied_nodes
-        # if agent.location() in occupied_nodes: ocn.remove(agent.location())
-
-        # for node in agent.map_handler.filtered_map["nodes"]:
-        #     to_pop = []
-        #     for i in range(len(node["node"]["edges"])):
-        #         if node["node"]["edges"][i]["node"] in ocn:
-        #             to_pop.append(i)
-        #     if to_pop:
-        #         to_pop.reverse()
-        #         for j in to_pop:
-        #             node["node"]["edges"].pop(j)
 
         for node in agent.map_handler.filtered_map["nodes"]:
-            node["node"]["edges"] = [e for e in node["node"]["edges"] if e not in ocn]
+
+            # Remove any edges which go into an occupied node
+            node["node"]["edges"] = [e for e in node["node"]["edges"] if e["node"] not in ocn]
+
+            # Remove any edges leaving an occupied node (this will fail unless unblock_node is updated to match)
+            #if node["node"]["name"] in ocn: node["node"]["edges"] = []
 
     @classmethod
     def unblock_node(cls, agent, node_to_unblock):
@@ -338,6 +330,7 @@ class FragmentPlanner_map_filter(object):
 
     @classmethod
     def block_rows(cls, agent, occupied_nodes):
+        print("blocking %s for %s"%(str(occupied_nodes), agent.agent_id))
         """ block access to each row if the row is occupied """
         #This only works on the assumption that small rows are staggered left of the tall rows
         for node in occupied_nodes:
@@ -361,6 +354,14 @@ class FragmentPlanner_map_filter(object):
                 #lock tall rows:
                 cls.block_row_ends(agent, 'tall_%s_r%i' % ( t , int(r[1:])-1 ))
                 cls.block_row_ends(agent, 'tall_%s_r%i' % ( t , int(r[1:])   ))
+                pass
+            elif name.startswith('r'):
+                #_,t,r,_ = name.split('_')
+                ##lock short rows:
+                #cls.block_row_(agent, 'small_%s_r%i' % ( t , int(r[1:])   ))
+                ##lock tall rows:
+                #cls.block_node(agent, 'tall_%s_r%i' % ( t , int(r[1:])-1 ))
+                #cls.block_node(agent, 'tall_%s_r%i' % ( t , int(r[1:])   ))
                 pass
             else:
                 pass
