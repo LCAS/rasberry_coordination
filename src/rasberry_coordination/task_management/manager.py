@@ -27,7 +27,7 @@ class TaskManager(object):
         """
         agent().suspend()  # suspend active stage
         if agent().get_class() != "base.Pause":
-            agent['stage_list'].insert(0, StageDef.Pause(agent))  # add paused stage
+            agent['stage_list'].insert(0, Stages['base']['Pause'](agent))  # add paused stage
 
         scope = agent.interruption[3]
         agent().pause_state[scope[0].lower()] = True

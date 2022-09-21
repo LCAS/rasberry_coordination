@@ -1,6 +1,6 @@
 modules:
   - name: base
-    role: Human
+    role: LocalisedHuman
     details:
       - rviz_model: human
 

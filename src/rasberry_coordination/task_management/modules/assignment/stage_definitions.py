@@ -51,6 +51,18 @@ class SendInfo(InteractionResponse):
 
 
 """ Node identification Stages"""
+class AssignNode(InteractionResponse):
+    """ f """
+    def __repr__(self):
+        """ f """
+        return "%s(%s)" % (self.get_class(), self.contact)
+    def __init__(self, agent, node_type):
+        """ Mark the details of the associated Interaction """
+        super(AssignNode, self).__init__(agent)
+        self.interaction = InteractionDetails(type='search', grouping='node_descriptor', descriptor=node_type, style='closest_node')
+        print(self.interaction.__dict__)
+        self.contact = node_type
+
 class AssignBaseNode(InteractionResponse):
     """Used to identify the closest available base_node."""
     def __init__(self, agent):
