@@ -1,4 +1,5 @@
 from rasberry_coordination.task_management.containers.Task import TaskObj as Task
+from rasberry_coordination.coordinator_tools import logmsg
 
 from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
 from rasberry_coordination.task_management.__init__ import Stages
@@ -18,7 +19,7 @@ class GeneralNavigator(Interface):
         logmsg(category="Task", id=self.agent.agent_id, msg="Request to Move while Idle")
 
         # if idle:
-        if not isinstance(self.agent(), StageDef.Idle):
+        if not isinstance(self.agent(), Stages['base']['Idle']):
             logmsg(category="Task", msg="    - agent not idle")
             return
 
@@ -30,18 +31,17 @@ class GeneralNavigator(Interface):
         # add task
         self.agent.add_task(module='navigation', name='wait_at_node', contacts={"target": msg.data})
 
-    def wait_at_node(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+    def wait_at_node(self, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
                     module='navigation',
                     name="wait_at_node",
                     details=details,
                     contacts=contacts,
-                    initiator_id=agent.agent_id,
+                    initiator_id=self.agent.agent_id,
                     responder_id="",
                     stage_list=[
                         Stages['base']['StartTask'](self.agent, task_id),
-                        Stages['assignment']['AssignNode'](self.agent),
-                        Stages['navigation']['NavigateToNode'](self.agent),
+                        Stages['navigation']['NavigateToNode'](self.agent, 'target'),
                         Stages['base']['Idle'](self.agent)
                     ]))
 
@@ -50,15 +50,15 @@ class GeneralNavigator(Interface):
     def exit_at_node_cb(self, msg):
         logmsg(category="Task", id=self.agent.agent_id, msg="Request to exit coordinator")
         node_id = msg.data or self.agent.goal or self.agent.location(accurate=True)
-        self.agent.add_task(task_name='exit_at_node', contacts={"exit_node":node_id}, index=0)
+        self.agent.add_task(module='navigation', name='exit_at_node', contacts={"exit_node":node_id}, index=0)
 
-    def exit_at_node(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
+    def exit_at_node(self, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
                     module='navigation',
                     name="exit_at_node",
                     details=details,
                     contacts=contacts,
-                    initiator_id=agent.agent_id,
+                    initiator_id=self.agent.agent_id,
                     responder_id="",
                     stage_list=[
                         Stages['base']['SetUnregister'](self.agent),
