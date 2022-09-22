@@ -7,7 +7,7 @@ modules:
   - name: navigation
     role: Human
     details:
-      - has_presence: true
+      - has_presence: false
 
   - name: rasberry_transportation_pkg
     role: Storage
