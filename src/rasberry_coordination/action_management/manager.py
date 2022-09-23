@@ -117,9 +117,8 @@ class ActionManager(object):
             I = self.get_dist(new_list)
 
         elif ST == 'head_node_allocator':
-            print([(a.agent_id, a.location.current_node, a.location.closest_node, a.registration, a.modules['transportation'].role == 'picker') for a in self.AllAgentsList.values()])
-            PLoc = {a.agent_id:float(a.location.current_node.split("-c")[0][1:]) for a in self.AllAgentsList.values() if a.registration and ('-c' in a.location.current_node) and (a.modules['transportation'].role == 'picker')}
-            print(PLoc)
+            PLoc = {a.agent_id:float(a.location().split("-c")[0][1:]) for a in self.AllAgentsList.values() if a.registration and a.location() and ('-c' in a.location()) and (a.modules['transportation'].role == 'picker')}
+
             if PLoc:
                 from ideal_parking_spot import ideal_parking_spot as ips
                 parking_spots = ["r%s-ca"% spot for spot in ips(list, PLoc)]
