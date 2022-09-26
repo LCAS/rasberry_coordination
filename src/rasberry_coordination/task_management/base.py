@@ -389,7 +389,7 @@ class TaskDef(object):
                     stage_list=[
                         StageDef.SetUnregister(agent),
                         StageDef.NavigateToExitNode(agent),
-                        StageDef.Exit(agent)
+                        StageDef.Pause(agent, a=True, stop_reserving=True)
                     ]))
 
     """ Dynamic Task Management """
@@ -733,16 +733,21 @@ class StageDef(object):
         def __repr__(self):
             """Display scopes actively contributing to the blocking"""
             return "%s(C%s|T%s|A%s)" % (self.get_class(), int(self.pause_state['c']), int(self.pause_state['t']), int(self.pause_state['a']))
-        def __init__(self, agent):
+        def __init__(self, agent, c=False, t=False, a=False, stop_reserving=False):
             """Initialise blocking properties"""
             super(StageDef.Pause, self).__init__(agent)
             logmsg(category="DTM", msg="      | pause init")
             self.agent.registration = False
-            self.pause_state = {'c':False, 't':False, 'a':False}
+            self.stop_reserving = stop_reserving
+            self.presence = self.agent.location.has_presence
+            self.pause_state = {'c':c, 't':t, 'a':a}
         def _start(self):
             """On start, cancel any active navigation"""
             super(StageDef.Pause, self)._start()
             if hasattr(self.agent, 'navigation_interface'): self.agent.navigation_interface.cancel_execpolicy_goal()
+            if self.presence and self.stop_reserving:
+                self.agent.location.has_presence = False
+                self.agent.speaker('I am no longer reserving a node. Move me away from the path of other robots. This must be done urgently.')
             #TODO: set an agent function for generic definition of pausing?
         def _query(self):
             """Continue once all blocking stages are False"""
@@ -752,6 +757,7 @@ class StageDef(object):
         def _end(self):
             """On end, reenable registration"""
             self.agent.registration = True
+            self.agent.location.has_presence = self.presence
             self.agent.format_marker(style='')
     class Exit(StageBase):
         """Used for controlled removal of agent connections"""
