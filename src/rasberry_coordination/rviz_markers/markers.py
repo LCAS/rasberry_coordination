@@ -36,10 +36,10 @@ class AgentMarker(object):
 
     def get_component(self, component_type, ns, marker_index, position):
         component_dict = self.components_dict[component_type]
-        
+
         component = Marker()
         component.header.frame_id = "%s/base_link"%self.agent_id
-        component.ns = ns
+        component.ns = "%s__%s"%(self.agent_id, ns)
         component.id = marker_index
 
         component.type = getattr(component, component_dict['type'])
@@ -50,7 +50,7 @@ class AgentMarker(object):
         q = component_dict['quat']
         quat = quaternion_from_euler(q[0],q[1],q[2])
         component.pose.orientation = Quaternion(quat[0], quat[1], quat[2], quat[3])
-        
+
         scale = component_dict['scale']
         component.scale = Vector3(scale[0], scale[1], scale[2])
 
@@ -66,6 +66,6 @@ class AgentMarker(object):
 
         elif component.type == component.MESH_RESOURCE:
             component.mesh_resource = component_dict['mesh_resource']
-        
+
         return component
 
