@@ -1,5 +1,6 @@
 """Health Monitoring"""
 
+from time import sleep
 from copy import deepcopy
 from std_msgs.msg import String as Str, Bool, Float32
 from rospy import Time, Duration, Subscriber, Publisher, Time
@@ -39,10 +40,19 @@ class InterfaceDef(object):
 
         def enable_navigation(self):
             print('force replanning attempt')
-            if (self.in_auto_mode) and (self.motors_turned_on) and (self.motors_have_scripts):
+            if self.navigation_available():
                 print('replanning forced by health_monitoring')
                 self.agent.cb['force_replan']()
-            pass
+
+        def navigation_available(self):
+            return (self.in_auto_mode) and (self.motors_turned_on) and (self.motors_have_scripts)
+
+        def say_navigation_block(self):
+            blocks = []
+            if not self.in_auto_mode: blocks+=["autonomy: disabled..."]
+            if not self.motors_turned_on: blocks+=["motors: off..."]
+            if not self.motors_have_scripts: blocks+=["motors: have issues..."]
+            self.agent.speaker("navigation blocked by: %s"%str(blocks))
 
         def is_idle(self):
             return self.agent().accepting_new_tasks
