@@ -188,7 +188,9 @@ class AgentDetails(object):
     """ Task Starters """
     def add_idle_tasks(self):
         [self.add_task(task_name=m.idle_task_name) for m in self.modules.values() if m.name != "base"]
-        if 'base' in self.modules: self.add_task(task_name=self.modules['base'].idle_task_name)
+        if 'base' in self.modules:
+            if 'field_storage' not in self.roles():
+                self.add_task(task_name=self.modules['base'].idle_task_name)
 
         if not self.task_buffer:
             logmsg(level="error", category="task", id=self.agent_id, msg="WARNING! Agent has no idle tasks.")
