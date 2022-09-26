@@ -83,7 +83,7 @@ class TaskDef(object):
         if LP['load'] >= int(MP['max_load']):
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
-            #return TaskDef.transportation_wait_at_head(agent=agent, task_id=task_id, details=details, contacts=contacts)
+            return TaskDef.transportation_wait_at_head(agent=agent, task_id=task_id, details=details, contacts=contacts)
             pass
 
     @classmethod
@@ -112,6 +112,7 @@ class TaskDef(object):
                         StageDef.AwaitFieldCourier(agent),
                         StageDef.LoadFieldCourier(agent),
                     ]))
+
     """ FieldCourier Tasks """
     @classmethod
     def transportation_retrieve_load(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
@@ -141,6 +142,7 @@ class TaskDef(object):
                         StageDef.AssignHeadNodeIdle(agent),
                         StageDef.NavigateToHeadNodeIdle(agent),
                         SDef.Idle(agent)
+                        #StageDef.IdleAtUpdatingHeadNode(agent)
                     ]))
 
     @classmethod
@@ -271,6 +273,10 @@ class StageDef(object):
             """Complete once action has generated a result"""
             success_conditions = [self.action.response != None,
                                   len(self.agent.task_buffer) > 0]
+
+            #If no pickers available, assign a wait node instead
+            if not any(success_conditions):
+                self.action = ActionDetails(type='search', grouping='node_descriptor', descriptor=self.agent.navigation_properties['wait_node_name'], style='closest_node')
             self.flag(any(success_conditions))
 
 
