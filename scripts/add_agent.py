@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import tf
 import sys
 import rospy
 import json
@@ -8,7 +9,8 @@ import rasberry_coordination
 from rasberry_coordination.msg import NewAgentConfig, Module, KeyValuePair
 import rasberry_des.config_utils
 from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
-
+import rospkg
+from geometry_msgs.msg import Pose
 
 def get_kvp_list(dict, item):
     if item in dict:
@@ -16,7 +18,6 @@ def get_kvp_list(dict, item):
     return []
 
 
-import rospkg
 def get_file_path(agent, setup):
     rc=rospkg.RosPack().get_path('rasberry_coordination')
     agent_file = "%s/config/agent/%s.yaml"%(rc, agent)
@@ -104,7 +105,23 @@ if __name__ == '__main__':
         pub = rospy.Publisher("/rasberry_coordination/dynamic_fleet/add_agent", NewAgentConfig, latch=False, queue_size=5)
         rospy.sleep(1)
 
+        # Create a storage point for the robots pose to be saved on shutdown
+        msg_store = {'pose': Pose()}
+        def save(msg):
+            msg_store['pose'] = msg
+        sub = rospy.Subscriber("/robot_pose", Pose, save)
+
         while not rospy.is_shutdown():
             pub.publish(agent)
             logmsg(category="null", msg="publishing")
             rospy.sleep(5)
+
+        #On shutdown, save the robots last known location to a file for loading at boot
+        filepath = rospkg.RosPack().get_path('rasberry_core')+"/new_tmule/robots/history/%s.sh"%(agent.agent_id)
+        with open(filepath, 'w') as f:
+            o = msg_store['pose'].orientation
+            rot = tf.transformations.euler_from_quaternion([o.x, o.y, o.w, o.z])[2]
+            f.write('export_override ROBOT_POS_A %s\n'%rot)
+            f.write('export_override ROBOT_POS_X %s\n'%msg_store['pose'].position.x)
+            f.write('export_override ROBOT_POS_Y %s\n'%msg_store['pose'].position.y)
+
