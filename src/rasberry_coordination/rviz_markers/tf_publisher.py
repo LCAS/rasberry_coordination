@@ -19,14 +19,16 @@ class TFPublishers:
         tf_source_topic = {'short_robot': '/%s/robot_pose'%agent_id,
                            'tall_robot': '/%s/robot_pose'%agent_id,
                            'human_sim':'/%s/pose_stamped'%agent_id,
-                           'human':'gps_positions'
-        }
-        tf_source_type = {'short_robot': TFPublishers.PoseTFConvertor, 
-                          'tall_robot': TFPublishers.PoseTFConvertor, 
-                          'human_sim': TFPublishers.PoseStampedTFConvertor, 
-                          'human': TFPublishers.GPSPositionsTFPublisher
-        }
-        return tf_source_type[agent_type](agent_id, tf_source_topic[agent_type])
+                           'human':'gps_positions'}
+        a = [k for k in tf_source_topic.keys() if agent_type.startswith(k)]
+
+        tf_source_type = {'short_robot': TFPublishers.PoseTFConvertor,
+                          'tall_robot': TFPublishers.PoseTFConvertor,
+                          'human_sim': TFPublishers.PoseStampedTFConvertor,
+                          'human': TFPublishers.GPSPositionsTFPublisher}
+        b = [k for k in tf_source_type.keys() if agent_type.startswith(k)]
+
+        return tf_source_type[b[0]](agent_id, tf_source_topic[a[0]])
 
     class PoseTFConvertor(object):
         def __init__(self, agent_id, source_topic, log=False):
@@ -37,7 +39,7 @@ class TFPublishers:
 	        else:
 	            self.base_frame = self.agent_id + "/base_link"
 	        self.tf_broadcaster = tf.TransformBroadcaster()
-	        
+
 	        self.pose_sub = rospy.Subscriber(source_topic, geometry_msgs.msg.Pose, self.pose_cb)
 
         def pose_cb(self, msg):
@@ -84,12 +86,12 @@ class TFPublishers:
 
         def gps_cb(self, msg):
 	        person = [p.person for p in msg.people if p.person.name == self.agent_id and p.person.position != geometry_msgs.msg.Point()]
-	        if len(person) < 1: return 
+	        if len(person) < 1: return
 	        person = person[0]
-	            
+
 	        if self.log:
 	            rospy.loginfo(msg.pose)
-	        self.tf_broadcaster.sendTransform((p.person.position.x, p.person.position.y, p.person.position.z), 
+	        self.tf_broadcaster.sendTransform((p.person.position.x, p.person.position.y, p.person.position.z),
 	                                          (0, 0, 0, 1),
 	                                          rospy.Time.now(), self.base_frame,"map")
 
