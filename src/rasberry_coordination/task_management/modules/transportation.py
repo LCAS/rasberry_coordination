@@ -221,7 +221,7 @@ class StageDef(object):
             self.contact = 'field_courier'
         def _start(self):
             super(StageDef.AssignFieldCourier, self)._start()
-            self.agent.format_marker(style='green')
+            self.agent.format_marker(color='green')
         def _end(self):
             """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
             super(StageDef.AssignFieldCourier, self)._end()
@@ -407,7 +407,7 @@ class StageDef(object):
         def _start(self):
             """Define the flag default as True and the timeout as the transportation/wait_loading property"""
             super(StageDef.LoadFieldCourier, self)._start(timeout_type='wait_loading', flag='has_tray', default=True, prompt="load")
-            self.agent.format_marker(style='blue')
+            self.agent.format_marker(color='blue')
     class UnloadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be considered unloaded"""
         def _start(self):
@@ -426,6 +426,7 @@ class StageDef(object):
             """On completion, increment the field_courier's total load by 1"""
             super(StageDef.Loading, self)._end()
             self.agent.local_properties['load'] += 2
+            self.agent.format_marker(style='short_robot_load_%s'%self.agent.local_properties['load'])
     class Unloading(SDef.StageBase):
         """Used for awaiting a change-of-state from the storage"""
         def _query(self):
@@ -436,3 +437,4 @@ class StageDef(object):
             """On completion, reset the field_courier's total load to 0"""
             super(StageDef.Unloading, self)._end()
             self.agent.local_properties['load'] = 0
+            self.agent.format_marker(style='short_robot')

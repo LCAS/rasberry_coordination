@@ -183,7 +183,7 @@ class AgentDetails(object):
         self.speaker_pub = Publisher('/%s/ui/speaker'%self.agent_id, Str, queue_size=1)
 
         #Final Setup
-        self.format_marker(style='red')
+        self.format_marker(color='red')
 
     """ Task Starters """
     def add_idle_tasks(self):
@@ -311,7 +311,7 @@ class AgentDetails(object):
 
 
     """ Visuals """
-    def format_marker(self, style):
+    def format_marker(self, color=None, style=None):
         """
         Add/modify marker to display in rviz
 
@@ -324,8 +324,15 @@ class AgentDetails(object):
         marker.type = self.visualisation_properties['rviz_model']
 
         #Define marker color ["remove", "red", "green", "blue", "black", "white", ""]
-        style = style or self.visualisation_properties['default_colour']
-        marker.optional_color = style
+        if color:
+            marker.optional_color = color
+        if color == "":
+            marker.optional_color = self.visualisation_properties['default_colour']
+
+        #
+        if style:
+            self.visualisation_properties['rviz_model'] = style
+        marker.type = self.visualisation_properties['rviz_model']
 
         logmsg(category="rviz", msg="Setting %s %s(%s)" % (marker.type, marker.agent_id, marker.optional_color))
 
