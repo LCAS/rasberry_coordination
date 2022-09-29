@@ -7,15 +7,17 @@ red:
   leg_marker: [.5, 0, 0, 1]
   body_marker: [1, 0, 0, 1]
   head_marker: [1, 0, 0, 1]
+  bed_marker: [1, 0, 0, 1]
 green:
   pipe_marker: [0, .5, 0, 1]
   wheel_marker: [0, 0, 0, 1]
-  tower_marker: [0, 0, 1, 1]
-  arch_marker: [0, 0, 1, 1]
+  tower_marker: [0, 1, 0, 1]
+  arch_marker: [0, 1, 0, 1]
   arm_marker: [0, .5, 0, 1]
   leg_marker: [0, .5, 0, 1]
   body_marker: [0, 1, 0, 1]
   head_marker: [0, 1, 0, 1]
+  bed_marker: [0, 1, 0, 1]
 blue:
   pipe_marker: [0, 0, .5, 1]
   wheel_marker: [0, 0, 0, 1]
@@ -25,6 +27,7 @@ blue:
   leg_marker: [0, 0, .5, 1]
   body_marker: [0, 0, 1, 1]
   head_marker: [0, 0, 1, 1]
+  bed_marker: [0, 0, 1, 1]
 black:
   pipe_marker: [0, 0, 0, 1]
   wheel_marker: [0, 0, 0, 1]
@@ -34,6 +37,7 @@ black:
   leg_marker: [0, 0, 0, 0]
   body_marker: [0, 0, 0, 1]
   head_marker: [0, 0, 0, 1]
+  bed_marker: [0, 0, 0, 1]
 white:
   pipe_marker: [1, 1, 1, 1]
   wheel_marker: [0, 0, 0, 1]
@@ -43,3 +47,4 @@ white:
   leg_marker: [1, 1, 1, 1]
   body_marker: [1, 1, 1, 1]
   head_marker: [1, 1, 1, 1]
+  bed_marker: [1, 1, 1, 1]
