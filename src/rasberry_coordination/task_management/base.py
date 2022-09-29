@@ -464,7 +464,7 @@ class StageDef(object):
             super(StageDef.StartTask, self)._start()
             self.agent['id'] = self.task_id #Set task_id as active_task_id for agent
             self.agent['start_time'] = Time.now()
-            self.agent.format_marker(style='')
+            self.agent.format_marker(color='')
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
@@ -495,7 +495,7 @@ class StageDef(object):
             """Mark agent as unregistered and send a message to rviz to display the agent as red"""
             super(StageDef.SetUnregister, self)._start()
             self.agent.registration = False
-            self.agent.format_marker(style='red')
+            self.agent.format_marker(color='red')
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
@@ -534,7 +534,7 @@ class StageDef(object):
             """Mark agent as unregistered and send a message to rviz to display the agent without modified colour"""
             super(StageDef.SetRegister, self)._start()
             self.agent.registration = True
-            self.agent.format_marker(style='')
+            self.agent.format_marker(color='')
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
@@ -720,7 +720,7 @@ class StageDef(object):
             super(StageDef.NotifyTrigger, self)._start()
             self.interface = self.agent.modules[self.agent['module']].interface
             self.interface.notify(self.msg)
-            self.agent.format_marker(style=self.colour)
+            self.agent.format_marker(color=self.colour)
             self.interface[self.trigger] = True  # PSEUDO
         def _query(self):
             """Wait for flag to be set by message response (os #PSUEDO)"""
@@ -758,7 +758,7 @@ class StageDef(object):
             """On end, reenable registration"""
             self.agent.registration = True
             self.agent.location.has_presence = self.presence
-            self.agent.format_marker(style='')
+            self.agent.format_marker(color='')
     class Exit(StageBase):
         """Used for controlled removal of agent connections"""
         def _start(self):
@@ -774,5 +774,5 @@ class StageDef(object):
         def _end(self):
             """Set marker to black and initiate disconnection interruption-"""
             super(StageDef.Exit, self)._end()
-            self.agent.format_marker('black')
+            self.agent.format_marker(color='black')
             self.agent.set_interrupt('disconnect', 'base', self.agent['id'], "Task")

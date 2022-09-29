@@ -20,7 +20,7 @@ class MarkerPublisher(object):
     def __init__(self):
         self.agents = dict()
 
-        folderpath = rospkg.RosPack().get_path('rasberry_coordination')+"/src/rasberry_coordination/rviz_markers/" 
+        folderpath = rospkg.RosPack().get_path('rasberry_coordination')+"/src/rasberry_coordination/rviz_markers/"
 
         with open(folderpath+"colors.yaml",    'r') as f: self.color_dict = yaml.safe_load(f)
         with open(folderpath+"components.yaml",'r') as f: self.component_dict = yaml.safe_load(f)
@@ -37,7 +37,7 @@ class MarkerPublisher(object):
         if msg.agent_id not in self.agents:
             logmsg(category="rviz", id=msg.agent_id, msg="new %s: %s"%(msg.type, msg.optional_color))
 
-            dicts = {'color': self.color_dict, 'components': self.component_dict, 'structures': self.structures_dict[msg.type]}
+            dicts = {'color': self.color_dict, 'components': self.component_dict, 'structures': self.structures_dict}
             self.agents[msg.agent_id] = AgentMarker(msg.agent_id, dicts, msg.type, msg.optional_color)
             self.agents_to_render.append(msg.agent_id)
 
@@ -45,12 +45,18 @@ class MarkerPublisher(object):
             if msg.optional_color == 'remove':
                 logmsg(category="rviz", id=msg.agent_id, msg="del %s: %s"%(msg.type, msg.optional_color))
                 self.agents_to_pop.append(msg.agent_id)
-          
+
             elif self.agents[msg.agent_id].agent_color != msg.optional_color:
                 logmsg(category="rviz", id=msg.agent_id, msg="mod %s: %s"%(msg.type, msg.optional_color))
                 self.agents[msg.agent_id].agent_color = msg.optional_color
                 self.agents_to_render.append(msg.agent_id)
-    
+
+            elif self.agents[msg.agent_id].type != msg.type:
+                logmsg(category="rviz", id=msg.agent_id, msg="mod %s: %s"%(msg.type, msg.optional_color))
+                self.agents[msg.agent_id].type = msg.type
+                self.agents[msg.agent_id].agent_color = msg.optional_color
+                self.agents_to_render.append(msg.agent_id)
+
 
     def run(self):
         rospy.sleep(1)
@@ -74,7 +80,7 @@ class MarkerPublisher(object):
                 marker_array = MarkerArray()
                 for a in self.agents.values():
                     marker_array.markers += a.marker_array.markers
-                
+
                 #set the timeouts
                 self.publish_time = rospy.get_rostime()
                 for m in marker_array.markers:

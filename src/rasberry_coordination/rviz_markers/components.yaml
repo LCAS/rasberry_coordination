@@ -88,3 +88,29 @@ head_marker:
   color: [0.99, 0.87, 0.92, 1.0]
   frame_locked: True
 
+bed_marker:
+  type: CUBE
+  action: ADD
+  quat: [0., 0., 0.]
+  scale: [1.32, 0.704, 0.02]
+  color: [1.0, 1.0, 1.0, 1.0]
+  frame_locked: True
+
+
+empty_tray_marker:
+  type: CUBE
+  action: ADD
+  quat: [0., 0., 0.]
+  scale: [0.4, 0.6, 0.15]
+  color: [0.5, 0.5, 0.5, 1.0]
+  frame_locked: True
+
+full_tray_marker:
+  type: CUBE
+  action: ADD
+  quat: [0., 0., 0.]
+  scale: [0.35, 0.55, 0.1]
+  color: [1.0, 0.1, 0.1, 1.0]
+  frame_locked: True
+
+
