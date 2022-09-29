@@ -425,7 +425,7 @@ class StageDef(object):
         def _end(self):
             """On completion, increment the field_courier's total load by 1"""
             super(StageDef.Loading, self)._end()
-            self.agent.local_properties['load'] += 1
+            self.agent.local_properties['load'] += 2
     class Unloading(SDef.StageBase):
         """Used for awaiting a change-of-state from the storage"""
         def _query(self):
