@@ -426,7 +426,7 @@ class StageDef(object):
             """On completion, increment the field_courier's total load by 1"""
             super(StageDef.Loading, self)._end()
             self.agent.local_properties['load'] += 1
-            agent.format_marker(style='short_robot_load_%s'%self.agent.local_properties['load'])
+            self.agent.format_marker(style='short_robot_load_%s'%self.agent.local_properties['load'])
     class Unloading(SDef.StageBase):
         """Used for awaiting a change-of-state from the storage"""
         def _query(self):
@@ -437,4 +437,4 @@ class StageDef(object):
             """On completion, reset the field_courier's total load to 0"""
             super(StageDef.Unloading, self)._end()
             self.agent.local_properties['load'] = 0
-            agent.format_marker(style='short_robot')
+            self.agent.format_marker(style='short_robot')
