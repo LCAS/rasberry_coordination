@@ -1,33 +1,7 @@
-echo "    - Sourced: \$rasberry_coordination/.runcom" | awk '{ gsub("\\$rasberry_coordination",  "\033[1;33m&\033[0m"); print }' ;
-export rasberry_coordination=$(dirname "${BASH_SOURCE[0]}")
+source_colour_set rasberry_coordination 46 96
+echo -e "  \033[1;${source_colour_base}m \033[0;1;${source_colour_accent}m Sourcing: rasberry_coordination\033[0m/.runcom" ;
 
-#Convenience
-function tall () {
-  read -p "Press Enter to run $1 for $2 tunnel:$4 row:$5"
-  rostopic pub /$1/$2/initiate_task/$3 rasberry_coordination/TopoLocation "{type: 'tall', tunnel: $4, row: $5}" -1
-}
 
-function call () { echo $1 ; read -p "Press Enter to continue:" ; $1 ; }
+#Debug functions
 function force () { rostopic pub /rasberry_coordination/force_replan std_msgs/Empty "{}" --once ; }
-
-#Debug Functions
 function coord () { tmux capture-pane -pS -50000 -t server:server_coordinator.1 > "`date` - coordinator_output.txt" ; }
-
-
-function rasset () {
-  sudo ls | grep zzz
-  
-  #Find local server ip by querying 10.8.0.* ip
-  shared="$(traceroute -m 5 8.8.8.8 | grep -v "*\|traceroute\|_gateway\|192.168.0.1" | sed '$d' | cut -d "(" -f2 | cut -d ")" -f1 )"
-  net="${str%.*}."
-  host="$(ifconfig | grep $shared | sed "s/  netmask.*//" | sed "s/        inet //" )"
-  echo "Identified new server ip"
-
-  #Set the openvpn config to point to this ip (remote 10.101.8.51 1194)
-  sed -i 's/remote .*/remote $host 1194/' /etc/openvpn/local_server_${ROBOT_NAME}.conf
-  echo "Updated ovpn.conf to use server ip"
-
-  #Reload daemons
-  sudo systemctl daemon-reload
-  sudo service openvpn restart
-}
