@@ -19,7 +19,7 @@ class TFPublishers:
         tf_source_topic = {'short_robot': '/%s/robot_pose'%agent_id,
                            'tall_robot': '/%s/robot_pose'%agent_id,
                            'human_sim':'/%s/pose_stamped'%agent_id,
-                           'human':'gps_positions'}
+                           'human':'/gps_positions'}
         a = [k for k in tf_source_topic.keys() if agent_type.startswith(k)]
 
         tf_source_type = {'short_robot': TFPublishers.PoseTFConvertor,
@@ -83,17 +83,25 @@ class TFPublishers:
 	        else:
 	            self.base_frame = self.agent_id + "/base_link"
 	        self.tf_broadcaster = tf.TransformBroadcaster()
+                print("using: %s"%source_topic)
+                print("broadcaster to use %s base frame"%self.base_frame)
 
         def gps_cb(self, msg):
+                print("gps_cb")
 	        person = [p.person for p in msg.people if p.person.name == self.agent_id and p.person.position != geometry_msgs.msg.Point()]
+                print(person)
 	        if len(person) < 1: return
+                print("gps2")
 	        person = person[0]
+                print(person)
 
 	        if self.log:
 	            rospy.loginfo(msg.pose)
 	        self.tf_broadcaster.sendTransform((p.person.position.x, p.person.position.y, p.person.position.z),
 	                                          (0, 0, 0, 1),
-	                                          rospy.Time.now(), self.base_frame,"map")
+	                                          rospy.Time.now(),
+                                                  self.base_frame,
+                                                  "map")
 
 
 
