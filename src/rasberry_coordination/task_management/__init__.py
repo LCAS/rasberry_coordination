@@ -1,6 +1,8 @@
+from os import walk
 import importlib
 from pprint import pprint
 from rospy import set_param, get_param
+import rospkg
 from rasberry_coordination.coordinator_tools import logmsg
 
 global Stages, Interfaces, PropertiesDef
@@ -43,7 +45,10 @@ def rename(cls, prefix):
 
 
 def load_custom_modules(clean_module_list):
-    clean_module_list = [t for t in clean_module_list if t != 'base']
+    base_folder = rospkg.RosPack().get_path('rasberry_coordination')+"/src/rasberry_coordination/task_management/modules"
+    std_modules = next(walk(base_folder), (None, None, []))[1]
+
+    clean_module_list = [t for t in clean_module_list if t not in std_modules]
     module_list = ['%s.coordination.task_module' % module for module in clean_module_list] #change to import the three from seperate files
     module_list.insert(0, 'rasberry_coordination.task_management.modules.base')
     module_list.insert(1, 'rasberry_coordination.task_management.modules.navigation')
@@ -70,7 +75,7 @@ def load_custom_modules(clean_module_list):
         try:
             module_obj = importlib.import_module(module+".stage_definitions")
         except ImportError as e:
-            print(e)
+            logmsg(level="error", category="START", msg="    :    | "+str(e))
             continue
 
         for obj in dir(module_obj):
@@ -83,7 +88,8 @@ def load_custom_modules(clean_module_list):
     # Import Interfaces
     logmsg(category="START", msg="INTERFACES: ")
     logmsg(category="START", msg="    | if an expected interface has not appeard")
-    logmsg(category="START", msg="    | try importing directly in a python terminal")
+    logmsg(category="START", msg="    | try importing directly in a python terminal:")
+    logmsg(category="START", msg="    :    | import rasberry_coordination.task_management.modules.base.interfaces.Robot")
     from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface as InterfaceBase
     Interfaces = dict()
     for module in module_list:
@@ -95,8 +101,12 @@ def load_custom_modules(clean_module_list):
         try:
             module_obj = importlib.import_module(module+".interfaces")
         except ImportError as e:
-            logmsg(category="START", msg="    :    | "+str(e))
-            #logmsg(category="START", msg="    :    | ensure ...interfaces.__init__.py imports to your modules")
+            if "No module named" in str(e):
+                logmsg(category="START", msg="    :    | "+str(e))
+            else:
+                logmsg(level="error", category="START", msg="    :    | "+str(e))
+                #logmsg(level="error", category="START", msg="    :    | ensure ...interfaces.__init__.py imports to your modules")
+                quit()
             continue
 
         for obj in [d for d in dir(module_obj) if not d.startswith('__')]:
@@ -109,6 +119,7 @@ def load_custom_modules(clean_module_list):
             if type(cls)!=type(InterfaceBase) or not issubclass(cls, InterfaceBase): continue
             Interfaces[host][obj] = cls
             logmsg(category="START", msg="    :    | %s" % obj)
+#    exit()
 
 class Stg(object):
     from math import ceil, floor

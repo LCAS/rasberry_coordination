@@ -170,7 +170,7 @@ class RoutingManager(object):
         elif any([a().route_required for a in A]):
             logmsg(category="route", id="COORDINATOR", msg="Replanning due to agent needing a route")
 
-        elif any([a for a in A if a.goal()]) and (time.time() - self.last_replan_time) > 10:
+        elif any([a for a in A if a.goal()]) and (time.time() - self.last_replan_time) > 100:
             logmsg(category="route", id="COORDINATOR", msg="Replanning due to timeout")
             self.last_replan_time = time.time()
 

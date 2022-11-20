@@ -67,7 +67,7 @@ install(PROGRAMS
   scripts/abstract_task_executor_node.py
   scripts/add_agent.py
   scripts/agent_monitor.py
-  scripts/publish_virtual_agent_position.py
+  scripts/initialise_virtual_agent_position.py
   scripts/reset_picker.py
   scripts/rviz_virtual_publisher.py
   scripts/visualise_agent_markers.py

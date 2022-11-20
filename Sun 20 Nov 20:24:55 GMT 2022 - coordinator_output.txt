@@ -1,0 +1,786 @@
+rasberry@rasberry-dev-pc:~/rasberry_ws/src/RASberry/rasberry_core_sim/new_tmule$ roslaunch rasberry_coordination abstract_task_coordinator.launch config_file:=$TASK_COORD_CONFIG
+... logging to /home/rasberry/.ros/log/7e1efd6e-6903-11ed-abc4-1c1b0daae56f/roslaunch-rasberry-dev-pc-1938.log
+Checking log directory for disk usage. This may take a while.
+Press Ctrl-C to interrupt
+Done checking log file disk usage. Usage is <1GB.
+
+started roslaunch server http://10.8.0.78:37391/
+
+SUMMARY
+========
+
+PARAMETERS
+ * /rosdistro: melodic
+ * /rosversion: 1.14.13
+
+NODES
+  /
+    rasberry_coordination (rasberry_coordination/abstract_task_executor_node.py)
+
+ROS_MASTER_URI=http://10.8.0.78:11411
+
+process[rasberry_coordination-1]: started with pid [1969]
+Recommended to set 'force_color_prompt=yes' on line 46 of .bashrc.
+[INFO] START  |                     Properties:
+[INFO] START  |                         | rasberry_health_monitoring_pkg
+[INFO] START  |                         :    | ignore_below -> 30.0
+[INFO] START  |                         :    | low_battery_limit -> 42.0
+[INFO] START  |                         :    | critical_battery_limit -> 40.0
+[INFO] START  |                         :    | max_battery_limit -> 54.0
+[INFO] START  |                         | rasberry_transportation_pkg
+[INFO] START  |                         :    | wait_loading -> 45
+[INFO] START  |                         :    | wait_unloading -> 40
+[INFO] START  |                         | rasberry_data_collection_pkg
+[INFO] START  |                         :    | continuous -> True
+[INFO] START  |                         :    | topological_map -> tmap_stream.tmap2
+[INFO] START  |                         :    | use_fotenix_camera -> False
+[INFO] START  |                         | base
+[INFO] START  |                         | navigation
+[INFO] START  |                         :    | virtual_robot_step_delay -> 2
+[INFO] START  |                     Collecting Interfaces and Stage Definitions for modules:
+[INFO] START  |                         | rasberry_coordination.task_management.modules.base
+[INFO] START  |                         | rasberry_coordination.task_management.modules.navigation
+[INFO] START  |                         | rasberry_coordination.task_management.modules.assignment
+[INFO] START  |                         | rasberry_health_monitoring_pkg.coordination.task_module
+[INFO] START  |                         | rasberry_transportation_pkg.coordination.task_module
+[INFO] START  |                         | rasberry_data_collection_pkg.coordination.task_module
+[INFO] START  |                     STAGES:
+[INFO] START  |                         | BASE
+[INFO] START  |                         :    | EnableVirtualLocalisation
+[INFO] START  |                         :    | Exit
+[INFO] START  |                         :    | Idle
+[INFO] START  |                         :    | NotifyTrigger
+[INFO] START  |                         :    | Pause
+[INFO] START  |                         :    | SetRegister
+[INFO] START  |                         :    | SetUnregister
+[INFO] START  |                         :    | StageBase
+[INFO] START  |                         :    | StartTask
+[INFO] START  |                         :    | WaitForLocalisation
+[INFO] START  |                         :    | WaitForMap
+[INFO] START  |                         | NAVIGATION
+[INFO] START  |                         :    | NavigateToAgent
+[INFO] START  |                         :    | NavigateToBaseNode
+[INFO] START  |                         :    | NavigateToBaseNodeIdle
+[INFO] START  |                         :    | NavigateToExitNode
+[INFO] START  |                         :    | NavigateToNode
+[INFO] START  |                         :    | NavigateToTargetNode
+[INFO] START  |                         :    | NavigateToWaitNode
+[INFO] START  |                         :    | Navigation
+[INFO] START  |                         :    | StageBase
+[INFO] START  |                         | ASSIGNMENT
+[INFO] START  |                         :    | AssignBaseNode
+[INFO] START  |                         :    | AssignBaseNodeIdle
+[INFO] START  |                         :    | AssignNode
+[INFO] START  |                         :    | AssignWaitNode
+[INFO] START  |                         :    | FindRowEnds
+[INFO] START  |                         :    | FindStartNode
+[INFO] START  |                         :    | InteractionResponse
+[INFO] START  |                         :    | SendInfo
+[INFO] START  |                         :    | StageBase
+[INFO] START  |                         | RASBERRY_HEALTH_MONITORING_PKG
+[INFO] START  |                         :    | AssignChargeNode
+[INFO] START  |                         :    | Charge
+[INFO] START  |                         :    | InteractionResponse
+[INFO] START  |                         :    | NavigateToChargeNode
+[INFO] START  |                         :    | NavigateToNode
+[INFO] START  |                         :    | StageBase
+[INFO] START  |                         :    | StartChargeTask
+[INFO] START  |                         :    | StartTask
+[INFO] START  |                         | RASBERRY_TRANSPORTATION_PKG
+[INFO] START  |                         :    | AcceptFieldCourier
+[INFO] START  |                         :    | AssignFieldCourier
+[INFO] START  |                         :    | AssignFieldStorage
+[INFO] START  |                         :    | AssignHeadNodeIdle
+[INFO] START  |                         :    | AwaitFieldCourier
+[INFO] START  |                         :    | AwaitFieldStorageAccess
+[INFO] START  |                         :    | AwaitStoreAccess
+[INFO] START  |                         :    | Idle
+[INFO] START  |                         :    | IdleFieldStorage
+[INFO] START  |                         :    | IdleStorage
+[INFO] START  |                         :    | InteractionResponse
+[INFO] START  |                         :    | LoadFieldCourier
+[INFO] START  |                         :    | Loading
+[INFO] START  |                         :    | NavigateToAgent
+[INFO] START  |                         :    | NavigateToFieldStorage
+[INFO] START  |                         :    | NavigateToHeadNodeIdle
+[INFO] START  |                         :    | NavigateToNode
+[INFO] START  |                         :    | NavigateToPicker
+[INFO] START  |                         :    | Navigation
+[INFO] START  |                         :    | StageBase
+[INFO] START  |                         :    | TimeoutFlagModifier
+[INFO] START  |                         :    | UnloadFieldCourier
+[INFO] START  |                         :    | Unloading
+[INFO] START  |                         | RASBERRY_DATA_COLLECTION_PKG
+[INFO] START  |                         :    | AssignScanner
+[INFO] START  |                         :    | AwaitCompletion
+[INFO] START  |                         :    | Idle
+[INFO] START  |                         :    | InteractionResponse
+[INFO] START  |                         :    | NavigateToDCEndNode
+[INFO] START  |                         :    | NavigateToDCStartNode
+[INFO] START  |                         :    | NavigateToNode
+[INFO] START  |                         :    | PerformDCAction
+[INFO] START  |                         :    | StageBase
+[INFO] START  |                         :    | WaitForDCActionClient
+[INFO] START  |                     INTERFACES:
+[INFO] START  |                         | if an expected interface has not appeard
+[INFO] START  |                         | try importing directly in a python terminal:
+[INFO] START  |                         :    | import rasberry_coordination.task_management.modules.base.interfaces.Robot
+[INFO] START  |                         | BASE
+[INFO] START  |                         :    | Human
+[INFO] START  |                         :    | Interface
+[INFO] START  |                         :    | LocalisedHuman
+[INFO] START  |                         :    | Robot
+[INFO] START  |                         :    | StateInterface
+[INFO] START  |                         | NAVIGATION
+[INFO] START  |                         :    | GeneralNavigator
+[INFO] START  |                         :    | Human
+[INFO] START  |                         :    | Robot
+[INFO] START  |                         :    | RobotVirtual
+[INFO] START  |                         | ASSIGNMENT
+[INFO] START  |                         :    | No module named interfaces
+[INFO] START  |                         | RASBERRY_HEALTH_MONITORING_PKG
+[INFO] START  |                         :    | Robot
+[INFO] START  |                         :    | RobotVirtual
+[INFO] START  |                         | RASBERRY_TRANSPORTATION_PKG
+[INFO] START  |                         :    | Picker
+[INFO] START  |                         :    | Robot
+[INFO] START  |                         :    | Storage
+[INFO] START  |                         | RASBERRY_DATA_COLLECTION_PKG
+[INFO] START  |                         :    | Controller
+[INFO] START  |                         :    | Scanner
+[INFO] START  |                         :    | ScannerVirtual
+[INFO] ROUTE  |            PLANNER: Route Planner Initialisation
+[INFO] SETUP  |                     DTM Initialised
+[INFO] SECT   |            SECTION: DTM
+[INFO] DTM    |                     Active Tasks:
+[INFO] DTM    |                         | __RESET__       --  [,]
+[INFO]        |
+[INFO] SECT   |            SECTION: NEW AGENTS
+{'agent_id': 'thorvald_001',
+ 'local_properties': {'load': '0'},
+ 'modules': [{'details': {'rviz_model': 'tall_robot',
+                          'structure_type': 'tall'},
+              'name': 'base',
+              'role': 'Robot'},
+             {'details': {'has_presence': 'True', 'restrictions': 'tall'},
+              'name': 'navigation',
+              'role': 'RobotVirtual'},
+             {'details': {'key': 'value'},
+              'name': 'rasberry_health_monitoring_pkg',
+              'role': 'RobotVirtual'},
+             {'details': {'key': 'value'},
+              'name': 'rasberry_data_collection_pkg',
+              'role': 'ScannerVirtual'}]}
+[INFO] MODULE |       thorvald_001: Initialising Module Interfaces:
+[INFO] MODULE |                         | BASE (ROBOT)
+[INFO] MODULE |                         | NAVIGATION (ROBOTVIRTUAL)
+[INFO] MODULE |                         | RASBERRY_HEALTH_MONITORING_PKG (ROBOTVIRTUAL)
+[INFO] MODULE |                         | RASBERRY_DATA_COLLECTION_PKG (SCANNERVIRTUAL)
+[INFO] MODULE |                     RASBERRY_HEALTH_MONITORING_PKG
+[INFO] MODULE |                         | Role: RobotVirtual
+[INFO] MODULE |                         | Searching for init task:
+[INFO] TASK   |                         :    | init (empty)
+[INFO] MODULE |                     BASE
+[INFO] MODULE |                         | Role: Robot
+[INFO] MODULE |                         | Searching for init task:
+[INFO] TASK   |                         | Buffering init to task_buffer[1]:
+[INFO] TASK   |                         :    | base.StartTask
+[INFO] TASK   |                         :    | base.SetUnregister
+[INFO] TASK   |                         :    | base.WaitForMap
+[INFO] TASK   |                         :    | base.WaitForLocalisation
+[INFO] TASK   |                         :    | base.SetRegister
+[INFO] MODULE |                     NAVIGATION
+[INFO] MODULE |                         | Role: RobotVirtual
+[INFO] MODULE |                         | Searching for init task:
+[INFO] TASK   |                         :    | init (empty)
+[INFO] MODULE |                     RASBERRY_DATA_COLLECTION_PKG
+[INFO] MODULE |                         | Role: ScannerVirtual
+[INFO] MODULE |                         | Searching for init task:
+[INFO] TASK   |                         :    | init (empty)
+[INFO] RVIZ   |                     Setting tall_robot thorvald_001(red)
+[INFO]        |
+[INFO]        |
+[INFO] SECT   |            SECTION: START TASK
+[INFO] TASK   |       thorvald_001: Beginning next task
+[INFO] TASK   |                     - Active task: init
+[INFO] TASK   |                       Task details:
+[INFO] TASK   |                           | base.StartTask
+[INFO] TASK   |                           | base.SetUnregister
+[INFO] TASK   |                           | base.WaitForMap
+[INFO] TASK   |                           | base.WaitForLocalisation
+[INFO] TASK   |                           | base.SetRegister
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage base.StartTask
+[INFO] RVIZ   |                     Setting tall_robot thorvald_001()
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage base.StartTask is over
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage base.SetUnregister
+[INFO] RVIZ   |                     Setting tall_robot thorvald_001(red)
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage base.SetUnregister is over
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage base.WaitForMap
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage base.WaitForMap is over
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage base.WaitForLocalisation
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage base.WaitForLocalisation is over
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage base.SetRegister
+[INFO] RVIZ   |                     Setting tall_robot thorvald_001()
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage base.SetRegister is over
+[INFO] SECT   |            SECTION: DTM
+[INFO] DTM    |                     Active Tasks:
+[INFO] DTM    |                         | T_001_0         -- CANCELLED [,]
+[INFO]        |
+[INFO] SECT   |            SECTION: START TASK
+[INFO] TASK   |       thorvald_001: Beginning next task
+[INFO] TASK   |                         :    | idle (empty)
+[INFO] TASK   |                         | Buffering idle to task_buffer[1]:
+[INFO] TASK   |                         :    | base.StartTask
+[INFO] TASK   |                         :    | base.Idle(WayPoint141)
+[INFO] TASK   |                         :    | idle (empty)
+[INFO] TASK   |                         :    | idle (empty)
+[INFO] TASK   |                     - Active task: idle
+[INFO] TASK   |                       Task details:
+[INFO] TASK   |                           | base.StartTask
+[INFO] TASK   |                           | base.Idle(WayPoint141)
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage base.StartTask
+[INFO] RVIZ   |                     Setting tall_robot thorvald_001()
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage base.StartTask is over
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage base.Idle(WayPoint141)
+[INFO] DCTASK |       thorvald_001: Request to treat row
+[INFO] TASK   |                         | Buffering scan_row to task_buffer[1]:
+[INFO] TASK   |                         :    | base.StartTask
+[INFO] TASK   |                         :    | assignment.FindRowEnds(r1)
+[INFO] TASK   |                         :    | assignment.FindStartNode
+[INFO] TASK   |                         :    | rasberry_data_collection_pkg.NavigateToDCStartNode
+[INFO] TASK   |                         :    | rasberry_data_collection_pkg.NavigateToDCEndNode
+[INFO] TASK   |                         :    | rasberry_data_collection_pkg.NavigateToDCStartNode
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage base.Idle(WayPoint141) is over
+[INFO] SECT   |            SECTION: DTM
+[INFO] DTM    |                     Active Tasks:
+[INFO] DTM    |                         | T_001_1         -- CANCELLED [,]
+[INFO]        |
+[INFO] SECT   |            SECTION: START TASK
+[INFO] TASK   |       thorvald_001: Beginning next task
+[INFO] TASK   |                     - Active task: scan_row
+[INFO] TASK   |                       Task details:
+[INFO] TASK   |                           | base.StartTask
+[INFO] TASK   |                           | assignment.FindRowEnds(r1)
+[INFO] TASK   |                           | assignment.FindStartNode
+[INFO] TASK   |                           | rasberry_data_collection_pkg.NavigateToDCStartNode
+[INFO] TASK   |                           | rasberry_data_collection_pkg.NavigateToDCEndNode
+[INFO] TASK   |                           | rasberry_data_collection_pkg.NavigateToDCStartNode
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage base.StartTask
+[INFO] RVIZ   |                     Setting tall_robot thorvald_001()
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage base.StartTask is over
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage assignment.FindRowEnds(r1)
+[INFO] SECT   |            SECTION: DTM
+[INFO] DTM    |                     Active Tasks:
+[INFO] DTM    |                         | T_001_2         -- FindRowEnds(r1) [,]
+[INFO] ACTION |                         - Performing interaction search: {'info': 'find_row_ends', 'descriptor': 'r1', 'type': 'info', 'response': ['r1-ca', 'r1-cz']}
+[INFO] ACTION |                         - Interaction result found: ['r1-ca', 'r1-cz']
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage assignment.FindRowEnds(r1) is over
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage assignment.FindStartNode(['r1-ca', 'r1-cz'])
+[INFO] ACTION |                         - Performing interaction search: {'type': 'search', 'style': 'closest_node', 'list': ['r1-ca', 'r1-cz'], 'response': 'r1-ca', 'grouping': '
+node_list'}
+[INFO] ACTION |                             - list: ['r1-ca', 'r1-cz']
+[INFO] ACTION |                         - Interaction result found: r1-ca
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage assignment.FindStartNode(['r1-ca', 'r1-cz']) is over
+[INFO] STAGE  |                     Task to move from r1-ca to r1-cz
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage rasberry_data_collection_pkg.NavigateToDCStartNode
+[INFO] STAGE  |       thorvald_001: Navigation from WayPoint141 to r1-ca is begun.
+[INFO] ROUTE  |        COORDINATOR: Replanning due to agent needing a route
+[INFO]        |
+[INFO] SECT   |            SECTION: ROUTE FIND
+[INFO] ROUTE  |        COORDINATOR: Finding routes for Active agents:
+[INFO] ROUTE  |                         | thorvald_001: r1-ca
+[INFO] ROUTE  |                     actives --- ['thorvald_001']
+[INFO] ROUTE  |                     inactives - []
+[INFO] ROUTE  |                     Agents requiring routes:
+[INFO] ROUTE  |                         | {thorvald_001: rasberry_data_collection_pkg.NavigateToDCStartNode}
+[INFO] ROUTE  |                     Occupied Nodes: {'thorvald_001': ['WayPoint141', True]}
+[INFO] ROUTE  |       thorvald_001: Finding route for thorvald_001: WayPoint141 -> r1-ca
+[INFO] ROUTE  |                     Route has been found, marking as such
+[INFO] ROUTE  |                         - All agents assigned routes
+[INFO] ROUTE  |                             - thorvald_001:['wp141', 'wp73', 'r2-ca', 'r1-ca']
+[INFO] ROUTE  |                         - All fragments identified
+[INFO] ROUTE  |                             - thorvald_001:[['wp141', 'wp73', 'r2-ca', 'r1-ca']]
+[INFO] ROUTE  |                         - All fragments formatted
+[INFO] ROUTE  |                             - thorvald_001:[['wp141', 'wp73', 'r2-ca']]
+[INFO] ROUTE  |                         - All fragment edges formatted
+[INFO] ROUTE  |                             - thorvald_001:[['wp141_wp73', 'wp73_r2-ca', 'r2-ca_r1-ca']]
+[INFO]        |
+[INFO] SECT   |            SECTION: ROUTE PUBLISH
+[INFO] ROUTE  |       thorvald_001: Attempting to publish route.
+[INFO] NAVIG  |                         - new route generated:
+route:
+  source:
+    - WayPoint141
+    - WayPoint73
+    - r2-ca
+  edge_id:
+    - WayPoint141_WayPoint73
+    - WayPoint73_r2-ca
+    - r2-ca_r1-ca
+[INFO] NAVIG  |                         - previous route:
+route:
+  source: []
+  edge_id: []
+
+
+
+
+[INFO] NAVIG  |       thorvald_001:     - route published:
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [4]
+[INFO] VR_ROB |       thorvald_001: 2) @ next node | { WayPoint141 }
+[INFO] VR_ROB |       thorvald_001: 2) popping 0   |
+[INFO] VR_ROB |       thorvald_001: 2) moving      | { WayPoint141 > WayPoint73 }
+[INFO] VR_ROB |       thorvald_001: 3) delay begun |
+
+
+
+
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 3) delay ended |
+[INFO] VR_ROB |       thorvald_001: 4) moving      | { WayPoint141 > WayPoint73 }
+[INFO] VR_ROB |       thorvald_001: 5) popped 0    | { WayPoint73 }
+[INFO] VR_ROB |       thorvald_001: 6) new node    | { WayPoint73 }
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [2]
+[INFO] VR_ROB |       thorvald_001: 2) moving      | { WayPoint73 > r2-ca }
+[INFO] VR_ROB |       thorvald_001: 3) delay begun |
+
+
+
+
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 3) delay ended |
+[INFO] VR_ROB |       thorvald_001: 4) moving      | { WayPoint73 > r2-ca }
+[INFO] VR_ROB |       thorvald_001: 5) popped 0    | { r2-ca }
+[INFO] VR_ROB |       thorvald_001: 6) new node    | { r2-ca }
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [1]
+[INFO] VR_ROB |       thorvald_001: 2) moving      | { r2-ca > r1-ca }
+[INFO] VR_ROB |       thorvald_001: 3) delay begun |
+
+
+
+
+[INFO] SECT   |            SECTION: DTM
+[INFO] DTM    |                     Active Tasks:
+[INFO] DTM    |                         | T_001_2         -- NavigateToDCStartNode [,]
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 3) delay ended |
+[INFO] VR_ROB |       thorvald_001: 4) moving      | { r2-ca > r1-ca }
+[INFO] VR_ROB |       thorvald_001: 5) popped 0    | { r1-ca }
+[INFO] VR_ROB |       thorvald_001: 6) new node    | { r1-ca }
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [0]
+[INFO] VR_ROB |       thorvald_001: 1) empty       | [0]
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage rasberry_data_collection_pkg.NavigateToDCStartNode is over
+[INFO] STAGE  |       thorvald_001: Navigation from r1-ca to r1-ca is completed.
+[INFO] ROUTE  |        COORDINATOR: Request to replan routes.
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage rasberry_data_collection_pkg.NavigateToDCEndNode
+[INFO] STAGE  |       thorvald_001: Navigation from r1-ca to r1-cz is begun.
+[INFO]        |
+[INFO] SECT   |            SECTION: ROUTE FIND
+[INFO] ROUTE  |        COORDINATOR: Finding routes for Active agents:
+[INFO] ROUTE  |                         | thorvald_001: r1-cz
+[INFO] ROUTE  |                     actives --- ['thorvald_001']
+[INFO] ROUTE  |                     inactives - []
+[INFO] ROUTE  |                     Agents requiring routes:
+[INFO] ROUTE  |                         | {thorvald_001: rasberry_data_collection_pkg.NavigateToDCEndNode}
+[INFO] ROUTE  |                     Occupied Nodes: {'thorvald_001': ['r1-ca', True]}
+[INFO] ROUTE  |       thorvald_001: Finding route for thorvald_001: r1-ca -> r1-cz
+[INFO] ROUTE  |                     Route has been found, marking as such
+[INFO] ROUTE  |                         - All agents assigned routes
+[INFO] ROUTE  |                             - thorvald_001:['r1-ca', 'r1-cb', 'r1-c0', 'r1-cy', 'r1-cz']
+[INFO] ROUTE  |                         - All fragments identified
+[INFO] ROUTE  |                             - thorvald_001:[['r1-ca', 'r1-cb', 'r1-c0', 'r1-cy', 'r1-cz']]
+[INFO] ROUTE  |                         - All fragments formatted
+[INFO] ROUTE  |                             - thorvald_001:[['r1-ca', 'r1-cb', 'r1-c0', 'r1-cy']]
+[INFO] ROUTE  |                         - All fragment edges formatted
+[INFO] ROUTE  |                             - thorvald_001:[['r1-ca_r1-cb', 'r1-cb_r1-c0', 'r1-c0_r1-cy', 'r1-cy_r1-cz']]
+[INFO]        |
+[INFO] SECT   |            SECTION: ROUTE PUBLISH
+[INFO] ROUTE  |       thorvald_001: Attempting to publish route.
+[INFO] NAVIG  |                         - new route longer than existing one
+[INFO] NAVIG  |                         - new route generated:
+route:
+  source:
+    - r1-ca
+    - r1-cb
+    - r1-c0
+    - r1-cy
+  edge_id:
+    - r1-ca_r1-cb
+    - r1-cb_r1-c0
+    - r1-c0_r1-cy
+    - r1-cy_r1-cz
+[INFO] NAVIG  |                         - previous route:
+route:
+  source:
+    - WayPoint141
+    - WayPoint73
+    - r2-ca
+  edge_id:
+    - WayPoint141_WayPoint73
+    - WayPoint73_r2-ca
+    - r2-ca_r1-ca
+
+
+
+
+[INFO] NAVIG  |       thorvald_001:     - route published: New route is larger then old route.
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [5]
+[INFO] VR_ROB |       thorvald_001: 2) @ next node | { r1-ca }
+[INFO] VR_ROB |       thorvald_001: 2) popping 0   |
+[INFO] VR_ROB |       thorvald_001: 2) moving      | { r1-ca > r1-cb }
+[INFO] VR_ROB |       thorvald_001: 3) delay begun |
+
+
+
+
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 3) delay ended |
+[INFO] VR_ROB |       thorvald_001: 4) moving      | { r1-ca > r1-cb }
+[INFO] VR_ROB |       thorvald_001: 5) popped 0    | { r1-cb }
+[INFO] VR_ROB |       thorvald_001: 6) new node    | { r1-cb }
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [3]
+[INFO] VR_ROB |       thorvald_001: 2) moving      | { r1-cb > r1-c0 }
+[INFO] VR_ROB |       thorvald_001: 3) delay begun |
+
+
+
+
+[INFO] SECT   |            SECTION: DTM
+[INFO] DTM    |                     Active Tasks:
+[INFO] DTM    |                         | T_001_2         -- NavigateToDCEndNode [,]
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 3) delay ended |
+[INFO] VR_ROB |       thorvald_001: 4) moving      | { r1-cb > r1-c0 }
+[INFO] VR_ROB |       thorvald_001: 5) popped 0    | { r1-c0 }
+[INFO] VR_ROB |       thorvald_001: 6) new node    | { r1-c0 }
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [2]
+[INFO] VR_ROB |       thorvald_001: 2) moving      | { r1-c0 > r1-cy }
+[INFO] VR_ROB |       thorvald_001: 3) delay begun |
+
+
+
+
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 3) delay ended |
+[INFO] VR_ROB |       thorvald_001: 4) moving      | { r1-c0 > r1-cy }
+[INFO] VR_ROB |       thorvald_001: 5) popped 0    | { r1-cy }
+[INFO] VR_ROB |       thorvald_001: 6) new node    | { r1-cy }
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [1]
+[INFO] VR_ROB |       thorvald_001: 2) moving      | { r1-cy > r1-cz }
+[INFO] VR_ROB |       thorvald_001: 3) delay begun |
+
+
+
+
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 3) delay ended |
+[INFO] VR_ROB |       thorvald_001: 4) moving      | { r1-cy > r1-cz }
+[INFO] VR_ROB |       thorvald_001: 5) popped 0    | { r1-cz }
+[INFO] VR_ROB |       thorvald_001: 6) new node    | { r1-cz }
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [0]
+[INFO] VR_ROB |       thorvald_001: 1) empty       | [0]
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage rasberry_data_collection_pkg.NavigateToDCEndNode is over
+[INFO] STAGE  |       thorvald_001: Navigation from r1-cz to r1-cz is completed.
+[INFO] ROUTE  |        COORDINATOR: Request to replan routes.
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage rasberry_data_collection_pkg.NavigateToDCStartNode
+[INFO] STAGE  |       thorvald_001: Navigation from r1-cz to r1-ca is begun.
+[INFO]        |
+[INFO] SECT   |            SECTION: ROUTE FIND
+[INFO] ROUTE  |        COORDINATOR: Finding routes for Active agents:
+[INFO] ROUTE  |                         | thorvald_001: r1-ca
+[INFO] ROUTE  |                     actives --- ['thorvald_001']
+[INFO] ROUTE  |                     inactives - []
+[INFO] ROUTE  |                     Agents requiring routes:
+[INFO] ROUTE  |                         | {thorvald_001: rasberry_data_collection_pkg.NavigateToDCStartNode}
+[INFO] ROUTE  |                     Occupied Nodes: {'thorvald_001': ['r1-cz', True]}
+[INFO] ROUTE  |       thorvald_001: Finding route for thorvald_001: r1-cz -> r1-ca
+[INFO] ROUTE  |                     Route has been found, marking as such
+[INFO] ROUTE  |                         - All agents assigned routes
+[INFO] ROUTE  |                             - thorvald_001:['r1-cz', 'r1-cy', 'r1-c0', 'r1-cb', 'r1-ca']
+[INFO] ROUTE  |                         - All fragments identified
+[INFO] ROUTE  |                             - thorvald_001:[['r1-cz', 'r1-cy', 'r1-c0', 'r1-cb', 'r1-ca']]
+[INFO] ROUTE  |                         - All fragments formatted
+[INFO] ROUTE  |                             - thorvald_001:[['r1-cz', 'r1-cy', 'r1-c0', 'r1-cb']]
+[INFO] ROUTE  |                         - All fragment edges formatted
+[INFO] ROUTE  |                             - thorvald_001:[['r1-cz_r1-cy', 'r1-cy_r1-c0', 'r1-c0_r1-cb', 'r1-cb_r1-ca']]
+[INFO]        |
+[INFO] SECT   |            SECTION: ROUTE PUBLISH
+[INFO] ROUTE  |       thorvald_001: Attempting to publish route.
+[INFO] NAVIG  |                         - new route different from existing route
+[INFO] NAVIG  |                         - new route generated:
+route:
+  source:
+    - r1-cz
+    - r1-cy
+    - r1-c0
+    - r1-cb
+  edge_id:
+    - r1-cz_r1-cy
+    - r1-cy_r1-c0
+    - r1-c0_r1-cb
+    - r1-cb_r1-ca
+[INFO] NAVIG  |                         - previous route:
+route:
+  source:
+    - r1-ca
+    - r1-cb
+    - r1-c0
+    - r1-cy
+  edge_id:
+    - r1-ca_r1-cb
+    - r1-cb_r1-c0
+    - r1-c0_r1-cy
+    - r1-cy_r1-cz
+
+
+
+
+[INFO] NAVIG  |       thorvald_001:     - route published: New route takes a different route to target.
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [5]
+[INFO] VR_ROB |       thorvald_001: 2) @ next node | { r1-cz }
+[INFO] VR_ROB |       thorvald_001: 2) popping 0   |
+[INFO] VR_ROB |       thorvald_001: 2) moving      | { r1-cz > r1-cy }
+[INFO] VR_ROB |       thorvald_001: 3) delay begun |
+
+
+
+
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 3) delay ended |
+[INFO] VR_ROB |       thorvald_001: 4) moving      | { r1-cz > r1-cy }
+[INFO] VR_ROB |       thorvald_001: 5) popped 0    | { r1-cy }
+[INFO] VR_ROB |       thorvald_001: 6) new node    | { r1-cy }
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [3]
+[INFO] VR_ROB |       thorvald_001: 2) moving      | { r1-cy > r1-c0 }
+[INFO] VR_ROB |       thorvald_001: 3) delay begun |
+
+
+
+
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 3) delay ended |
+[INFO] VR_ROB |       thorvald_001: 4) moving      | { r1-cy > r1-c0 }
+[INFO] VR_ROB |       thorvald_001: 5) popped 0    | { r1-c0 }
+[INFO] VR_ROB |       thorvald_001: 6) new node    | { r1-c0 }
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [2]
+[INFO] VR_ROB |       thorvald_001: 2) moving      | { r1-c0 > r1-cb }
+[INFO] VR_ROB |       thorvald_001: 3) delay begun |
+
+
+
+
+[INFO] SECT   |            SECTION: DTM
+[INFO] DTM    |                     Active Tasks:
+[INFO] DTM    |                         | T_001_2         -- NavigateToDCStartNode [,]
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 3) delay ended |
+[INFO] VR_ROB |       thorvald_001: 4) moving      | { r1-c0 > r1-cb }
+[INFO] VR_ROB |       thorvald_001: 5) popped 0    | { r1-cb }
+[INFO] VR_ROB |       thorvald_001: 6) new node    | { r1-cb }
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [1]
+[INFO] VR_ROB |       thorvald_001: 2) moving      | { r1-cb > r1-ca }
+[INFO] VR_ROB |       thorvald_001: 3) delay begun |
+
+
+
+
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 3) delay ended |
+[INFO] VR_ROB |       thorvald_001: 4) moving      | { r1-cb > r1-ca }
+[INFO] VR_ROB |       thorvald_001: 5) popped 0    | { r1-ca }
+[INFO] VR_ROB |       thorvald_001: 6) new node    | { r1-ca }
+
+
+
+
+[INFO] VR_ROB |       thorvald_001: 1) MSG ARRIVED | [0]
+[INFO] VR_ROB |       thorvald_001: 1) empty       | [0]
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage rasberry_data_collection_pkg.NavigateToDCStartNode is over
+[INFO] STAGE  |       thorvald_001: Navigation from r1-ca to r1-ca is completed.
+[INFO] ROUTE  |        COORDINATOR: Request to replan routes.
+[INFO] SECT   |            SECTION: DTM
+[INFO] DTM    |                     Active Tasks:
+[INFO] DTM    |                         | T_001_2         -- CANCELLED [,]
+[INFO]        |
+[INFO] SECT   |            SECTION: START TASK
+[INFO] TASK   |       thorvald_001: Beginning next task
+[INFO] TASK   |                         :    | idle (empty)
+[INFO] TASK   |                         | Buffering idle to task_buffer[1]:
+[INFO] TASK   |                         :    | base.StartTask
+[INFO] TASK   |                         :    | base.Idle(r1-ca)
+[INFO] TASK   |                         :    | idle (empty)
+[INFO] TASK   |                         :    | idle (empty)
+[INFO] TASK   |                     - Active task: idle
+[INFO] TASK   |                       Task details:
+[INFO] TASK   |                           | base.StartTask
+[INFO] TASK   |                           | base.Idle(r1-ca)
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage base.StartTask
+[INFO] RVIZ   |                     Setting tall_robot thorvald_001()
+[INFO]        |
+[INFO] SECT   |            SECTION: ROUTE FIND
+[INFO] ROUTE  |        COORDINATOR: Finding routes for Active agents:
+[INFO] ROUTE  |                         | thorvald_001: None
+[INFO] ROUTE  |                     actives --- []
+[INFO] ROUTE  |                     inactives - ['thorvald_001']
+[INFO] ROUTE  |                     Agents requiring routes:
+[INFO] ROUTE  |                     Occupied Nodes: {'thorvald_001': ['r1-ca', True]}
+[INFO] ROUTE  |                         - All agents assigned routes
+[INFO] ROUTE  |                             - thorvald_001:['r1-ca']
+[INFO] ROUTE  |                         - All fragments identified
+[INFO] ROUTE  |                             - thorvald_001:[['r1-ca']]
+[INFO] ROUTE  |                         - All fragments formatted
+[INFO] ROUTE  |                             - thorvald_001:[['r1-ca']]
+[INFO] ROUTE  |                         - All fragment edges formatted
+[INFO] ROUTE  |                             - thorvald_001:[]
+[INFO]        |
+[INFO] SECT   |            SECTION: END
+[INFO] STAGE  |       thorvald_001: Stage base.StartTask is over
+[INFO]        |
+[INFO] SECT   |            SECTION: START STAGE
+[INFO] STAGE  |       thorvald_001: Begun stage base.Idle(r1-ca)
+[INFO] SECT   |            SECTION: DTM
+[INFO] DTM    |                     Active Tasks:
+[INFO] DTM    |                         | T_001_3         -- Idle(r1-ca) [thorvald_001,]
+
+
+
+

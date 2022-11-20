@@ -246,7 +246,7 @@ class VirtualRobot(object):
         self.agent = agent
         self.execpolicy_goal, self.route = ExecutePolicyModeGoal(), Path()
 
-        rospy.set_param('/rasberry_coordination/virtual_robot/route_step_delay', step_delay)
+        rospy.set_param('/rasberry_coordination/task_modules/navigation/virtual_robot_step_delay', step_delay)
 
         self.topo_map = None
         self.rec_topo_map = False
@@ -262,19 +262,24 @@ class VirtualRobot(object):
         self.current_node_pub = Publisher("/%s/current_node" % agent_id, String, latch=True, queue_size=5)
         self.closest_node_pub = Publisher("/%s/closest_node" % agent_id, String, latch=True, queue_size=5)
 
+        self.route_subscriber = Subscriber("/%s/current_route_progress" % self.agent.agent_id, Path, self.route_sub_cb)
+#        self.pose_stamped_subscriber = Subscriber("/%s/robot_pose" % self.agent.agent_id, Pose, self.pose_cb)
+
         self.locker = Lock()
 
     def enable_subscribers(self):
-        self.route_subscriber = Subscriber("/%s/current_route_progress" % self.agent.agent_id, Path, self.route_sub_cb)
+#        self.route_subscriber = Subscriber("/%s/current_route_progress" % self.agent.agent_id, Path, self.route_sub_cb)
         self.pose_stamped_subscriber = Subscriber("/%s/robot_pose" % self.agent.agent_id, Pose, self.pose_cb)
 
     def _map_cb(self, msg):
         self.topo_map, self.rec_topo_map = msg, True
+
     def cancel_execpolicy_goal(self):
         self.execpolicy_goal, self.route = ExecutePolicyModeGoal(), Path()
     def set_execpolicy_goal(self, goal):
         self.publish_route(goal.route.source, goal.route.edge_id)
         self.execpolicy_goal = goal
+
     def publish_route(self, source=None, edge_id=None):
         """publish route that can be visualised in rviz
         """
@@ -289,7 +294,7 @@ class VirtualRobot(object):
             route.poses += [[self.get_pose(edge.node) for edge in node_obj.edges if edge.edge_id == edge_id[-1]][0]]
 
 
-        #Add an identifier to the route so we can ensure we are only updateing the location based on the latest route
+        #Add an identifier to the route so we can ensure we are only updating the location based on the latest route
         self.total_routes += 1
         for pose in route.poses:
             pose.header.seq = self.total_routes
@@ -298,12 +303,12 @@ class VirtualRobot(object):
         self.route_publisher.publish(route)
         self.route_progress_publisher.publish(route)
         self.route = route #we could replace the publishing of the route with just an empty update call and use the saved route?
+        print("\n\n\n")
 
     def get_pose(self, node):
         return PoseStamped(header=(Header(frame_id="map")), pose=self.get_node(node).pose)
-    def get_node(self, node): return get_topomap_node(self.topo_map, node)
-
-
+    def get_node(self, node):
+        return get_topomap_node(self.topo_map, node)
 
 
     def next_node(self):
@@ -451,6 +456,8 @@ class VirtualRobot(object):
     #     self.route_progress_publisher.publish(self.route)
 
 
+
+    """ because we are funning a topological_localisation node, we dont need to run this here? """
     def pose_cb(self, msg):
         new_node = self.find_closest_node(msg)
         self.current_node_pub.publish(new_node)

@@ -15,8 +15,5 @@ modules:
   - name: rasberry_health_monitoring_pkg
     role: Robot
 
-  #- name: rasberry_uv_treatment
-  #  role: Phototherapist
-
-  - name: rasberry_data_collection
+  - name: rasberry_data_collection_pkg
     role: Scanner
