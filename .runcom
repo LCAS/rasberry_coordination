@@ -4,4 +4,14 @@ echo -e "  \033[1;${source_colour_base}m \033[0;1;${source_colour_accent}m Sourc
 
 #Debug functions
 function force () { rostopic pub /rasberry_coordination/force_replan std_msgs/Empty "{}" --once ; }
-function coord () { tmux capture-pane -pS -50000 -t server:server_coordinator.1 > "`date` - coordinator_output.txt" ; }
+function coord () { tmux capture-pane -pS -50000 -t server_virtual:coordinator.2 > "`date` - coordinator_output.txt" ; }
+function coord2 () {
+  #coord
+  cat coordinator_output.txt | grep -n -A 100000 "DCTASK" | grep "Begun stage\|is over"
+
+  cat coordinator_output.txt | grep -n -A 100000 "DCTASK" | grep -A 10000 "327-\[INFO\]" | grep -B 10000 "441-\[INFO\]" | grep -n -A 1 "VR_ROB"
+  cat coordinator_output.txt | grep -n -A 100000 "DCTASK" | grep -A 10000 "446-\[INFO\]" | grep -B 10000 "587-\[INFO\]" | grep -n -A 1 "VR_ROB"
+  cat coordinator_output.txt | grep -n -A 100000 "DCTASK" | grep -A 10000 "592-\[INFO\]" | grep -B 10000 "735-\[INFO\]" | grep -n -A 1 "VR_ROB"
+}
+
+function rcdr () { cd $RAS_REPO/rasberry_coordination/src/rasberry_coordination ; }

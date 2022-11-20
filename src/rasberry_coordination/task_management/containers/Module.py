@@ -17,7 +17,7 @@ class ModuleObj(object):
         return "Module( name:%s | role:%s | interface:%s )" % (self.name, self.role, self.interface!=None)
 
     def __init__(self, agent, name, role, details):
-        #logmsg(category="module", msg="%s (%s)"%(name.upper(),role.upper()))
+        logmsg(category="module", msg="    | %s (%s)"%(name.upper(),role.upper()))
         self.agent = agent
         self.name = name
         self.role = role

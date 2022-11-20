@@ -8,13 +8,12 @@ try: from rasberry_coordination.task_management.__init__ import PropertiesDef as
 except: pass
 
 
-class WaitForDCActionClient(StageBase):
-    """ Prevent progression till action server is up and running """
-    def _query(self):
-        """ f """
-        success_conditions = [self.agent.modules['rasberry_data_collection_pkg'].interface.action_server_status]
-        self.flag(any(success_conditions))
 
+
+"""
+Standard navigation methods for beginning a data collection
+
+"""
 
 class NavigateToDCStartNode(NavigateToNode):
     """Used to navigate to a given start node"""
@@ -27,6 +26,28 @@ class NavigateToDCStartNode(NavigateToNode):
             self.agent['contacts']['controller'].modules['rasberry_data_collection_pkg'].interface.notify("sar_AWAIT_START")
         super(NavigateToDCStartNode, self)._start()
 
+""" For virtual agents only (until we get a better interface setup """
+class NavigateToDCEndNode(NavigateToNode):
+    """Used to navigate to a given end node"""
+    def __init__(self, agent):
+        """Call to super to set the navigation target as the node stored in the action association"""
+        super(NavigateToDCEndNode, self).__init__(agent, association='end_node')
+
+
+
+
+
+"""
+Standard interactions with a communicable action client
+
+"""
+
+class WaitForDCActionClient(StageBase):
+    """ Prevent progression till action server is up and running """
+    def _query(self):
+        """ f """
+        success_conditions = [self.agent.modules['rasberry_data_collection_pkg'].interface.action_server_status]
+        self.flag(any(success_conditions))
 
 class PerformDCAction(StageBase):
     """ f """
@@ -49,6 +70,14 @@ class PerformDCAction(StageBase):
        if 'controller' in self.agent['contacts']:
            self.agent['contacts']['controller']['scanner_completion_flag'] = True
 
+
+
+
+
+"""
+Standard control tools for a controller
+
+"""
 
 class AssignScanner(InteractionResponse):
     """Used to identify the closest scanner."""

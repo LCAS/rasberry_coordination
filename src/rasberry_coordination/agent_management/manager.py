@@ -34,7 +34,7 @@ class AgentManager(object):
 
         # Setup Connection for Dynamic Fleet
         file_name = 'coordinator-loaded-agents-save-state.yaml'  #logs to $HOME/.ros/coordinator-loaded-agents-save-state.yaml
-        if os.path.isfile(file_name):
+        if False: #os.path.isfile(file_name):
             if whiptail.Whiptail(title="Agent Management").confirm("Save-state detected, would you like to load it?"):
                 with open(file_name) as file:
                     agent_dict = yaml.load(file, Loader=yaml.FullLoader)
@@ -64,6 +64,7 @@ class AgentManager(object):
         buffer, self.new_agent_buffer = self.new_agent_buffer, dict()
         for agent_dict in buffer.values():
             if agent_dict['agent_id'] not in self.agent_details.keys():
+                pprint.pprint(agent_dict)
                 self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
                 logmsg(category="null")
     def add_agents(self, agent_list):
@@ -189,7 +190,7 @@ class AgentDetails(object):
         contacts = contacts if contacts else {}
 
         if module not in self.modules:
-            logmsg(category="TASK", msg="    | module: %s (not valid)"%name)
+            logmsg(category="TASK", msg="    | module: %s (not valid)"%module)
             return
 
         if not hasattr(self.modules[module].interface, name):
@@ -200,7 +201,7 @@ class AgentDetails(object):
         task = task_def(task_id=task_id, details=details, contacts=contacts, initiator_id=initiator_id)
 
         if not task:
-            logmsg(category="TASK", msg="    | %s (empty)" % name)
+            logmsg(category="TASK", msg="    :    | %s (empty)" % name)
             return
 
         name = name if task.name == name else "%s/%s"%(name,task.name)

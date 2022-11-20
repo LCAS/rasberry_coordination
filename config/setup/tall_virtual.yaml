@@ -1,21 +1,18 @@
 modules:
   - name: base
-    role: VirtualRobot
+    role: Robot
     details:
       - structure_type: tall
       - rviz_model: tall_robot
 
   - name: navigation
-    role: Robot
+    role: RobotVirtual
     details:
       - has_presence: true
       - restrictions: tall
 
   - name: rasberry_health_monitoring_pkg
-    role: Robot
+    role: RobotVirtual
 
-  #- name: rasberry_uv_treatment
-  #  role: Phototherapist
-
-  - name: rasberry_data_collection
-    role: Scanner
+  - name: rasberry_data_collection_pkg
+    role: ScannerVirtual

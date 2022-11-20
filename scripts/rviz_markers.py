@@ -74,7 +74,7 @@ class MarkerPublisher(object):
                 marker_array = MarkerArray()
                 for a in self.agents.values():
                     marker_array.markers += a.marker_array.markers
-                
+
                 #set the timeouts
                 self.publish_time = rospy.get_rostime()
                 for m in marker_array.markers:
