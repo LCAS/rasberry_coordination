@@ -29,7 +29,7 @@ class PoseManager(object):
             rospy.sleep(1.2)  # timeout to republish marker obj (must be < marker.lifetime)
 
     def new_pose_cb(self, msg):
-        print("New pose set for: %s\n\n"%str(initial_pose))
+        print("New pose set for: %s\n\n"%str(msg))
         self.pose = msg
 
 

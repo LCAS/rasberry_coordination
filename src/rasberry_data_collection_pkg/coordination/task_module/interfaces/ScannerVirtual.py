@@ -36,7 +36,6 @@ class ScannerVirtual(Interface):
         self.action_status = False
         self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data' % agent.agent_id, RDCCollectDataAction)
 
-    """
     def idle(self, task_id=None, details=None, contacts=None, initiator_id=""):
         return self.wait_at_base()
 
@@ -54,8 +53,6 @@ class ScannerVirtual(Interface):
                         Stages['navigation']['NavigateToBaseNodeIdle'](self.agent),
                         Stages['base']['Idle'](self.agent)
                     ]))
-
-    """
 
     def on_demand_task(self, msg):
         if self.agent.registration:

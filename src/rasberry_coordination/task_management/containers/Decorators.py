@@ -31,7 +31,7 @@ def taskdecorator():
         return cls
     registrar.all = registry
     return registrar
-#_taskdecorator = taskdecorator()
+_taskdecorator = taskdecorator()
 
 
 
