@@ -42,7 +42,7 @@ class InteractionResponse(StageBase):
 
 
 class SendInfo(InteractionResponse):
-    """Used to identify the closest available wait_node."""
+    """ f """
     def __init__(self, agent):
         """ Mark the details of the associated Interaction """
         super(SendInfo, self).__init__(agent)
