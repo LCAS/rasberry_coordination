@@ -118,12 +118,15 @@ class ActionManager(object):
 
         elif ST == 'head_node_allocator':
             PLoc = {a.agent_id:float(a.location().split("-c")[0][1:]) for a in self.AllAgentsList.values() if a.registration and a.location() and ('-c' in a.location()) and (a.modules['transportation'].role == 'picker')}
-
+            print("\n\n\nPLoc")
+            print(PLoc)
             if PLoc:
                 from ideal_parking_spot import ideal_parking_spot as ips
                 parking_spots = ["r%s-ca"% spot for spot in ips(list, PLoc)]
+                print(parking_spots)
                 occupied = self.get_occupied_nodes(agent)
                 new_list = [spot for spot in parking_spots if spot not in occupied]
+                print(new_list)
                 I = new_list[0]
             else:
                 I = None
