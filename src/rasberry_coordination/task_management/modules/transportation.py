@@ -78,13 +78,15 @@ class TaskDef(object):
         LP = agent.local_properties
         MP = agent.module_properties
 
-        #If agent is at max capacity deliver load
+        #If agent is at max capacity, deliver load to storage
+        print("MAX TRANSPORTAION LOAD and LOAD: {}".format( MP["max_load"], LP['load'] ) )
         agent.local_properties['load'] = int(agent.local_properties['load'])
-        if LP['load'] >= int(MP['max_load']):
+        if LP['load'] >= 8: # int(MP['max_load']): # Sorry James for this hard coded.
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
+            # to enable smart parking, uncomment this line below. 
             return TaskDef.transportation_wait_at_head(agent=agent, task_id=task_id, details=details, contacts=contacts)
-            pass
+            #pass
 
     @classmethod
     def transportation_field_storage_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
