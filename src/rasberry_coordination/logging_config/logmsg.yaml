@@ -41,6 +41,7 @@ categories:
   - name: "TPTASK"
   - name: "UVTASK"
   - name: "DCTASK"
+    colour: '46m'
   - name: "HEALTH"
 
   - name: "SECT"

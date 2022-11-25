@@ -246,7 +246,8 @@ class VirtualRobot(object):
         self.agent = agent
         self.execpolicy_goal, self.route = ExecutePolicyModeGoal(), Path()
 
-        rospy.set_param('/rasberry_coordination/task_modules/navigation/virtual_robot_step_delay', step_delay)
+        default = rospy.get_param('/rasberry_coordination/task_modules/navigation/virtual_robot_step_delay', step_delay)
+        rospy.set_param('/rasberry_coordination/task_modules/navigation/virtual_robot_step_delay', default)
 
         self.topo_map = None
         self.rec_topo_map = False
@@ -347,9 +348,9 @@ class VirtualRobot(object):
             """ DELAY """
             # Wait the 2 seconds till we should be taking the next item
             logmsg(category='vr_rob', id=self.agent.agent_id, msg='3) delay begun | ')
-            print("\n\n\n")
-            rospy.sleep(rospy.get_param('/rasberry_coordination/virtual_robot/route_step_delay', 2))
-            print("\n\n\n")
+            print("\n")
+            rospy.sleep(rospy.get_param('/rasberry_coordination/task_modules/navigation/virtual_robot_step_delay', 2))
+            print("\n")
             logmsg(category='vr_rob', id=self.agent.agent_id, msg='3) delay ended | ')
             logmsg(category='vr_rob', id=self.agent.agent_id, msg='4) moving      | { %s > %s }' % (self.current_node(), self.next_node()))
 
