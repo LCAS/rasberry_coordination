@@ -67,10 +67,9 @@ include_directories(
 install(PROGRAMS
   scripts/abstract_task_executor_node.py
   scripts/add_agent.py
-  scripts/agent_monitor.py
   scripts/publish_virtual_agent_position.py
-  scripts/reset_picker.py
-  scripts/rviz_virtual_publisher.py
+  scripts/rviz_markers.py
+  scripts/ui_speaker.py
   scripts/visualise_agent_markers.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
