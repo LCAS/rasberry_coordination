@@ -45,5 +45,4 @@ function call () { echo $1 ; read -p "Press Enter to continue:" ; $1 ; }
 function force () { rostopic pub /rasberry_coordination/force_replan std_msgs/Empty "{}" --once ; }
 
 #Debug Functions
-function car () { roscd rasberry_coordination/callarobot/call_a_robot/www ; }
 function coord () { tmux capture-pane -pS -50000 -t server:server_coordinator.1 > "`date` - coordinator_output.txt" ; }
