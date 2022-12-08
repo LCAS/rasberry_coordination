@@ -682,6 +682,7 @@ class StageDef(object):
             """ enable interuption """
             super(StageDef.NavigateToBaseNodeIdle, self)._start()
             self.accepting_new_tasks = True
+            self.agent.speaker("standard parking enabled: moving to %s" % (self.target))
         def _query(self):
             """Complete when the agents location is identical to the target location."""
             success_conditions = [self.agent.location(accurate=True) == self.target, 
@@ -695,7 +696,6 @@ class StageDef(object):
             super(StageDef.NavigateToExitNode, self).__init__(agent, association='exit_node')
     class NavigateToWaitNode(NavigateToNode):
         """Used to navigate to a given wait_node"""
-
         def __init__(self, agent):
             """Call super to set association to wait_node"""
             super(StageDef.NavigateToWaitNode, self).__init__(agent, association='wait_node')
