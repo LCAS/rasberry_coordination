@@ -41,3 +41,19 @@ class Controller(StateInterface):
                         Stages['rasberry_data_collection_pkg']['AwaitCompletion'](self.agent),
                     ]))
 
+    def get_task(self, module):
+        state, row, edge, task, robot = self.msg.value.split('-')
+        nodes = []
+        if task != module: return (None,None)
+        elif edge != "all":
+            task_scope = 'edge'
+            nodes = ["r%s-c%s" % (row, e) for e in edge.split('>')]
+        elif row != "all":
+            task_scope = 'row'
+
+        return (task_scope, {'row': 'r'+row,
+                             'edge': edge,
+                             'nodes': nodes,
+                             'robot': robot,
+                             'scope': task_scope})
+

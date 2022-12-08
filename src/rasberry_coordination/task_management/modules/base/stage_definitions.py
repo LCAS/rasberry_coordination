@@ -173,9 +173,9 @@ class NotifyTrigger(StageBase):
         self.interface = self.agent.modules[self.agent['module']].interface
         self.interface.notify(self.msg)
         self.agent.format_marker(style=self.colour)
-        self.interface[self.trigger] = True  # PSEUDO
+        self.interface[self.trigger] = True  #PSUEDO
     def _query(self):
-        """Wait for flag to be set by message response (os #PSUEDO)"""
+        """Wait for flag to be set by message response (or #PSUEDO)"""
         success_conditions = [self.interface[self.trigger]]
         self.flag(any(success_conditions))
 

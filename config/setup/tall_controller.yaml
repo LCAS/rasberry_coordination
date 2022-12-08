@@ -2,12 +2,12 @@ modules:
   - name: base
     role: Human
     details:
-        rviz_model: human
+      - rviz_model: human
 
   - name: navigation
-    role: Human
+    role: Empty
     details:
-        has_presence: false
+      - has_presence: false
 
   - name: rasberry_uv_treatment
     role: Controller
