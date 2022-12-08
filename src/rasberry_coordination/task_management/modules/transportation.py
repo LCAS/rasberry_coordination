@@ -366,11 +366,13 @@ class StageDef(object):
             """ enable interuption """
             super(StageDef.NavigateToHeadNodeIdle, self)._start()
             self.accepting_new_tasks = True
+            self.agent.speaker("smart parking enabled: moving to %s" % (self.target))
         def _query(self):
             """Complete when the agents location is identical to the target location."""
             success_conditions = [self.agent.location(accurate=True) == self.target,
                                   len(self.agent.task_buffer) > 0]
             self.flag(any(success_conditions))
+
 
     """ FieldCourier Load Modifiers """
     class TimeoutFlagModifier(SDef.StageBase):

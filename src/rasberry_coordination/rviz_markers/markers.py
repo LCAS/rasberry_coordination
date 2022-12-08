@@ -29,6 +29,8 @@ class AgentMarker(object):
     def generate_marker_array(self):
         print("generating a new array of markers")
         marker_array = MarkerArray()
+        if self.type not in self.structure_dict:
+            self.type = 'short_robot_load_4'
         for component_type,items in self.structure_dict[self.type].items():
             for i in items:
                 c = self.get_component(component_type, ns=i[0], marker_index=i[1], position=i[2])
