@@ -14,4 +14,4 @@ function coord2 () {
   cat coordinator_output.txt | grep -n -A 100000 "DCTASK" | grep -A 10000 "592-\[INFO\]" | grep -B 10000 "735-\[INFO\]" | grep -n -A 1 "VR_ROB"
 }
 
-function rcdr () { cd $RAS_REPO/rasberry_coordination/src/rasberry_coordination ; }
+function rcdc () { cd $RAS_REPO/rasberry_coordination/src/rasberry_coordination ; }

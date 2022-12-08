@@ -40,7 +40,6 @@ class InteractionResponse(StageBase):
                 self.agent[contact_type] = self.interaction.response.agent_id
             self.agent['contacts'][self.contact] = self.interaction.response
 
-
 class SendInfo(InteractionResponse):
     """ f """
     def __init__(self, agent):

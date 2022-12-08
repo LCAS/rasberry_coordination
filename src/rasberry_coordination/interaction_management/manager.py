@@ -1,3 +1,4 @@
+import traceback
 from std_msgs.msg import String as Str
 from rospy import Publisher
 from rasberry_coordination.coordinator_tools import logmsg
@@ -34,7 +35,7 @@ class InteractionManager(object):
                 item = self.get_item(agent, list)
             except Exception as e:
                 print("Error on interaction manager:")
-                print(e)
+                print(traceback.format_exc())
                 item = None
             interaction.response = item
         elif TP == 'info':
@@ -53,51 +54,44 @@ class InteractionManager(object):
 
         self.AllAgentsList = None
 
-    def get_info(self, agent):
-        interaction = agent().interaction
-        FO = interaction.info
-
-        if FO == 'send_info':
-            pub1 = Publisher('/car_client/info/map', Str, queue_size=1, latch=True)
-            pub1.publish(agent.map_handler.simplify())  # issues with res_map?, (but called by humans & they use full)
-            pub2 = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)
-            pub2.publish(self.agent_manager.simplify())
-            return 'sent'
-
-        elif FO == 'find_row_ends':
-            row_id = interaction.descriptor
-            return self.routing_manager.planner.get_row_ends(agent, row_id)
-
     def get_list(self, agent):
+        # Get list from given discription
         interaction = agent().interaction
         GR = interaction.grouping
 
         if GR == 'node_list':
+            # Use given list of nodes
             L = interaction.list
 
         elif GR == 'agent_list':
-            L = {agent_id: self.AllAgentsList[agent_id] for agent_id in interaction.list}
+            # Use given list of agents
+            L = {agent_id: self.AllAgentsList[agent_id] for agent_id in interaction.list if agent_id in self.AllAgentsList}
 
         elif GR == 'node_descriptor':
+            # Generate list of nodes matching descriptor (special nodes listed in coordinator config)
             descriptor = interaction.descriptor
             occupied = self.get_occupied_nodes(agent)
             #print("occupied: %s" % str(occupied))
             L = [n['id'] for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)]
 
         elif GR == 'agent_descriptor':
+            # Generate list of agents based on some characteristics
             descriptor = interaction.descriptor
+            r = descriptor['role']
+            descriptor['role'] = r if type(r) == type([]) else [r]
             L = {a.agent_id: a for a in self.AllAgentsList.values() if
                      (a is not agent) and #not the agent making the call
                      (a.registration) and #agent is registered
                      (a().accepting_new_tasks) and #agent is accepting new tasks / active task is interruptable
                      (descriptor['module'] in a.modules) and #agent has the required module
-                     (descriptor['role'] == a.modules[descriptor['module']].role) #agent is of the type required
+                     (a.modules[descriptor['module']].role in descriptor['role']) #agent is of the type required
                  #TODO: we need to make sure here that the robot has not been assigned to a picker on the same cycle
                  #and a.id not in self.cycle_repsonse? #todo: this will have tons of problems...
                  }
             #TODO make accepitng tasks a different generator
 
         elif GR == 'head_nodes':
+            # Generate list of nodes based on format of name
             L = [float(n.split("-c")[0][1:]) for n in agent.map_handler.empty_node_list if n.endswith('ca')]
 
         elif GR == 'new_list_generators_go_here':
@@ -105,20 +99,31 @@ class InteractionManager(object):
 
         return L
 
+
     def get_item(self, agent, list):
+        # Get item from given list
         interaction = agent().interaction
         location = agent.location()
         ST = interaction.style
-        if ST == 'closest_agent':
+        if ST == 'named_agent':
+            print(ST)
+            print(list)
+            i = list.keys()[0]
+            I = self.AllAgentsList[i] if i in self.AllAgentsList else None
+
+        elif ST == 'closest_agent':
+            # Find closet agent in list
             new_list = {k: self.dist(v, v.location(), location) for k, v in list.items()}
             i = self.get_dist(new_list)
             I = self.AllAgentsList[i] if i in self.AllAgentsList else None
 
         elif ST == 'closest_node':
+            # Find closet node in list
             new_list = {n: self.dist(agent, n, agent.location()) for n in list}
             I = self.get_dist(new_list)
 
         elif ST == 'head_node_allocator':
+            # Find head node closest to pickers
             print([(a.agent_id, a.location.current_node, a.location.closest_node, a.registration, a.modules['transportation'].role == 'picker') for a in self.AllAgentsList.values()])
             PLoc = {a.agent_id:float(a.location.current_node.split("-c")[0][1:]) for a in self.AllAgentsList.values() if a.registration and ('-c' in a.location.current_node) and (a.modules['transportation'].role == 'picker')}
             print(PLoc)
@@ -134,7 +139,27 @@ class InteractionManager(object):
         elif ST == 'new_identifications_go_here':
             I = None
 
+        else:
+            I = None
+
         return I
+
+
+    def get_info(self, agent):
+        interaction = agent().interaction
+        FO = interaction.info
+
+        if FO == 'send_info':
+            pub1 = Publisher('/car_client/info/map', Str, queue_size=1, latch=True)
+            pub1.publish(agent.map_handler.simplify())  # issues with res_map?, (but called by humans & they use full)
+            pub2 = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)
+            pub2.publish(self.agent_manager.simplify())
+            return 'sent'
+
+        elif FO == 'find_row_ends':
+            row_id = interaction.descriptor
+            return self.routing_manager.planner.get_row_ends(agent, row_id)
+
 
     """ Interaction Tools """
 

@@ -151,6 +151,7 @@ class AgentDetails(object):
         self.modules = {t['name']: Module(agent=self, name=t['name'], role=t['role'], details=t['details']) for t in agent_dict['modules']}
 
         #Location and Callbacks
+        #if 'navigation' in self.modules:
         lp = self.local_properties
         np = self.modules['navigation'].interface.details
         initial_location = lp['initial_location'] if 'initial_location' in lp else ''
@@ -309,6 +310,8 @@ class AgentDetails(object):
         Modify Marker: call self.format_marker("red")
         Remove Marker: call self.format_marker("remove")
         """
+        if 'base' not in self.modules: return
+
         marker = MarkerDetails()
         marker.agent_id = self.agent_id
         marker.type = self.modules['base'].details['rviz_model']

@@ -139,6 +139,33 @@ class ScannerVirtual(Interface):
                          Stages['rasberry_data_collection_pkg']['NavigateToDCEndNode'](self.agent),
                          Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent)
                      ]))
+    def scheduled_scan_edge(self, task_id=None, details=None, contacts=None, initiator_id=""):
+        details = details or dict()
+        details["row"] = "r%s"%(details['msg'].row)
+
+        contacts = contacts or dict()
+        nodeA = "r%s-c%s"%(details['msg'].row, details['msg'].edge_nodes[0])
+        nodeB = "r%s-c%s"%(details['msg'].row, details['msg'].edge_nodes[1])
+        contacts={"row_ends": [nodeA, nodeB]}
+
+        logmsg(category="SCHEDU", id=self.agent.agent_id, msg="Scheduled request to treat edge")
+        return (Task(id=task_id,
+                     module='rasberry_data_collection_pkg',
+                     name="scan_edge",
+                     details=details,
+                     contacts=contacts,
+                     initiator_id=initiator_id,
+                     responder_id="",
+                     stage_list=[
+                         Stages['base']['StartTask'](self.agent, task_id),
+                         Stages['assignment']['FindStartNode'](self.agent),
+                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
+                         Stages['rasberry_data_collection_pkg']['NavigateToDCEndNode'](self.agent),
+                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent)
+                     ]))
+
+
+
 
     def scan_row(self, task_id=None, details=None, contacts=None, initiator_id=""):
         return (Task(id=task_id,
@@ -156,3 +183,23 @@ class ScannerVirtual(Interface):
                          Stages['rasberry_data_collection_pkg']['NavigateToDCEndNode'](self.agent),
                          Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent)
                      ]))
+    def scheduled_scan_row(self, task_id=None, details=None, contacts=None, initiator_id=""):
+        details = details or dict()
+        details["row"] = details['msg'].criteria.edges[0]
+        logmsg(category="SCHEDU", id=self.agent.agent_id, msg="Scheduled request to treat row")
+        return (Task(id=task_id,
+                     module='rasberry_data_collection_pkg',
+                     name="scheduled_scan_row",
+                     details=details,
+                     contacts=contacts,
+                     initiator_id=initiator_id,
+                     responder_id="",
+                     stage_list=[
+                         Stages['base']['StartTask'](self.agent, task_id),
+                         Stages['assignment']['FindRowEnds'](self.agent, details['row']),
+                         Stages['assignment']['FindStartNode'](self.agent),
+                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
+                         Stages['rasberry_data_collection_pkg']['NavigateToDCEndNode'](self.agent),
+                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent)
+                     ]))
+

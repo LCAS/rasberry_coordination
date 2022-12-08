@@ -83,3 +83,29 @@ class Charge(StageBase):
     def _end(self):
         """Enable registration once task is ended"""
         self.agent.registration = True
+
+
+class AssignRobot(InteractionResponse):
+    def __init__(self, agent, details, task_name):
+        self.details = details
+        self.task_name = task_name
+        super(AssignRobot, self).__init__(agent)
+        print(self.details)
+        grouping = 'agent_list'
+        via=self.details['msg'].criteria.viable_agents
+        self.interaction=InteractionDetails(type='search',
+                                            grouping='agent_list',
+                                            list=via,
+                                            style='named_agent')
+        self.contact = 'robot'
+
+    def _end(self):
+        super(AssignRobot, self)._end()
+        cont=self.agent['contacts']['robot']
+        cont.add_task(module="rasberry_health_monitoring_pkg",
+                      name=self.task_name,
+                      task_id=self.agent['id'],
+                      details=self.details,
+                      contacts=self.contacts,
+                      initiator_id=self.agent.agent_id)
+

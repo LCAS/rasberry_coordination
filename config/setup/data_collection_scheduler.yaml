@@ -1,5 +1,0 @@
-modules:
-  - name: base
-    role: Scheduler
-    details:
-      - key: value

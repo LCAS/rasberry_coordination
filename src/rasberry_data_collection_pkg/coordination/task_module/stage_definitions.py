@@ -102,6 +102,33 @@ class AssignScanner(InteractionResponse):
                                                    initiator_id=self.agent.agent_id)
 
 
+class ScheduleScanner(InteractionResponse):
+    def __init__(self, agent, details, task_name):
+        self.details = details
+        self.task_name = task_name
+        super(ScheduleScanner, self).__init__(agent)
+        print(self.details)
+        via=self.details['msg'].criteria.viable_agents
+        grouping = 'agent_list' if via else 'agent_descriptor'
+        descriptor = {'module':'rasberry_data_collection_pkg', 'role':['Scanner', 'ScannerVirtual']}
+        self.interaction=InteractionDetails(type='search',
+                                            grouping=grouping,
+                                            list=via,
+                                            descriptor=descriptor,
+                                            style='closest_agent')
+        self.contact = 'scanner'
+
+    def _end(self):
+        super(ScheduleScanner, self)._end()
+        cont=self.agent['contacts']['scanner']
+        cont.add_task(module="rasberry_data_collection_pkg",
+                      name=self.task_name,
+                      task_id=self.agent['id'],
+                      details=self.details,
+                      contacts=None,
+                      initiator_id=self.agent.agent_id)
+
+
 class AwaitCompletion(Idle):
     def _start(self):
         super(AwaitCompletion, self)._start()
