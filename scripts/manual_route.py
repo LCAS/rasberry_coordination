@@ -12,7 +12,8 @@ class ManualRoute:
         self.pub = rospy.Publisher('/topological_navigation/goal', GotoNodeActionGoal, queue_size=5)
         self.speaker = rospy.Publisher('/ui/speaker', String, queue_size=5)
 
-        row_ids = [0.7, 1.5, 2.5, 3.5, 4.5, 5.3, 5.7, 6.5, 7.5, 8.5, 9.5, 10.3]
+        #row_ids = [0.7, 1.5, 2.5, 3.5, 4.5, 5.3, 5.7, 6.5, 7.5, 8.5, 9.5, 10.3]
+        row_ids = [4.5, 5.3, 5.7, 6.5, 7.5, 8.5, 9.5, 10.3]
         #random.shuffle(row_ids)
         rows = ["r%s-c"%r for r in row_ids]
 
@@ -28,12 +29,13 @@ class ManualRoute:
         sleep(5)
         self.route = route
         self.i = 0
+        self.counter = 100
         self.e = GotoNodeActionGoal()
         self.publish_next_node()
 
     def publish_next_node(self):
         e = GotoNodeActionGoal()
-        e.header.seq = self.i*10
+        e.header.seq = self.counter
         e.header.stamp = rospy.Time.now()
         e.goal_id.stamp = rospy.Time.now()
         e.goal_id.id = "/route-2-"+str(e.goal_id.stamp.secs)+".0"+str(e.goal_id.stamp.nsecs)[:2]
@@ -43,8 +45,9 @@ class ManualRoute:
         print(e)
         self.e = e
         self.pub.publish(self.e)
-        self.speaker.publish(String('new target: %s'%self.route[self.i].replace('-c','-c,'))
+        self.speaker.publish(String('new target: %s'%self.route[self.i].replace('-c','-c,')))
         self.i += 1
+        self.counter += 1
 
         """
         header:
@@ -66,10 +69,12 @@ class ManualRoute:
     def callback(self, msg):
         print("\n"*2)
         print(msg)
-        if msg.result.success:
+        if msg.result.success==True:
             self.publish_next_node()
         else:
-            self.speaker.publish(String('again: %s'%self.route[self.i].replace('-c','-c,'))
+            self.speaker.publish(String('again: %s'%self.route[self.i].replace('-c','-c,')))
+            self.e.header.seq = self.counter
+            self.counter += 1
             self.pub.publish(self.e)
 
 if __name__ == '__main__':
