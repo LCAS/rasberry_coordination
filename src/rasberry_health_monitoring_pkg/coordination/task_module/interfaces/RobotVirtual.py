@@ -54,6 +54,20 @@ class RobotVirtual(Interface):
                         Stages['rasberry_health_monitoring_pkg']['Charge'](self.agent)
                     ]))
 
+    def send_to_mot(self, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='rasberry_health_monitoring_pkg',
+                    name="send_to_mot",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=self.agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        Stages['base']['StartTask'](self.agent),
+                        Stages['navigation']['NavigateToNode'](self.agent, target=details['msg'].criteria.nodes[0]),
+                        Stages['base']['Idle'](self.agent)
+                    ]))
+
 
     def enable_navigation(self):
         print('force replanning attempt')
