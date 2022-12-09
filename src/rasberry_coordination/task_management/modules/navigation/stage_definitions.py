@@ -29,11 +29,11 @@ class Navigation(StageBase):
         # if self.target:
         #     return "%s(%s)"%(self.get_class(), self.target.replace('WayPoint','WP'))
         return "%s" % (self.get_class())
-    def __init__(self, agent, association):
+    def __init__(self, agent, association, target=None):
         """Identify the location from which the target is identified"""
         super(Navigation, self).__init__(agent)
         self.association = association
-        self.target = None
+        self.target = target
     def _start(self):
         """Flag the agent as requirieng a route"""
         super(Navigation, self)._start()
@@ -62,7 +62,7 @@ class NavigateToNode(Navigation):
     """Used for navigating to a given node"""
     def _start(self):
         """Start task by setting the target to a given node"""
-        self.target = self.agent['contacts'][self.association]
+        self.target = self.target if self.target else self.agent['contacts'][self.association]
         super(NavigateToNode, self)._start()
 
 """ Navigation Subclasses """

@@ -20,14 +20,6 @@ class Scheduler(Interface):
                         Stages['rasberry_data_collection_pkg']['ScheduleScanner'](self.agent, details, 'scheduled_scan_row')
                     ]))
 
-
-
-
-
-
-
-
-
     def assign_scan_edge(self, task_id=None, details=None, contacts=None, initiator_id=""):
         #details = details or dict()
         #details["action_time_limit"] = 100 #TODO what fallout arises from fields here moving towards start of pipeline?
