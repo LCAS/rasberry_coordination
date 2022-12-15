@@ -1,4 +1,4 @@
 import Scanner
-import ScannerVirtual
+import ScannerDebug
 import Controller
 import Scheduler

@@ -15,7 +15,7 @@ try: from rasberry_coordination.task_management.__init__ import PropertiesDef as
 except: pass
 
 
-class ScannerVirtual(Interface):
+class ScannerDebug(Interface):
 
     def __init__(self, agent, details=None):
         self.agent = agent
@@ -36,24 +36,41 @@ class ScannerVirtual(Interface):
         self.action_status = False
         self.action_publisher = SAC('/%s/data_collection/data_collection_server/collect_data' % agent.agent_id, RDCCollectDataAction)
 
+    def idle(self, task_id=None, details=None, contacts=None, initiator_id=""):
+        return self.wait_at_base()
+
+    def wait_at_base(self, task_id=None, details=None, contacts=None, initiator_id=""):
+        return(Task(id=task_id,
+                    module='rasberry_data_collection_pkg',
+                    name="wait_at_base",
+                    details=details,
+                    contacts=contacts,
+                    initiator_id=self.agent.agent_id,
+                    responder_id="",
+                    stage_list=[
+                        Stages['base']['StartTask'](self.agent, task_id),
+                        Stages['assignment']['AssignBaseNodeIdle'](self.agent),
+                        Stages['navigation']['NavigateToBaseNodeIdle'](self.agent),
+                        Stages['base']['Idle'](self.agent)
+                    ]))
+
     def on_demand_task(self, msg):
         if self.agent.registration:
-            if msg.edge_nodes:
+            if msg.edge_nodes != ['']:
                 # msg.row = 3
                 # msg.edge_nodes = [0,1]
                 nodeA = "r%s-c%s"%(msg.row, msg.edge_nodes[0])
                 nodeB = "r%s-c%s"%(msg.row, msg.edge_nodes[1])
                 logmsg(category="DCTASK", id=self.agent.agent_id, msg="Request to treat edge")
-                self.agent.add_task(task_name='data_collection_scan_edge', contacts={"row_ends": [nodeA, nodeB]})
+                self.agent.add_task(module='rasberry_data_collection_pkg', name='scan_edge', contacts={"row_ends": [nodeA, nodeB]})
             else:
                 # msg.row = 3
                 row = "r%s"%(msg.row)
                 logmsg(category="DCTASK", id=self.agent.agent_id, msg="Request to treat row")
-                self.agent.add_task(task_name='data_collection_scan_row', details={"row": row})
+                self.agent.add_task(module='rasberry_data_collection_pkg', name='scan_row', details={"row": row})
 
     def server_status_cb(self, msg):
         self.action_server_status = True
- # tmux-controller sent Ctrl-C at Sun Nov 20 18:37:25 2022
 
     def DCR(origin, end, orientation='front', data_config=None):
         """
@@ -117,11 +134,38 @@ class ScannerVirtual(Interface):
                      responder_id="",
                      stage_list=[
                          Stages['base']['StartTask'](self.agent, task_id),
-                         Stages['base']['FindStartNode'](self.agent),
+                         Stages['assignment']['FindStartNode'](self.agent),
                          Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
                          Stages['rasberry_data_collection_pkg']['NavigateToDCEndNode'](self.agent),
                          Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent)
                      ]))
+    def scheduled_scan_edge(self, task_id=None, details=None, contacts=None, initiator_id=""):
+        details = details or dict()
+        details["row"] = "r%s"%(details['msg'].row)
+
+        contacts = contacts or dict()
+        nodeA = "r%s-c%s"%(details['msg'].row, details['msg'].edge_nodes[0])
+        nodeB = "r%s-c%s"%(details['msg'].row, details['msg'].edge_nodes[1])
+        contacts={"row_ends": [nodeA, nodeB]}
+
+        logmsg(category="SCHEDU", id=self.agent.agent_id, msg="Scheduled request to treat edge")
+        return (Task(id=task_id,
+                     module='rasberry_data_collection_pkg',
+                     name="scan_edge",
+                     details=details,
+                     contacts=contacts,
+                     initiator_id=initiator_id,
+                     responder_id="",
+                     stage_list=[
+                         Stages['base']['StartTask'](self.agent, task_id),
+                         Stages['assignment']['FindStartNode'](self.agent),
+                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
+                         Stages['rasberry_data_collection_pkg']['NavigateToDCEndNode'](self.agent),
+                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent)
+                     ]))
+
+
+
 
     def scan_row(self, task_id=None, details=None, contacts=None, initiator_id=""):
         return (Task(id=task_id,
@@ -133,9 +177,29 @@ class ScannerVirtual(Interface):
                      responder_id="",
                      stage_list=[
                          Stages['base']['StartTask'](self.agent, task_id),
-                         Stages['base']['FindRowEnds'](self.agent, details['row']),
-                         Stages['base']['FindStartNode'](self.agent),
+                         Stages['assignment']['FindRowEnds'](self.agent, details['row']),
+                         Stages['assignment']['FindStartNode'](self.agent),
                          Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
                          Stages['rasberry_data_collection_pkg']['NavigateToDCEndNode'](self.agent),
                          Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent)
                      ]))
+    def scheduled_scan_row(self, task_id=None, details=None, contacts=None, initiator_id=""):
+        details = details or dict()
+        details["row"] = details['msg'].criteria.edges[0]
+        logmsg(category="SCHEDU", id=self.agent.agent_id, msg="Scheduled request to treat row")
+        return (Task(id=task_id,
+                     module='rasberry_data_collection_pkg',
+                     name="scheduled_scan_row",
+                     details=details,
+                     contacts=contacts,
+                     initiator_id=initiator_id,
+                     responder_id="",
+                     stage_list=[
+                         Stages['base']['StartTask'](self.agent, task_id),
+                         Stages['assignment']['FindRowEnds'](self.agent, details['row']),
+                         Stages['assignment']['FindStartNode'](self.agent),
+                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
+                         Stages['rasberry_data_collection_pkg']['NavigateToDCEndNode'](self.agent),
+                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent)
+                     ]))
+

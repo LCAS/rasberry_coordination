@@ -4,7 +4,7 @@ echo -e "  \033[1;${source_colour_base}m \033[0;1;${source_colour_accent}m Sourc
 
 #Debug functions
 function force () { rostopic pub /rasberry_coordination/force_replan std_msgs/Empty "{}" --once ; }
-function coord () { tmux capture-pane -pS -50000 -t server_virtual:coordinator.2 > "`date` - coordinator_output.txt" ; }
+function coord () { tmux capture-pane -pS -50000 -t server_debug:coordinator.2 > "`date`___coordinator_output.txt" ; }
 function coord2 () {
   #coord
   cat coordinator_output.txt | grep -n -A 100000 "DCTASK" | grep "Begun stage\|is over"

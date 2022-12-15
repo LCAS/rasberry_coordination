@@ -6,7 +6,7 @@ modules:
       - rviz_model: short_robot
 
   - name: navigation
-    role: RobotVirtual
+    role: RobotDebug
     details:
       - has_presence: true
       - restrictions: short

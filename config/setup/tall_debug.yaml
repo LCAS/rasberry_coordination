@@ -6,14 +6,14 @@ modules:
       - rviz_model: tall_robot
 
   - name: navigation
-    role: RobotVirtual
+    role: RobotDebug
     details:
       - has_presence: true
       - restrictions: tall
       - wait_node_name: base_dc_node
 
   - name: rasberry_health_monitoring_pkg
-    role: RobotVirtual
+    role: RobotDebug
 
   - name: rasberry_data_collection_pkg
-    role: ScannerVirtual
+    role: ScannerDebug

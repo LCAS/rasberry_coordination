@@ -1,6 +1,6 @@
 modules:
   - name: base
-    role: VirtualHuman
+    role: DebugHuman
     details:
       - rviz_model: human
 

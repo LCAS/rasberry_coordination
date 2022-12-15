@@ -11,7 +11,7 @@ from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import LocationObj as Location, MapObj as Map
 from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
 from rasberry_coordination.task_management.containers.Task import TaskObj as Task
-from rasberry_coordination.robot import Robot, VirtualRobot
+from rasberry_coordination.robot import Robot, DebugRobot
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
 from rasberry_coordination.task_management.modules.base.stage_definitions import StageBase

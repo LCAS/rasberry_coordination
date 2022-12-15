@@ -11,7 +11,7 @@ import rospy
 from geometry_msgs.msg import Pose, Point, Quaternion
 
 """
-Sets initial position of virtual robot
+Sets initial position of debug robot
 + offers capability to set new pose manually
 """
 

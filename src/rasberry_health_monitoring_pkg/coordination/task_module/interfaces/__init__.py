@@ -1,3 +1,3 @@
 import Robot
-import RobotVirtual
+import RobotDebug
 import Scheduler
