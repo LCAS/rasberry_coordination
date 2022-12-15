@@ -26,7 +26,7 @@ class NavigateToDCStartNode(NavigateToNode):
             self.agent['contacts']['controller'].modules['rasberry_data_collection_pkg'].interface.notify("sar_AWAIT_START")
         super(NavigateToDCStartNode, self)._start()
 
-""" For virtual agents only (until we get a better interface setup """
+""" For debug agents only (until we get a better interface setup) """
 class NavigateToDCEndNode(NavigateToNode):
     """Used to navigate to a given end node"""
     def __init__(self, agent):
@@ -110,7 +110,7 @@ class ScheduleScanner(InteractionResponse):
         print(self.details)
         via=self.details['msg'].criteria.viable_agents
         grouping = 'agent_list' if via else 'agent_descriptor'
-        descriptor = {'module':'rasberry_data_collection_pkg', 'role':['Scanner', 'ScannerVirtual']}
+        descriptor = {'module':'rasberry_data_collection_pkg', 'role':['Scanner', 'ScannerDebug']}
         self.interaction=InteractionDetails(type='search',
                                             grouping=grouping,
                                             list=via,

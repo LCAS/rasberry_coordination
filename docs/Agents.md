@@ -48,7 +48,7 @@ modules: Dictionary of modules referenced by module name
   .idle_task_name: name of the module's idle task in the form of `interface_name`_idle
 ```
 
-The **location encapsulator** is initialised with a property for `has_presence` which identifies if the navigation system should allow other agents to use the route and `initial_location` which is used to preload a location for virtual agents or static agents such as storage locations. The encapsulator offers three functionality of note:
+The **location encapsulator** is initialised with a property for `has_presence` which identifies if the navigation system should allow other agents to use the route and `initial_location` which is used to preload a location for debug agents or static agents such as storage locations. The encapsulator offers three functionality of note:
 
 ```yaml
 location: Location object to encapsulate all current-localisation tools

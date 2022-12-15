@@ -241,13 +241,13 @@ class Robot(object):
         rospy.sleep(0.1)
 
 
-class VirtualRobot(object):
+class DebugRobot(object):
     def __init__(self, agent_id, agent, step_delay=0.5):
         self.agent = agent
         self.execpolicy_goal, self.route = ExecutePolicyModeGoal(), Path()
 
-        default = rospy.get_param('/rasberry_coordination/task_modules/navigation/virtual_robot_step_delay', step_delay)
-        rospy.set_param('/rasberry_coordination/task_modules/navigation/virtual_robot_step_delay', default)
+        default = rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', step_delay)
+        rospy.set_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', default)
 
         self.topo_map = None
         self.rec_topo_map = False
@@ -349,7 +349,7 @@ class VirtualRobot(object):
             # Wait the 2 seconds till we should be taking the next item
             logmsg(category='vr_rob', id=self.agent.agent_id, msg='3) delay begun | ')
             print("\n")
-            rospy.sleep(rospy.get_param('/rasberry_coordination/task_modules/navigation/virtual_robot_step_delay', 2))
+            rospy.sleep(rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2))
             print("\n")
             logmsg(category='vr_rob', id=self.agent.agent_id, msg='3) delay ended | ')
             logmsg(category='vr_rob', id=self.agent.agent_id, msg='4) moving      | { %s > %s }' % (self.current_node(), self.next_node()))
@@ -442,7 +442,7 @@ class VirtualRobot(object):
     #         # self.closest_node_pub.publish(new_node)
     #
     #         # Wait the 2 seconds till we should be taking the next item
-    #         rospy.sleep(rospy.get_param('/rasberry_coordination/virtual_robot/route_step_delay', 2))
+    #         rospy.sleep(rospy.get_param('/rasberry_coordination/debug_robot/route_step_delay', 2))
     #
     #         # Identify next pose to set, and remove it from the route
     #         pose = self.route.poses.pop(0).pose

@@ -11,7 +11,7 @@ from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import LocationObj as Location, MapObj as Map
 from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
 from rasberry_coordination.task_management.containers.Task import TaskObj as Task
-from rasberry_coordination.robot import Robot, VirtualRobot
+from rasberry_coordination.robot import Robot, DebugRobot
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
@@ -108,11 +108,11 @@ class WaitForMap(StageBase):
         """Complete stage once a tmap is available"""
         success_conditions = [self.agent.map_handler.filtered_node_list]
         self.flag(any(success_conditions))
-class EnableVirtualLocalisation(StageBase):
-    """Enable localisation for virtual agents"""
+class EnableDebugLocalisation(StageBase):
+    """Enable localisation for debug agents"""
     def _start(self):
-        """Enable subscribers to virtual localisation"""
-        super(EnableVirtualLocalisation, self)._start()
+        """Enable subscribers to debug localisation"""
+        super(EnableDebugLocalisation, self)._start()
         self.agent.navigation_interface.enable_subscribers()
     def _query(self):
         """Complete the stage without any condition"""

@@ -66,7 +66,7 @@ include_directories(
 install(PROGRAMS
   scripts/abstract_task_executor_node.py
   scripts/add_agent.py
-  scripts/initialise_virtual_agent_position.py
+  scripts/initialise_debug_agent_position.py
   scripts/rviz_markers.py
   scripts/ui_speaker_broadcast.py
   scripts/ui_speaker.py

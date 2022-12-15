@@ -18,10 +18,10 @@ try: from rasberry_coordination.task_management.__init__ import PropertiesDef as
 except: pass
 
 
-class RobotVirtual(Interface):
+class RobotDebug(Interface):
 
     def __init__(self, agent, details):
-        super(RobotVirtual, self).__init__(agent, details)
+        super(RobotDebug, self).__init__(agent, details)
         self.speaker = self.agent.speaker
 
         self.motors_have_scripts = True

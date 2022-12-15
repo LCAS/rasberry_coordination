@@ -439,8 +439,8 @@ Used to identify of two nodes, which one is closest ot the agent.
 
 
 -------------------------------------------
-#### EnableVirtualLocalisation: [`StageBase(.)`]
-Enable localisation for virtual agents
+#### EnableDebugLocalisation: [`StageBase(.)`]
+Enable localisation for debug agents
 
     -> __repr__
        | . | Simplified representation of class for clean informative logging
@@ -450,7 +450,7 @@ Enable localisation for virtual agents
 
     -> _start
        | . | Stage start, called when this is the active stage.
-       |   | Enable subscribers to virtual localisation
+       |   | Enable subscribers to debug localisation
 
     -> _query
        | . | Used to define the criteria which ust be met for the stage to be completed
