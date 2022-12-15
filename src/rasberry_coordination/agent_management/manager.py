@@ -169,14 +169,27 @@ class AgentDetails(object):
         #Debug
         self.speaker_pub = Publisher('/%s/ui/speaker'%self.agent_id, Str, queue_size=1)
 
+
         #Final Setup
         for m in self.modules.values(): m.add_init_task()
         self.format_marker(style='red')
 
+
+
     """ Task Starters """
     def add_idle_tasks(self):
         [self.add_task(module=m.name, name='idle') for m in self.modules.values() if m.name != "base"]
-        if 'base' in self.modules: self.add_task(module='base', name='idle')
+        if 'base' in self.modules: 
+
+
+#TODO: check if the field_storage has a problem with idle tasks being stacked
+#<<<<<<< HEAD
+            self.add_task(module='base', name='idle')
+#=======
+#            if 'field_storage' not in self.roles():
+#                self.add_task(task_name=self.modules['base'].idle_task_name)
+#>>>>>>> atm_qol
+
 
         if not self.task_buffer:
             logmsg(level="error", category="task", id=self.agent_id, msg="WARNING! Agent has no idle tasks.")
@@ -302,7 +315,7 @@ class AgentDetails(object):
 
 
     """ Visuals """
-    def format_marker(self, style):
+    def format_marker(self, color=None, style=None):
         """
         Add/modify marker to display in rviz
 

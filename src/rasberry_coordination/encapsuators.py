@@ -57,8 +57,8 @@ class LocationObj(object):
 
     def enable_localisation(self, msg):
         self.previous_node, self.current_node, self.closest_node = None, None, None
-        self.current_node_sub = Sub(self.picker_id + "/current_node", Str, self.current_node_cb)
-        self.closest_node_sub = Sub(self.picker_id + "/closest_node", Str, self.closest_node_cb)
+        self.current_node_sub = Subscriber(self.picker_id + "/current_node", Str, self.current_node_cb)
+        self.closest_node_sub = Subscriber(self.picker_id + "/closest_node", Str, self.closest_node_cb)
 
 
 class MapObj(object):

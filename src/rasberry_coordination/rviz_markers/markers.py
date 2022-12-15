@@ -21,6 +21,7 @@ class AgentMarker(object):
         self.structure_dict = dicts['structures']
         self.components_dict = dicts['components']
         self.agent_id = agent_id
+        self.type = agent_type
         self.agent_color = agent_color
         self.marker_array = MarkerArray()
         self.tf = TFPublishers.get_tf_convertor(agent_id, agent_type)
@@ -28,7 +29,9 @@ class AgentMarker(object):
     def generate_marker_array(self):
         print("generating a new array of markers")
         marker_array = MarkerArray()
-        for component_type,items in self.structure_dict.items():
+        if self.type not in self.structure_dict:
+            self.type = 'short_robot_load_4'
+        for component_type,items in self.structure_dict[self.type].items():
             for i in items:
                 c = self.get_component(component_type, ns=i[0], marker_index=i[1], position=i[2])
                 marker_array.markers.append(c)
@@ -36,10 +39,10 @@ class AgentMarker(object):
 
     def get_component(self, component_type, ns, marker_index, position):
         component_dict = self.components_dict[component_type]
-        
+
         component = Marker()
         component.header.frame_id = "%s/base_link"%self.agent_id
-        component.ns = ns
+        component.ns = "%s__%s"%(self.agent_id, ns)
         component.id = marker_index
 
         component.type = getattr(component, component_dict['type'])
@@ -50,7 +53,7 @@ class AgentMarker(object):
         q = component_dict['quat']
         quat = quaternion_from_euler(q[0],q[1],q[2])
         component.pose.orientation = Quaternion(quat[0], quat[1], quat[2], quat[3])
-        
+
         scale = component_dict['scale']
         component.scale = Vector3(scale[0], scale[1], scale[2])
 
@@ -66,6 +69,6 @@ class AgentMarker(object):
 
         elif component.type == component.MESH_RESOURCE:
             component.mesh_resource = component_dict['mesh_resource']
-        
+
         return component
 
