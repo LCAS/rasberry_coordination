@@ -78,13 +78,15 @@ class TaskDef(object):
         LP = agent.local_properties
         MP = agent.module_properties
 
-        #If agent is at max capacity deliver load
+        #If agent is at max capacity, deliver load to storage
+        print("MAX TRANSPORTAION LOAD and LOAD: {}".format( MP["max_load"], LP['load'] ) )
         agent.local_properties['load'] = int(agent.local_properties['load'])
-        if LP['load'] >= int(MP['max_load']):
+        if LP['load'] >= 8: # int(MP['max_load']): # Sorry James for this hard coded.
             return TaskDef.transportation_deliver_load(agent=agent, task_id=task_id, details=details, contacts=contacts)
         else:
-            #return TaskDef.transportation_wait_at_head(agent=agent, task_id=task_id, details=details, contacts=contacts)
-            pass
+            # to enable smart parking, uncomment this line below. 
+            return TaskDef.transportation_wait_at_head(agent=agent, task_id=task_id, details=details, contacts=contacts)
+            #pass
 
     @classmethod
     def transportation_field_storage_idle(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
@@ -112,6 +114,7 @@ class TaskDef(object):
                         StageDef.AwaitFieldCourier(agent),
                         StageDef.LoadFieldCourier(agent),
                     ]))
+
     """ FieldCourier Tasks """
     @classmethod
     def transportation_retrieve_load(cls, agent, task_id=None, details=None, contacts=None, initiator_id=""):
@@ -141,6 +144,7 @@ class TaskDef(object):
                         StageDef.AssignHeadNodeIdle(agent),
                         StageDef.NavigateToHeadNodeIdle(agent),
                         SDef.Idle(agent)
+                        #StageDef.IdleAtUpdatingHeadNode(agent)
                     ]))
 
     @classmethod
@@ -219,7 +223,7 @@ class StageDef(object):
             self.contact = 'field_courier'
         def _start(self):
             super(StageDef.AssignFieldCourier, self)._start()
-            self.agent.format_marker(style='green')
+            self.agent.format_marker(color='green')
         def _end(self):
             """ On completion, notify picker of field_courier acceptance, and assign a retrieve load task to the field_courier"""
             super(StageDef.AssignFieldCourier, self)._end()
@@ -271,6 +275,10 @@ class StageDef(object):
             """Complete once action has generated a result"""
             success_conditions = [self.action.response != None,
                                   len(self.agent.task_buffer) > 0]
+
+            #If no pickers available, assign a wait node instead
+            if not any(success_conditions):
+                self.action = ActionDetails(type='search', grouping='node_descriptor', descriptor=self.agent.navigation_properties['wait_node_name'], style='closest_node')
             self.flag(any(success_conditions))
 
 
@@ -358,11 +366,13 @@ class StageDef(object):
             """ enable interuption """
             super(StageDef.NavigateToHeadNodeIdle, self)._start()
             self.accepting_new_tasks = True
+            self.agent.speaker("smart parking enabled: moving to %s" % (self.target))
         def _query(self):
             """Complete when the agents location is identical to the target location."""
             success_conditions = [self.agent.location(accurate=True) == self.target,
                                   len(self.agent.task_buffer) > 0]
             self.flag(any(success_conditions))
+
 
     """ FieldCourier Load Modifiers """
     class TimeoutFlagModifier(SDef.StageBase):
@@ -401,7 +411,7 @@ class StageDef(object):
         def _start(self):
             """Define the flag default as True and the timeout as the transportation/wait_loading property"""
             super(StageDef.LoadFieldCourier, self)._start(timeout_type='wait_loading', flag='has_tray', default=True, prompt="load")
-            self.agent.format_marker(style='blue')
+            self.agent.format_marker(color='blue')
     class UnloadFieldCourier(TimeoutFlagModifier):
         """Used to define completion details for when the field_courier can be considered unloaded"""
         def _start(self):
@@ -419,7 +429,8 @@ class StageDef(object):
         def _end(self):
             """On completion, increment the field_courier's total load by 1"""
             super(StageDef.Loading, self)._end()
-            self.agent.local_properties['load'] += 1
+            self.agent.local_properties['load'] += 2
+            self.agent.format_marker(style='short_robot_load_%s'%self.agent.local_properties['load'])
     class Unloading(SDef.StageBase):
         """Used for awaiting a change-of-state from the storage"""
         def _query(self):
@@ -430,3 +441,4 @@ class StageDef(object):
             """On completion, reset the field_courier's total load to 0"""
             super(StageDef.Unloading, self)._end()
             self.agent.local_properties['load'] = 0
+            self.agent.format_marker(style='short_robot')

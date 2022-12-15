@@ -138,7 +138,11 @@ class RoutingManager(object):
 
             agent.navigation_interface.cancel_execpolicy_goal()
             agent.navigation_interface.set_execpolicy_goal(policy)
-            agent.speaker("caution: moving")
+            if 'health_monitoring' in agent.modules:
+                if agent.modules['health_monitoring'].interface.navigation_available():
+                    agent.speaker("caution: moving")
+                else:
+                    agent.modules['health_monitoring'].interface.say_navigation_block()
 
             agent().route_required = False  # Route has now been published
             logmsg(category="navig", id=agent.agent_id, msg="    - route published: %s" % rationalle_to_publish)

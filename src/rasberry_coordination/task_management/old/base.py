@@ -389,7 +389,7 @@ class TaskDef(object):
                     stage_list=[
                         StageDef.SetUnregister(agent),
                         StageDef.NavigateToExitNode(agent),
-                        StageDef.Exit(agent)
+                        StageDef.Pause(agent, a=True, stop_reserving=True)
                     ]))
 
     """ Dynamic Task Management """
@@ -464,7 +464,7 @@ class StageDef(object):
             super(StageDef.StartTask, self)._start()
             self.agent['id'] = self.task_id #Set task_id as active_task_id for agent
             self.agent['start_time'] = Time.now()
-            self.agent.format_marker(style='')
+            self.agent.format_marker(color='')
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
@@ -495,7 +495,7 @@ class StageDef(object):
             """Mark agent as unregistered and send a message to rviz to display the agent as red"""
             super(StageDef.SetUnregister, self)._start()
             self.agent.registration = False
-            self.agent.format_marker(style='red')
+            self.agent.format_marker(color='red')
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
@@ -534,7 +534,7 @@ class StageDef(object):
             """Mark agent as unregistered and send a message to rviz to display the agent without modified colour"""
             super(StageDef.SetRegister, self)._start()
             self.agent.registration = True
-            self.agent.format_marker(style='')
+            self.agent.format_marker(color='')
         def _query(self):
             """Complete the stage without any condition"""
             self.flag(True)
@@ -682,6 +682,7 @@ class StageDef(object):
             """ enable interuption """
             super(StageDef.NavigateToBaseNodeIdle, self)._start()
             self.accepting_new_tasks = True
+            self.agent.speaker("standard parking enabled: moving to %s" % (self.target))
         def _query(self):
             """Complete when the agents location is identical to the target location."""
             success_conditions = [self.agent.location(accurate=True) == self.target, 
@@ -695,7 +696,6 @@ class StageDef(object):
             super(StageDef.NavigateToExitNode, self).__init__(agent, association='exit_node')
     class NavigateToWaitNode(NavigateToNode):
         """Used to navigate to a given wait_node"""
-
         def __init__(self, agent):
             """Call super to set association to wait_node"""
             super(StageDef.NavigateToWaitNode, self).__init__(agent, association='wait_node')
@@ -720,7 +720,7 @@ class StageDef(object):
             super(StageDef.NotifyTrigger, self)._start()
             self.interface = self.agent.modules[self.agent['module']].interface
             self.interface.notify(self.msg)
-            self.agent.format_marker(style=self.colour)
+            self.agent.format_marker(color=self.colour)
             self.interface[self.trigger] = True  # PSEUDO
         def _query(self):
             """Wait for flag to be set by message response (os #PSUEDO)"""
@@ -733,16 +733,21 @@ class StageDef(object):
         def __repr__(self):
             """Display scopes actively contributing to the blocking"""
             return "%s(C%s|T%s|A%s)" % (self.get_class(), int(self.pause_state['c']), int(self.pause_state['t']), int(self.pause_state['a']))
-        def __init__(self, agent):
+        def __init__(self, agent, c=False, t=False, a=False, stop_reserving=False):
             """Initialise blocking properties"""
             super(StageDef.Pause, self).__init__(agent)
             logmsg(category="DTM", msg="      | pause init")
             self.agent.registration = False
-            self.pause_state = {'c':False, 't':False, 'a':False}
+            self.stop_reserving = stop_reserving
+            self.presence = self.agent.location.has_presence
+            self.pause_state = {'c':c, 't':t, 'a':a}
         def _start(self):
             """On start, cancel any active navigation"""
             super(StageDef.Pause, self)._start()
             if hasattr(self.agent, 'navigation_interface'): self.agent.navigation_interface.cancel_execpolicy_goal()
+            if self.presence and self.stop_reserving:
+                self.agent.location.has_presence = False
+                self.agent.speaker('I am no longer reserving a node. Move me away from the path of other robots. This must be done urgently.')
             #TODO: set an agent function for generic definition of pausing?
         def _query(self):
             """Continue once all blocking stages are False"""
@@ -752,7 +757,8 @@ class StageDef(object):
         def _end(self):
             """On end, reenable registration"""
             self.agent.registration = True
-            self.agent.format_marker(style='')
+            self.agent.location.has_presence = self.presence
+            self.agent.format_marker(color='')
     class Exit(StageBase):
         """Used for controlled removal of agent connections"""
         def _start(self):
@@ -768,5 +774,5 @@ class StageDef(object):
         def _end(self):
             """Set marker to black and initiate disconnection interruption-"""
             super(StageDef.Exit, self)._end()
-            self.agent.format_marker('black')
+            self.agent.format_marker(color='black')
             self.agent.set_interrupt('disconnect', 'base', self.agent['id'], "Task")
