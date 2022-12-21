@@ -7,6 +7,7 @@
 
 import copy, gc, os, pprint, yaml
 import whiptail
+import traceback
 
 from rospy import Subscriber, Publisher, Service, Time
 
@@ -14,7 +15,7 @@ from std_msgs.msg import String as Str, Empty, Bool
 from std_srvs.srv import Trigger, TriggerResponse
 
 from diagnostic_msgs.msg import KeyValue
-from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, AgentRegistrationList, AgentRegistration, AgentStateList, AgentState
+from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, AgentRegistrationList, AgentRegistration, AgentStateList, AgentState, AgentLocationList, AgentLocation
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.encapsuators import LocationObj as Location, MapObj as Map
 from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
@@ -42,16 +43,15 @@ class AgentManager(object):
                     self.add_agents(agent_dict)
         self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', NewAgentConfig, self.add_agent_cb)
 
-
         # Marker Management
         self.cb = dict()
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
         self.get_markers_sub = Subscriber('/rasberry_coordination/get_markers', Empty, self.get_markers_cb)
 
-
         # Fleet Monitoring
         self.agent_registration = Publisher('/rasberry_coordination/fleet_monitoring/agent_registrations', AgentRegistrationList, latch=True, queue_size=2)
         self.agent_states = Publisher('/rasberry_coordination/fleet_monitoring/agent_states', AgentStateList, latch=True, queue_size=2)
+        self.agent_locations = Publisher('/rasberry_coordination/fleet_monitoring/agent_locations', AgentLocationList, latch=True, queue_size=2)
 
 
     """ Dynamic Fleet """
@@ -85,21 +85,28 @@ class AgentManager(object):
     def fleet_monitoring(self):
         self.publish_registrations()
         self.publish_states()
+        self.publish_locations()
     def publish_registrations(self):
         try:
             lst = [AgentRegistration(agent_id=a.agent_id, registered=a.registration) for a in self.agent_details.values()]
             self.agent_registration.publish(AgentRegistrationList(list=lst))
         except Exception as e:
-            print(e)
-            pass
+            print(traceback.format_exc())
     def publish_states(self):
         try:
             lst = [AgentState(agent_id=a.agent_id, current_task_id=a['id'], current_task=a['name'], stage=a().__repr__(), details=str(a['details'])) for a in self.agent_details.values()]
             self.agent_states.publish(AgentStateList(list=lst))
         except Exception as e:
-            print(e)
-            pass
-
+            print(traceback.format_exc())
+    def publish_locations(self):
+        try:
+            lst = []
+            for a in self.agent_details.values():
+                col = a.modules['base'].details['default_colour'] if 'base' in a.modules and 'default_colour' in a.modules['base'].details else ''
+                lst.append(AgentLocation(agent_id=a.agent_id, current_node=a.location.current_node, current_edge=a.location.closest_edge, color=col))
+            self.agent_locations.publish(AgentLocationList(list=lst))
+        except Exception as e:
+            print(traceback.format_exc())
 
     """ RViZ Visuals """
     def get_markers_cb(self, empty):
