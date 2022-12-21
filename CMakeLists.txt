@@ -29,6 +29,8 @@ add_message_files(
   AgentRegistration.msg
   AgentStateList.msg
   AgentState.msg
+  AgentLocationList.msg
+  AgentLocation.msg
   FullLocation.msg
   Interruption.msg
   MarkerDetails.msg

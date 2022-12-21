@@ -127,8 +127,7 @@ class MapObj(object):
             if '.' in k:
                 short[k] = [n.split('-')[1][1:] for n in self.empty_node_list if n.split('-')[0] == ('r' + k ) and '.' in n]
             else:
-                tall[k] = [n.split('-')[1][1:] for n in self.empty_node_list if  n.split('-')[0] == ('r' + k) and '.' not in n ]
- 
+                tall[k] = [n.split('-')[1][1:] for n in self.empty_node_list if  n.split('-')[0] == ('r' + k) and '.' not in n]
         Map = { 'tall' : tall , 'short' : short }
         return Str(str(Map))
 
