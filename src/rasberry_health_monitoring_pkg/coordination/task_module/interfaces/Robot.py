@@ -58,8 +58,8 @@ class Robot(Interface):
                     responder_id="",
                     stage_list=[
                         Stages['rasberry_health_monitoring_pkg']['StartChargeTask'](self.agent),
-                        Stages['rasberry_health_monitoring_pkg']['AssignChargeNode'](self.agent),
-                        Stages['rasberry_health_monitoring_pkg']['NavigateToChargeNode'](self.agent),
+                        Stages['assignment']['AssignNode'](self.agent, contact_id='reserved_charging_station', node_descriptor='charging_station'),
+                        Stages['rasberry_health_monitoring_pkg']['NavigateToChargeNode'](self.agent, contact_id='reserved_charging_station'),
                         Stages['rasberry_health_monitoring_pkg']['Charge'](self.agent)
                     ]))
 

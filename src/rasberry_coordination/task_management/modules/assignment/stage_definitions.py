@@ -14,7 +14,7 @@ from rasberry_coordination.task_management.containers.Task import TaskObj as Tas
 from rasberry_coordination.robot import Robot, DebugRobot
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
-from rasberry_coordination.task_management.modules.base.stage_definitions import StageBase
+from rasberry_coordination.task_management.modules.base.stage_definitions import StageBase, Idle
 
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
@@ -41,7 +41,6 @@ class InteractionResponse(StageBase):
             self.agent['contacts'][self.contact] = self.interaction.response
 
 class SendInfo(InteractionResponse):
-    """ f """
     def __init__(self, agent):
         """ Mark the details of the associated Interaction """
         super(SendInfo, self).__init__(agent)
@@ -51,42 +50,22 @@ class SendInfo(InteractionResponse):
 
 """ Node identification Stages"""
 class AssignNode(InteractionResponse):
-    """ f """
-    def __repr__(self):
-        """ f """
-        return "%s(%s)" % (self.get_class(), self.contact)
-    def __init__(self, agent, node_type):
-        """ Mark the details of the associated Interaction """
+    def __repr__(self, **kw):
+        return "%s(%s)" % (self.get_class(), self.interaction.descriptor)
+    def __init__(self, agent, contact_id, node_descriptor, style='closest_node', **kw):
         super(AssignNode, self).__init__(agent)
-        self.interaction = InteractionDetails(type='search', grouping='node_descriptor', descriptor=node_type, style='closest_node')
-        print(self.interaction.__dict__)
-        self.contact = node_type
+        self.interaction = InteractionDetails(type='search', grouping='node_descriptor', descriptor=node_descriptor, style=style)
+        self.contact = contact_id
 
-class AssignBaseNode(InteractionResponse):
-    """Used to identify the closest available base_node."""
-    def __init__(self, agent):
-        """ Mark the details of the associated Interaction """
-        super(AssignBaseNode, self).__init__(agent)
-        self.interaction = InteractionDetails(type='search', grouping='node_descriptor', descriptor=self.agent.modules['navigation'].details['wait_node_name'], style='closest_node')
-        self.contact = 'base_node'
-class AssignBaseNodeIdle(AssignBaseNode):
-    """Used to identify the closest available base_node."""
-    def _start(self):
-        super(AssignBaseNode, self)._start()
-        self.accepting_new_tasks = True
-    def _query(self):
-        """Complete once interaction has generated a result"""
-        success_conditions = [self.interaction.response != None,
-                              len(self.agent.task_buffer) > 0]
-        self.flag(any(success_conditions))
+class AssignNodeIdle(AssignNode, Idle):
+    """ Used to process both stages together """
+    pass
 
-class AssignWaitNode(InteractionResponse):
-    """Used to identify the closest available wait_node."""
-    def __init__(self, agent):
-        """ Mark the details of the associated Interaction """
-        super(AssignWaitNode, self).__init__(agent)
-        self.interaction = InteractionDetails(type='search', grouping='node_descriptor', descriptor='wait_node', style='closest_node')
-        self.contact = 'wait_node'
+
+
+
+
+
 
 """ Identification of Navigation Targets """
 class FindRowEnds(InteractionResponse):
@@ -99,6 +78,7 @@ class FindRowEnds(InteractionResponse):
         super(FindRowEnds, self).__init__(agent)
         self.interaction = InteractionDetails(type='info', info='find_row_ends', descriptor=row)
         self.contact = 'row_ends'
+
 class FindStartNode(InteractionResponse):
     """Used to identify of two nodes, which one is closest ot the agent."""
     def __repr__(self):

@@ -119,7 +119,7 @@ class Scanner(Interface):
                      stage_list=[
                          Stages['base']['StartTask'](self.agent, task_id),
                          Stages['base']['FindStartNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='start_node'),
                          Stages['rasberry_data_collection_pkg']['PerformDCAction'](self.agent)
                      ]))
 
@@ -135,7 +135,7 @@ class Scanner(Interface):
                      stage_list=[
                          Stages['base']['StartTask'](self.agent, task_id),
                          Stages['base']['FindStartNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='start_node'),
                          Stages['rasberry_data_collection_pkg']['PerformDCAction'](self.agent)
                      ]))
 
@@ -157,7 +157,7 @@ class Scanner(Interface):
                          Stages['base']['StartTask'](self.agent, task_id),
                          Stages['base']['FindRowEnds'](self.agent, details['row']),
                          Stages['base']['FindStartNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='start_node'),
                          Stages['rasberry_data_collection_pkg']['PerformDCAction'](self.agent)
                      ]))
 
@@ -178,7 +178,7 @@ class Scanner(Interface):
                          Stages['base']['StartTask'](self.agent, task_id),
                          Stages['base']['FindRowEnds'](self.agent, details['row']),
                          Stages['base']['FindStartNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='start_node'),
                          Stages['rasberry_data_collection_pkg']['PerformDCAction'](self.agent)
                      ]))
 

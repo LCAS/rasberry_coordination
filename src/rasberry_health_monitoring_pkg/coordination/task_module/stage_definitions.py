@@ -29,34 +29,21 @@ class StartChargeTask(StartTask):
         """Set registration to false when charging is begun"""
         super(StartChargeTask, self)._start()
         self.agent.registration = False
-
-class AssignChargeNode(InteractionResponse):
-    """Used to identify the closest available charging_station."""
-    def __init__(self, agent):
-        """ Mark the details of the associated Interaction """
-        super(AssignChargeNode, self).__init__(agent)
-        self.interaction = InteractionDetails(type='search', grouping='node_descriptor', descriptor='charging_station', style='closest_node')
-        self.contact = 'charging_station'
-
-class NavigateToChargeNode(NavigateToNode):
-    """Used to navigate to the assigned charging station"""
-    def __init__(self, agent):
-        """Identify associated contact as 'charging_station'"""
-        super(NavigateToChargeNode, self).__init__(agent, association='charging_station')
-    def _start(self):
-        super(NavigateToChargeNode, self)._start()
+        """ Notify of intent to charge """
         LP = self.agent.local_properties
         CRIT = fetch_property('health_monitoring', 'critical_battery_limit')
         MAX = fetch_property('health_monitoring', 'max_battery_limit')
         PERCENTAGE = ((LP['battery_level']-CRIT)/(MAX-CRIT))*100
-        self.agent.speaker("My battery level is at %s%%. I am going to charge at %s"%(str(PERCENTAGE).split('.')[0], self.target))
+        self.agent.speaker("My battery level is at %s%%. Charging proceedure initiated."%(str(PERCENTAGE).split('.')[0]))
+
+
+class NavigateToChargeNode(NavigateToNode):
     def _query(self):
-        """Complete navigation if agents location is the target of if battery level is set to be above threshold"""
+        super(NavigateToChargeNode, self)._query(agent)
         LVL = self.agent.local_properties['battery_level']
         MAX = fetch_property('health_monitoring', 'max_battery_limit')
-        success_conditions = [self.agent.location(accurate=True) == self.target,
-                              LVL >= MAX]
-        self.flag(any(success_conditions))
+        self.flag(LVL >= MAX)
+
 
 class Charge(StageBase):
     """Used to Pause task progression till battery level is usable"""

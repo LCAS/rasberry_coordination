@@ -50,7 +50,7 @@ class GeneralNavigator(Interface):
     def exit_at_node_cb(self, msg):
         logmsg(category="Task", id=self.agent.agent_id, msg="Request to exit coordinator")
         node_id = msg.data or self.agent.goal or self.agent.location(accurate=True)
-        self.agent.add_task(module='navigation', name='exit_at_node', contacts={"exit_node":node_id}, index=0)
+        self.agent.add_task(module='navigation', name='exit_at_node', contacts={"node_contact_id":node_id}, index=0)
 
     def exit_at_node(self, task_id=None, details=None, contacts=None, initiator_id=""):
         return(Task(id=task_id,
@@ -62,7 +62,7 @@ class GeneralNavigator(Interface):
                     responder_id="",
                     stage_list=[
                         Stages['base']['SetUnregister'](self.agent),
-                        Stages['navigation']['NavigateToExitNode'](self.agent),
+                        Stages['navigation']['NavigateToNode'](self.agent, contact_id='node_contact_id'),
                         Stages['base']['Exit'](self.agent)
                     ]))
 
