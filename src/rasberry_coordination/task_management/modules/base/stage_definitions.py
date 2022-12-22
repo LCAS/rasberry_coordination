@@ -1,7 +1,7 @@
 """Base"""
 
 from copy import deepcopy
-from rospy import Time, Duration, Subscriber, Service, Publisher, Time, get_param
+from rospy import Time, Duration, Subscriber, Service, Publisher, get_param
 from std_msgs.msg import Bool, String as Str
 from diagnostic_msgs.msg import KeyValue
 import strands_executive_msgs.msg
@@ -16,6 +16,21 @@ from topological_navigation.route_search2 import TopologicalRouteSearch2 as Topo
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
+
+
+
+""" #We may have a way here for multiple inheritence querying to work tidier
+class stagebase(StageBase):
+    def flag(self, completion):
+        if not self.agent.interruption:
+            self.stage_complete = self.stage_complete or completion
+class idle(stagebase):
+    def _query(self):
+        self.flag(len(self.agent.task_buffer) > 0)
+class navigate2node(stagebase):
+    def _query(self):
+        self.flag(self.agent.location(accurate=True) == self.target)
+"""
 
 
 class StageBase(object):
@@ -39,9 +54,8 @@ class StageBase(object):
         self.new_stage = True
     def flag(self, completion):
         """Collection function when a stage is to be flagged as completed"""
-        # TODO: this is not very good here, the state of an agent being interrupted should be handled abstractly
-        if not self.agent.interruption:
-            self.stage_complete = completion
+        if not self.agent.interruption: #Prevent completion of stage if interruption is pending.
+            self.stage_complete = self.stage_complete or completion
     def __init__(self, agent):
         """Class initialisation for populating default values"""
         self.agent = agent
@@ -147,17 +161,51 @@ class SetRegister(StageBase):
 class Idle(StageBase):
     """Used to suspend activity until the agent has a task."""
     def __repr__(self):
-        """Display class with idle location """
         if self.agent: return "%s(%s)" % (self.get_class(), self.agent.location())
         return self.get_class()
-    def _start(self):
-        super(Idle, self)._start()
+    def _start(self, **kw):
+        super(Idle, self)._start(**kw)
         self.accepting_new_tasks = True
     def _query(self):
-        """Complete once task buffer contains another task, or if battery level is low."""
         success_conditions = [len(self.agent.task_buffer) > 0]
         self.flag(any(success_conditions))
 
+
+""" Trigger Events """
+class Timeout(StageBase):
+    def __init__(self, agent, duration=None, **kw):
+        super(Timeout, self).__init__(agent, **kw)
+        self.duration = duration
+    def _start(self, duration=None, **kw):
+        super(Timeout, self)._start(**kw)
+        self.duration = duration or self.duration
+        self.timeout = Duration(secs=self.duration)
+    def _query(self):
+        success_conditions = [Time.now() - self.start_time > self.timeout]
+        self.flag(any(success_conditions))
+
+class FlagCheck(StageBase):
+    def __init__(self, agent, flag_name=None, flag_success=None, **kw):
+        super(Timeout, self).__init__(agent, **kw)
+        self.flag_name = flag_name
+        self.flag_success = flag_success
+    def _start(self, flag_name=None, flag_success=None, **kw):
+        super(FlagCheck, self)._start(**kw)
+        self.flag_name = flag_name or self.flag_name
+        self.flag_success = flag_success or self.flag_success
+    def _query(self):
+        success_conditions = [self.agent[self.flag_name] == self.flag_success]
+        self.flag(any(success_conditions))
+
+
+""" Joined Trigger Events (example) """
+class IdleTimeout(Idle, Timeout):
+    def _start(self, duration):
+        super(IdleTimeout, self)._start(duration=duration)
+
+class TimeoutFlagCheck(Timeout, FlagCheck):
+    def _start(self, duration, flag_name, flag_success):
+        super(TimeoutFlagCheck, self)._start(duration=duration, flag_name=flag_name, flag_success=flag_success)
 
 
 """ Communications """

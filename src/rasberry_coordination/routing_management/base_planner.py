@@ -74,7 +74,7 @@ class BasePlanner(object):
             logmsg(level='warn', category='route', msg='    - Adding WaitNode as intermediate target')
             logmsg(category="DTM", id=agent.agent_id, msg="    - Adding stages to active task:")
             agent().new_stage = True
-            recovery_stages = [ Stages['assignment']['AssignWaitNode'](agent), Stages['navigation']['NavigateToWaitNode'](agent) ]
+            recovery_stages = [ Stages['assignment']['AssignNode'](agent, contact_id='recovery_node_contact_id', node_descriptor='wait_node'), Stages['navigation']['NavigateToNode'](agent, contact_id="recovery_node_contact_id") ]
             recovery_stages.reverse()
             for stage in recovery_stages:
                 logmsg(category="DTM", msg="        - " + str(stage))

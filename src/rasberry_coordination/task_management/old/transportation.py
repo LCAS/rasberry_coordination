@@ -144,7 +144,7 @@ class TaskDef(object):
                         StageDef.AssignHeadNodeIdle(agent),
                         StageDef.NavigateToHeadNodeIdle(agent),
                         SDef.Idle(agent)
-                        #StageDef.IdleAtUpdatingHeadNode(agent)
+                        #StageDef.IdleTimeout(agent)
                     ]))
 
     @classmethod

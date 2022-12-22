@@ -19,7 +19,7 @@ class NavigateToDCStartNode(NavigateToNode):
     """Used to navigate to a given start node"""
     def __init__(self, agent):
         """Call to super to set the navigation target as the node stored in the action association"""
-        super(NavigateToDCStartNode, self).__init__(agent, association='start_node')
+        super(NavigateToDCStartNode, self).__init__(agent, contact_id='start_node')
     def _start(self):
         self.agent.speaker('Navigating to data collection start node at %s' % self.agent['contacts']['start_node'])
         if 'controller' in self.agent['contacts']:
@@ -31,7 +31,7 @@ class NavigateToDCEndNode(NavigateToNode):
     """Used to navigate to a given end node"""
     def __init__(self, agent):
         """Call to super to set the navigation target as the node stored in the action association"""
-        super(NavigateToDCEndNode, self).__init__(agent, association='end_node')
+        super(NavigateToDCEndNode, self).__init__(agent, contact_id='end_node')
 
 
 

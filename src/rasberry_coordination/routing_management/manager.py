@@ -9,6 +9,7 @@ import time, datetime
 import rospkg
 import yaml
 from rospy import Subscriber
+import traceback
 
 from std_msgs.msg import Empty
 import strands_navigation_msgs.msg
@@ -51,7 +52,7 @@ class RoutingManager(object):
         try:
             self.planner.find_routes()
         except AttributeError as e:
-            print(e)
+            print(traceback.format_exc())
             logmsg(level="error", category="route", msg='find_routes encountered a problem')
 
     def fragment_planner(self):  # TODO: add direct object creation in __init__

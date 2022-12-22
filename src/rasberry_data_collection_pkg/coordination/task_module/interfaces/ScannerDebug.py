@@ -49,8 +49,8 @@ class ScannerDebug(Interface):
                     responder_id="",
                     stage_list=[
                         Stages['base']['StartTask'](self.agent, task_id),
-                        Stages['assignment']['AssignBaseNodeIdle'](self.agent),
-                        Stages['navigation']['NavigateToBaseNodeIdle'](self.agent),
+                        Stages['assignment']['AssignNodeIdle'](self.agent, contact_id='base_node_contact_id', node_descriptor=self.agent.modules['navigation'].details['wait_node_name']),
+                        Stages['navigation']['NavigateToNodeIdle'](self.agent, contact_id='base_node_contact_id'),
                         Stages['base']['Idle'](self.agent)
                     ]))
 
@@ -109,21 +109,6 @@ class ScannerDebug(Interface):
         print(msg)
         print(msg2)
 
-#    def init(self, task_id=None, details=None, contacts=None, initiator_id=""):
-#        return (Task(id=task_id,
-#                     module='rasberry_data_collection_pkg',
-#                     name="init",
-#                     details=details,
-#                     contacts=contacts,
-#                     initiator_id=self.agent.agent_id,
-#                     responder_id="",
-#                     stage_list=[
-#                         Stages['base']['StartTask'](self.agent, task_id),
-#                         Stages['base']['SetUnregister'](self.agent),
-#                         Stages['rasberry_data_collection_pkg']['WaitForDCActionClient'](self.agent),
-#                         Stages['base']['SetRegister'](self.agent)
-#                     ]))
-
     def scan_edge(self, task_id=None, details=None, contacts=None, initiator_id=""):
         return (Task(id=task_id,
                      module='rasberry_data_collection_pkg',
@@ -135,9 +120,9 @@ class ScannerDebug(Interface):
                      stage_list=[
                          Stages['base']['StartTask'](self.agent, task_id),
                          Stages['assignment']['FindStartNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCEndNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent)
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='start_node'),
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='end_node'),
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='start_node')
                      ]))
     def scheduled_scan_edge(self, task_id=None, details=None, contacts=None, initiator_id=""):
         details = details or dict()
@@ -159,9 +144,9 @@ class ScannerDebug(Interface):
                      stage_list=[
                          Stages['base']['StartTask'](self.agent, task_id),
                          Stages['assignment']['FindStartNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCEndNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent)
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='start_node'),
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='end_node'),
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='start_node')
                      ]))
 
 
@@ -179,9 +164,9 @@ class ScannerDebug(Interface):
                          Stages['base']['StartTask'](self.agent, task_id),
                          Stages['assignment']['FindRowEnds'](self.agent, details['row']),
                          Stages['assignment']['FindStartNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCEndNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent)
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='start_node'),
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='end_node'),
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='start_node')
                      ]))
     def scheduled_scan_row(self, task_id=None, details=None, contacts=None, initiator_id=""):
         details = details or dict()
@@ -198,8 +183,8 @@ class ScannerDebug(Interface):
                          Stages['base']['StartTask'](self.agent, task_id),
                          Stages['assignment']['FindRowEnds'](self.agent, details['row']),
                          Stages['assignment']['FindStartNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCEndNode'](self.agent),
-                         Stages['rasberry_data_collection_pkg']['NavigateToDCStartNode'](self.agent)
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='start_node'),
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='end_node'),
+                         Stages['navigation']['NavigateToNode'](self.agent, contact_id='start_node')
                      ]))
 

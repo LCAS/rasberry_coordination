@@ -71,8 +71,9 @@ class InteractionManager(object):
             # Generate list of nodes matching descriptor (special nodes listed in coordinator config)
             descriptor = interaction.descriptor
             occupied = self.get_occupied_nodes(agent)
-            #print("occupied: %s" % str(occupied))
+            print("occupied: %s" % str(occupied))
             L = [n['id'] for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)]
+            print("L %s"%str(L))
 
         elif GR == 'agent_descriptor':
             # Generate list of agents based on some characteristics
@@ -106,6 +107,7 @@ class InteractionManager(object):
         location = agent.location()
         ST = interaction.style
         if ST == 'named_agent':
+            print('named_agent')
             print(ST)
             print(list)
             i = list.keys()[0]
@@ -121,6 +123,7 @@ class InteractionManager(object):
             # Find closet node in list
             new_list = {n: self.dist(agent, n, agent.location()) for n in list}
             I = self.get_dist(new_list)
+            print(I)
 
         elif ST == 'head_node_allocator':
             PLoc = {a.agent_id:float(a.location().split("-c")[0][1:]) for a in self.AllAgentsList.values() if a.registration and a.location() and ('-c' in a.location()) and (a.modules['transportation'].role == 'picker')}
@@ -166,10 +169,11 @@ class InteractionManager(object):
 
     def get_occupied_nodes(self, agent):
         AExcl = [a for _id, a in self.AllAgentsList.items() if (_id is not agent.agent_id)]
-        print(AExcl)
+        print("Occupied Nodes (raw): %s"%str(AExcl))
         occupied = [a.location.current_node for a in AExcl if a.location.current_node]  # Check if node is occupied
         occupied += [a().interaction.response for a in AExcl if a().interaction and a().interaction.response and a.map_handler.is_node(a().interaction.response)]  # Include navigation targets
         occupied += [a.goal() for a in AExcl if a.goal()] # Include navigation targets
+        print("Occupied Nodes (filtered): %s"%str(occupied))
         return occupied
 
     def get_dist(self, dist_list):
@@ -182,4 +186,5 @@ class InteractionManager(object):
             return agent.map_handler.get_route_length(agent, start_node, goal_node)
         except:
             print("Try-Except in manager.py for Action_Management modules")
+            print(traceback.format_exc())
             return 0.0
