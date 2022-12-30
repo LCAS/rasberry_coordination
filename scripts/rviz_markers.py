@@ -65,7 +65,6 @@ class MarkerPublisher(object):
 
             #if there are any pending updates
             if (self.agents_to_render or self.agents_to_pop) or (rospy.get_rostime() - self.publish_time > rospy.Duration(5)):
-
                 #delete any agents to remove
                 for a in self.agents_to_pop:
                     del self.agents[a]
@@ -79,6 +78,7 @@ class MarkerPublisher(object):
                 #construct a full array
                 marker_array = MarkerArray()
                 for a in self.agents.values():
+                    a.tf.cycle_tf()
                     marker_array.markers += a.marker_array.markers
 
                 #set the timeouts
