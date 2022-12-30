@@ -166,3 +166,7 @@ class MapObj(object):
 
         return sum(route_distance)
 
+    def get_node_tf(self, node):
+        node = self.get_node(node)['node']['pose']
+        pos, ori = node['position'], node['orientation']
+        return ((pos['x'], pos['y'], pos['z']), (ori['x'], ori['y'], ori['z'], ori['w']))
