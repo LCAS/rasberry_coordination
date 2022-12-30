@@ -9,9 +9,8 @@ from std_msgs.msg import String as Str
 
 class GeneralNavigator(Interface):
 
-    def __init__(self, agent, details, Type):
+    def __init__(self, agent, details):
         super(GeneralNavigator, self).__init__(agent, details)
-        self.agent.navigation_interface = Type
         self.move_idle_sub = Subscriber('/%s/base/move_idle' % agent.agent_id, Str, self.wait_at_node_cb)
         self.exit_at_node_sub = Subscriber('/%s/base/exit_at_node' % agent.agent_id, Str, self.exit_at_node_cb)
 

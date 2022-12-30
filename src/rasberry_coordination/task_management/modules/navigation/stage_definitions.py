@@ -47,7 +47,7 @@ class Navigation(StageBase):
     def _end(self):
         """End navigation by refreshing routes for other agents in motion."""
         logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
-        # self.agent.navigation_interface.cancel_execpolicy_goal() # <- this will prevent robot from rotating to align
+        # agent.modules['navigation'].interface.cancel_execpolicy_goal() # <- this will prevent robot from rotating to align
         self.agent.cb['trigger_replan']()  # ReplanTrigger
 
 
