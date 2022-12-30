@@ -294,7 +294,6 @@ class DebugRobot(object):
             node_obj = self.get_node(source[-1])
             route.poses += [[self.get_pose(edge.node) for edge in node_obj.edges if edge.edge_id == edge_id[-1]][0]]
 
-
         #Add an identifier to the route so we can ensure we are only updating the location based on the latest route
         self.total_routes += 1
         for pose in route.poses:
@@ -369,6 +368,37 @@ class DebugRobot(object):
         # Publish the remaining route (this line calls this callback)
         self.route_progress_publisher.publish(self.route)
 
+
+
+
+    def route_sub_cb_simple_example(self, msg):
+        #If a second route comes in, since we do the delay first, by the time the delay completes, we should be taking the next pose from the newest route
+        if self.locker.status: return
+
+        if not self.route.poses:
+            """ EMPTY """
+            self.route_publisher.publish(self.route)
+            return
+
+        with self.locker:
+            """ FILTER """
+            if self.next_node() == self.current_node():
+                self.route.poses.pop(0)
+                if not self.route.poses: return
+
+            """ DELAY """
+            rospy.sleep(rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2))
+
+            """ UPDATE """
+            pose = self.route.poses.pop(0).pose
+            self.pose_update_pub.publish(pose)
+            new_node = self.find_closest_node(pose)
+            self.agent.location.current_node = new_node
+            self.agent.location.closest_node = new_node
+
+        """ PUBLISH """
+        self.route_progress_publisher.publish(self.route)
+
     #
     # A 2 B 2 C 2 D 2 E
     #
@@ -394,71 +424,7 @@ class DebugRobot(object):
     #         -   -   E   <- so we need to delete D
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # def route_sub_cb(self, msg):
-    #     # i = random()
-    #     # logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | begun  {%s}'%(i, len(self.route.poses)))
-    #
-    #     #If a second route comes in, since we do the delay first, by the time the delay completes, we should be taking the next pose from the newest route
-    #     # if self.locker.status:
-    #     #     logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | locked {%s}' % (i, len(self.route.poses)))
-    #     #     return
-    #
-    #     #If the next route is
-    #     if not self.route.poses:
-    #         # logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | empty  {%s}' % (i, len(self.route.poses)))
-    #         self.route_publisher.publish(self.route) #i believe this should delete the path on rviz
-    #         return
-    #
-    #     with self.locker:
-    #         # logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | locked {%s}' % (i, len(self.route.poses)))
-    #
-    #         # new_node = self.find_closest_node(self.route.poses[0].pose)
-    #         # self.current_node_pub.publish(new_node)
-    #         # self.closest_node_pub.publish(new_node)
-    #
-    #         # Wait the 2 seconds till we should be taking the next item
-    #         rospy.sleep(rospy.get_param('/rasberry_coordination/debug_robot/route_step_delay', 2))
-    #
-    #         # Identify next pose to set, and remove it from the route
-    #         pose = self.route.poses.pop(0).pose
-    #         # logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | pose   {%s}' % (i,str(pose).replace('\n','')))
-    #
-    #     # Publish the loction of the robots new pose, and sleep for the defined time
-    #     self.pose_update_pub.publish(pose)
-    #     # logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | publsh {%s}' % (i,str(pose).replace('\n','')))
-    #
-    #     # Publish the remaining route (this line calls this callback)
-    #     # logmsg(category='vr_rob', id=self.agent.agent_id, msg='%f | publsh2{%s}' % (i, len(self.route.poses)))
-    #     self.route_progress_publisher.publish(self.route)
-
-
-
-    """ because we are funning a topological_localisation node, we dont need to run this here? """
+    """ alternative to running a topological_localisation node """
     def pose_cb(self, msg):
         new_node = self.find_closest_node(msg)
         self.current_node_pub.publish(new_node)
