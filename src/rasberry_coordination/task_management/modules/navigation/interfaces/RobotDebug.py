@@ -17,7 +17,7 @@ from rospy_message_converter.message_converter import convert_dictionary_to_ros_
 from std_msgs.msg import Header, String
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
-from topological_navigation_msgs.msg import GotoNodeGoal, GotoNodeAction
+from topological_navigation_msgs.msg import GotoNodeGoal, GotoNodeAction, ClosestEdges
 from strands_navigation_msgs.msg import ExecutePolicyModeGoal, ExecutePolicyModeAction, TopologicalMap, TopologicalRoute
 
 from rasberry_coordination.coordinator_tools import logmsg
@@ -45,7 +45,7 @@ class RobotDebug(GeneralNavigator):
         # To update robots current location
         self.current_node_pub = Publisher("/%s/current_node" % aid, String, latch=True, queue_size=5)
         self.closest_node_pub = Publisher("/%s/closest_node" % aid, String, latch=True, queue_size=5)
-        #self.closest_edge_pub = Publisher("/%s/closest_edges" % aid, String, latch=True, queue_size=5)
+        self.closest_edge_pub = Publisher("/%s/closest_edges" % aid, ClosestEdges, latch=True, queue_size=5)
 
         # RVIZ display tools
         self.rviz_route_publisher = Publisher("/%s/current_route" % aid, Path, latch=True, queue_size=5)
@@ -115,7 +115,8 @@ subgoal()
         self.wait()
         self.teleport()
         self.filter_node()
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal).replace('\n',''))
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | x) nodes: %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | x) edges: %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
         if self.execpolicy_goal.route.source: self.pubgoal()
 
 
@@ -138,31 +139,31 @@ teleport()
 filter()
     """
 
+    def wait(self):
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | i) Wait')
+        rospy.sleep(rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2)/2)
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | i) Wait End')
+
     def telemove(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | i) Telemove | %s'%self.execpolicy_goal.route.edge_id[0])
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | ii) Telemove | %s'%self.execpolicy_goal.route.edge_id[0])
         self.publish_edge_tf()
         self.publish_edge_pose()
         self.publish_edge_name()
 
-    def wait(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | ii) Wait')
-        rospy.sleep(rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2)/2)
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | ii) Wait End')
-
     def teleport(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | iii) Teleport | %s'%self.execpolicy_goal.route.source[0])
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | ii) Teleport | %s'%self.execpolicy_goal.route.source[0])
         self.publish_node_tf()
         self.publish_node_pose()
         self.publish_node_name()
         self.publish_path()
 
-    def filter_node(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | iv) FilterNode')
-        self.execpolicy_goal.route.source.pop(0)
-
     def filter_edge(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | iv) FilterEdge')
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | iii) FilterEdge')
         self.execpolicy_goal.route.edge_id.pop(0)
+
+    def filter_node(self):
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | iii) FilterNode')
+        self.execpolicy_goal.route.source.pop(0)
 
     """ --------------- UTILS 2 ------------- """
 
@@ -219,9 +220,10 @@ publish_path()
         self.closest_node_pub.publish(node)
     def publish_edge_name(self):
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | c) Pub Edge Name')
-        edge = self.execpolicy_goal.route.edge_id[0]
         self.current_node_pub.publish("none")
-        #self.closest_edge_pub.publish(edge)
+        edge = self.execpolicy_goal.route.edge_id[0]
+        edges = ClosestEdges(edge_ids=[edge], distances=[0.0])
+        self.closest_edge_pub.publish(edges)
 
 
     def publish_path(self):
