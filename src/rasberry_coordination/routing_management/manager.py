@@ -89,8 +89,8 @@ class RoutingManager(object):
         reason_failed_to_publish = ""
 
         """ Identify key elements in routes. """
-        old_node = agent.navigation_interface.execpolicy_goal.route.source
-        old_edge = agent.navigation_interface.execpolicy_goal.route.edge_id
+        old_node = agent.modules['navigation'].interface.execpolicy_goal.route.source
+        old_edge = agent.modules['navigation'].interface.execpolicy_goal.route.edge_id
         new_node = policy.route.source
         new_edge = policy.route.edge_id
 
@@ -135,10 +135,10 @@ class RoutingManager(object):
             self.force_replan_to_publish = False
             if self.log_routes:
                 logmsg(category="navig", msg="    - new route generated:\n%s" % policy)
-                logmsg(category="navig", msg="    - previous route:\n%s" % agent.navigation_interface.execpolicy_goal)
+                logmsg(category="navig", msg="    - previous route:\n%s" % agent.modules['navigation'].interface.execpolicy_goal)
 
-            agent.navigation_interface.cancel_execpolicy_goal()
-            agent.navigation_interface.set_execpolicy_goal(policy)
+            agent.modules['navigation'].interface.cancel_execpolicy_goal()
+            agent.modules['navigation'].interface.set_execpolicy_goal(policy)
             if 'health_monitoring' in agent.modules:
                 if agent.modules['health_monitoring'].interface.navigation_available():
                     agent.speaker("caution: moving")

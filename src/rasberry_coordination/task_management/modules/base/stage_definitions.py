@@ -127,7 +127,7 @@ class EnableDebugLocalisation(StageBase):
     def _start(self):
         """Enable subscribers to debug localisation"""
         super(EnableDebugLocalisation, self)._start()
-        self.agent.navigation_interface.enable_subscribers()
+        self.agent.modules['navigation'].interface.enable_subscribers()
     def _query(self):
         """Complete the stage without any condition"""
         self.flag(True)
@@ -244,11 +244,11 @@ class Pause(StageBase):
     def _start(self):
         """On start, cancel any active navigation"""
         super(Pause, self)._start()
-        if hasattr(self.agent, 'navigation_interface'): self.agent.navigation_interface.cancel_execpolicy_goal()
+        if 'navigation' in self.agent.modules and has_attr(self.agent.modules['navigation'].interface, 'cancel_execpolicy_goal'):
+            self.agent.modules['navigation'].interface.cancel_execpolicy_goal() #navigation_interface
         #TODO: set an agent function for generic definition of pausing?
     def _query(self):
         """Continue once all blocking stages are False"""
-        # success_conditions = [self.agent.registration]
         success_conditions = [not (True in self.pause_state.values())]
         self.flag(any(success_conditions))
     def _end(self):
