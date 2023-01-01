@@ -1,14 +1,14 @@
 modules:
   - name: base
-    role: DebugHuman
+    interface: DebugHuman
     details:
       - rviz_model: human
 
   - name: navigation
-    role: Human
+    interface: Human
     details:
       - has_presence: false
       - restrictions: short
 
   - name: rasberry_transportation_pkg
-    role: Picker
+    interface: Picker

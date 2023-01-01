@@ -1,16 +1,16 @@
 modules:
   - name: base
-    role: LocalisedHuman
+    interface: LocalisedHuman
     details:
       - rviz_model: human
 
   - name: navigation
-    role: Human
+    interface: Human
     details:
       - has_presence: false
 
   - name: rasberry_transportation_pkg
-    role: Storage
+    interface: Storage
     details:
       - state_subscriber: /car_client/get_states_kv
       - state_publisher: /car_client/set_states_kv

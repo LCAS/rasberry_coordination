@@ -1,0 +1,61 @@
+version: 1.2.3
+
+#TOPOLOGY (Node Descriptors)
+special_nodes:
+#  - default: null
+  - id: WayPoint140
+    descriptors:
+      - default_location
+  - id: WayPoint140
+    descriptors:
+      - base_tp_node
+      - base_dc_node
+      - wait_node
+  - id: WayPoint141
+    descriptors:
+      - base_tp_node
+      - base_dc_node
+      - wait_node
+  - id: WayPoint142
+    descriptors:
+      - base_tp_node
+      - base_dc_node
+      - wait_node
+  - id: WayPoint72
+    descriptors:
+      - charging_station
+  - id: WayPoint63
+    descriptors:
+      - charging_station
+
+#ROUTING
+planning_type: fragment_planner
+heterogeneous_map: true
+
+#MODULES
+active_modules:
+  - name: rasberry_health_monitoring_pkg
+    properties:
+        ignore_below: 30.0
+        critical_battery_limit: 40.0
+        low_battery_limit: 42.0
+        max_battery_limit: 54.0
+
+  - name: rasberry_transportation_pkg
+    properties:
+        wait_loading: 45
+        wait_unloading: 40
+        wait_method: wait_at_base
+
+  - name: rasberry_data_collection_pkg
+    properties:
+        use_fotenix_camera: false
+        topological_map: tmap_stream.tmap2
+        continuous: true
+
+  - name: base
+
+  - name: navigation
+    properties:
+        debug_robot_step_delay: 2
+

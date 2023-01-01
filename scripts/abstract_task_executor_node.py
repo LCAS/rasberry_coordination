@@ -42,7 +42,7 @@ def validate_types(file, config):
             validate_field(file, setup, mandatory=False,  key='modules', datatype=[list])
             for module in setup['modules']:
                 validate_field(file, module, mandatory=True,  key='name', datatype=[str])
-                validate_field(file, module, mandatory=True,  key='role', datatype=[str])
+                validate_field(file, module, mandatory=True,  key='interface', datatype=[str])
             validate_field(file, setup, mandatory=False, key='module_properties', datatype=[dict])
             validate_field(file, setup, mandatory=True,  key='navigation_properties', datatype=[dict])
             validate_field(file, setup, mandatory=True,  key='visualisation_properties', datatype=[dict])

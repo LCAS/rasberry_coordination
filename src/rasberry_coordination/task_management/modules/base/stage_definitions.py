@@ -8,10 +8,8 @@ import strands_executive_msgs.msg
 from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 from rasberry_coordination.interaction_management.manager import InteractionDetails
 from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.encapsuators import LocationObj as Location, MapObj as Map
 from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
 from rasberry_coordination.task_management.containers.Task import TaskObj as Task
-from rasberry_coordination.robot import Robot, DebugRobot
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property

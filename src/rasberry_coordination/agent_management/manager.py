@@ -17,7 +17,8 @@ from std_srvs.srv import Trigger, TriggerResponse
 from diagnostic_msgs.msg import KeyValue
 from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, AgentRegistrationList, AgentRegistration, AgentStateList, AgentState, AgentLocationList, AgentLocation
 from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.encapsuators import LocationObj as Location, MapObj as Map
+from rasberry_coordination.agent_management.location_handler import LocationObj as Location
+from rasberry_coordination.topomap_management.map_handler import MapObj as Map
 from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
 from rasberry_coordination.task_management.containers.Task import TaskObj as Task
 from rasberry_coordination.task_management.__init__ import Interfaces
@@ -73,7 +74,7 @@ class AgentManager(object):
         def kvp_list(msg): return {kvp.key: kvp.value for kvp in msg}
         self.add_agent({'agent_id': msg.agent_id,
                         'local_properties': kvp_list(msg.local_properties),
-                        'modules': [{'name':m.name,'role':m.role, 'details':kvp_list(m.details)} for m in msg.modules]})
+                        'modules': [{'name':m.name,'interface':str(m.interface), 'details':kvp_list(m.details)} for m in msg.modules]})
 
     """ Conveniences """
     def __getitem__(self, key):
@@ -153,9 +154,9 @@ class AgentDetails(object):
         self.interruption = None
         self.registration = False
 
-        # Define interface for each role
+        # Define interface for each interface
         logmsg(category="MODULE", id=self.agent_id, msg="Initialising Module Interfaces:")
-        self.modules = {t['name']: Module(agent=self, name=t['name'], role=t['role'], details=t['details']) for t in agent_dict['modules']}
+        self.modules = {t['name']: Module(agent=self, name=t['name'], interface=t['interface'], details=t['details']) for t in agent_dict['modules']}
 
         #Location and Callbacks
         #if 'navigation' in self.modules:
@@ -186,14 +187,13 @@ class AgentDetails(object):
     """ Task Starters """
     def add_idle_tasks(self):
         [self.add_task(module=m.name, name='idle') for m in self.modules.values() if m.name != "base"]
-        if 'base' in self.modules: 
-
+        if 'base' in self.modules:
 
 #TODO: check if the field_storage has a problem with idle tasks being stacked
 #<<<<<<< HEAD
             self.add_task(module='base', name='idle')
 #=======
-#            if 'field_storage' not in self.roles():
+#            if 'field_storage' not in self.interfaces():
 #                self.add_task(task_name=self.modules['base'].idle_task_name)
 #>>>>>>> atm_qol
 
@@ -260,8 +260,8 @@ class AgentDetails(object):
 
 
     """ Roles """
-    def roles(self):
-        return [m.role for m in self.modules.values()]
+    def interfaces(self):
+        return [m.interface for m in self.modules.values()]
     def send_car_msg(self, msg):
         interface = [v.interface for k,v in self.modules.items() if issubclass(type(v.interface), Interfaces['base']['StateInterface'])]
         if interface:

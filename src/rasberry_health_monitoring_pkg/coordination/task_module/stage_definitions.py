@@ -16,8 +16,6 @@ from polytunnel_navigation_actions.msg import RowTraversalHealth
 try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
 
-
-
 from rasberry_coordination.task_management.modules.base.stage_definitions import StageBase, StartTask
 from rasberry_coordination.task_management.modules.navigation.stage_definitions import NavigateToNode
 from rasberry_coordination.task_management.modules.assignment.stage_definitions import InteractionResponse
