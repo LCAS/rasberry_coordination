@@ -1,3 +1,3 @@
 string name
-string role
+string interface
 diagnostic_msgs/KeyValue[] details

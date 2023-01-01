@@ -52,7 +52,7 @@ def load_agent_obj(agent_input, setup_input, get_files_from_paths=False, printer
     agent.agent_id = agent_data['agent_id']
     agent.local_properties = get_kvp_list(agent_data, 'local_properties')
     for m in setup_data['modules']: m['details'] = m['details'] if 'details' in m else [{'key':'value'}]
-    agent.modules = [Module(m['name'], m['role'], [KeyValue(d.keys()[0], str(d.values()[0])) for d in m['details']]) for m in setup_data['modules']]
+    agent.modules = [Module(m['name'], m['interface'], [KeyValue(d.keys()[0], str(d.values()[0])) for d in m['details']]) for m in setup_data['modules']]
     print("\n\n")
     return agent
 

@@ -78,14 +78,14 @@ class InteractionManager(object):
         elif GR == 'agent_descriptor':
             # Generate list of agents based on some characteristics
             descriptor = interaction.descriptor
-            r = descriptor['role']
-            descriptor['role'] = r if type(r) == type([]) else [r]
+            r = descriptor['interface']
+            descriptor['interface'] = r if type(r) == type([]) else [r]
             L = {a.agent_id: a for a in self.AllAgentsList.values() if
                      (a is not agent) and #not the agent making the call
                      (a.registration) and #agent is registered
                      (a().accepting_new_tasks) and #agent is accepting new tasks / active task is interruptable
                      (descriptor['module'] in a.modules) and #agent has the required module
-                     (a.modules[descriptor['module']].role in descriptor['role']) #agent is of the type required
+                     (str(a.modules[descriptor['module']].interface) in descriptor['interface']) #agent is of the type required
                  #TODO: we need to make sure here that the robot has not been assigned to a picker on the same cycle
                  #and a.id not in self.cycle_repsonse? #todo: this will have tons of problems...
                  }
@@ -126,7 +126,7 @@ class InteractionManager(object):
             print(I)
 
         elif ST == 'head_node_allocator':
-            PLoc = {a.agent_id:float(a.location().split("-c")[0][1:]) for a in self.AllAgentsList.values() if a.registration and a.location() and ('-c' in a.location()) and (a.modules['transportation'].role == 'picker')}
+            PLoc = {a.agent_id:float(a.location().split("-c")[0][1:]) for a in self.AllAgentsList.values() if a.registration and a.location() and ('-c' in a.location()) and (str(a.modules['transportation'].interface) == 'picker')}
             print("\n\n\nPLoc")
             print(PLoc)
             if PLoc:

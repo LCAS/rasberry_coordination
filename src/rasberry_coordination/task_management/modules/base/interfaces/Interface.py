@@ -3,9 +3,13 @@ from rasberry_coordination.task_management.containers.Task import TaskObj as Tas
 
 class Interface(object):
 
+    def __repr__(self):
+        return str(self.__class__).split('\'')[1].split('.')[-1]
+
     def __init__(self, agent, details=None):
         self.agent = agent
         self.details = details
+        self.name = self.__repr__()
 
     def init(self, task_id=None, details=None, contacts=None, initiator_id=""):
         pass

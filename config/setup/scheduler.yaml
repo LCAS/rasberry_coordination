@@ -1,20 +1,20 @@
 modules:
   - name: base
-    role: Empty
+    interface: Empty
     details:
       - rviz_model: human
 
   - name: navigation
-    role: Empty
+    interface: Empty
     details:
       - has_presence: false
 
   - name: assignment
-    role: SchedulerManager
+    interface: SchedulerManager
 
   - name: rasberry_data_collection_pkg
-    role: Scheduler
+    interface: Scheduler
 
   - name: rasberry_health_monitoring_pkg
-    role: Scheduler
+    interface: Scheduler
 

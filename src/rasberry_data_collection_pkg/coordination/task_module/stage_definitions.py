@@ -110,7 +110,7 @@ class ScheduleScanner(InteractionResponse):
         print(self.details)
         via=self.details['msg'].criteria.viable_agents
         grouping = 'agent_list' if via else 'agent_descriptor'
-        descriptor = {'module':'rasberry_data_collection_pkg', 'role':['Scanner', 'ScannerDebug']}
+        descriptor = {'module':'rasberry_data_collection_pkg', 'interface':['Scanner', 'ScannerDebug']}
         self.interaction=InteractionDetails(type='search',
                                             grouping=grouping,
                                             list=via,

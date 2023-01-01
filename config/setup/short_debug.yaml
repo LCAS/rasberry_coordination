@@ -1,21 +1,21 @@
 modules:
   - name: base
-    role: Robot
+    interface: Robot
     details:
       - structure_type: short
       - rviz_model: short_robot
 
   - name: navigation
-    role: RobotDebug
+    interface: RobotDebug
     details:
       - has_presence: true
       - restrictions: short
       - wait_node_name: base_tp_node
 
   - name: rasberry_health_monitoring_pkg
-    role: Robot
+    interface: Robot
 
   - name: rasberry_transportation_pkg
-    role: Robot
+    interface: Robot
     details:
       - max_load: 1

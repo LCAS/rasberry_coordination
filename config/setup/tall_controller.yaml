@@ -1,16 +1,16 @@
 modules:
   - name: base
-    role: Human
+    interface: Human
     details:
       - rviz_model: human
 
   - name: navigation
-    role: Empty
+    interface: Empty
     details:
       - has_presence: false
 
   - name: rasberry_uv_treatment
-    role: Controller
+    interface: Controller
 
   - name: rasberry_data_collection
-    role: Controller
+    interface: Controller

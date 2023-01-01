@@ -14,21 +14,20 @@ from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, ge
 class ModuleObj(object):
 
     def __repr__(self):
-        return "Module( name:%s | role:%s | interface:%s )" % (self.name, self.role, self.interface!=None)
+        return "Module( name:%s | interface:%s )" % (self.name, self.interface or None)
 
-    def __init__(self, agent, name, role, details):
-        logmsg(category="module", msg="    | %s (%s)"%(name.upper(),role.upper()))
+    def __init__(self, agent, name, interface, details):
+        logmsg(category="module", msg="    | %s (%s)"%(name.upper(),interface.upper()))
         self.agent = agent
         self.name = name
-        self.role = role
         from rasberry_coordination.task_management.__init__ import Interfaces, PropertiesDef
-        self.interface = Interfaces[name][role](agent=agent, details=details)
+        self.interface = Interfaces[name][interface](agent=agent, details=details)
         self.properties = PropertiesDef[name] if name in PropertiesDef else dict()
         self.details = details
 
     def add_init_task(self):
         logmsg(category="module", msg="%s" % self.name.upper())
-        logmsg(category="module", msg="    | Role: %s" % self.role)
+        logmsg(category="module", msg="    | Interface: %s" % self.interface)
         logmsg(category="module", msg="    | Searching for init task:")
         self.agent.add_task(module=self.name, name='init')
 
