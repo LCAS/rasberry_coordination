@@ -5,7 +5,6 @@ from std_msgs.msg import String as Str, Bool, Float32
 from rospy import Time, Duration, Subscriber, Publisher, Time
 from rasberry_coordination.interaction_management.manager import InteractionDetails
 
-from rasberry_coordination.encapsuators import LocationObj as Location
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.task_management.containers.Task import TaskObj as Task
 from rasberry_coordination.task_management.__init__ import Stages
