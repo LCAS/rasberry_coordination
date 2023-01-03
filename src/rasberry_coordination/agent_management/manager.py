@@ -30,18 +30,21 @@ from topological_navigation.route_search2 import TopologicalRouteSearch2 as Topo
 class AgentManager(object):
 
     """ Initialisation """
-    def __init__(self):
+    def __init__(self, default_agents):
         self.agent_details = {}
         self.new_agent_buffer = dict()
 
         # Setup Connection for Dynamic Fleet
-        file_name = 'coordinator-loaded-agents-save-state.yaml'  #logs to $HOME/.ros/coordinator-loaded-agents-save-state.yaml
+        file_name = 'coordinator-loaded-agents-save-state.yaml'  #Save to $(rospack find) rather than logs to $HOME/.ros/coordinator-loaded-agents-save-state.yaml
         if False: #os.path.isfile(file_name):
             if whiptail.Whiptail(title="Agent Management").confirm("Save-state detected, would you like to load it?"):
                 with open(file_name) as file:
                     agent_dict = yaml.load(file, Loader=yaml.FullLoader)
                     pprint.pprint(agent_dict)
                     self.add_agents(agent_dict)
+
+        # Load each of the default agents
+        self.add_agents(default_agents)
         self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', NewAgentConfig, self.add_agent_cb)
 
         # Marker Management
@@ -156,14 +159,14 @@ class AgentDetails(object):
 
         # Define interface for each interface
         logmsg(category="MODULE", id=self.agent_id, msg="Initialising Module Interfaces:")
-        self.modules = {t['name']: Module(agent=self, name=t['name'], interface=t['interface'], details=t['details']) for t in agent_dict['modules']}
+        self.modules = {t['name']: Module(agent=self, name=t['name'], interface=t['interface'], details=t['details']) for t in agent_dict['modules'] if 'details' in t}
 
         #Location and Callbacks
         #if 'navigation' in self.modules:
         lp = self.local_properties
         np = self.modules['navigation'].interface.details
         initial_location = lp['initial_location'] if 'initial_location' in lp else ''
-        has_presence = True if 'has_presence' in np and np['has_presence'] == 'True' else False
+        has_presence = True if 'has_presence' in np and np['has_presence'] in [True, 'True'] else False
         self.location = Location(self, has_presence=has_presence, initial_location=initial_location)
 
         #Map

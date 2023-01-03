@@ -31,20 +31,18 @@ from rasberry_coordination.msg import MarkerDetails
 
 class RasberryCoordinator(object):
     """RasberryCoordinator class definition"""
-    def __init__(self, agent_list, planning_format, ns, special_nodes):
+    def __init__(self, default_agents, planning_format, special_nodes):
 
         # Construct Sub-System Managers
-        self.agent_manager = AgentManager()
-        self.routing_manager = RoutingManager(self.agent_manager, planning_format=planning_format)
+        self.agent_manager = AgentManager(default_agents)
+        self.routing_manager = RoutingManager(self.agent_manager, planning_format)
         self.interaction_manager = InteractionManager(self.agent_manager, self.routing_manager, special_nodes)
         self.task_manager = TaskManager(self)
+        #TODO: find alternatives to passing managers into managers
+
         # Inisialise cross-references
         self.agent_manager.cb['force_replan'] = self.routing_manager.force_replan
         self.agent_manager.cb['trigger_replan'] = self.routing_manager.trigger_replan
-        ## Initialise any agents  #TODO: utilise this for rapid testing without having to initialise agents on relaunch
-        #self.agent_manager.add_agents(agent_list)
-        #self.AllAgentsList = self.agent_manager.get_agent_list_copy()
-        return
 
     def on_shutdown(self, ):
         """on shutdown cancel all goals
