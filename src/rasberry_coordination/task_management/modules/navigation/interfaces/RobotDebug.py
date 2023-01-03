@@ -8,6 +8,7 @@
 import actionlib
 import rospy
 import tf
+import traceback
 #from random import random
 from rospy import Publisher, Subscriber
 from rospy_message_converter.message_converter import convert_dictionary_to_ros_message as rosmsg
@@ -55,10 +56,10 @@ class RobotDebug(GeneralNavigator):
 
 
     def set_execpolicy_goal(self, goal):
-        if goal.route.source:
-            goal.route.source = goal.route.source[1:]+[goal.route.edge_id[-1].split('_')[1]]
         self.setgoal(goal)
-    def cancel_execpolicy_goal(self): self.cangoal()
+
+    def cancel_execpolicy_goal(self):
+        self.cangoal()
 
 
     """
@@ -75,27 +76,38 @@ pubgoal()
 
 subgoal()
   telemove()
-    publish edge_tf
-    publish edge_pose
-    publish edge
   wait()
   teleport()
-    publish tf
-    publish pose
-    publish node
-    publish path
   filter()
   pubgoal()
 
     """
 
     def cangoal(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='X) CANCEL')
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='*) CANCEL')
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | []')
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | []')
         self.execpolicy_goal, self.buffer = None, []
 
     def setgoal(self, goal):
-        print("\n\n")
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='0) SET')
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(goal.route.source).replace('\n',''))
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(goal.route.edge_id).replace('\n',''))
+
+        # Replace current node with target node in goal source
+        if goal.route.source:
+            goal.route.source = goal.route.source[1:]+[goal.route.edge_id[-1].split('_')[1]]
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='as')
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(goal.route.source).replace('\n',''))
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(goal.route.edge_id).replace('\n',''))
+
+        # Remove current edge if currently at when interrupted
+        if self.agent.location.closest_edge and self.agent.location.closest_edge == goal.route.edge_id[0]:
+            goal.route.edge_id.pop(0)
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='as')
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(goal.route.source).replace('\n',''))
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(goal.route.edge_id).replace('\n',''))
+
         self.buffer.append(goal)
         self.pubgoal()
 
@@ -103,22 +115,40 @@ subgoal()
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='1) Pubgoal')
         if self.buffer:
             self.execpolicy_goal, self.buffer = self.buffer[-1], []
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
         self.goal_publisher.publish(self.execpolicy_goal)
         self.publish_path()
 
     def subgoal(self, msg):
-        print("\n\n")
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='2) Subgoal')
-        self.wait()
-        self.telemove()
-        self.filter_edge()
-        self.wait()
-        self.teleport()
-        self.filter_node()
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | x) nodes: %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | x) edges: %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
-        if self.execpolicy_goal.route.source: self.pubgoal()
+        try:
+            print("\n\n")
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='2) Subgoal')
 
+            # Move to next edge in route
+            if self.execpolicy_goal.route.edge_id:
+                logmsg(category='vr_rob', id=self.agent.agent_id, msg='2) Subgoal (edge)')
+                logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
+                self.wait()
+                self.telemove()
+                self.filter_edge()
+
+            # Move to next node in route
+            if self.execpolicy_goal.route.source:
+                logmsg(category='vr_rob', id=self.agent.agent_id, msg='2) Subgoal (node)')
+                logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+                self.wait()
+                self.teleport()
+                self.filter_node()
+
+            # Publish remainder of route for next cycle
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
+            if self.execpolicy_goal.route.source:
+                self.pubgoal()
+        except:
+            print(traceback.format_exec())
+            pass
 
     """ --------------- UTILS 1 ------------- """
 
@@ -141,17 +171,23 @@ filter()
 
     def wait(self):
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | i) Wait')
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
         rospy.sleep(rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2)/2)
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | i) Wait End')
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
 
     def telemove(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | ii) Telemove | %s'%self.execpolicy_goal.route.edge_id[0])
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | ii) Telemove')
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
         self.publish_edge_tf()
         self.publish_edge_pose()
         self.publish_edge_name()
 
     def teleport(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | ii) Teleport | %s'%self.execpolicy_goal.route.source[0])
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | ii) Teleport')
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
         self.publish_node_tf()
         self.publish_node_pose()
         self.publish_node_name()
@@ -159,10 +195,12 @@ filter()
 
     def filter_edge(self):
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | iii) FilterEdge')
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
         self.execpolicy_goal.route.edge_id.pop(0)
 
     def filter_node(self):
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | iii) FilterNode')
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
         self.execpolicy_goal.route.source.pop(0)
 
     """ --------------- UTILS 2 ------------- """
