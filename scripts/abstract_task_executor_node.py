@@ -76,7 +76,6 @@ if __name__ == '__main__':
         print(config_file)
         print("Config version: "+config_data["version"])
         raise Exception('\033[92m'+"Config outdated, update following: %s\033[0m" % template_location)
-    print(config_data)
     validate_types(config_file, config_data)
 
 

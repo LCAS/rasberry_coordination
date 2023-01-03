@@ -31,6 +31,7 @@ categories:
   #Debug
   - name: "OTHER"
   - name: "START"
+    reject: true
   - name: "SETUP"
   - name: "LOG"
   - name: "TEST"
