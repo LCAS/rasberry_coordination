@@ -35,10 +35,10 @@ class MarkerPublisher(object):
 
     def set_marker_cb(self, msg):
         if msg.agent_id not in self.agents:
-            logmsg(category="rviz", id=msg.agent_id, msg="new %s: %s"%(msg.type, msg.optional_color))
+            logmsg(category="rviz", id=msg.agent_id, msg="new %s: %s | %s"%(msg.type, msg.optional_color, msg.location_topic))
 
             dicts = {'color': self.color_dict, 'components': self.component_dict, 'structures': self.structures_dict}
-            self.agents[msg.agent_id] = AgentMarker(msg.agent_id, dicts, msg.type, msg.optional_color)
+            self.agents[msg.agent_id] = AgentMarker(msg.agent_id, dicts, msg.type, msg.optional_color, msg.location_topic, msg.location_attachment)
             self.agents_to_render.append(msg.agent_id)
 
         else:
@@ -61,10 +61,15 @@ class MarkerPublisher(object):
     def run(self):
         rospy.sleep(1)
         self.get_marker_pub.publish(Empty())
+        i = 0
         while not rospy.is_shutdown():
 
             #if there are any pending updates
             if (self.agents_to_render or self.agents_to_pop) or (rospy.get_rostime() - self.publish_time > rospy.Duration(5)):
+                logmsg(category="null")
+                logmsg(category="rviz", msg="Cycle: %s"%i)
+                i+=1
+
                 #delete any agents to remove
                 for a in self.agents_to_pop:
                     del self.agents[a]
@@ -72,7 +77,6 @@ class MarkerPublisher(object):
                 #generate new markers
                 for a in self.agents_to_render:
                     self.agents[a].generate_marker_array()
-
                 self.agents_to_render, self.agents_to_pop = [], []
 
                 #construct a full array

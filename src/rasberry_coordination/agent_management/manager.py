@@ -5,7 +5,7 @@
 # @date:
 # ----------------------------------
 
-import copy, gc, os, pprint, yaml
+import copy, gc, os, pprint, yaml, json
 import whiptail
 import traceback
 
@@ -339,9 +339,21 @@ class AgentDetails(object):
         marker.agent_id = self.agent_id
         marker.type = self.modules['base'].details['rviz_model']
 
-        #Define marker color ["remove", "red", "green", "blue", "black", "white", ""]
+        # Define marker color ["remove", "red", "green", "blue", "black", "white", ""]
         style = style or self.modules['base'].details['default_colour']
         marker.optional_color = style
+
+        # Set where the location should come from
+        topic = ""
+        if 'rviz_location_topic' in self.modules['base'].details:
+            topic = self.modules['base'].details['rviz_location_topic'].replace('~','/%s/'%self.agent_id)
+        marker.location_topic = topic
+
+        # Send the location
+        if 'rviz_location_attach' in self.modules['base'].details and self.modules['base'].details['rviz_location_attach']:
+            if self.map_handler.raw_msg:
+                location = self.map_handler.get_node_tf(self.location())
+                marker.location_attachment = json.dumps(location)
 
         logmsg(category="rviz", msg="Setting %s %s(%s)" % (marker.type, marker.agent_id, marker.optional_color))
 

@@ -13,10 +13,11 @@ from visualization_msgs.msg import MarkerArray, Marker
 from tf.transformations import quaternion_from_euler
 
 from rasberry_coordination.rviz_markers.tf_publisher import TFPublishers
+from rasberry_coordination.coordinator_tools import logmsg
 
 
 class AgentMarker(object):
-    def __init__(self, agent_id, dicts, agent_type, agent_color):
+    def __init__(self, agent_id, dicts, agent_type, agent_color, topic, location):
         self.color_dict = dicts['color']
         self.structure_dict = dicts['structures']
         self.components_dict = dicts['components']
@@ -24,10 +25,11 @@ class AgentMarker(object):
         self.type = agent_type
         self.agent_color = agent_color
         self.marker_array = MarkerArray()
-        self.tf = TFPublishers.get_tf_convertor(agent_id, agent_type)
+        source = location if agent_type == 'special_node' else topic
+        self.tf = TFPublishers.get_tf_convertor(agent_id, agent_type, source)
 
     def generate_marker_array(self):
-        print("generating a new array of markers")
+        logmsg(category="rviz", id=self.agent_id, msg="generating marker")
         marker_array = MarkerArray()
         if self.type not in self.structure_dict:
             self.type = 'short_robot_load_4'

@@ -7,31 +7,53 @@
 
 
 import rospy
-import tf
+import tf, json
 import geometry_msgs.msg
 from bayes_people_tracker.msg import PeopleStamped
+from rasberry_coordination.coordinator_tools import logmsg
 
 
 class TFPublishers:
 
     @staticmethod
-    def get_tf_convertor(agent_id, agent_type):
-        tf_source_topic = {'short_robot': '/%s/robot_pose'%agent_id,
-                           'tall_robot': '/%s/robot_pose'%agent_id,
-                           'human_sim':'/%s/pose_stamped'%agent_id,
-                           'human':'/gps_positions'}
-        a = [k for k in tf_source_topic.keys() if agent_type.startswith(k)]
-
+    def get_tf_convertor(agent_id, agent_type, source):
         tf_source_type = {'short_robot': TFPublishers.PoseTFConvertor,
                           'tall_robot': TFPublishers.PoseTFConvertor,
                           'human_sim': TFPublishers.PoseStampedTFConvertor,
-                          'human': TFPublishers.GPSPositionsTFPublisher}
-        b = [k for k in tf_source_type.keys() if agent_type.startswith(k)]
+                          'human': TFPublishers.GPSPositionsTFPublisher,
+                          'special_node': TFPublishers.StaticTFConvertor}
+        b = [k for k in tf_source_type.keys() if agent_type.startswith(k)][0]
+        return tf_source_type[b](agent_id, source)
 
-        return tf_source_type[b[0]](agent_id, tf_source_topic[a[0]])
+
+    class StaticTFConvertor(object):
+        def __init__(self, agent_id, source, log=False):
+            self.log = log
+            self.agent_id = agent_id
+
+            if agent_id == "":
+               self.base_frame = "base_link"
+            else:
+                self.base_frame = self.agent_id + "/base_link"
+            self.tf_broadcaster = tf.TransformBroadcaster()
+
+            self.last_message = json.loads(source) if source else None
+
+        def cycle_tf(self):
+            msg = self.last_message
+            if self.log:
+                rospy.loginfo(msg.pose)
+            logmsg(category="rviz", id=self.agent_id, msg="static cycle_tf %s" % msg)
+            if not msg: return
+            self.tf_broadcaster.sendTransform((msg[0][0], msg[0][1], msg[0][2]),
+                                              (msg[1][0], msg[1][1], msg[1][2], msg[1][3]),
+                                              rospy.Time.now(),
+                                              self.base_frame,
+                                              "map")
+
 
     class PoseTFConvertor(object):
-        def __init__(self, agent_id, source_topic, log=False):
+        def __init__(self, agent_id, source, log=False):
             self.log = log
             self.agent_id = agent_id
 
@@ -42,7 +64,7 @@ class TFPublishers:
             self.tf_broadcaster = tf.TransformBroadcaster()
 
             self.last_message = None
-            self.pose_sub = rospy.Subscriber(source_topic, geometry_msgs.msg.Pose, self.pose_cb)
+            self.pose_sub = rospy.Subscriber(source, geometry_msgs.msg.Pose, self.pose_cb)
 
         def cycle_tf(self):
             if self.last_message:
@@ -52,6 +74,7 @@ class TFPublishers:
             self.last_message = msg
             if self.log:
                 rospy.loginfo(msg.pose)
+            logmsg(category="rviz", id=self.agent_id, msg="static cycle_tf %s" % str(msg).replace('\n',''))
             self.tf_broadcaster.sendTransform((msg.position.x, msg.position.y, msg.position.z),
                                               (msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w),
                                               rospy.Time.now(),
@@ -60,12 +83,12 @@ class TFPublishers:
 
 
     class PoseStampedTFConvertor(object):
-        def __init__(self, agent_id, source_topic, log=False):
+        def __init__(self, agent_id, source, log=False):
             self.log = log
             self.agent_id = agent_id
 
             self.last_message = None
-            self.pose_sub = rospy.Subscriber(source_topic, geometry_msgs.msg.PoseStamped, self.pose_cb)
+            self.pose_sub = rospy.Subscriber(source, geometry_msgs.msg.PoseStamped, self.pose_cb)
 
             if agent_id == "":
                 self.base_frame = "base_link"
@@ -89,11 +112,11 @@ class TFPublishers:
 
 
     class GPSPositionsTFPublisher(object):
-        def __init__(self, agent_id, source_topic, log=False):
+        def __init__(self, agent_id, source, log=False):
             self.log = log
             self.agent_id = agent_id
             self.last_message = None
-            self.gps_sub = rospy.Subscriber(source_topic, PeopleStamped, self.gps_cb)
+            self.gps_sub = rospy.Subscriber(source, PeopleStamped, self.gps_cb)
             if agent_id == "":
                 self.base_frame = "base_link"
             else:
@@ -105,7 +128,7 @@ class TFPublishers:
         def cycle_tf(self):
             if self.last_message:
                 print('cycling tf (gps)')
-                self.pose_cb(self.last_message)
+                self.gps_cb(self.last_message)
 
         def gps_cb(self, msg):
             self.last_message = msg

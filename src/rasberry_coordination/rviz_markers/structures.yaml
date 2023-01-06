@@ -201,3 +201,8 @@ human:
     - [name, 6, [0, 0, 1.8]]
 
 
+special_node:
+  node_marker:
+    - [flat, 0, [0, 0, 0.01]]
+  name_marker:
+    - [name, 2, [0, 0, 0.5]]

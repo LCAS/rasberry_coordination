@@ -4,6 +4,8 @@ modules:
     details:
       - structure_type: short
       - rviz_model: short_robot
+      - rviz_location_topic: ~robot_pose
+      - rviz_location_attach: True
 
   - name: navigation
     interface: RobotDebug
