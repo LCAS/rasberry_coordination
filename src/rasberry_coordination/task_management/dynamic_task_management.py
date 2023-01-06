@@ -98,19 +98,19 @@ class DTM(object):
         logmsg(category="DTM", id="DTM", msg="Interruption made on DTM channels of type: %s" % m.interrupt)
         A = {a.agent_id:a for a in self.coordinator.get_agents()}
 
-        if m.scope in [0, "Coord", "Coordinator"]:
+        if m.scope in [0, "Coord", "Coordinator"] or m.scope.upper() == 'C':
             # Modify all tasks
             logmsg(category="DTM", msg="    - to affect all agents.")
             if m.interrupt == "reset":
                 for a in A.values():
                     if a['task_id'] and a.agent_id == a['initiator_id']:
                         logmsg(category="DTM", msg="      | release")
-                        a.set_interrupt("reset", a.module, a['task_id'], m.scope, quiet=True)
+                        a.set_interrupt("reset", a['module'], a['task_id'], m.scope, quiet=True)
             else:
-                [a.set_interrupt(m.interrupt, a.module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
+                [a.set_interrupt(m.interrupt, a['module'], a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
 
 
-        elif m.scope in [1, "Task"]:
+        elif m.scope in [1, "Task"] or m.scope.upper() == 'T':
             # Modify all agents on specific task
             logmsg(category="DTM", msg="    - to affect task: %s." % m.target)
             # [a.set_interrupt(m.interrupt, a.module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
@@ -119,16 +119,16 @@ class DTM(object):
                 for a in A.values():
                     if (a['task_id']) and (a['task_id'] == m.target) and (a.agent_id == a['initiator_id']):
                         logmsg(category="DTM", msg="      | release")
-                        a.set_interrupt("reset", a.module, a['task_id'], m.scope, quiet=True)
+                        a.set_interrupt("reset", a['module'], a['task_id'], m.scope, quiet=True)
             else:
-                [a.set_interrupt(m.interrupt, a.module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
+                [a.set_interrupt(m.interrupt, a['module'], a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
 
 
 
-        elif m.scope in [2, "Agent"]:
+        elif m.scope in [2, "Agent"] or m.scope.upper() == 'A':
             # Modify specific agent's task
             logmsg(category="DTM", msg="    - to affect agent: %s." % m.target)
-            A[m.target].set_interrupt(m.interrupt, A[m.target].module, A[m.target]['task_id'], m.scope, quiet=True)
+            A[m.target].set_interrupt(m.interrupt, A[m.target]['module'], A[m.target]['task_id'], m.scope, quiet=True)
 
         else:
             print(m)

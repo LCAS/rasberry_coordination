@@ -242,7 +242,7 @@ class Pause(StageBase):
     def _start(self):
         """On start, cancel any active navigation"""
         super(Pause, self)._start()
-        if 'navigation' in self.agent.modules and has_attr(self.agent.modules['navigation'].interface, 'cancel_execpolicy_goal'):
+        if 'navigation' in self.agent.modules and hasattr(self.agent.modules['navigation'].interface, 'cancel_execpolicy_goal'):
             self.agent.modules['navigation'].interface.cancel_execpolicy_goal() #navigation_interface
         #TODO: set an agent function for generic definition of pausing?
     def _query(self):

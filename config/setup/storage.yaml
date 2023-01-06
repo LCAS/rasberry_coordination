@@ -2,7 +2,9 @@ modules:
   - name: base
     interface: LocalisedHuman
     details:
-      - rviz_model: human
+      - rviz_model: special_node
+      - rviz_location_topic: ~robot_pose
+      - rviz_location_attach: True
 
   - name: navigation
     interface: Human

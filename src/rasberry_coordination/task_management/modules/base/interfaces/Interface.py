@@ -1,5 +1,7 @@
 from rasberry_coordination.task_management.__init__ import Stages
 from rasberry_coordination.task_management.containers.Task import TaskObj as Task
+from rasberry_coordination.coordinator_tools import logmsg
+
 
 class Interface(object):
 
@@ -27,3 +29,13 @@ class Interface(object):
                             Stages['base']['StartTask'](self.agent, task_id),
                             Stages['base']['Idle'](self.agent)
                         ]))
+
+    def release_task(self, agent):
+        logmsg(category="DTM", msg="    | releasing task %s" % (self.agent['name']))
+        self.agent.task = None
+
+    def restart_task(self, agent):
+        logmsg(category="DTM", msg="    | restarting task %s" % (self.agent['name']))
+        self.agent.add_task(module='base', name=agent['name'], task_id=self.agent['id'], index=0, quiet=True)
+        self.agent.task = None
+
