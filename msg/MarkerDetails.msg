@@ -1,12 +1,21 @@
-# rviz_type currently accepts "tall_robot", "short_robot", "human"
-string type
+# Agent ID
+string id
 
-# The id of the agent, used to define the object localisation topic
-string agent_id
+# Structure to render
+# details in rviz_markers/structures.yaml
+# leave empty to remove the marker
+string structure
 
-# Accepts "none", "red", "green", "blue", "white", "black"
-string optional_color
+# Optional colour to set marker componant scheme
+# details in rviz_markers/colours.yaml
+# leave empty to load default scheme
+string colour
+#std_msgs/ColorRGBA todo
 
-# The topic in shich the location will be published periodically/latched
-string location_topic
-string location_attachment
+# The subscribable location topic (use ~ for /ns/)
+# leave empty to use only a mandatory given pose
+string tf_source_topic
+string tf_source_type
+
+# Optional pose to send
+geometry_msgs/Pose pose

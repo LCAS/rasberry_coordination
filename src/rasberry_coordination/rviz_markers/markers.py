@@ -17,23 +17,30 @@ from rasberry_coordination.coordinator_tools import logmsg
 
 
 class AgentMarker(object):
-    def __init__(self, agent_id, dicts, agent_type, agent_color, topic, location):
-        self.color_dict = dicts['color']
+    def __init__(self, msg, dicts):
+        self.id = msg.id
+
+        # Save local references to dictionaries
+        self.colour_dict = dicts['colour']
         self.structure_dict = dicts['structures']
         self.components_dict = dicts['components']
-        self.agent_id = agent_id
-        self.type = agent_type
-        self.agent_color = agent_color
+
+        # Construct placeholder for marker
         self.marker_array = MarkerArray()
-        source = location if agent_type == 'special_node' else topic
-        self.tf = TFPublishers.get_tf_convertor(agent_id, agent_type, source)
+        self.structure = msg.structure
+        self.colour = msg.colour
+
+        # Construct tf manager to update position of published marker
+        self.tf = TFPublishers.get_tf_convertor(msg)
+
 
     def generate_marker_array(self):
-        logmsg(category="rviz", id=self.agent_id, msg="generating marker")
+        logmsg(category="rviz", id=self.id, msg="generating marker")
         marker_array = MarkerArray()
-        if self.type not in self.structure_dict:
-            self.type = 'short_robot_load_4'
-        for component_type,items in self.structure_dict[self.type].items():
+        if self.structure not in self.structure_dict:
+            logmsg(category="rviz", msg="    | %s not found, generating short_robot_load_4"%self.structure)
+            self.structure = 'short_robot_load_4'
+        for component_type,items in self.structure_dict[self.structure].items():
             for i in items:
                 c = self.get_component(component_type, ns=i[0], marker_index=i[1], position=i[2])
                 marker_array.markers.append(c)
@@ -43,8 +50,8 @@ class AgentMarker(object):
         component_dict = self.components_dict[component_type]
 
         component = Marker()
-        component.header.frame_id = "%s/base_link"%self.agent_id
-        component.ns = "%s__%s"%(self.agent_id, ns)
+        component.header.frame_id = "%s/base_link"%self.id
+        component.ns = "%s__%s"%(self.id, ns)
         component.id = marker_index
 
         component.type = getattr(component, component_dict['type'])
@@ -59,15 +66,15 @@ class AgentMarker(object):
         scale = component_dict['scale']
         component.scale = Vector3(scale[0], scale[1], scale[2])
 
-        color = component_dict['color']
-        if self.agent_color != '' and component_type in self.color_dict[self.agent_color]:
-            color = self.color_dict[self.agent_color][component_type]
-        component.color = ColorRGBA(color[0], color[1], color[2], color[3])
+        colour = component_dict['colour']
+        if self.colour != '' and component_type in self.colour_dict[self.colour]:
+            colour = self.colour_dict[self.colour][component_type]
+        component.color = ColorRGBA(colour[0], colour[1], colour[2], colour[3])
 
         component.frame_locked = component_dict['frame_locked']
 
         if component.type == component.TEXT_VIEW_FACING:
-            component.text = self.agent_id
+            component.text = self.id
 
         elif component.type == component.MESH_RESOURCE:
             component.mesh_resource = component_dict['mesh_resource']

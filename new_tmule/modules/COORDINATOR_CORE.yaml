@@ -18,9 +18,5 @@
   check: "ROS_MASTER_URI=${SERVER_URI} rostopic list | grep -q dynamic_fleet"
   tags: [coord]
 
-- name: coordinator_test_agent
-  panes:
-  - rosrun rasberry_coordination ui_speaker_broadcast.py
-#  - roslaunch rasberry_coordination add_agent.launch namespace:=/thorvald_020 agent_file_id:=thorvald_020 setup_file_id:=short
-#  - 'rostopic pub /thorvald_020/localisation/disable std_msgs/String "data: WayPoint5"' 
-  tags: [coord]
+
+
