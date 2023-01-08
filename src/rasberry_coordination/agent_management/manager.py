@@ -106,8 +106,13 @@ class AgentManager(object):
         try:
             lst = []
             for a in self.agent_details.values():
-                col = a.modules['base'].details['default_colour'] if 'base' in a.modules and 'default_colour' in a.modules['base'].details else ''
+                col = ''
+                if 'base' in a.modules and 'rviz' in a.modules['base'].details and 'colour' in a.modules['base'].details['rviz']:
+                    col = a.modules['base'].details['rviz']['colour']
+                if 'rviz_default_colour' in a.local_properties and a.local_properties['rviz_default_colour']:
+                    col = a.local_properties['rviz_default_colour']
                 lst.append(AgentLocation(agent_id=a.agent_id, current_node=a.location.current_node, current_edge=a.location.closest_edge, color=col))
+
             self.agent_locations.publish(AgentLocationList(list=lst))
         except Exception as e:
             print(traceback.format_exc())
@@ -121,7 +126,7 @@ class AgentManager(object):
                 self.set_marker_pub.publish(m)
 
     """ Data """
-    def simplify(self):
+    def simplify(self): #TODO: This should make use of the base interface instead
         out = {}
         for a in self.agent_details.values():
             if 'structure_type' not in a.modules['base'].details: continue
@@ -180,7 +185,6 @@ class AgentDetails(object):
         #Debug
         self.speaker_pub = Publisher('/%s/ui/speaker'%self.agent_id, Str, queue_size=1)
 
-
         #Final Setup
         for m in self.modules.values(): m.add_init_task()
         self.format_marker(style='red')
@@ -191,16 +195,7 @@ class AgentDetails(object):
     def add_idle_tasks(self):
         [self.add_task(module=m.name, name='idle') for m in self.modules.values() if m.name != "base"]
         if 'base' in self.modules:
-
-#TODO: check if the field_storage has a problem with idle tasks being stacked
-#<<<<<<< HEAD
             self.add_task(module='base', name='idle')
-#=======
-#            if 'field_storage' not in self.interfaces():
-#                self.add_task(task_name=self.modules['base'].idle_task_name)
-#>>>>>>> atm_qol
-
-
         if not self.task_buffer:
             logmsg(level="error", category="task", id=self.agent_id, msg="WARNING! Agent has no idle tasks.")
             logmsg(level="error", category="task", msg="    | All agents must be assigned a module.")
@@ -331,32 +326,32 @@ class AgentDetails(object):
 
         Create Marker: call self.format_marker("")
         Modify Marker: call self.format_marker("red")
-        Remove Marker: call self.format_marker("remove")
         """
         if 'base' not in self.modules: return
+        if 'rviz' not in self.modules['base'].details: return
 
+        rviz = self.modules['base'].details['rviz']
+        local = self.local_properties
+        local['rviz_default_colour'] = local['rviz_default_colour'] if 'rviz_default_colour' in local else ''
+
+
+        # Construct the marker details
         marker = MarkerDetails()
-        marker.agent_id = self.agent_id
-        marker.type = self.modules['base'].details['rviz_model']
-
-        # Define marker color ["remove", "red", "green", "blue", "black", "white", ""]
-        style = style or self.modules['base'].details['default_colour']
-        marker.optional_color = style
+        marker.id = self.agent_id
+        marker.structure = rviz['structure']
+        marker.colour = local['rviz_default_colour'] or rviz['colour'] or ''
 
         # Set where the location should come from
-        topic = ""
-        if 'rviz_location_topic' in self.modules['base'].details:
-            topic = self.modules['base'].details['rviz_location_topic'].replace('~','/%s/'%self.agent_id)
-        marker.location_topic = topic
+        if 'tf_source_topic' in rviz:
+            marker.tf_source_topic = rviz['tf_source_topic'].replace('~','/%s/'%self.agent_id)
+        if 'tf_source_type' in rviz:
+            marker.tf_source_type = rviz['tf_source_type']
 
-        # Send the location
-        if 'rviz_location_attach' in self.modules['base'].details and self.modules['base'].details['rviz_location_attach']:
-            if self.map_handler.raw_msg:
-                location = self.map_handler.get_node_tf(self.location())
-                marker.location_attachment = json.dumps(location)
+        # Attach the current pose
+        if 'attach_pose' in rviz and rviz['attach_pose'] and self.map_handler.raw_msg:
+            marker.pose = self.map_handler.get_node_pose(self.location())
 
-        logmsg(category="rviz", msg="Setting %s %s(%s)" % (marker.type, marker.agent_id, marker.optional_color))
-
+        logmsg(category="rviz", msg="Setting %s %s(%s)" % (marker.structure, marker.id, marker.colour))
         self.modules['base'].details['marker'] = marker
         self.set_marker_pub.publish(marker)
 

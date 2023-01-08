@@ -3,7 +3,11 @@ modules:
     interface: Robot
     details:
       - structure_type: tall
-      - rviz_model: tall_robot
+      - rviz:
+            structure: 'tall_robot'
+            colour: 'blue'
+            tf_source_topic: '~robot_pose'
+            tf_source_type: 'geometry_msgs/Pose'
 
   - name: navigation
     interface: Robot

@@ -3,15 +3,18 @@ modules:
     interface: Robot
     details:
       - structure_type: short
-      - rviz_model: short_robot
-      - rviz_location_topic: ~robot_pose
-      - rviz_location_attach: True
+      - rviz:
+            structure: 'short_robot'
+            colour: 'blue'
+            tf_source_topic: '~robot_pose'
+            tf_source_type: 'geometry_msgs/Pose'
 
   - name: navigation
     interface: RobotDebug
     details:
       - has_presence: true
       - restrictions: short
+      - map_filtering: [remove_tall, remove_tall_robot_row]
       - wait_node_name: base_tp_node
 
   - name: rasberry_health_monitoring_pkg

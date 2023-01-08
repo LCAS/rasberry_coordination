@@ -22,7 +22,7 @@ class MarkerPublisher(object):
 
         folderpath = rospkg.RosPack().get_path('rasberry_coordination')+"/src/rasberry_coordination/rviz_markers/"
 
-        with open(folderpath+"colors.yaml",    'r') as f: self.color_dict = yaml.safe_load(f)
+        with open(folderpath+"colours.yaml",   'r') as f: self.colour_dict = yaml.safe_load(f)
         with open(folderpath+"components.yaml",'r') as f: self.component_dict = yaml.safe_load(f)
         with open(folderpath+"structures.yaml",'r') as f: self.structures_dict = yaml.safe_load(f)
 
@@ -34,28 +34,39 @@ class MarkerPublisher(object):
         self.marker_pub_all = rospy.Publisher("/vis_all/all", MarkerArray, queue_size=10)
 
     def set_marker_cb(self, msg):
-        if msg.agent_id not in self.agents:
-            logmsg(category="rviz", id=msg.agent_id, msg="new %s: %s | %s"%(msg.type, msg.optional_color, msg.location_topic))
 
-            dicts = {'color': self.color_dict, 'components': self.component_dict, 'structures': self.structures_dict}
-            self.agents[msg.agent_id] = AgentMarker(msg.agent_id, dicts, msg.type, msg.optional_color, msg.location_topic, msg.location_attachment)
-            self.agents_to_render.append(msg.agent_id)
+        # If agent does not exist, create new container with marker directories
+        if msg.id not in self.agents:
+            logmsg(category="rviz", id=msg.id, msg="new %s: %s | %s (%s)"%(msg.structure, msg.colour, msg.tf_source_topic, msg.tf_source_type))
+            dicts = {'colour': self.colour_dict, 'components': self.component_dict, 'structures': self.structures_dict}
+            self.agents[msg.id] = AgentMarker(msg, dicts)
+            self.agents_to_render.append(msg.id)
+            return
 
-        else:
-            if msg.optional_color == 'remove':
-                logmsg(category="rviz", id=msg.agent_id, msg="del %s: %s"%(msg.type, msg.optional_color))
-                self.agents_to_pop.append(msg.agent_id)
+        # If no structure given, delete agent
+        if msg.structure == '':
+            logmsg(category="rviz", id=msg.agent_id, msg="del: %s"%(msg.agent_id))
+            self.agents_to_pop.append(msg.agent_id)
+            return
 
-            elif self.agents[msg.agent_id].agent_color != msg.optional_color:
-                logmsg(category="rviz", id=msg.agent_id, msg="mod %s: %s"%(msg.type, msg.optional_color))
-                self.agents[msg.agent_id].agent_color = msg.optional_color
-                self.agents_to_render.append(msg.agent_id)
+        # If given description is unchanged, skip
+        a = self.agents[msg.id]
+        if a.structure == msg.structure and a.colour == msg.colour and not msg.pose:
+            return
 
-            elif self.agents[msg.agent_id].type != msg.type:
-                logmsg(category="rviz", id=msg.agent_id, msg="mod %s: %s"%(msg.type, msg.optional_color))
-                self.agents[msg.agent_id].type = msg.type
-                self.agents[msg.agent_id].agent_color = msg.optional_color
-                self.agents_to_render.append(msg.agent_id)
+        # Save structure change and colour change
+        if a.structure != msg.structure:
+            logmsg(category="rviz", id=msg.id, msg="mod struct: %s -> %s"%(a.structure, msg.structure))
+            a.structure = msg.structure
+        if a.colour != msg.colour:
+            logmsg(category="rviz", id=msg.id, msg="mod colour: %s -> %s"%(a.colour, msg.colour))
+            a.colour = msg.colour
+        self.agents_to_render.append(msg.id)
+
+        # Save new pose for tf system to use
+        if msg.pose:
+            logmsg(category="rviz", id=msg.id, msg="mod pose: %s"%(str(msg.pose.position).replace('\n','')))
+            a.tf.pose = msg.pose
 
 
     def run(self):
@@ -104,4 +115,3 @@ if __name__ == "__main__":
     RootInspector(topic='~root_inspector', root=MP)
 
     MP.run()
-

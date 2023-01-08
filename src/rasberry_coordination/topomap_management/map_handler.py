@@ -1,5 +1,6 @@
 from copy import deepcopy
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
+from rospy_message_converter.message_converter import convert_dictionary_to_ros_message as rosmsg
 
 from std_msgs.msg import Bool, String as Str, Empty as Emp
 import strands_executive_msgs.msg
@@ -116,6 +117,11 @@ class MapObj(object):
             route_distance.append(self.get_edge_length(route_nodes[i], route_nodes[i + 1]))
 
         return sum(route_distance)
+
+    def get_node_pose(self, node):
+        node = self.get_node(node)['node']['pose']
+        pos, ori = node['position'], node['orientation']
+        return rosmsg('geometry_msgs/Pose', node)
 
     def get_node_tf(self, node):
         node = self.get_node(node)['node']['pose']

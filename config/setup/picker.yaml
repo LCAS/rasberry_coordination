@@ -2,7 +2,11 @@ modules:
   - name: base
     interface: LocalisedHuman
     details:
-      - rviz_model: human
+      - rviz:
+            structure: 'picker'
+            colour: 'red'
+            tf_source_topic: '/gps_position'
+            tf_source_type: 'gps_grouped_array'
 
   - name: navigation
     interface: Human

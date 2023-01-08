@@ -2,9 +2,11 @@ modules:
   - name: base
     interface: LocalisedHuman
     details:
-      - rviz_model: special_node
-      - rviz_location_topic: ~robot_pose
-      - rviz_location_attach: True
+      - rviz:
+            structure: 'special_node'
+            colour: 'green'
+            attach_pose: True
+            tf_source_type: 'static'
 
   - name: navigation
     interface: Human
