@@ -80,9 +80,6 @@ class MarkerPublisher(object):
             #if there are any pending updates
             if (self.agents_to_render or self.agents_to_pop) or (rospy.get_rostime() - self.publish_time > rospy.Duration(5)):
                 logmsg(category="null")
-                logmsg(category="null")
-                logmsg(category="null")
-                logmsg(category="null")
                 logmsg(category="rviz", msg="Cycle: %s"%i)
                 i+=1
 
