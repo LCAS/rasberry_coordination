@@ -173,7 +173,7 @@ filter()
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | i) Wait')
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
-        rospy.sleep(rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2)/2)
+        rospy.sleep(2*rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2)/2)
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | i) Wait End')
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
@@ -181,14 +181,14 @@ filter()
     def telemove(self):
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | ii) Telemove')
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
-        self.publish_edge_tf()
+        #self.publish_edge_tf()
         self.publish_edge_pose()
         self.publish_edge_name()
 
     def teleport(self):
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | ii) Teleport')
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
-        self.publish_node_tf()
+        #self.publish_node_tf()
         self.publish_node_pose()
         self.publish_node_name()
         self.publish_path()
@@ -224,6 +224,8 @@ publish_path()
         pos, ori = self.agent.map_handler.get_node_tf(self.execpolicy_goal.route.source[0])
         tim = rospy.Time.now()
         link = "%s/base_link" % self.agent.agent_id
+        print(pos)
+        print(ori)
         self.tf_broadcaster.sendTransform(pos, ori, tim, link, "map")
     def publish_edge_tf(self):
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | a) Pub Edge TF')
@@ -233,6 +235,8 @@ publish_path()
         pos = tuple([a+b/2 for a, b in zip(pos1,pos2)])
         tim = rospy.Time.now()
         link = "%s/base_link" % self.agent.agent_id
+        print(pos)
+        print(ori)
         self.tf_broadcaster.sendTransform(pos, ori, tim, link, "map")
 
 

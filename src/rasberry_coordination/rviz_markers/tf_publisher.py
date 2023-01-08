@@ -44,6 +44,7 @@ class TFPublishers:
 
         def pose_cb(self, msg):
             self.pose = self.convert_to_array(msg)
+            self.cycle_tf()
 
         def cycle_tf(self):
             if not self.pose: return
@@ -54,7 +55,6 @@ class TFPublishers:
                                               rospy.Time.now(),
                                               self.base_frame,
                                               "map")
-
 
     class StaticTFConvertor(TFConvertor):
         def __init__(self, msg):

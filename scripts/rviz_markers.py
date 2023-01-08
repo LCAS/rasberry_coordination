@@ -9,6 +9,7 @@ import rospy, rospkg
 import yaml
 
 from std_msgs.msg import Empty
+from geometry_msgs.msg import Point
 from visualization_msgs.msg import MarkerArray
 
 from rasberry_coordination.msg import MarkerDetails
@@ -64,9 +65,10 @@ class MarkerPublisher(object):
         self.agents_to_render.append(msg.id)
 
         # Save new pose for tf system to use
-        if msg.pose:
+        if msg.pose and msg.pose.position != Point():
             logmsg(category="rviz", id=msg.id, msg="mod pose: %s"%(str(msg.pose.position).replace('\n','')))
-            a.tf.pose = msg.pose
+            pos, ori = msg.pose.position, msg.pose.orientation
+            a.tf.pose = [[pos.x, pos.y, pos.z],[ori.x, ori.y, ori.z, ori.w]]
 
 
     def run(self):
@@ -77,6 +79,9 @@ class MarkerPublisher(object):
 
             #if there are any pending updates
             if (self.agents_to_render or self.agents_to_pop) or (rospy.get_rostime() - self.publish_time > rospy.Duration(5)):
+                logmsg(category="null")
+                logmsg(category="null")
+                logmsg(category="null")
                 logmsg(category="null")
                 logmsg(category="rviz", msg="Cycle: %s"%i)
                 i+=1
