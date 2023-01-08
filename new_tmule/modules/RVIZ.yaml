@@ -1,17 +1,20 @@
-- name: server_rviz
+- name: tui_topo_vis
   panes:
-  - rviz -d $(rospack find rasberry_core)/resources/$RVIZ_CONFIG.rviz
-  - roslaunch rasberry_navigation map_server.launch map:="$METRIC_MAP" use_no_go:=true no_go_map:="$NOGO_MAP"
-  - rosrun rasberry_core visualize_count.py
-#  - roslaunch rasberry_coordination agent_marker_publisher.launch config_file:=$TASK_COORD_CONFIG
-  - rosrun rasberry_coordination rviz_markers.py
-  - echo "hi"
+  - rosrun rasberry_topological_utils tui_topo_vis.py
+  - rostopic echo -c /rasberry_coordination/fleet_monitoring/agent_locations
   tags: [coord]
 
 
-#- name: server_rviz_extras
-#  panes:
-#  - roslaunch rasberry_navigation topological_visualiser_multisim.launch robot_name:=$ROBOT_NAME_1
-#  - roslaunch rasberry_navigation topological_visualiser_multisim.launch robot_name:=$ROBOT_NAME_2
-#  tags: [coord] # Used for goto_node markers for each robot in rviz (uncomment & set the robot_name correctly in each pane)
+- name: rviz
+  panes:
+  - rviz -d $(rospack find rasberry_core)/resources/$RVIZ_CONFIG.rviz
+  - roslaunch rasberry_navigation map_server.launch map:="$METRIC_MAP" use_no_go:=true no_go_map:="$NOGO_MAP"
+  - rosrun rasberry_coordination rviz_markers.py
+  tags: [coord]
+
+
+- name: rviz_extras
+  panes:
+  - rosrun rasberry_core visualize_count.py
+  tags: [coord]
 
