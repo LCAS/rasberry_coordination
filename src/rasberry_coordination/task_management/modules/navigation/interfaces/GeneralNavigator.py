@@ -13,6 +13,31 @@ class GeneralNavigator(Interface):
         super(GeneralNavigator, self).__init__(agent, details)
         self.move_idle_sub = Subscriber('/%s/base/move_idle' % agent.agent_id, Str, self.wait_at_node_cb)
         self.exit_at_node_sub = Subscriber('/%s/base/exit_at_node' % agent.agent_id, Str, self.exit_at_node_cb)
+        self.occupation_type = self.details['occupation'] if 'occupation' in self.details else None
+
+    def occupation(self):
+        """ Filter map based on occupation types associated to node name """
+        if self.agent.location.has_presence:
+
+            #Get location name
+            name = self.agent.location(accurate=False)
+
+            # Find filter types to apply
+            if node.startswith('dock_'):
+                type_list = self.occupation_type['dock_*']
+            elif node.startswith('WayPoint'):
+                type_list = self.occupation_type['WayPoint*']
+            elif node.startswith('s'):
+                type_list = self.occupation_type['s*']
+            elif node.startswith('r') and '-c' in node:
+                type_list = self.occupation_type['r*-c*']
+
+            # Apply filters
+            nodes_to_filter = []
+            for typ in type_list:
+                method = getattr(OccupancyFilters, typ)
+                nodes_to_filter += method(self.agent.map_handler.empty_map, node)
+        return nodes_to_filter
 
     def wait_at_node_cb(self, msg):
         logmsg(category="Task", id=self.agent.agent_id, msg="Request to Move while Idle")
