@@ -64,6 +64,7 @@ class BasePlanner(object):
     def load_occupied_nodes(self):
         """ get the list of all nodes occupied by agents """
         occ = [a.location(accurate=False) for a in self.agent_manager.agent_details.values() if a.location.has_presence]
+        #occ = [a.modules['navigation'].interface.occupation() for a in self.agent_manager.agent_details.values() if 'navigation' in a.modules]
         self.occupied_nodes = list(set(occ))
         o={a.agent_id: [a.location(accurate=False), a.location.has_presence] for a in self.agent_manager.agent_details.values() if a.location.has_presence}
         logmsg(category="route", msg="Occupied Nodes: %s"%str(o))
