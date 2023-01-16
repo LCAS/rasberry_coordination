@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import rospy, rospkg, sys
+import rospy, rospkg, sys, yaml
 from pprint import pprint
 
 
@@ -86,7 +86,7 @@ if __name__ == '__main__':
         setup_file = "%s/config/setup/%s.yaml"%(rospkg.RosPack().get_path('rasberry_coordination'), agent['setup'])
         setup_data = rasberry_des.config_utils.get_config_data(setup_file)
         for m in setup_data['modules']:
-            m['details'] = {d.keys()[0]:yaml.dump(d.values()[0]) for d in m['details']} if 'details' in m else dict()
+            m['details'] = {d.keys()[0]:d.values()[0] for d in m['details']} if 'details' in m else dict()
         agent['local_properties'] = agent['local_properties'] if 'local_properties' in agent else dict()
         config_data['agents'] += [{'agent_id': agent['agent_id'], 'local_properties':agent['local_properties'], 'modules':setup_data['modules']}]
 

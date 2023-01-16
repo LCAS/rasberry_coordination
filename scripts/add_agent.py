@@ -45,7 +45,7 @@ def load_agent_obj(agent_input, setup_input, get_files_from_paths=False, printer
         if printer: logmsg(level="warn", category="DRM", msg="Launching with agent_data: %s" % (agent_data))
     setup_data = rasberry_des.config_utils.get_config_data(setup_file)
 
-    # Build msg
+    # Build msg (use yaml.dump to parse further details through to coordinator)
     pprint(setup_data)
     print("\n")
     agent = NewAgentConfig()
