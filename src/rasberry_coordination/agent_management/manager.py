@@ -77,7 +77,7 @@ class AgentManager(object):
         def kvp_list(msg): return {kvp.key: kvp.value for kvp in msg}
         self.add_agent({'agent_id': msg.agent_id,
                         'local_properties': kvp_list(msg.local_properties),
-                        'modules': [{'name':m.name,'interface':str(m.interface), 'details':kvp_list(m.details)} for m in msg.modules]})
+                        'modules': [{'name':m.name,'interface':str(m.interface), 'details':kvp_list(yaml.safe_load(m.details))} for m in msg.modules]})
 
     """ Conveniences """
     def __getitem__(self, key):
