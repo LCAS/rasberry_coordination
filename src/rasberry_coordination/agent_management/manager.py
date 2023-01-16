@@ -74,10 +74,11 @@ class AgentManager(object):
     def add_agents(self, agent_list):
         for agent in agent_list: self.add_agent(agent)
     def add_agent_cb(self, msg):
-        def kvp_list(msg): return {kvp.key: kvp.value for kvp in msg}
+        def kvp_list(msg): return {kvp.key: yaml.safe_load(kvp.value) for kvp in msg}
+        print([type(m.details) for m in msg.modules])
         self.add_agent({'agent_id': msg.agent_id,
                         'local_properties': kvp_list(msg.local_properties),
-                        'modules': [{'name':m.name,'interface':str(m.interface), 'details':kvp_list(yaml.safe_load(m.details))} for m in msg.modules]})
+                        'modules': [{'name':m.name,'interface':str(m.interface), 'details':kvp_list(m.details)} for m in msg.modules]})
 
     """ Conveniences """
     def __getitem__(self, key):
