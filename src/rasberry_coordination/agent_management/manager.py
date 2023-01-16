@@ -53,10 +53,12 @@ class AgentManager(object):
         self.get_markers_sub = Subscriber('/rasberry_coordination/get_markers', Empty, self.get_markers_cb)
 
         # Fleet Monitoring
-        self.agent_registration = Publisher('/rasberry_coordination/fleet_monitoring/agent_registrations', AgentRegistrationList, latch=True, queue_size=2)
+        self.agent_registrations = Publisher('/rasberry_coordination/fleet_monitoring/agent_registrations', AgentRegistrationList, latch=True, queue_size=2)
         self.agent_states = Publisher('/rasberry_coordination/fleet_monitoring/agent_states', AgentStateList, latch=True, queue_size=2)
         self.agent_locations = Publisher('/rasberry_coordination/fleet_monitoring/agent_locations', AgentLocationList, latch=True, queue_size=2)
-
+        self.agent_registrations_last = None
+        self.agent_states_last = None
+        self.agent_locations_last = None
 
     """ Dynamic Fleet """
     def add_agent(self, agent_dict):
@@ -93,13 +95,17 @@ class AgentManager(object):
     def publish_registrations(self):
         try:
             lst = [AgentRegistration(agent_id=a.agent_id, registered=a.registration) for a in self.agent_details.values()]
-            self.agent_registration.publish(AgentRegistrationList(list=lst))
+            if self.agent_registrations_last != str(lst):
+                self.agent_registrations.publish(AgentRegistrationList(list=lst))
+                self.agent_registrations_last = str(lst)
         except Exception as e:
             print(traceback.format_exc())
     def publish_states(self):
         try:
             lst = [AgentState(agent_id=a.agent_id, current_task_id=a['id'], current_task=a['name'], stage=a().__repr__(), details=str(a['details'])) for a in self.agent_details.values()]
-            self.agent_states.publish(AgentStateList(list=lst))
+            if self.agent_states_last != str(lst):
+                self.agent_states.publish(AgentStateList(list=lst))
+                self.agent_states_last = str(lst)
         except Exception as e:
             print(traceback.format_exc())
     def publish_locations(self):
@@ -113,7 +119,9 @@ class AgentManager(object):
                     col = a.local_properties['rviz_default_colour']
                 lst.append(AgentLocation(agent_id=a.agent_id, current_node=a.location.current_node, current_edge=a.location.closest_edge, color=col))
 
-            self.agent_locations.publish(AgentLocationList(list=lst))
+            if self.agent_locations_last != str(lst):
+                self.agent_locations.publish(AgentLocationList(list=lst))
+                self.agent_locations_last = str(lst)
         except Exception as e:
             print(traceback.format_exc())
 
