@@ -25,18 +25,15 @@ class GeneralNavigator(Interface):
             # Find filter types to apply
             if node.startswith('dock_'):
                 type_list = self.occupation_type['dock_*']
-            elif node.startswith('WayPoint'):
-                type_list = self.occupation_type['WayPoint*']
-            elif node.startswith('s'):
-                type_list = self.occupation_type['s*']
             elif node.startswith('r') and '-c' in node:
                 type_list = self.occupation_type['r*-c*']
-
+            else:
+                type_list = ["self"]
             # Apply filters
             nodes_to_filter = []
             for typ in type_list:
                 method = getattr(OccupancyFilters, typ)
-                nodes_to_filter += method(self.agent.map_handler.empty_map, node)
+                nodes_to_filter += method(self.agent.map_handler.empty_map, self.agent.map_handler.empty_node_list, node)
         return nodes_to_filter
 
     def wait_at_node_cb(self, msg):
