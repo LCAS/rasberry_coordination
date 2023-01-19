@@ -1,129 +1,121 @@
-from copy import deepcopy
-from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
-from rospy_message_converter.message_converter import convert_dictionary_to_ros_message as rosmsg
 
-from std_msgs.msg import Bool, String as Str, Empty as Emp
-import strands_executive_msgs.msg
+class Occupancy(object):
 
-from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
+    @classmethod
+    def exists(cls, row, node_list):
+        return any([n for n in node_list if n.startswith("r%s-c"%row)])
 
-import yaml
-from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
-from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, get_distance_to_node_tmap2 as GetNodeDist
-from topological_navigation_msgs.msg import ClosestEdges
+    @classmethod
+    def self(cls, map, node_list, node):
+        return [node]
 
-class MapObj(object):
-    """
-    Uses:
-    - instantiated by Agent
-    - .map checked in WaitForMap
-    -
-    """
-    def __init__(self, agent, topic=None):
-        self.agent = agent
-        self.topic = topic or "/topological_map_2"
-
-        self.raw_msg = None
-
-        # used for planning direct routes
-        self.empty_map = None
-        self.empty_route_search = None
-        self.empty_node_list = None
-
-        # used for planning in cluttered workspace
-        self.filtered_map = None
-        self.filtered_route_search = None
-        self.filtered_node_list = None
+    #########################################################
 
 
-    def enable_map_monitoring(self):
-        # callback are enabled in base.StageDef.WaitForMap._start()
-        self.tmap_sub = Subscriber(self.topic, Str, self.map_cb, queue_size=5)
-
-    def map_cb(self, msg):
-        self.raw_msg = msg.data
-
-        # used for planning direct routes
-        self.empty_map = self.load_raw_tmap(self.raw_msg)
-        self.empty_route_search = TopologicalRouteSearch(self.empty_map)
-        self.empty_node_list = [node["node"]["name"] for node in self.empty_map['nodes']]
-
-        # used for planning in cluttered workspace
-        self.filtered_map = self.load_raw_tmap(self.raw_msg)
-        self.filtered_route_search = TopologicalRouteSearch(self.filtered_map)
-        self.filtered_node_list = [node["node"]["name"] for node in self.filtered_map['nodes']]
-
-    def start_map_reset(self):
-        self.filtered_map = deepcopy(self.empty_map)
-        # self.filtered_map = self.load_raw_tmap(self.raw_msg)
-
-    def complete_map_reset(self):
-        self.filtered_route_search = TopologicalRouteSearch(self.filtered_map)
-        self.filtered_node_list = [node["node"]["name"] for node in self.filtered_map['nodes']]
-
-    def load_raw_tmap(self, data):
-        return yaml.safe_load(data)
-
-    def is_node_restricted(self, node_id):
-        """check if given node is in agent's map"""
-        if 'restrictions' in self.modules['navigation'].details:
-            return (self.empty_node_list and node_id in self.empty_node_list)
-        return True
-
-    def simplify(self):
-        R = {n.split('-')[0][1:]: {} for n in self.empty_node_list if "-" in n and "WayPoint" not in n and "dock" not in n}
-        tall = {}
-        short = {}
-        for k, v in R.items():
-            if '.' in k:
-                short[k] = [n.split('-')[1][1:] for n in self.empty_node_list if n.split('-')[0] == ('r' + k ) and '.' in n]
-            else:
-                tall[k] = [n.split('-')[1][1:] for n in self.empty_node_list if  n.split('-')[0] == ('r' + k) and '.' not in n]
-        Map = { 'tall' : tall , 'short' : short }
-        return Str(str(Map))
+    @classmethod
+    def entry(cls, map, node_list, node):
+        #find entry node (all edges to node)
+        #loop through edges till reaching a node with more than 1 edge
+        while len(map[node].edges) == 1:
+            node = map[node].edges[0].node
+        return [node]
 
 
-    """ The following are map query tools """
-    def is_node(self, node):
-        """get node by name"""
-        return (node in self.empty_node_list)
 
-    def get_node(self, node):
-        """get node by name"""
-        return GetNode(self.empty_map, node)
 
-    def get_edge_length(self, from_node, to_node):
-        """ get length of edge """
-        return GetNodeDist(self.get_node(from_node), self.get_node(to_node))
 
-    def get_edge_distances(self):
-        """find edge lengths of route """
-        self.agent.route_dists = []
-        if not self.agent.route_edges: return
-        return [self.get_edge_length(self.agent.route[i], self.agent.route[i+1]) for i in range(len(self.agent.route) - 1)]
 
-    def get_route_length(self, agent, start_node, goal_node):
-        """ get length of direct route between nodes """
-        if start_node == goal_node: return 0
-        route = self.empty_route_search.search_route(start_node, goal_node)
-        if route is None: return float("inf")
 
-        route_nodes = route.source
-        route_nodes.append(goal_node)
 
-        route_distance = []
-        for i in range(len(route_nodes) - 1):
-            route_distance.append(self.get_edge_length(route_nodes[i], route_nodes[i + 1]))
+    #########################################################
 
-        return sum(route_distance)
+    @classmethod
+    def neighbour_tall_ends(cls, map, node_list, node):
+        #find ends of neghbouring short row
+        options = cls.neighbour_row_tall(map, node)
+        return [o for o in options if o.endswith('-cb') or o.endswith('-cy')]
 
-    def get_node_pose(self, node):
-        node = self.get_node(node)['node']['pose']
-        pos, ori = node['position'], node['orientation']
-        return rosmsg('geometry_msgs/Pose', node)
+    @classmethod
+    def neighbour_row_tall(cls, map, node_list, node, sep=False):
+        #########################################################
+        # find all nodes which are in the adjecent tall row
+        # row        r      f/c      ==+-     c-.3     goal
+        # r0.7-ca -> 0.7 -> [0,1] -> [0,1] -> [ ,1] -> [ ,1]
+        # r1-ca   -> 1   -> [1,1] -> [0,2] -> [ ,2] -> [ ,2]
+        # r1.5-ca -> 1.5 -> [1,2] -> [1,2] -> [1,2] -> [1,2]
+        # r2-ca   -> 2   -> [2,2] -> [1,3] -> [1,3] -> [1,3]
+        # r2.5-ca -> 2.5 -> [2,3] -> [2,3] -> [2,3] -> [2,3]
+        # r3-ca   -> 3   -> [3,3] -> [2,4] -> [2,4] -> [2,4]
+        # r3.5-ca -> 3.5 -> [3,4] -> [3,4] -> [3,4] -> [3,4]
+        # r4-ca   -> 4   -> [4,4] -> [3,5] -> [3,5] -> [3,5]
+        # r4.5-ca -> 4.5 -> [4,5] -> [4,5] -> [4,5] -> [4,5]
+        # r5-ca   -> 5   -> [5,5] -> [4,6] -> [4, ] -> [4, ]
+        # r5.3-ca -> 5.3 -> [5,6] -> [5,6] -> [5, ] -> [5, ]
+        #########################################################
 
-    def get_node_tf(self, node):
-        node = self.get_node(node)['node']['pose']
-        pos, ori = node['position'], node['orientation']
-        return ((pos['x'], pos['y'], pos['z']), (ori['x'], ori['y'], ori['z'], ori['w']))
+        # identify id
+        row = node[1:].split('-c')[0]
+        r = float(row)
+
+        # split directions
+        f = floor(r)
+        c = ceil(r)
+
+        # shift same
+        d = f-1 if f==c else f
+        u = c+1 if f==c else c
+
+        # clear invalid
+        d = None if cls.exists(c-0.3, node_list) else d
+        u = None if cls.exists(f+0.3, node_list) else u
+
+        # return list
+        return [n for n in node_list if n.startswith("r%s-c"%d) or n.startswith("r%s-c"%u)]
+
+    @classmethod
+    def neighbour_short_ends(cls, map, node_list,  node):
+        #find ends of neghbouring short row
+        options = cls.neighbour_row_short(map, node)
+        return [o for o in options if o.endswith('-cb') or o.endswith('-cy')]
+
+    @classmethod
+    def neighbour_row_short(cls, map, node_list, node, sep=False):
+        #########################################################
+        # find all nodes which are in the adjecent short row
+        # row        r       f,c     f-1, c     r==.x    +0.5          goal
+        # r0.7-ca -> 0.7 -> [0,1] -> [-1, 1] -> [ ,1] -> [   , 1.5] -> [   , 1.5]
+        # r1-ca   -> 1   -> [1,1] -> [ 0, 1] -> [0,1] -> [0.5, 1.5] -> [0.7, 1.5]
+        # r1.5-ca -> 1.5 -> [1,2] -> [ 0, 2] -> [0,2] -> [0.5, 2.5] -> [0.7, 2.5]
+        # r2-ca   -> 2   -> [2,2] -> [ 1, 2] -> [1,2] -> [1.5, 2.5] -> [1.5, 2.5]
+        # r2.5-ca -> 2.5 -> [2,3] -> [ 1, 3] -> [1,3] -> [1.5, 3.5] -> [1.5, 3.5]
+        # r3-ca   -> 3   -> [3,3] -> [ 2, 3] -> [2,3] -> [2.5, 3.5] -> [2.5, 3.5]
+        # r3.5-ca -> 3.5 -> [3,4] -> [ 2, 4] -> [2,4] -> [2.5, 4.5] -> [2.5, 4.5]
+        # r4-ca   -> 4   -> [4,4] -> [ 3, 4] -> [3,4] -> [3.5, 4.5] -> [3.5, 4.5]
+        # r4.5-ca -> 4.5 -> [4,5] -> [ 3, 5] -> [3,5] -> [3.5, 5.5] -> [3.5, 5.3]
+        # r5-ca   -> 5   -> [5,5] -> [ 4, 5] -> [4,5] -> [4.5, 5.5] -> [4.5, 5.3]
+        # r5.3-ca -> 5.3 -> [5,6] -> [ 4, 6] -> [4, ] -> [4.5,    ] -> [4.5,    ]
+        # r5.7-ca -> 5.7 -> [5,6] -> [ 4, 6] -> [ ,6] -> [   , 6.5] -> [   , 6.5]
+        #########################################################
+
+        # identify id
+        row = node[1:].split('-c')[0]
+        r = float(row)
+
+        # split directions
+        f = floor(r)
+        c = ceil(r)
+
+        # shift f
+        d = f-1
+        u = c
+
+        # clear invalid
+        d = None if '.7' in r else d
+        u = None if '.3' in r else u
+
+        # add decimal
+        if d: d = d+0.7 if cls.exists(d+0.7, node_list) else d+0.5
+        if u: u = u+0.3 if cls.exists(u+0.3, node_list) else u+0.5
+
+        # return list
+        return [n for n in node_list if n.startswith("r%s-c"%d) or n.startswith("r%s-c"%u)]

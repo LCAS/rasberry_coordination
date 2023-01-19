@@ -85,28 +85,28 @@ subgoal()
 
     def cangoal(self):
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='*) CANCEL')
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | []')
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | []')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | []')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | []')
         self.execpolicy_goal, self.buffer = None, []
 
     def setgoal(self, goal):
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='0) SET')
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(goal.route.source).replace('\n',''))
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(goal.route.edge_id).replace('\n',''))
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | %s'%str(goal.route.source).replace('\n',''))
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | %s'%str(goal.route.edge_id).replace('\n',''))
 
         # Replace current node with target node in goal source
         if goal.route.source:
             goal.route.source = goal.route.source[1:]+[goal.route.edge_id[-1].split('_')[1]]
-            logmsg(category='vr_rob', id=self.agent.agent_id, msg='as')
-            logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(goal.route.source).replace('\n',''))
-            logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(goal.route.edge_id).replace('\n',''))
+            logmsg(category='vr_roc', id=self.agent.agent_id, msg='as')
+            logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | %s'%str(goal.route.source).replace('\n',''))
+            logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | %s'%str(goal.route.edge_id).replace('\n',''))
 
         # Remove current edge if currently at when interrupted
         if self.agent.location.closest_edge and self.agent.location.closest_edge == goal.route.edge_id[0]:
             goal.route.edge_id.pop(0)
-            logmsg(category='vr_rob', id=self.agent.agent_id, msg='as')
-            logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(goal.route.source).replace('\n',''))
-            logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(goal.route.edge_id).replace('\n',''))
+            logmsg(category='vr_roc', id=self.agent.agent_id, msg='as')
+            logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | %s'%str(goal.route.source).replace('\n',''))
+            logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | %s'%str(goal.route.edge_id).replace('\n',''))
 
         self.buffer.append(goal)
         self.pubgoal()
@@ -115,8 +115,8 @@ subgoal()
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='1) Pubgoal')
         if self.buffer:
             self.execpolicy_goal, self.buffer = self.buffer[-1], []
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
         self.goal_publisher.publish(self.execpolicy_goal)
         self.publish_path()
 
@@ -127,23 +127,25 @@ subgoal()
 
             # Move to next edge in route
             if self.execpolicy_goal.route.edge_id:
-                logmsg(category='vr_rob', id=self.agent.agent_id, msg='2) Subgoal (edge)')
-                logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
+                nxt = self.execpolicy_goal.route.source[-1] if self.execpolicy_goal.route.source else ''
+                logmsg(category='vr_rob', id=self.agent.agent_id, msg='2) Move to edge: %s'%nxt)
+                logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
                 self.wait()
                 self.telemove()
                 self.filter_edge()
 
             # Move to next node in route
             if self.execpolicy_goal.route.source:
-                logmsg(category='vr_rob', id=self.agent.agent_id, msg='2) Subgoal (node)')
-                logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+                nxt = self.execpolicy_goal.route.source[-1] if self.execpolicy_goal.route.source else ''
+                logmsg(category='vr_rob', id=self.agent.agent_id, msg='2) Move to node: %s'%nxt)
+                logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
                 self.wait()
                 self.teleport()
                 self.filter_node()
 
             # Publish remainder of route for next cycle
-            logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
-            logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
+            logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+            logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
             if self.execpolicy_goal.route.source:
                 self.pubgoal()
         except:
@@ -171,36 +173,36 @@ filter()
 
     def wait(self):
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | i) Wait')
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
         rospy.sleep(rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2)/2)
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | i) Wait End')
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
 
     def telemove(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | ii) Telemove')
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | ii) Telemove')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
         #self.publish_edge_tf()
         self.publish_edge_pose()
         self.publish_edge_name()
 
     def teleport(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | ii) Teleport')
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | ii) Teleport')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
         #self.publish_node_tf()
         self.publish_node_pose()
         self.publish_node_name()
         self.publish_path()
 
     def filter_edge(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | iii) FilterEdge')
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='    | iii) FilterEdge')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.edge_id).replace('\n',''))
         self.execpolicy_goal.route.edge_id.pop(0)
 
     def filter_node(self):
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='    | iii) FilterNode')
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | %s'%str(self.execpolicy_goal.route.source).replace('\n',''))
         self.execpolicy_goal.route.source.pop(0)
 
     """ --------------- UTILS 2 ------------- """
@@ -220,7 +222,7 @@ publish_path()
 
 
     def publish_node_tf(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | a) Pub Node TF')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | a) Pub Node TF')
         pos, ori = self.agent.map_handler.get_node_tf(self.execpolicy_goal.route.source[0])
         tim = rospy.Time.now()
         link = "%s/base_link" % self.agent.agent_id
@@ -228,7 +230,7 @@ publish_path()
         print(ori)
         self.tf_broadcaster.sendTransform(pos, ori, tim, link, "map")
     def publish_edge_tf(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | a) Pub Edge TF')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | a) Pub Edge TF')
         n1, n2 = self.execpolicy_goal.route.edge_id[0].split('_')
         pos1, ori = self.agent.map_handler.get_node_tf(n1)
         pos2, _   = self.agent.map_handler.get_node_tf(n2)
@@ -241,12 +243,12 @@ publish_path()
 
 
     def publish_node_pose(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | b) Pub Node Pose')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | b) Pub Node Pose')
         pos, ori = self.agent.map_handler.get_node_tf(self.execpolicy_goal.route.source[0])
         pose = Pose(Point(x=pos[0],y=pos[1],z=pos[2]), Quaternion(x=ori[0],y=ori[1],z=ori[2],w=ori[3]))
         self.pose_publisher.publish(pose)
     def publish_edge_pose(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | b) Pub Edge Pose')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | b) Pub Edge Pose')
         n1, n2 = self.execpolicy_goal.route.edge_id[0].split('_')
         pos1, ori = self.agent.map_handler.get_node_tf(n1)
         pos2, _   = self.agent.map_handler.get_node_tf(n2)
@@ -256,12 +258,12 @@ publish_path()
 
 
     def publish_node_name(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | c) Pub Node Name')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | c) Pub Node Name')
         node = self.execpolicy_goal.route.source[0]
         self.current_node_pub.publish(node)
         self.closest_node_pub.publish(node)
     def publish_edge_name(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | c) Pub Edge Name')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | c) Pub Edge Name')
         self.current_node_pub.publish("none")
         edge = self.execpolicy_goal.route.edge_id[0]
         edges = ClosestEdges(edge_ids=[edge], distances=[0.0])
@@ -269,7 +271,7 @@ publish_path()
 
 
     def publish_path(self):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='        | d) Pub Path')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='        | d) Pub Path')
         route = Path()
         route.header.frame_id = "map"
         if self.execpolicy_goal.route.source:
