@@ -34,7 +34,7 @@ class Robot(GeneralNavigator):
         """
         super(Robot, self).__init__(agent, details)
         self.robot_id = self.agent.agent_id
-        self.ns = "/%s/" %(robot_id)
+        self.ns = "/%s/" %(self.robot_id)
         self.speaker_fn = self.agent.speaker
 
         self.goal_node = "none"

@@ -3,7 +3,7 @@
 import tf
 import sys
 import rospy
-import json
+import json, yaml
 from std_msgs.msg import String
 import rasberry_coordination
 from rasberry_coordination.msg import NewAgentConfig, Module
@@ -45,14 +45,14 @@ def load_agent_obj(agent_input, setup_input, get_files_from_paths=False, printer
         if printer: logmsg(level="warn", category="DRM", msg="Launching with agent_data: %s" % (agent_data))
     setup_data = rasberry_des.config_utils.get_config_data(setup_file)
 
-    # Build msg
+    # Build msg (use yaml.dump to parse further details through to coordinator)
     pprint(setup_data)
     print("\n")
     agent = NewAgentConfig()
     agent.agent_id = agent_data['agent_id']
     agent.local_properties = get_kvp_list(agent_data, 'local_properties')
     for m in setup_data['modules']: m['details'] = m['details'] if 'details' in m else [{'key':'value'}]
-    agent.modules = [Module(m['name'], m['interface'], [KeyValue(d.keys()[0], str(d.values()[0])) for d in m['details']]) for m in setup_data['modules']]
+    agent.modules = [Module(m['name'], m['interface'], [KeyValue(d.keys()[0], yaml.dump(d.values()[0])) for d in m['details']]) for m in setup_data['modules']]
     print("\n\n")
     return agent
 
