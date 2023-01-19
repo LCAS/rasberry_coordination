@@ -184,7 +184,7 @@ class Timeout(StageBase):
 
 class FlagCheck(StageBase):
     def __init__(self, agent, flag_name=None, flag_success=None, **kw):
-        super(Timeout, self).__init__(agent, **kw)
+        super(FlagCheck, self).__init__(agent, **kw)
         self.flag_name = flag_name
         self.flag_success = flag_success
     def _start(self, flag_name=None, flag_success=None, **kw):
