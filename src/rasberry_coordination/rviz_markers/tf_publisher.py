@@ -18,7 +18,7 @@ class TFPublishers:
     def get_tf_convertor(msg):
         tf_source_type = {'geometry_msgs/Pose': TFPublishers.PoseTFConvertor,
                           'geometry_msgs/PoseStamped': TFPublishers.PoseStampedTFConvertor,
-                          'gps_grouped_array': TFPublishers.GPSPositionsTFPublisher,
+                          'gps_grouped_array': TFPublishers.GPSPositionsTFConvertor,
                           'static': TFPublishers.StaticTFConvertor}
         return tf_source_type[msg.tf_source_type](msg)
 
@@ -81,11 +81,13 @@ class TFPublishers:
             return [[pos.x, pos.y, pos.z],[ori.x, ori.y, ori.z, ori.w]]
 
 
-    class GPSPositionsTFPublisher(TFConvertor):
+    class GPSPositionsTFConvertor(TFConvertor):
         def __init__(self, msg):
             super(TFPublishers.GPSPositionsTFConvertor, self).__init__(msg)
             self.gps_sub = rospy.Subscriber(self.source_topic, bayes_people_tracker.msg.PeopleStamped, self.pose_cb)
+            print(self.source_topic)
         def convert_to_array(self, msg):
+            print(msg)
             person = [p.person for p in msg.people if p.person.name == self.id and p.person.position != geometry_msgs.msg.Point()]
             if len(person) < 1: return [[0,0,0],[0,0,0,1]]
             pos = person[0].position
