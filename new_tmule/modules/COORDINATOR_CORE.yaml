@@ -8,6 +8,7 @@
   panes:
   - roslaunch rasberry_navigation topological_map_manager2_central.launch tmap_file:=$TMAP_FILE
   - rosrun persistent_topics single_channel_persistent_topics_node _topics:="['/topological_map_2']" _file_name:="$HOME/.ros/rasberry.ptb"
+  - rosrun rasberry_topological_utils datum.py $DATUM_FILE
   check: "ROS_MASTER_URI=${SERVER_URI} rostopic list | grep -q /topological_map_2"
   tags: [coord]
 
