@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import rospy, rospkg, sys
+import rospy, rospkg, sys, yaml
 from pprint import pprint
 
 
