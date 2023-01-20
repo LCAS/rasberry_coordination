@@ -27,6 +27,7 @@ from rasberry_coordination.task_management.__init__ import Interfaces
 import rasberry_des.config_utils
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
+from rasberry_coordination.msg import OldAgentRegistrationList, OldAgentRegistration, OldAgentStateList, OldAgentState, OldAgentLocationList, OldAgentLocation
 
 class AgentManager(object):
 
@@ -56,6 +57,13 @@ class AgentManager(object):
         # Fleet Monitoring
         self.fleet_pub = Publisher('/rasberry_coordination/fleet_monitoring/fleet', AgentList, latch=True, queue_size=2)
         self.fleet_last = None
+
+        self.old_agent_registrations = Publisher('/rasberry_coordination/fleet_monitoring/agent_registrations', OldAgentRegistrationList, latch=True, queue_size=2)
+        self.old_agent_states = Publisher('/rasberry_coordination/fleet_monitoring/agent_states', OldAgentStateList, latch=True, queue_size=2)
+        self.old_agent_locations = Publisher('/rasberry_coordination/fleet_monitoring/agent_locations', OldAgentLocationList, latch=True, queue_size=2)
+        self.old_agent_registrations_last = None
+        self.old_agent_states_last = None
+        self.old_agent_locations_last = None
 
     """ Dynamic Fleet """
     def add_agent(self, agent_dict):
@@ -88,6 +96,7 @@ class AgentManager(object):
     """ Fleet Monitoring """
     def fleet_monitoring(self):
         try:
+            self.old_fleet_monitoring()
             lst = [Agent(id=a.agent_id,
                          location=self.get_location(a),
                          registration=self.get_registration(a),
@@ -128,6 +137,54 @@ class AgentManager(object):
         if 'battery_level' in a.local_properties:
             return AgentHealth(battery_estimate=str(a.local_properties['battery_level']))
         return AgentHealth(battery_estimate="None")
+
+
+
+
+
+    """ Monitoring """
+    def old_fleet_monitoring(self):
+        self.old_publish_registrations()
+        self.old_publish_states()
+        self.old_publish_locations()
+    def old_publish_registrations(self):
+        try:
+            lst = [OldAgentRegistration(agent_id=a.agent_id, registered=a.registration) for a in self.agent_details.values()]
+            if self.old_agent_registrations_last != str(lst):
+                self.old_agent_registrations.publish(OldAgentRegistrationList(list=lst))
+                self.old_agent_registrations_last = str(lst)
+        except Exception as e:
+            print(traceback.format_exc())
+    def old_publish_states(self):
+        try:
+            lst = [OldAgentState(agent_id=a.agent_id, current_task_id=a['id'], current_task=a['name'], stage=a().__repr__(), details=str(a['details'])) for a in self.agent_details.values()]
+            if self.old_agent_states_last != str(lst):
+                self.old_agent_states.publish(OldAgentStateList(list=lst))
+                self.old_agent_states_last = str(lst)
+        except Exception as e:
+            print(traceback.format_exc())
+    def old_publish_locations(self):
+        try:
+            lst = []
+            for a in self.agent_details.values():
+                col = ''
+                if 'base' in a.modules and 'rviz' in a.modules['base'].details and 'colour' in a.modules['base'].details['rviz']:
+                    col = a.modules['base'].details['rviz']['colour']
+                if 'rviz_default_colour' in a.local_properties and a.local_properties['rviz_default_colour']:
+                    col = a.local_properties['rviz_default_colour']
+                lst.append(OldAgentLocation(agent_id=a.agent_id, current_node=a.location.current_node, current_edge=a.location.closest_edge, color=col))
+
+            if self.old_agent_locations_last != str(lst):
+                self.old_agent_locations.publish(OldAgentLocationList(list=lst))
+                self.old_agent_locations_last = str(lst)
+        except Exception as e:
+            print(traceback.format_exc())
+
+
+
+
+
+
 
 
     """ RViZ Visuals """
