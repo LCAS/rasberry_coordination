@@ -1,0 +1,1 @@
+string battery_estimate

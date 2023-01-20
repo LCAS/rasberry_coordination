@@ -25,12 +25,19 @@ catkin_python_setup()
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  AgentRegistrationList.msg
-  AgentRegistration.msg
-  AgentStateList.msg
-  AgentState.msg
-  AgentLocationList.msg
+  OldAgentLocation.msg
+  OldAgentLocationList.msg
+  OldAgentRegistration.msg
+  OldAgentRegistrationList.msg
+  OldAgentState.msg
+  OldAgentStateList.msg
+  AgentList.msg
+  Agent.msg
   AgentLocation.msg
+  AgentRegistration.msg
+  AgentState.msg
+  AgentRendering.msg
+  AgentHealth.msg
   FullLocation.msg
   Interruption.msg
   MarkerDetails.msg

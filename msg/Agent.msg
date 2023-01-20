@@ -1,0 +1,7 @@
+string id
+rasberry_coordination/AgentLocation location
+rasberry_coordination/AgentRegistration registration
+rasberry_coordination/AgentState state
+rasberry_coordination/AgentRendering rendering
+rasberry_coordination/AgentHealth health
+
