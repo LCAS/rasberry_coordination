@@ -1,7 +1,7 @@
 string agent_id
 string current_node
 string current_edge
-string colour
+string color
 
 #    string current_node
 #        WayPoint140
