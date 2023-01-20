@@ -4,7 +4,7 @@ from pprint import pprint
 from rospy import set_param, get_param
 import rospkg
 from rasberry_coordination.coordinator_tools import logmsg
-
+import traceback
 global Stages, Interfaces, PropertiesDef
 
 
@@ -75,7 +75,8 @@ def load_custom_modules(clean_module_list):
         try:
             module_obj = importlib.import_module(module+".stage_definitions")
         except ImportError as e:
-            logmsg(level="error", category="START", msg="    :    | "+str(e))
+            logmsg(level="error", category="START", msg="    :    | %s (%s)"%(module,str(e)))
+            print(traceback.format_exc())
             continue
 
         for obj in dir(module_obj):
@@ -104,8 +105,9 @@ def load_custom_modules(clean_module_list):
             if "No module named" in str(e):
                 logmsg(category="START", msg="    :    | "+str(e))
             else:
-                logmsg(level="error", category="START", msg="    :    | "+str(e))
+                logmsg(level="error", category="START", msg="    :    | %s (%s)"%(module,str(e)))
                 #logmsg(level="error", category="START", msg="    :    | ensure ...interfaces.__init__.py imports to your modules")
+                print(traceback.format_exc())
                 quit()
             continue
 
