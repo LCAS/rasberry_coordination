@@ -16,7 +16,7 @@ from std_srvs.srv import Trigger, TriggerResponse
 
 from diagnostic_msgs.msg import KeyValue
 from rasberry_coordination.msg import NewAgentConfig, MarkerDetails
-from rasberry_coordination.msg import Agent, AgentRegistration, AgentState, AgentLocation, AgentHealth, AgentRendering
+from rasberry_coordination.msg import Agent, AgentList, AgentRegistration, AgentState, AgentLocation, AgentHealth, AgentRendering
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.agent_management.location_handler import LocationObj as Location
 from rasberry_coordination.topomap_management.map_handler import MapObj as Map
@@ -88,12 +88,12 @@ class AgentManager(object):
     """ Fleet Monitoring """
     def fleet_monitoring(self):
         try:
-            lst = AgentList(list=[Agent(id=a.agent_id,
-                                        location=self.get_location(a),
-                                        registration=self.get_registration(a),
-                                        state=self.get_states(a),
-                                        rendering=self.get_rendering(a),
-                                        health=self.get_health(a)) for a in self.agent_details.values()])
+            lst = [Agent(id=a.agent_id,
+                         location=self.get_location(a),
+                         registration=self.get_registration(a),
+                         state=self.get_state(a),
+                         rendering=self.get_rendering(a),
+                         health=self.get_health(a)) for a in self.agent_details.values()]
             if self.fleet_last != str(lst):
                 self.fleet_pub.publish(AgentList(list=lst))
                 self.fleet_last = str(lst)
@@ -105,7 +105,7 @@ class AgentManager(object):
                              current_edge=a.location.closest_edge)
 
     def get_registration(self, a):
-        return AgentRegistration(current_node=a.registration)
+        return AgentRegistration(registered=a.registration)
 
     def get_state(self, a):
         return AgentState(current_task_id=a['id'],
@@ -121,11 +121,11 @@ class AgentManager(object):
             col = rviz['colour'] if 'colour' in rviz else col
             col = loca['rviz_default_colour'] if 'rviz_default_colour' in loca else col
             stu = rviz['structure'] if 'structure' in rviz else ''
-            return AgentRendering(color=col, structure=stu)
-        return AgentRendering(color="None",structure="None")
+            return AgentRendering(colour=col, structure=stu)
+        return AgentRendering(colour="None", structure="None")
 
     def get_health(self, a):
-        if 'battery_level' in a.local_properties
+        if 'battery_level' in a.local_properties:
             return AgentHealth(battery_estimate=str(a.local_properties['battery_level']))
         return AgentHealth(battery_estimate="None")
 
