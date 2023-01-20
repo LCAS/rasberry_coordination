@@ -1,5 +1,5 @@
-#AgentState.msg / AgentStateList.msg
-Sent by the coordinator detailing the task state of all connected agents.
+#Agent.msg / AgentList.msg
+Sent by the coordinator detailing the task states of all connected agents.
 
 #Interruption.msg
 Recieved by the coordinator to interrupt an active task by pausing or cancelling it.

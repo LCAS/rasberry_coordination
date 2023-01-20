@@ -1,6 +1,6 @@
 #Marker Components:
 
-short_robot:
+short_robot: &short_robot
   wheel_marker:
     - [wheel0, 0, [0.65, 0.3, 0.15]]
     - [wheel1, 1, [0.65, -0.3, 0.15]]
@@ -25,6 +25,8 @@ short_robot:
     - [name, 16, [0, 0, 0.6]]
   bed_marker:
     - [bed, 17, [0,0,0.575]]
+short_transportation: *short_robot
+short_sprayer: *short_robot
 
 
 short_robot_load_1:
@@ -164,7 +166,7 @@ short_robot_load_4:
 
 
 
-tall_robot:
+tall_robot: &tall_robot
   wheel_marker:
     - [wheel0, 0, [0.65, 0.3, 0.15]]
     - [wheel1, 1, [0.65, -0.3, 0.15]]
@@ -184,9 +186,12 @@ tall_robot:
     - [arch, 12, [-0.68, -0.37, 0.4]]
   name_marker:
     - [name, 16, [0, 0, 0.7]]
+tall_data_collection: *tall_robot
+tall_sprayer: *tall_robot
+tall_uv: *tall_robot
 
 
-human:
+human: &human
   leg_marker:
     - [left_leg, 0, [0, 0.05, 0.4]]
     - [right_leg, 1, [0, -0.05, 0.4]]
@@ -199,7 +204,7 @@ human:
     - [head, 5, [0, 0, 1.40]]
   name_marker:
     - [name, 6, [0, 0, 1.8]]
-
+picker: *human
 
 special_node:
   node_marker:
