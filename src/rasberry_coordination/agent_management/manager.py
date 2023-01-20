@@ -346,12 +346,13 @@ class AgentDetails(object):
         rviz = self.modules['base'].details['rviz']
         local = self.local_properties
         local['rviz_default_colour'] = local['rviz_default_colour'] if 'rviz_default_colour' in local else ''
+        local['rviz_structure'] = local['rviz_structure'] if 'rviz_structure' in local else ''
 
 
         # Construct the marker details
         marker = MarkerDetails()
         marker.id = self.agent_id
-        marker.structure = rviz['structure']
+        marker.structure = local['structure'] or rviz['structure']
         marker.colour = local['rviz_default_colour'] or rviz['colour'] or ''
 
         # Set where the location should come from
