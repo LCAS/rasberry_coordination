@@ -3,9 +3,9 @@ modules:
     interface: LocalisedHuman
     details:
       - rviz:
-            structure: 'picker'
+            structure: 'human'
             colour: 'red'
-            tf_source_topic: '/gps_position'
+            tf_source_topic: '/gps_positions'
             tf_source_type: 'gps_grouped_array'
 
   - name: navigation

@@ -4,7 +4,7 @@ modules:
     details:
       - structure_type: human
       - rviz:
-            structure: 'human'
+            structure: 'picker'
             colour: 'red'
             attach_pose: True
             tf_source_topic: '~pose'

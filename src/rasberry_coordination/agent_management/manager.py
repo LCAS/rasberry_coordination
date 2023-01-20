@@ -15,7 +15,8 @@ from std_msgs.msg import String as Str, Empty, Bool
 from std_srvs.srv import Trigger, TriggerResponse
 
 from diagnostic_msgs.msg import KeyValue
-from rasberry_coordination.msg import NewAgentConfig, MarkerDetails, AgentRegistrationList, AgentRegistration, AgentStateList, AgentState, AgentLocationList, AgentLocation
+from rasberry_coordination.msg import NewAgentConfig, MarkerDetails
+from rasberry_coordination.msg import Agent, AgentList, AgentRegistration, AgentState, AgentLocation, AgentHealth, AgentRendering
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.agent_management.location_handler import LocationObj as Location
 from rasberry_coordination.topomap_management.map_handler import MapObj as Map
@@ -26,6 +27,7 @@ from rasberry_coordination.task_management.__init__ import Interfaces
 import rasberry_des.config_utils
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
+from rasberry_coordination.msg import OldAgentRegistrationList, OldAgentRegistration, OldAgentStateList, OldAgentState, OldAgentLocationList, OldAgentLocation
 
 class AgentManager(object):
 
@@ -53,18 +55,22 @@ class AgentManager(object):
         self.get_markers_sub = Subscriber('/rasberry_coordination/get_markers', Empty, self.get_markers_cb)
 
         # Fleet Monitoring
-        self.agent_registrations = Publisher('/rasberry_coordination/fleet_monitoring/agent_registrations', AgentRegistrationList, latch=True, queue_size=2)
-        self.agent_states = Publisher('/rasberry_coordination/fleet_monitoring/agent_states', AgentStateList, latch=True, queue_size=2)
-        self.agent_locations = Publisher('/rasberry_coordination/fleet_monitoring/agent_locations', AgentLocationList, latch=True, queue_size=2)
-        self.agent_registrations_last = None
-        self.agent_states_last = None
-        self.agent_locations_last = None
+        self.fleet_pub = Publisher('/rasberry_coordination/fleet_monitoring/fleet', AgentList, latch=True, queue_size=2)
+        self.fleet_last = None
+
+        self.old_agent_registrations = Publisher('/rasberry_coordination/fleet_monitoring/agent_registrations', OldAgentRegistrationList, latch=True, queue_size=2)
+        self.old_agent_states = Publisher('/rasberry_coordination/fleet_monitoring/agent_states', OldAgentStateList, latch=True, queue_size=2)
+        self.old_agent_locations = Publisher('/rasberry_coordination/fleet_monitoring/agent_locations', OldAgentLocationList, latch=True, queue_size=2)
+        self.old_agent_registrations_last = None
+        self.old_agent_states_last = None
+        self.old_agent_locations_last = None
 
     """ Dynamic Fleet """
     def add_agent(self, agent_dict):
         if agent_dict['agent_id'] not in self.agent_details:
             self.new_agent_buffer[agent_dict['agent_id']] = agent_dict
-            pub2 = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)  #TODO: this should not be included here
+            pub2 = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)
+            #^ TODO: this should not be included here
             pub2.publish(self.simplify())
     def add_agent_from_buffer(self):
         buffer, self.new_agent_buffer = self.new_agent_buffer, dict()
@@ -87,28 +93,77 @@ class AgentManager(object):
     def get_agent_list_copy(self):
         return self.agent_details.copy()
 
-    """ Monitoring """
+    """ Fleet Monitoring """
     def fleet_monitoring(self):
-        self.publish_registrations()
-        self.publish_states()
-        self.publish_locations()
-    def publish_registrations(self):
         try:
-            lst = [AgentRegistration(agent_id=a.agent_id, registered=a.registration) for a in self.agent_details.values()]
-            if self.agent_registrations_last != str(lst):
-                self.agent_registrations.publish(AgentRegistrationList(list=lst))
-                self.agent_registrations_last = str(lst)
+            self.old_fleet_monitoring()
+            lst = [Agent(id=a.agent_id,
+                         location=self.get_location(a),
+                         registration=self.get_registration(a),
+                         state=self.get_state(a),
+                         rendering=self.get_rendering(a),
+                         health=self.get_health(a)) for a in self.agent_details.values()]
+            if self.fleet_last != str(lst):
+                self.fleet_pub.publish(AgentList(list=lst))
+                self.fleet_last = str(lst)
         except Exception as e:
             print(traceback.format_exc())
-    def publish_states(self):
+
+    def get_location(self, a):
+        return AgentLocation(current_node=a.location.current_node,
+                             current_edge=a.location.closest_edge)
+
+    def get_registration(self, a):
+        return AgentRegistration(registered=a.registration)
+
+    def get_state(self, a):
+        return AgentState(current_task_id=a['id'],
+                          current_task=a['name'],
+                          stage=a().__repr__(),
+                          details=str(a['details']))
+
+    def get_rendering(self, a):
+        if 'base' in a.modules and 'rviz' in a.modules['base'].details:
+            rviz=a.modules['base'].details['rviz']
+            loca=a.local_properties
+            col = ''
+            col = rviz['colour'] if 'colour' in rviz else col
+            col = loca['rviz_default_colour'] if 'rviz_default_colour' in loca else col
+            stu = rviz['structure'] if 'structure' in rviz else ''
+            return AgentRendering(colour=col, structure=stu)
+        return AgentRendering(colour="None", structure="None")
+
+    def get_health(self, a):
+        if 'battery_level' in a.local_properties:
+            return AgentHealth(battery_estimate=str(a.local_properties['battery_level']))
+        return AgentHealth(battery_estimate="None")
+
+
+
+
+
+    """ Monitoring """
+    def old_fleet_monitoring(self):
+        self.old_publish_registrations()
+        self.old_publish_states()
+        self.old_publish_locations()
+    def old_publish_registrations(self):
         try:
-            lst = [AgentState(agent_id=a.agent_id, current_task_id=a['id'], current_task=a['name'], stage=a().__repr__(), details=str(a['details'])) for a in self.agent_details.values()]
-            if self.agent_states_last != str(lst):
-                self.agent_states.publish(AgentStateList(list=lst))
-                self.agent_states_last = str(lst)
+            lst = [OldAgentRegistration(agent_id=a.agent_id, registered=a.registration) for a in self.agent_details.values()]
+            if self.old_agent_registrations_last != str(lst):
+                self.old_agent_registrations.publish(OldAgentRegistrationList(list=lst))
+                self.old_agent_registrations_last = str(lst)
         except Exception as e:
             print(traceback.format_exc())
-    def publish_locations(self):
+    def old_publish_states(self):
+        try:
+            lst = [OldAgentState(agent_id=a.agent_id, current_task_id=a['id'], current_task=a['name'], stage=a().__repr__(), details=str(a['details'])) for a in self.agent_details.values()]
+            if self.old_agent_states_last != str(lst):
+                self.old_agent_states.publish(OldAgentStateList(list=lst))
+                self.old_agent_states_last = str(lst)
+        except Exception as e:
+            print(traceback.format_exc())
+    def old_publish_locations(self):
         try:
             lst = []
             for a in self.agent_details.values():
@@ -117,13 +172,20 @@ class AgentManager(object):
                     col = a.modules['base'].details['rviz']['colour']
                 if 'rviz_default_colour' in a.local_properties and a.local_properties['rviz_default_colour']:
                     col = a.local_properties['rviz_default_colour']
-                lst.append(AgentLocation(agent_id=a.agent_id, current_node=a.location.current_node, current_edge=a.location.closest_edge, color=col))
+                lst.append(OldAgentLocation(agent_id=a.agent_id, current_node=a.location.current_node, current_edge=a.location.closest_edge, color=col))
 
-            if self.agent_locations_last != str(lst):
-                self.agent_locations.publish(AgentLocationList(list=lst))
-                self.agent_locations_last = str(lst)
+            if self.old_agent_locations_last != str(lst):
+                self.old_agent_locations.publish(OldAgentLocationList(list=lst))
+                self.old_agent_locations_last = str(lst)
         except Exception as e:
             print(traceback.format_exc())
+
+
+
+
+
+
+
 
     """ RViZ Visuals """
     def get_markers_cb(self, empty):
@@ -341,12 +403,13 @@ class AgentDetails(object):
         rviz = self.modules['base'].details['rviz']
         local = self.local_properties
         local['rviz_default_colour'] = local['rviz_default_colour'] if 'rviz_default_colour' in local else ''
+        local['rviz_structure'] = local['rviz_structure'] if 'rviz_structure' in local else ''
 
 
         # Construct the marker details
         marker = MarkerDetails()
         marker.id = self.agent_id
-        marker.structure = rviz['structure']
+        marker.structure = local['rviz_structure'] or rviz['structure']
         marker.colour = local['rviz_default_colour'] or rviz['colour'] or ''
 
         # Set where the location should come from

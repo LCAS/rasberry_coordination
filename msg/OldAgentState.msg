@@ -1,3 +1,4 @@
+string agent_id
 string current_task_id
 string current_task
 string stage
