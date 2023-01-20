@@ -352,7 +352,7 @@ class AgentDetails(object):
         # Construct the marker details
         marker = MarkerDetails()
         marker.id = self.agent_id
-        marker.structure = local['structure'] or rviz['structure']
+        marker.structure = local['rviz_structure'] or rviz['structure']
         marker.colour = local['rviz_default_colour'] or rviz['colour'] or ''
 
         # Set where the location should come from
