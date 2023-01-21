@@ -26,6 +26,10 @@ class MapObj(object):
 
         self.raw_msg = None
 
+        # used for sharing occupancy
+        self.global_map = None
+        self.global_node_list = None
+
         # used for planning direct routes
         self.empty_map = None
         self.empty_route_search = None
@@ -39,9 +43,15 @@ class MapObj(object):
 
     def enable_map_monitoring(self):
         # callback are enabled in base.StageDef.WaitForMap._start()
-        self.tmap_sub = Subscriber(self.topic, Str, self.map_cb, queue_size=5)
+        self.global_tmap_sub = Subscriber('/topological_map_2', Str, self.global_map_cb, queue_size=5)
+        self.local_tmap_sub = Subscriber(self.topic, Str, self.local_map_cb, queue_size=5)
 
-    def map_cb(self, msg):
+    def global_map_cb(self, msg):
+        # used for sharing occupancy
+        self.global_map = self.load_raw_tmap(msg.data)
+        self.global_node_list = [node["node"]["name"] for node in self.global_map['nodes']]
+
+    def local_map_cb(self, msg):
         self.raw_msg = msg.data
 
         # used for planning direct routes

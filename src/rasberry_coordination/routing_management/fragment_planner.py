@@ -218,7 +218,7 @@ class FragmentPlanner(BasePlanner):
             # get start node and goal node
             start_node = agent.location(accurate=False)
             goal_node  = agent.goal()
-            logmsg(category="route", id=agent.agent_id, msg="Finding route for %s: %s -> %s" % (agent_id, start_node, goal_node))
+            logmsg(category="route", id='PLANNER', msg="Finding route for %s: %s -> %s" % (agent_id, start_node, goal_node))
 
             # if current node is goal node, mark agent as inactive
             if start_node == goal_node: #should _query should have handled this by this point?

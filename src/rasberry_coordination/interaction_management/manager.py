@@ -174,6 +174,7 @@ class InteractionManager(object):
         occupied += [a().interaction.response for a in AExcl if a().interaction and a().interaction.response and a.map_handler.is_node(a().interaction.response)]  # Include navigation targets
         occupied += [a.goal() for a in AExcl if a.goal()] # Include navigation targets
         print("Occupied Nodes (filtered): %s"%str(occupied))
+        logmsg(category="occupy", id="INTERACTION", msg="Occupied Nodes (filtered): %s"%str(occupied))
         return occupied
 
     def get_dist(self, dist_list):

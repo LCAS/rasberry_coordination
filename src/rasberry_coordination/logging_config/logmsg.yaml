@@ -27,6 +27,9 @@ categories:
     reject: true
   - name: "ROUTE"
 #    reject: true
+  - name: "OCCUPY"
+    colour: '41m'
+#    reject: true
   - name: "NAVIG"
   - name: "ROBNAV"
 #    reject: true
@@ -56,6 +59,10 @@ ids:
     colour: '42m'
   - name: "SECTION"
     colour: '04;92m'
+  - name: "PLANNER"
+    colour: '41m'
+  - name: "INTERACTION"
+    colour: '46m'
   - name: "storage01"
     colour: '31m'
   - name: "thorvald_001"
