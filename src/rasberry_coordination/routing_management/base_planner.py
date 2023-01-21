@@ -63,11 +63,15 @@ class BasePlanner(object):
 
     def load_occupied_nodes(self):
         """ get the list of all nodes occupied by agents """
-        occ = [a.location(accurate=False) for a in self.agent_manager.agent_details.values() if a.location.has_presence]
-        #occ = [a.modules['navigation'].interface.occupation() for a in self.agent_manager.agent_details.values() if 'navigation' in a.modules]
-        self.occupied_nodes = list(set(occ))
-        o={a.agent_id: [a.location(accurate=False), a.location.has_presence] for a in self.agent_manager.agent_details.values() if a.location.has_presence}
-        logmsg(category="route", msg="Occupied Nodes: %s"%str(o))
+        logmsg(category="occupy", id="PLANNER", msg="Finding occupied nodes...")
+
+        occ = [a.modules['navigation'].interface.occupation()
+               for a in self.agent_manager.agent_details.values()
+               if 'navigation' in a.modules]
+        occ.sort()
+
+        self.occupied_nodes = list(set(sum(occ,[])))
+        logmsg(category="occupy", id="PLANNER", msg="Occupied Nodes: %s"%str(self.occupied_nodes))
 
     def no_route_found(self, agent):
         logmsg(level='warn', category='route', id=agent.agent_id, msg='Route not found, executing recovery behaviour:')
