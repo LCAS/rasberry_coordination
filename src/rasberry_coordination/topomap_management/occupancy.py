@@ -31,7 +31,7 @@ class OccupancyFilters(object):
         return [node]
 
     @classmethod
-    def neighbour_tall_ends(cls, map, node_list, node):
+    def neighbour_row_tall_ends(cls, map, node_list, node):
         #find ends of neghbouring short row
         options = cls.neighbour_row_tall(map, node_list, node)
         return [o for o in options if o.endswith('-cb') or o.endswith('-cy')]
@@ -75,7 +75,7 @@ class OccupancyFilters(object):
         return [n for n in node_list if n.startswith("r%s-c"%d) or n.startswith("r%s-c"%u)]
 
     @classmethod
-    def neighbour_short_ends(cls, map, node_list,  node):
+    def neighbour_row_short_ends(cls, map, node_list,  node):
         #find ends of neghbouring short row
         options = cls.neighbour_row_short(map, node_list, node)
         return [o for o in options if o.endswith('-cb') or o.endswith('-cy')]

@@ -4,35 +4,47 @@ categories:
     colour: '04;92m'
   - name: "ROBOT"
   - name: "PICKER"
-  - name: "TASK"
-  - name: "STAGE"
-  - name: "MODULE"
-  - name: "IDEF"
-#    colour: '46m'
   - name: "SCHEDU"
     colour: '46m'
+
+  #Tasks
+  - name: "STAGE"
+    colour: '44m'
+  - name: "TASK"
+    colour: '42m'
+  - name: "MODULE"
+  - name: "IDEF"
+    colour: '45m'
+
   #Interruptions
   - name: "DRM"
   - name: "DTM"
+    colour: '43m'
   - name: "TOC"
   - name: "COMMS"
   - name: "RVIZ"
+    colour: '45m'
+
+  #Interactions
+  - name: "ACTION"
+    colour: '46m'
 
   #Navigation
+  - name: "ROUTE"
+    colour: '41m'
+  - name: "OCCUPY"
+    colour: '41m'
+  - name: "XROUTE"
+    colour: '41m'
+  - name: "NAVIG"
+    colour: '41m'
   - name: "ROB_PY"
   - name: "VR_ROB"
     colour: '45m'
   - name: "VR_ROC"
     colour: '45m'
     reject: true
-  - name: "ROUTE"
-#    reject: true
-  - name: "OCCUPY"
-    colour: '41m'
-#    reject: true
-  - name: "NAVIG"
   - name: "ROBNAV"
-#    reject: true
 
   #Debug
   - name: "OTHER"
@@ -42,10 +54,6 @@ categories:
   - name: "LOG"
   - name: "TEST"
   - name: "DEBUG"
-
-  #Task-Generic
-  - name: "ACTION"
-    colour: false
 
   #Task Specific
   - name: "TPTASK"
@@ -59,10 +67,12 @@ ids:
     colour: '42m'
   - name: "SECTION"
     colour: '04;92m'
+
   - name: "PLANNER"
     colour: '41m'
   - name: "INTERACTION"
     colour: '46m'
+
   - name: "storage01"
     colour: '31m'
   - name: "thorvald_001"

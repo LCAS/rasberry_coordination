@@ -74,7 +74,7 @@ class RoutingManager(object):
 
     """ Publish route if different from current """
     def publish_routes(self, agent, trigger=False):
-        logmsg(category="route", id=agent.agent_id, msg="Attempting to publish route.")
+        logmsg(category="navig", id=agent.agent_id, msg="Attempting to publish route.")
 
         """ Publish ExecutePolicyModeGoal if different from current policy """
         policy = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
@@ -154,18 +154,18 @@ class RoutingManager(object):
                 yaml.dump(policy, f_handle)
 
         else:
-            logmsg(category="route", id=agent.agent_id, msg="    - route failed to published: %s" % reason_failed_to_publish)
+            logmsg(category="navig", id=agent.agent_id, msg="    - route failed to published: %s" % reason_failed_to_publish)
 
         agent().route_found = False  # Route has now been published
 
 
     def force_replan(self, msg=None):
-        logmsg(category="route", id="COORDINATOR", msg="Request to force replanning.")
+        logmsg(category="route", id="PLANNER", msg="Request to force replanning.")
         self.trigger_fresh_replan = True
         self.force_replan_to_publish = True
 
     def trigger_replan(self):
-        logmsg(category="route", id="COORDINATOR", msg="Request to replan routes.")
+        logmsg(category="route", id="PLANNER", msg="Request to replan routes.")
         self.trigger_fresh_replan = True
 
     def trigger_routing(self, A):
@@ -173,10 +173,10 @@ class RoutingManager(object):
             self.trigger_fresh_replan = False
 
         elif any([a().route_required for a in A]):
-            logmsg(category="route", id="COORDINATOR", msg="Replanning due to agent needing a route")
+            logmsg(category="route", id="PLANNER", msg="Replanning due to agent needing a route")
 
         elif any([a for a in A if a.goal()]) and (time.time() - self.last_replan_time) > 100:
-            logmsg(category="route", id="COORDINATOR", msg="Replanning due to timeout")
+            logmsg(category="route", id="PLANNER", msg="Replanning due to timeout")
             self.last_replan_time = time.time()
 
         else:

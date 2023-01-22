@@ -55,6 +55,7 @@ class AssignNode(InteractionResponse):
         super(AssignNode, self).__init__(agent)
         self.interaction = InteractionDetails(type='search', grouping='node_descriptor', descriptor=node_descriptor, style=style)
         self.contact = contact_id
+        self.association = contact_id
 
 
 class AssignNodeIdle(AssignNode, Idle):

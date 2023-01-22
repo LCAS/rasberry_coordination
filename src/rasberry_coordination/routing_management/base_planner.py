@@ -74,16 +74,26 @@ class BasePlanner(object):
         logmsg(category="occupy", id="PLANNER", msg="Occupied Nodes: %s"%str(self.occupied_nodes))
 
     def no_route_found(self, agent):
-        logmsg(level='warn', category='route', id=agent.agent_id, msg='Route not found, executing recovery behaviour:')
-        if not 'WaitNode' in str(agent()):
-            logmsg(level='warn', category='route', msg='    - Adding WaitNode as intermediate target')
-            logmsg(category="DTM", id=agent.agent_id, msg="    - Adding stages to active task:")
-            agent().new_stage = True
-            recovery_stages = [ Stages['assignment']['AssignNode'](agent, contact_id='recovery_node_contact_id', node_descriptor='wait_node'), Stages['navigation']['NavigateToNode'](agent, contact_id="recovery_node_contact_id") ]
-            recovery_stages.reverse()
-            for stage in recovery_stages:
-                logmsg(category="DTM", msg="        - " + str(stage))
-                agent['stage_list'].insert(0, stage)
+        """ process to follow if a route is not found/available """
+        logmsg(category='xroute', id=agent.agent_id, msg='Route not found, executing recovery behaviour:')
+
+        # If we are currently executing a wait_node response, do nothing
+        #if 'WaitNode' in str(agent()): #TODO: this is where the problem is.... ffs, stages dont have WaitNode int hem anymore?!!?!?
+        if 'AssignNode' in str(agent()) or 'NavigateToNode' in str(agent()):
+            if agent().association == 'recovery-node_contact_id':
+                logmsg(category='xroute', msg='    - recovery behaviour is already active')
+                return
+
+        # Set current stage as inactive
+        agent().new_stage = True
+
+        # Construct and add WaitNode stages to the active task
+        logmsg(category="xroute", msg="    - Adding WaitNode stages to active task:")
+        contact = 'recovery_node_contact_id'
+        agent['stage_list'] = [
+            Stages['assignment']['AssignNode'](agent, contact_id=contact, node_descriptor='wait_node'),
+            Stages['navigation']['NavigateToNode'](agent, contact_id=contact)
+        ] + agent['stage_list']
 
     @abstractmethod
     def __init__(self, agent_manager, heterogeneous_map):

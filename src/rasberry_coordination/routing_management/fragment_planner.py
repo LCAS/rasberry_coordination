@@ -191,7 +191,7 @@ class FragmentPlanner(BasePlanner):
         """
         super(FragmentPlanner, self).find_routes()
 
-        logmsg(category="route", id="COORDINATOR", msg="Finding routes for Active agents:")
+        logmsg(category="route", id="PLANNER", msg="Finding routes for Active agents:")
         [logmsg(category="route", msg="    | %s: %s"%(a.agent_id, a.goal())) for a in self.agent_details.values()]
 
         # agents with an active nav goal (navigation)
