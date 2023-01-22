@@ -85,9 +85,7 @@ class TFPublishers:
         def __init__(self, msg):
             super(TFPublishers.GPSPositionsTFConvertor, self).__init__(msg)
             self.gps_sub = rospy.Subscriber(self.source_topic, bayes_people_tracker.msg.PeopleStamped, self.pose_cb)
-            print(self.source_topic)
         def convert_to_array(self, msg):
-            print(msg)
             person = [p.person for p in msg.people if p.person.name == self.id and p.person.position != geometry_msgs.msg.Point()]
             if len(person) < 1: return [[0,0,0],[0,0,0,1]]
             pos = person[0].position

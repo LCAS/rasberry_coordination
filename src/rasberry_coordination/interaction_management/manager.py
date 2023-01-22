@@ -43,12 +43,14 @@ class InteractionManager(object):
             interaction.response = resp
 
         if interaction.response:
-            logmsg(category="action", msg="    - Performing interaction search: %s" % {k: v for k, v in interaction.__dict__.items() if v})
+            logmsg(category="action", id='INTERACTION', msg="Performing Interaction Search")
+            [logmsg(category="action", msg="    - %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
             if TP=="search":
-                logmsg(category="action", msg="        - list: %s" % str(list))
-            logmsg(category="action", msg="    - Interaction result found: %s" % interaction.response)
+                logmsg(category="action", msg="    - list: %s" % str(list))
+            logmsg(category="action", msg="    - RESULT: %s" % interaction.response)
         elif not interaction.silence:
-            logmsg(category="action", msg="    - Performing interaction search: %s" % {k: v for k, v in interaction.__dict__.items() if v})
+            logmsg(category="action", id='INTERACTION', msg="Performing Interaction Search")
+            [logmsg(category="action", msg="    - %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
             logmsg(category="action", msg="    - Interaction result not found, will notify when result found")
             interaction.silence = True
 
@@ -107,9 +109,6 @@ class InteractionManager(object):
         location = agent.location()
         ST = interaction.style
         if ST == 'named_agent':
-            print('named_agent')
-            print(ST)
-            print(list)
             i = list.keys()[0]
             I = self.AllAgentsList[i] if i in self.AllAgentsList else None
 
@@ -127,15 +126,11 @@ class InteractionManager(object):
 
         elif ST == 'head_node_allocator':
             PLoc = {a.agent_id:float(a.location().split("-c")[0][1:]) for a in self.AllAgentsList.values() if a.registration and a.location() and ('-c' in a.location()) and (str(a.modules['transportation'].interface) == 'picker')}
-            print("\n\n\nPLoc")
-            print(PLoc)
             if PLoc:
                 from ideal_parking_spot import ideal_parking_spot as ips
                 parking_spots = ["r%s-ca"% spot for spot in ips(list, PLoc)]
-                print(parking_spots)
                 occupied = self.get_occupied_nodes(agent)
                 new_list = [spot for spot in parking_spots if spot not in occupied]
-                print(new_list)
                 I = new_list[0]
             else:
                 I = None
@@ -168,13 +163,11 @@ class InteractionManager(object):
     """ Interaction Tools """
 
     def get_occupied_nodes(self, agent):
+        logmsg(level='error', category="occupy", id="INTERACTION", msg="Occupied Nodes System needs updating")
         AExcl = [a for _id, a in self.AllAgentsList.items() if (_id is not agent.agent_id)]
-        print("Occupied Nodes (raw): %s"%str(AExcl))
         occupied = [a.location.current_node for a in AExcl if a.location.current_node]  # Check if node is occupied
         occupied += [a().interaction.response for a in AExcl if a().interaction and a().interaction.response and a.map_handler.is_node(a().interaction.response)]  # Include navigation targets
         occupied += [a.goal() for a in AExcl if a.goal()] # Include navigation targets
-        print("Occupied Nodes (filtered): %s"%str(occupied))
-        logmsg(category="occupy", id="INTERACTION", msg="Occupied Nodes (filtered): %s"%str(occupied))
         return occupied
 
     def get_dist(self, dist_list):

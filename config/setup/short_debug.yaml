@@ -15,7 +15,7 @@ modules:
       - has_presence: true
       - restrictions: short
       - occupation:
-            r-c: ['self', 'neighbour_row_tall']
+            r-c: ['self', 'neighbour_row_tall_ends']
             dock-: ['self', 'entry']
       - wait_node_name: base_tp_node
 

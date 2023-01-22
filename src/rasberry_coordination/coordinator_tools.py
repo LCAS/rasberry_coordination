@@ -300,7 +300,7 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
             c3 = colour_id[str(id)]
 
         basic_msg = msg
-        msg = ros_time + "%s%s%s|%s%s %s%s%s" % (c1, cat, c2, c3, ids, c4, msg, reset)
+        msg = ros_time + "%s%s%s|%s%s%s %s%s%s" % (c1, cat, c2, c3, ids, reset, c4, msg, reset)
     else:
         if category == "null": return
         msg = category + " | " + str(id) + " | " + msg

@@ -420,7 +420,6 @@ class AgentDetails(object):
 
         # Attach the current pose
         if 'attach_pose' in rviz and rviz['attach_pose'] and self.map_handler.raw_msg:
-            print(self.location())
             marker.pose = self.map_handler.get_node_pose(self.location())
 
         logmsg(category="rviz", msg="Setting %s %s(%s)" % (marker.structure, marker.id, marker.colour))
