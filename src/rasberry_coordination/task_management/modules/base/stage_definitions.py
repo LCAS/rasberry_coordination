@@ -64,6 +64,7 @@ class StageBase(object):
         self.new_stage = True
         self.target = None
         self.target_agent = None
+        self.start_time = None
         self.interaction = None
         self.accepting_new_tasks = False
         self.summaries = {}
@@ -171,9 +172,18 @@ class Idle(StageBase):
 
 """ Trigger Events """
 class Timeout(StageBase):
+    def __repr__(self):
+        if self.agent:
+            remaining_time = 0
+            if self.start_time:
+                remaining_time = self.duration - (Time.now()-self.start_time).secs
+                return "%s(%s, %s)" % (self.get_class(), self.agent.location(), remaining_time)
+            return "%s(%s,x)" % (self.get_class(), self.agent.location())
+        return self.get_class()
     def __init__(self, agent, duration=None, **kw):
         super(Timeout, self).__init__(agent, **kw)
         self.duration = duration
+        self.timeout = None
     def _start(self, duration=None, **kw):
         super(Timeout, self)._start(**kw)
         self.duration = duration or self.duration

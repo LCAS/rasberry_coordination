@@ -5,16 +5,25 @@ from rasberry_coordination.coordinator_tools import logmsg
 
 class InteractionDetails(object):
     """TODO: move to encapsulators"""
-    def __init__(self, type, grouping=None, descriptor=None, style=None, info=None, list=None):
+    def __init__(self, type, grouping=None, descriptor=None, style=None, style_details=None, info=None, list=None):
         self.type = type #[search, info]
+
+        ### search
+        # grouping
         self.grouping = grouping #[node_list, agent_list, node_descriptor, agent_descriptor]
         self.descriptor = descriptor #'base_station'
-        self.style = style #closest_node, closest_agent
-        self.info = info #['send_info', 'find_row_ends']
         self.list = list
-
+        # selection
+        self.style = style #closest_node, closest_agent
+        self.style_details = style_details
+        # result
         self.response = None
+
+        ### info
+        self.info = info #['send_info', 'find_row_ends']
+
         self.silence = False
+
 
 class InteractionManager(object):
     def __init__(self, agent_manager, routing_manager, special_nodes):
@@ -43,15 +52,15 @@ class InteractionManager(object):
             interaction.response = resp
 
         if interaction.response:
-            logmsg(category="action", id='INTERACTION', msg="Performing Interaction Search")
-            [logmsg(category="action", msg="    - %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
+            logmsg(category="action", id='MEDIATOR', msg="Performing Interaction Search")
+            [logmsg(category="action", msg="    | %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
             if TP=="search":
-                logmsg(category="action", msg="    - list: %s" % str(list))
-            logmsg(category="action", msg="    - RESULT: %s" % interaction.response)
+                logmsg(category="action", msg="    | list: %s" % str(list))
+            logmsg(category="action", msg="    | RESULT: %s" % interaction.response)
         elif not interaction.silence:
-            logmsg(category="action", id='INTERACTION', msg="Performing Interaction Search")
-            [logmsg(category="action", msg="    - %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
-            logmsg(category="action", msg="    - Interaction result not found, will notify when result found")
+            logmsg(category="action", id='MEDIATOR', msg="Performing Interaction Search")
+            [logmsg(category="action", msg="    | %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
+            logmsg(category="action", msg="    | Interaction result not found, will notify when result found")
             interaction.silence = True
 
         self.AllAgentsList = None
@@ -73,9 +82,7 @@ class InteractionManager(object):
             # Generate list of nodes matching descriptor (special nodes listed in coordinator config)
             descriptor = interaction.descriptor
             occupied = self.get_occupied_nodes(agent)
-            print("occupied: %s" % str(occupied))
             L = [n['id'] for n in self.special_nodes if (descriptor in n['descriptors']) and (n['id'] not in occupied)]
-            print("L %s"%str(L))
 
         elif GR == 'agent_descriptor':
             # Generate list of agents based on some characteristics
@@ -108,12 +115,15 @@ class InteractionManager(object):
         interaction = agent().interaction
         location = agent.location()
         ST = interaction.style
+        SD = interaction.style_details
         if ST == 'named_agent':
             i = list.keys()[0]
             I = self.AllAgentsList[i] if i in self.AllAgentsList else None
 
         elif ST == 'closest_agent':
             # Find closet agent in list
+            if SD and 'nodes' in SD and SD['nodes']:
+                location = SD['nodes']
             new_list = {k: self.dist(v, v.location(), location) for k, v in list.items()}
             i = self.get_dist(new_list)
             I = self.AllAgentsList[i] if i in self.AllAgentsList else None
@@ -122,7 +132,6 @@ class InteractionManager(object):
             # Find closet node in list
             new_list = {n: self.dist(agent, n, agent.location()) for n in list}
             I = self.get_dist(new_list)
-            print(I)
 
         elif ST == 'head_node_allocator':
             PLoc = {a.agent_id:float(a.location().split("-c")[0][1:]) for a in self.AllAgentsList.values() if a.registration and a.location() and ('-c' in a.location()) and (str(a.modules['transportation'].interface) == 'picker')}
@@ -161,13 +170,16 @@ class InteractionManager(object):
 
 
     """ Interaction Tools """
-
     def get_occupied_nodes(self, agent):
-        logmsg(level='error', category="occupy", id="INTERACTION", msg="Occupied Nodes System needs updating")
         AExcl = [a for _id, a in self.AllAgentsList.items() if (_id is not agent.agent_id)]
-        occupied = [a.location.current_node for a in AExcl if a.location.current_node]  # Check if node is occupied
-        occupied += [a().interaction.response for a in AExcl if a().interaction and a().interaction.response and a.map_handler.is_node(a().interaction.response)]  # Include navigation targets
-        occupied += [a.goal() for a in AExcl if a.goal()] # Include navigation targets
+
+        # Get blocked nodes
+        occ = self.routing_manager.planner.load_occupied_nodes(ret=True)
+        occupied = [v for k,v in occ.items() if k is not agent.agent_id]
+
+        # Include navigation targets
+        occupied += [a().interaction.response for a in AExcl if a().interaction and a().interaction.response and a.map_handler.is_node(a().interaction.response)]
+        occupied += [a.goal() for a in AExcl if a.goal()]
         return occupied
 
     def get_dist(self, dist_list):
@@ -175,9 +187,12 @@ class InteractionManager(object):
             return min(dist_list, key=dist_list.get)
         return None
 
-    def dist(self, agent, start_node, goal_node):
+    def dist(self, agent, start, goal):
+        # Return the total distance from the start point to each goal
         try:
-            return agent.map_handler.get_route_length(agent, start_node, goal_node)
+            if not type(goal) == list:
+                goal = [goal]
+            return sum([agent.map_handler.get_route_length(agent, start, g) for g in goal])
         except:
             print("Try-Except in manager.py for Action_Management modules")
             print(traceback.format_exc())

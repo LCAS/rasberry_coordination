@@ -262,12 +262,18 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
         elif category.upper() == "NULL":
             cat = " " * total_pad_space
         else:
-            rospy.logerr("category "+category.upper()+" not registered")
+            rospy.logerr("category %s not registered"%category.upper())
             return
 
         """ Format ID with conditions for when category or id is empty """
-        ids = " " * (19 - len(str(id))) + str(id) + ":"
-        if id == "empty": ids = " " * 20
+        total_pad_space = max([ len(_id) for _id in colour_id.keys() ]) + 1
+        if id == "empty":
+            ids = " " * (total_pad_space + 1) # +1 for :
+        else:
+            ids = " " * (total_pad_space - len(str(id))) + str(id) + ":"
+            if id not in colour_id:
+                colour_id[str(id)] = '\033[01;0m'
+
 
         """ Define colour values for printing """ #TODO: optimise this with re.sub(r'\[.*\]','[]',line)
         reset = '\033[00m'
@@ -330,8 +336,10 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
 import subprocess
 import rasberry_des.config_utils
 
-result = subprocess.check_output('rospack find rasberry_coordination', shell=True)
-config_file = result[:-1]+"/src/rasberry_coordination/logging_config/logmsg.yaml"
+config_file = os.getenv('LOGMSG_CONFIG', None)
+if not config_file:
+    result = subprocess.check_output('rospack find rasberry_coordination', shell=True)
+    config_file = result[:-1]+"/src/rasberry_coordination/logging_config/logmsg.yaml"
 config_data = rasberry_des.config_utils.get_config_data(config_file)
 
 def is_rejected(data): #return true if d is rejected

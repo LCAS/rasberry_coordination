@@ -51,6 +51,7 @@ class RoutingManager(object):
         """
         try:
             self.planner.find_routes()
+            self.last_replan_time = time.time()
         except AttributeError as e:
             print(traceback.format_exc())
             logmsg(level="error", category="route", msg='find_routes encountered a problem')
@@ -108,7 +109,7 @@ class RoutingManager(object):
             if len(new_edge) > len(old_edge):
                 publish_route = True
                 rationalle_to_publish = "New route is larger then old route."
-                logmsg(category="navig", msg="    - new route longer than existing one")
+                logmsg(category="navig", msg="    | new route longer than existing one")
             else:
                 publish_route = False
                 reason_failed_to_publish = "New shorter route could just be a partially used route"
@@ -124,7 +125,7 @@ class RoutingManager(object):
                     if o != n:
                         publish_route = True
                         rationalle_to_publish = "New route takes a different route to target."
-                        logmsg(category="navig", msg="    - new route different from existing route")
+                        logmsg(category="navig", msg="    | new route different from existing route")
                         break
                     else:
                         publish_route = False
@@ -134,8 +135,21 @@ class RoutingManager(object):
         if publish_route or self.force_replan_to_publish:
             self.force_replan_to_publish = False
             if self.log_routes:
-                logmsg(category="navig", msg="    - new route generated:\n%s" % policy)
-                logmsg(category="navig", msg="    - previous route:\n%s" % agent.modules['navigation'].interface.execpolicy_goal)
+                new_policy = policy.route.source
+                if policy.route.edge_id: new_policy += [policy.route.edge_id[-1].split('_')[1]]
+                logmsg(category="navig",  msg="   | New Route:")
+                [logmsg(category="navig", msg="   :    | %s" % n) for n in new_policy]
+                if not new_policy:
+                    logmsg(category="navig", msg="   :    | (empty)")
+
+                oldy = agent.modules['navigation'].interface.execpolicy_goal.route
+                old_policy = oldy.source
+                if oldy.edge_id: old_policy += [oldy.edge_id[-1].split('_')[1]]
+                logmsg(category="navig", msg="    | Prior Route:")
+                [logmsg(category="navig", msg="   :    | %s" % n) for n in old_policy]
+                if not old_policy:
+                    logmsg(category="navig", msg="   :    | (empty)")
+
 
             agent.modules['navigation'].interface.cancel_execpolicy_goal()
             agent.modules['navigation'].interface.set_execpolicy_goal(policy)
@@ -146,7 +160,7 @@ class RoutingManager(object):
                     agent.modules['health_monitoring'].interface.say_navigation_block()
 
             agent().route_required = False  # Route has now been published
-            logmsg(category="navig", id=agent.agent_id, msg="    - route published: %s" % rationalle_to_publish)
+            logmsg(category="navig", id=agent.agent_id, msg="    | route published: %s" % rationalle_to_publish)
 
             now = str(datetime.datetime.utcnow())
             path = "%s/routing/filtered_map_%s.prof" % (rospkg.RosPack().get_path('rasberry_coordination'), now.replace(' ','-'))
@@ -154,18 +168,18 @@ class RoutingManager(object):
                 yaml.dump(policy, f_handle)
 
         else:
-            logmsg(category="navig", id=agent.agent_id, msg="    - route failed to published: %s" % reason_failed_to_publish)
+            logmsg(category="navig", id=agent.agent_id, msg="    | route failed to published: %s" % reason_failed_to_publish)
 
         agent().route_found = False  # Route has now been published
 
 
     def force_replan(self, msg=None):
-        logmsg(category="route", id="PLANNER", msg="Request to force replanning.")
+        logmsg(category="route", id="PLANNER", msg="Replanning [forced]")
         self.trigger_fresh_replan = True
         self.force_replan_to_publish = True
 
     def trigger_replan(self):
-        logmsg(category="route", id="PLANNER", msg="Request to replan routes.")
+        logmsg(category="route", id="PLANNER", msg="Replanning [trigger]")
         self.trigger_fresh_replan = True
 
     def trigger_routing(self, A):
@@ -173,10 +187,10 @@ class RoutingManager(object):
             self.trigger_fresh_replan = False
 
         elif any([a().route_required for a in A]):
-            logmsg(category="route", id="PLANNER", msg="Replanning due to agent needing a route")
+            logmsg(category="route", id="PLANNER", msg="Replanning [route requires]")
 
         elif any([a for a in A if a.goal()]) and (time.time() - self.last_replan_time) > 100:
-            logmsg(category="route", id="PLANNER", msg="Replanning due to timeout")
+            logmsg(category="route", id="PLANNER", msg="Replanning [timeout]")
             self.last_replan_time = time.time()
 
         else:

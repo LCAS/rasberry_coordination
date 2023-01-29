@@ -32,9 +32,9 @@ class InteractionResponse(StageBase):
     def _end(self, contact_type='responder_id'):
         """Save interaction response to contacts"""
         super(InteractionResponse, self)._end()
-        logmsg(category="stage", msg="    - Interaction response found: %s" % (self.interaction.response))
+        logmsg(category="stage", msg="    | Interaction response found: %s" % (self.interaction.response))
         if self.contact:
-            if '_agent' in str(self.interaction.style): 
+            if '_agent' in str(self.interaction.style):
                 #TODO: TypeError: argument of type 'NoneType' is not iterable
                 self.agent[contact_type] = self.interaction.response.agent_id
             self.agent['contacts'][self.contact] = self.interaction.response

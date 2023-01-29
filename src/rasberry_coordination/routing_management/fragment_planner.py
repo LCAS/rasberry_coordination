@@ -72,6 +72,7 @@ class FragmentPlanner(BasePlanner):
     def split_critical_paths(self, ):
         """split robot paths at critical points
         """
+        logmsg(category="planer", id='PLANNER', msg="Fragment Planner Route Resolver")
 
         """identify critical points for each route and the robots which are involved"""
         c_points, c_agents = self.critical_points()
@@ -140,9 +141,9 @@ class FragmentPlanner(BasePlanner):
             if agent.agent_id in res_routes:
                 agent.route_fragments = res_routes[agent.agent_id]
 
-        logmsg(category="route", msg="    - All fragments identified")
+        logmsg(category="planer", msg="   | All fragments identified")
         for a in self.agent_details.values():
-            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,str(a.route_fragments).replace('WayPoint','wp')))
+            logmsg(category="planer", msg="   :   | %s:%s" % (a.agent_id,str(a.route_fragments).replace('WayPoint','wp')))
 
         res_edges = {}
         # split the edges as per the route_fragments
@@ -171,9 +172,9 @@ class FragmentPlanner(BasePlanner):
                 agent.route_fragments = []
                 res_edges[agent_id] = []
 
-        logmsg(category="route", msg="    - All fragments formatted")
+        logmsg(category="planer", msg="   | Fragments formatted")
         for a in self.agent_details.values():
-            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,str(a.route_fragments).replace('WayPoint','wp')))
+            logmsg(category="planer", msg="   :   | %s:%s" % (a.agent_id,str(a.route_fragments).replace('WayPoint','wp')))
 
         """ for each agent, apply their route edges """
         # self.route_edges = res_edges
@@ -181,9 +182,9 @@ class FragmentPlanner(BasePlanner):
             if agent.agent_id in res_edges:
                 agent.route_edges = res_edges[agent.agent_id]
 
-        logmsg(category="route", msg="    - All fragment edges formatted")
+        logmsg(category="planer", msg="   | Fragment edges formatted")
         for a in self.agent_details.values():
-            logmsg(category="route", msg="        - %s:%s" % (a.agent_id,str(a.route_edges).replace('WayPoint','wp')))
+            logmsg(category="planer", msg="   :   | %s:%s" % (a.agent_id,str(a.route_edges).replace('WayPoint','wp')))
 
     def find_routes(self, ):
         """find_routes - find indiviual paths, find critical points in these paths, and fragment the
@@ -191,26 +192,22 @@ class FragmentPlanner(BasePlanner):
         """
         super(FragmentPlanner, self).find_routes()
 
-        logmsg(category="route", id="PLANNER", msg="Finding routes for Active agents:")
-        [logmsg(category="route", msg="    | %s: %s"%(a.agent_id, a.goal())) for a in self.agent_details.values()]
+        logmsg(category="route", id="PLANNER", msg="Targets")
 
-        # agents with an active nav goal (navigation)
-        actives = [a for a in self.agent_details.values() if a.goal()]
-        logmsg(category="route", msg="actives --- "+str([a.agent_id for a in actives]))
-
-        # agents without an active goal (idle)
-        inactives = [a for a in self.agent_details.values() if not a.goal()]
-        logmsg(category="route", msg="inactives - "+str([a.agent_id for a in inactives]))
-
-        # agents which require a route for thier active stage
-        need_route = [a for a in self.agent_details.values() if a().route_required]
-        logmsg(category="route", msg="Agents requiring routes:")
-        for a in need_route: logmsg(category="route", msg="    | {%s: %s}" % (a.agent_id, a()))
+        A = self.agent_details.values()
+        actives = [a for a in A if a.goal()]
+        inactives = [a for a in A if not a.goal()]
+        for a in A:
+            if a().route_required: typ = 'new active'
+            else: typ = 'active' if a.goal() else 'inactive'
+            logmsg(category="route", msg="   | %s [%s] %s" % (a.agent_id, typ, '(%s)' % a.goal() if a.goal() else ''))
 
         # identify all occupied nodes
         self.load_occupied_nodes()
 
         # find unblocked routes for all agents which need one
+        if actives or inactives:
+            logmsg(category="route", msg="Routing:")
         for agent in actives:
             agent_id = agent.agent_id
             agent().route_found = False
@@ -218,25 +215,22 @@ class FragmentPlanner(BasePlanner):
             # get start node and goal node
             start_node = agent.location(accurate=False)
             goal_node  = agent.goal()
-            logmsg(category="route", id='PLANNER', msg="Finding route for %s: %s -> %s" % (agent_id, start_node, goal_node))
 
             # if current node is goal node, mark agent as inactive
             if start_node == goal_node: #should _query should have handled this by this point?
                 inactives += [agent]
-                logmsg(category="route", msg="Agent is at goal_node, adding to inactives")
+                logmsg(category="route", msg="   | %s at goal [inactive]" % agent_id)
                 continue
 
             # unblock start and goal nodes, then update map to block other agents
             FragmentPlanner_map_filter.generate_filtered_map(agent, start_node, goal_node, self.occupied_nodes)
-            #agent.map_manager.filtering.filter(filter_list=["only_restrictions", "no_nodes_with_presence", "allow_start_and_goal"])
 
             # generate route from start node to goal node
             route = agent.map_handler.filtered_route_search.search_route(start_node, goal_node)
 
             # if failed to find route, set robot as inactive and mark navigation as failed
             if route.source == [] and route.edge_id == []:
-                logmsg(level="warn", category="route", msg="failed to find route, waiting idle")
-                logmsg(level="warn", category="route", msg="modify here for wait_node addition")
+                logmsg(category="route", msg="   | %s route unavailable, executing recovery" % agent_id)
                 self.no_route_found(agent)
                 inactives += [agent]
                 agent().route_required = False
@@ -256,7 +250,6 @@ class FragmentPlanner(BasePlanner):
 
             # mark route as found
             agent().route_found = True
-            logmsg(category="route", msg="Route has been found, marking as such")
 
         # secure locations for each inactive agent, to make routing not interfere
         for agent in inactives:
@@ -265,9 +258,10 @@ class FragmentPlanner(BasePlanner):
             agent.route_dists = agent.map_handler.get_edge_distances()
 
         # log each route
-        logmsg(category="route", msg="    - All agents assigned routes")
+        logmsg(category="route", msg="Results:")
         for a in self.agent_details.values():
-            logmsg(category="route", msg="        - %s:%s" % (a.agent_id, str(a.route).replace('WayPoint','wp')))
+            logmsg(category="route", msg="   | %s" % a.agent_id)
+            [logmsg(category="route", msg="   :   | %s" % node.replace('WayPoint', 'wp')) for node in a.route]
 
         # find critical points and fragment routes to avoid critical point collisions
         self.split_critical_paths()
@@ -386,7 +380,7 @@ class FragmentPlanner_map_filter(object):
 
         #Identify the parent row
         row_name = node_name.split('_c')[0]
-        
+
         #Identify all nodes which are related to the row_name given
         nodes_of_interest = [int(n.split('_c')[1]) for n in agent.map_handler.empty_node_list if n.startswith(row_name)]
         if not nodes_of_interest: return

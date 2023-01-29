@@ -96,7 +96,10 @@ class AgentManager(object):
     """ Fleet Monitoring """
     def fleet_monitoring(self):
         try:
+            # Publish old version of agent monitoring
             self.old_fleet_monitoring()
+
+            # Publish new version of agent monitoring
             lst = [Agent(id=a.agent_id,
                          location=self.get_location(a),
                          registration=self.get_registration(a),
@@ -106,6 +109,11 @@ class AgentManager(object):
             if self.fleet_last != str(lst):
                 self.fleet_pub.publish(AgentList(list=lst))
                 self.fleet_last = str(lst)
+
+            # Publish scheduler setup
+            if 'scheduler' in self.agent_details:
+                self.agent_details['scheduler'].modules['assignment'].interface.list_schedulable_tasks()
+
         except Exception as e:
             print(traceback.format_exc())
 
@@ -290,30 +298,28 @@ class AgentDetails(object):
         task = task_def(task_id=task_id, details=details, contacts=contacts, initiator_id=initiator_id)
 
         if not task:
-            logmsg(category="TASK", msg="    :    | %s (empty)" % name)
+            logmsg(category="TASK", msg="    | %s.%s (empty)" % (module, name))
             return
-
-        name = name if task.name == name else "%s/%s"%(name,task.name)
 
         if not index: self.task_buffer += [task]
         else: self.task_buffer.insert(index, [task])
 
         if quiet:
+            name = name if task.name == name else "%s/%s"%(name,task.name)
             logmsg(category="DTM", msg="    :    | buffering %s to task_buffer[%i]" % (name, index or len(self.task_buffer)))
         else:
-            logmsg(category="TASK",  msg="    | Buffering %s to task_buffer[%i]:" % (name, index or len(self.task_buffer)))
+            logmsg(category="TASK",  msg="    | [%i] %s.%s:" % (index or len(self.task_buffer), module, task.name))
             [logmsg(category="TASK", msg="    :    | %s"%t) for t in task.stage_list]
 
     def start_next_task(self, idx=0):
-        logmsg(category="TASK", id=self.agent_id, msg="Beginning next task", speech=False)
+        logmsg(category="TASK", id=self.agent_id, msg="Beginning idle tasks", speech=False)
 
         if len(self.task_buffer) < 1: self.add_idle_tasks()
         if len(self.task_buffer) <= idx: return
         self.task = self.task_buffer.pop(idx)
 
-        logmsg(category="TASK",  msg="- Active task: %s" % self['name'], speech=False)
-        logmsg(category="TASK",  msg="  Task details:")
-        [logmsg(category="TASK", msg="      | %s" % stage) for stage in self['stage_list']]
+        logmsg(category="TASK",  msg="Active task: %s" % self['name'], speech=False)
+        [logmsg(category="TASK", msg="    | %s" % stage) for stage in self['stage_list']]
 
     def extend_task(self, task_name, task_id, details):
         if module not in self.interfaces:

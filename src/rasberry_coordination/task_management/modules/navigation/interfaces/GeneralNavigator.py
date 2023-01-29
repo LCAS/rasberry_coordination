@@ -19,10 +19,7 @@ class GeneralNavigator(Interface):
 
     def occupation(self):
         """ Filter map based on occupation types associated to node name """
-        #self.occupation_test()
-
         if not self.agent.location.has_presence:
-            #logmsg(category="occupy", id=self.agent.agent_id, msg="Agent has no Occupation")
             return []
 
         #Get location name
@@ -37,14 +34,14 @@ class GeneralNavigator(Interface):
             type_list = ["self"]
 
         # Apply filters
-        logmsg(category="occupy", id=self.agent.agent_id, msg="Occupation: %s + %s"%(node, type_list))
         nodes_to_filter = []
+        logmsg(category="occupy", msg="   | %s"%self.agent.agent_id)
         for typ in type_list:
             method = getattr(OccupancyFilters, typ)
             nodes = method(self.agent.map_handler.global_map, self.agent.map_handler.global_node_list, node)
             nodes.sort()
             nodes_to_filter += nodes
-            logmsg(category="occupy", msg="  - %s: %s"%(typ, str(nodes)))
+            logmsg(category="occupy", msg="   :   | %s: %s"%(typ, str(nodes)))
 
         return nodes_to_filter
 

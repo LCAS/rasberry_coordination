@@ -61,17 +61,16 @@ class BasePlanner(object):
 
         return sorted(dists.items(), key=operator.itemgetter(1))[0][0]
 
-    def load_occupied_nodes(self):
+    def load_occupied_nodes(self, ret=False):
         """ get the list of all nodes occupied by agents """
-        logmsg(category="occupy", id="PLANNER", msg="Finding occupied nodes...")
+        logmsg(category="occupy", msg="Occupation:")
 
-        occ = [a.modules['navigation'].interface.occupation()
+        occ = {a.agent_id: a.modules['navigation'].interface.occupation()
                for a in self.agent_manager.agent_details.values()
-               if 'navigation' in a.modules]
-        occ.sort()
+               if 'navigation' in a.modules}
 
-        self.occupied_nodes = list(set(sum(occ,[])))
-        logmsg(category="occupy", id="PLANNER", msg="Occupied Nodes: %s"%str(self.occupied_nodes))
+        if ret: return occ
+        self.occupied_nodes = list(set(sum(occ.values(),[])))
 
     def no_route_found(self, agent):
         """ process to follow if a route is not found/available """
