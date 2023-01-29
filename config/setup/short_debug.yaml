@@ -20,7 +20,7 @@ modules:
       - wait_node_name: base_tp_node
 
   - name: rasberry_health_monitoring_pkg
-    interface: Robot
+    interface: RobotDebug
 
   - name: rasberry_transportation_pkg
     interface: Robot

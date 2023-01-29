@@ -107,15 +107,22 @@ class ScheduleScanner(InteractionResponse):
         self.details = details
         self.task_name = task_name
         super(ScheduleScanner, self).__init__(agent)
-        print(self.details)
+
+        nodes = self.details['msg'].criteria.nodes
+        if nodes == ['']: nodes = None
+
         via=self.details['msg'].criteria.viable_agents
+        if via == ['']: via = None
         grouping = 'agent_list' if via else 'agent_descriptor'
+
         descriptor = {'module':'rasberry_data_collection_pkg', 'interface':['Scanner', 'ScannerDebug']}
+
         self.interaction=InteractionDetails(type='search',
                                             grouping=grouping,
                                             list=via,
                                             descriptor=descriptor,
-                                            style='closest_agent')
+                                            style='closest_agent',
+                                            style_details={'nodes':self.details['msg'].criteria.nodes})
         self.contact = 'scanner'
 
     def _end(self):

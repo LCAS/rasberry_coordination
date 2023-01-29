@@ -9,14 +9,13 @@
   - roslaunch rasberry_navigation topological_map_manager2_central.launch tmap_file:=$TMAP_FILE
   - rosrun persistent_topics single_channel_persistent_topics_node _topics:="['/topological_map_2']" _file_name:="$HOME/.ros/rasberry.ptb"
   - rosrun rasberry_topological_utils datum.py $DATUM_FILE
-  check: "ROS_MASTER_URI=${SERVER_URI} rostopic list | grep -q /topological_map_2"
+  check: "ROS_MASTER_URI=${SERVER_URI} rostopic echo /topological_map_2 -n 1"
   tags: [coord]
 
 - name: coordinator
   panes:
-  - rm $HOME/.ros/coordinator-loaded-agents-save-state.yaml ; rosservice call /rasberry_coordination/root_inspector "coordinator.agent_manager.agent_details"; rostopic echo -c /rasberry_coordination/active_tasks_details
   - roslaunch rasberry_coordination abstract_task_coordinator.launch config_file:=$TASK_COORD_CONFIG
-  check: "ROS_MASTER_URI=${SERVER_URI} rostopic list | grep -q dynamic_fleet"
+  check: "ROS_MASTER_URI=${SERVER_URI} rostopic echo /rasberry_coordination/fleet_monitoring/fleet -n 1"
   tags: [coord]
 
 

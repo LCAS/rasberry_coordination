@@ -90,6 +90,6 @@ class AssignRobot(InteractionResponse):
                       name=self.task_name,
                       task_id=self.agent['id'],
                       details=self.details,
-                      contacts=self.contacts,
+                      contacts=None,
                       initiator_id=self.agent.agent_id)
 

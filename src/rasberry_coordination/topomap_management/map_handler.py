@@ -82,7 +82,7 @@ class MapObj(object):
         return True
 
     def simplify(self):
-        R = {n.split('-')[0][1:]: {} for n in self.empty_node_list if "-" in n and "WayPoint" not in n and "dock" not in n}
+        R = {n.split('-')[0][1:]: {} for n in self.empty_node_list if n.startswith('r') and "-c" in n}
         tall = {}
         short = {}
         for k, v in R.items():

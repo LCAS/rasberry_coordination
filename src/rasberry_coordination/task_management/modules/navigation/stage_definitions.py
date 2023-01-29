@@ -28,7 +28,7 @@ class Navigation(StageBase):
         # if self.target:
         #     return "%s(%s)"%(self.get_class(), self.target.replace('WayPoint','WP'))
         return "%s" % (self.get_class())
-    def __init__(self, agent, contact_id, target=None):
+    def __init__(self, agent, contact_id=None, target=None):
         """Identify the location from which the target is identified"""
         super(Navigation, self).__init__(agent)
         self.association = contact_id
@@ -37,14 +37,15 @@ class Navigation(StageBase):
         """Flag the agent as requirieng a route"""
         super(Navigation, self)._start()
         self.route_required = True
-        logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is begun." % (self.agent.location(accurate=True), self.target))
+        self.start_location = self.agent.location(accurate=True)
+        logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is begun." % (self.start_location, self.target))
     def _query(self):
         """Complete when the agents location is identical to the target location."""
         success_conditions = [self.agent.location(accurate=True) == self.target] #TODO: maybe we should query execpolicy success?
         self.flag(any(success_conditions))
     def _end(self):
         """End navigation by refreshing routes for other agents in motion."""
-        logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.agent.location(accurate=True), self.target))
+        logmsg(category="stage", id=self.agent.agent_id, msg="Navigation from %s to %s is completed." % (self.start_location, self.target))
         # agent.modules['navigation'].interface.cancel_execpolicy_goal() # <- this will prevent robot from rotating to align
         self.agent.cb['trigger_replan']()  # ReplanTrigger
 

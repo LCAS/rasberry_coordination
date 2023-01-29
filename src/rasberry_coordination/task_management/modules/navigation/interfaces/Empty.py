@@ -15,12 +15,12 @@ class Empty(Interface):
         type_list = ["self"]
 
         # Apply filters
-        logmsg(category="occupy", id=self.agent.agent_id, msg="Occupation: %s + %s"%(node, type_list))
+        logmsg(category="occupy", id=self.agent.agent_id, msg="Occupation:")
         nodes_to_filter = []
         for typ in type_list:
             method = getattr(OccupancyFilters, typ)
             nodes_to_filter += method(self.agent.map_handler.global_map, self.agent.map_handler.global_node_list, node)
-            logmsg(category="occupy", msg="  - %s: %s"%(typ, str(nodes_to_filter)))
+            logmsg(category="occupy", msg="  | %s: %s"%(typ, str(nodes_to_filter)))
 
         return nodes_to_filter
 

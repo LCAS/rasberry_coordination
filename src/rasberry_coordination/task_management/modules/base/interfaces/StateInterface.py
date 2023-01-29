@@ -22,7 +22,7 @@ class StateInterface(Interface):
     def notify(self, state):
         #publish state update to remote
         msg = KeyValue(key=self.agent.agent_id, value=state)
-        logmsg(category="IDef", msg="        - Publishing: (%s)" % str(msg).replace('\n',' | '))
+        logmsg(category="IDef", msg="Publishing: (%s)" % str(msg).replace('\n',' | '))
         self.pub.publish(msg)
 
 

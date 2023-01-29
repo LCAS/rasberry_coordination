@@ -126,14 +126,13 @@ class ScannerDebug(Interface):
                      ]))
     def scheduled_scan_edge(self, task_id=None, details=None, contacts=None, initiator_id=""):
         details = details or dict()
-        details["row"] = "r%s"%(details['msg'].row)
-
         contacts = contacts or dict()
-        nodeA = "r%s-c%s"%(details['msg'].row, details['msg'].edge_nodes[0])
-        nodeB = "r%s-c%s"%(details['msg'].row, details['msg'].edge_nodes[1])
-        contacts={"row_ends": [nodeA, nodeB]}
 
-        logmsg(category="SCHEDU", id=self.agent.agent_id, msg="Scheduled request to treat edge")
+        nodes = details['msg'].criteria.nodes
+        details["row"] = nodes[0].split('-')[0]
+        contacts["row_ends"] = [nodes[0], nodes[1]]
+
+        logmsg(category="SCHEDU", id=self.agent.agent_id, msg="Scheduled to scan between %s and %s"%(nodes[0],nodes[1]))
         return (Task(id=task_id,
                      module='rasberry_data_collection_pkg',
                      name="scan_edge",
@@ -170,8 +169,10 @@ class ScannerDebug(Interface):
                      ]))
     def scheduled_scan_row(self, task_id=None, details=None, contacts=None, initiator_id=""):
         details = details or dict()
-        details["row"] = details['msg'].criteria.edges[0]
-        logmsg(category="SCHEDU", id=self.agent.agent_id, msg="Scheduled request to treat row")
+
+        details["row"] = details['msg'].criteria.nodes[0].split('-')[0]
+        print(details['msg'].criteria.nodes)
+        logmsg(category="SCHEDU", id=self.agent.agent_id, msg="Scheduled request to treat %s" % details["row"])
         return (Task(id=task_id,
                      module='rasberry_data_collection_pkg',
                      name="scheduled_scan_row",

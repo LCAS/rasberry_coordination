@@ -32,6 +32,8 @@ categories:
   #Navigation
   - name: "ROUTE"
     colour: '41m'
+  - name: "PLANER"
+    colour: '41m'
   - name: "OCCUPY"
     colour: '41m'
   - name: "XROUTE"
@@ -70,7 +72,7 @@ ids:
 
   - name: "PLANNER"
     colour: '41m'
-  - name: "INTERACTION"
+  - name: "MEDIATOR"
     colour: '46m'
 
   - name: "storage01"
@@ -91,7 +93,7 @@ ids:
     colour: '33m'
   - name: "thorvald_025"
     colour: '34m'
-  - name: "STD_v2_246f284a6c94"
-    colour: '35m'
-  - name: "STD_v2_70b8f606c710"
-    colour: '35m'
+#  - name: "STD_v2_246f284a6c94"
+#    colour: '35m'
+#  - name: "STD_v2_70b8f606c710"
+#    colour: '35m'
