@@ -26,9 +26,9 @@ class GeneralNavigator(Interface):
         node = self.agent.location(accurate=False)
 
         # Find filter types to apply
-        if node.startswith('dock_'):
+        if node and node.startswith('dock_'):
             type_list = self.occupation_type['dock-'] if 'dock-' in self.occupation_type else ["self"]
-        elif node.startswith('r') and '-c' in node:
+        elif node and node.startswith('r') and '-c' in node:
             type_list = self.occupation_type['r-c'] if 'r-c' in self.occupation_type else ["self"]
         else:
             type_list = ["self"]
