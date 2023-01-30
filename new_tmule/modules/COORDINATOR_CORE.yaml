@@ -15,6 +15,7 @@
 - name: coordinator
   panes:
   - roslaunch rasberry_coordination abstract_task_coordinator.launch config_file:=$TASK_COORD_CONFIG
+  - rostopic echo -c /rasberry_coordination/scheduler/start_task
   check: "ROS_MASTER_URI=${SERVER_URI} rostopic echo /rasberry_coordination/fleet_monitoring/fleet -n 1"
   tags: [coord]
 
