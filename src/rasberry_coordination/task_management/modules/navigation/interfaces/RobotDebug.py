@@ -149,7 +149,7 @@ subgoal()
             if self.execpolicy_goal.route.source:
                 self.pubgoal()
         except:
-            print(traceback.format_exec())
+            print(traceback.format_exc())
             pass
 
     """ --------------- UTILS 1 ------------- """

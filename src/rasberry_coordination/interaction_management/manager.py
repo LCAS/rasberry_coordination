@@ -175,7 +175,7 @@ class InteractionManager(object):
 
         # Get blocked nodes
         occ = self.routing_manager.planner.load_occupied_nodes(ret=True)
-        occupied = [v for k,v in occ.items() if k is not agent.agent_id]
+        occupied = sum([v for k,v in occ.items() if k is not agent.agent_id], [])
 
         # Include navigation targets
         occupied += [a().interaction.response for a in AExcl if a().interaction and a().interaction.response and a.map_handler.is_node(a().interaction.response)]
