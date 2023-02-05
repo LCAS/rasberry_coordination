@@ -10,17 +10,27 @@ class Scheduler(Interface):
 
     @classmethod
     def list_schedulable_tasks(cls):
-        t1 = TaskContents(task_name='send_for_mot', viable_agents=['thorvald_001'], nodes=['WayPoint140'])
+        t1 = TaskContents(task_name='send_for_mot', viable_agents=['required | 1 only'], nodes=['required | 1 only'])
         return [t1]
 
     def assign_send_for_mot(self, task_id=None, details=None, contacts=None, initiator_id=""):
-        logmsg(category="SCHEDU", id=self.agent.agent_id, msg="Scheduled assignment for: %s"%details['msg'].criteria.task_name)
+        task_name = details['msg'].criteria.task_name
+        logmsg(category="SCHEDU", id=self.agent.agent_id, msg="Scheduled assignment for: %s"%task_name)
+
+        # Perform validation
         if not details['msg'].criteria.viable_agents:
             logmsg(category="SCHEDU", msg="    | no agent included")
             return
-        if not details['msg'].criteria.nodes:
+        elif len(details['msg'].criteria.viable_agents) > 1:
+            logmsg(category="SCHEDU", msg="    | too many agents included")
+            return
+        elif not details['msg'].criteria.nodes:
             logmsg(category="SCHEDU", msg="    | no location included")
             return
+        elif len(details['msg'].criteria.nodes) > 1:
+            logmsg(category="SCHEDU", msg="    | too many locations included")
+            return
+
         return(Task(id=task_id,
                     module='rasberry_health_monitoring_pkg',
                     name="send_for_mot",
