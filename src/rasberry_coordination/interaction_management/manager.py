@@ -76,7 +76,11 @@ class InteractionManager(object):
 
         elif GR == 'agent_list':
             # Use given list of agents
-            L = {agent_id: self.AllAgentsList[agent_id] for agent_id in interaction.list if agent_id in self.AllAgentsList}
+            L = {a.agent_id: a for a in self.AllAgentsList.values() if
+                    (a.agent_id in interaction.list) and
+                    (a.registration) and
+                    (a().accepting_new_tasks)
+                }
 
         elif GR == 'node_descriptor':
             # Generate list of nodes matching descriptor (special nodes listed in coordinator config)
