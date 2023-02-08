@@ -20,38 +20,35 @@ def get_kvp_list(dict, item):
     return []
 
 
-def get_file_path(agent, setup):
-    rc=rospkg.RosPack().get_path('rasberry_coordination')
-    agent_file = "%s/config/agent/%s.yaml"%(rc, agent)
-    setup_file = "%s/config/setup/%s.yaml"%(rc, setup)
-    return agent_file, setup_file
+def get_file_path(setup):
+    folder = os.getenv('LOGMSG_CONFIG', None)
+    setup_file = "%s%s.yaml"%(folder, setup)
+    return setup_file
 
 
-def load_agent_obj(agent_input, setup_input, get_files_from_paths=False, printer=True):
+def load_agent_obj(agent_id, setup, printer=True):
 
     # Identify agent and setup filepaths
     if get_files_from_paths:
-        agent_file, setup_file = get_file_path(agent_input, setup_input)
-    else:
-        agent_file, setup_file = agent_input, setup_input
+        setup_file = get_file_path(setup)
 
     # Load file contents, (fallback on empty file if agent_file not found)
-    try:
-        agent_data = rasberry_des.config_utils.get_config_data(agent_file)
-    except Exception as e:
-        if printer: print(e)
-        if printer: logmsg(level="warn", category="DRM", msg="File not Loaded: %s" % (agent_file))
-        agent_data = {'agent_id': agent_input.split("/")[-1].split(".")[0]}
-        if printer: logmsg(level="warn", category="DRM", msg="Launching with agent_data: %s" % (agent_data))
-    setup_data = rasberry_des.config_utils.get_config_data(setup_file)
+    agent_data = {'agent_id': agent_id.split("/")[-1].split(".")[0]}
+    if printer: logmsg(level="warn", category="DRM", msg="Launching with agent_data: %s" % (agent_data))
+
 
     # Build msg (use yaml.dump to parse further details through to coordinator)
+    setup_data = rasberry_des.config_utils.get_config_data(setup)
     pprint(setup_data)
     print("\n")
+
     agent = NewAgentConfig()
     agent.agent_id = agent_data['agent_id']
     agent.local_properties = get_kvp_list(agent_data, 'local_properties')
-    for m in setup_data['modules']: m['details'] = m['details'] if 'details' in m else [{'key':'value'}]
+
+    for m in setup_data['modules']:
+        m['details'] = m['details'] if 'details' in m else [{'key':'value'}]
+
     agent.modules = [Module(m['name'], m['interface'], [KeyValue(d.keys()[0], yaml.dump(d.values()[0])) for d in m['details']]) for m in setup_data['modules']]
     print("\n\n")
     return agent
@@ -74,7 +71,7 @@ class AgentMonitor():
 
     def load(self, msg, agent_type, printer=True):
         logmsg(category="DRM", msg="Recieved new %s information: %s"%(msg.data, agent_type))
-        agent = load_agent_obj(agent_input=msg.data, setup_input=agent_type, get_files_from_paths=True, printer=printer)
+        agent = load_agent_obj(agent_input=msg.data, setup_input=agent_type, printer=printer)
         if printer: print(agent)
         self.pub.publish(agent)
 
@@ -93,15 +90,15 @@ if __name__ == '__main__':
         logmsg(category="DRM", msg="AddAgent Node launched")
 
         # Collect details
-        agent_file = sys.argv[1]
-        setup_file = sys.argv[2]
+        agent_id = sys.argv[1]
+        setup = sys.argv[2]
 
         logmsgbreak()
         logmsg(category="DRM", msg="Loading configurations:")
-        logmsg(category="DRM", msg="    - agent_file: %s"%agent_file)
-        logmsg(category="DRM", msg="    - setup_file: %s"%setup_file)
+        logmsg(category="DRM", msg="    - agent_file: %s"%agent_id)
+        logmsg(category="DRM", msg="    - setup_file: %s"%setup)
 
-        agent = load_agent_obj(agent_file, setup_file)
+        agent = load_agent_obj(agent_id, setup)
         logmsg(category="DRM", msg="Details of Agent being launched:\n%s\n\n"%agent)
 
         # Create publisher
