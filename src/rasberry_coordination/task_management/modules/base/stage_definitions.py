@@ -94,7 +94,7 @@ class StartTask(StageBase):
         super(StartTask, self)._start()
         self.agent['id'] = self.task_id #Set task_id as active_task_id for agent
         self.agent['start_time'] = Time.now()
-        self.agent.format_marker(style='')
+        self.agent.format_marker(colour='')
     def _query(self):
         """Complete the stage without any condition"""
         self.flag(True)
@@ -107,7 +107,7 @@ class SetUnregister(StageBase):
         """Mark agent as unregistered and send a message to rviz to display the agent as red"""
         super(SetUnregister, self)._start()
         self.agent.registration = False
-        self.agent.format_marker(style='red')
+        self.agent.format_marker(colour='red')
     def _query(self):
         """Complete the stage without any condition"""
         self.flag(True)
@@ -146,7 +146,7 @@ class SetRegister(StageBase):
         """Mark agent as unregistered and send a message to rviz to display the agent without modified colour"""
         super(SetRegister, self)._start()
         self.agent.registration = True
-        self.agent.format_marker(style='')
+        self.agent.format_marker(colour='')
     def _query(self):
         """Complete the stage without any condition"""
         self.flag(True)
@@ -228,7 +228,7 @@ class NotifyTrigger(StageBase):
         super(NotifyTrigger, self)._start()
         self.interface = self.agent.modules[self.agent['module']].interface
         self.interface.notify(self.msg)
-        self.agent.format_marker(style=self.colour)
+        self.agent.format_marker(colour=self.colour)
         self.interface[self.trigger] = True  #PSUEDO
     def _query(self):
         """Wait for flag to be set by message response (or #PSUEDO)"""
@@ -252,6 +252,7 @@ class Pause(StageBase):
     def _start(self):
         """On start, cancel any active navigation"""
         super(Pause, self)._start()
+        self.agent.format_marker(colour='red')
         if 'navigation' in self.agent.modules and hasattr(self.agent.modules['navigation'].interface, 'cancel_execpolicy_goal'):
             self.agent.modules['navigation'].interface.cancel_execpolicy_goal() #navigation_interface
         #TODO: set an agent function for generic definition of pausing?
@@ -262,7 +263,7 @@ class Pause(StageBase):
     def _end(self):
         """On end, reenable registration"""
         self.agent.registration = True
-        self.agent.format_marker(style='')
+        self.agent.format_marker(colour='')
 
 class Exit(StageBase):
     """Used for controlled removal of agent connections"""
@@ -279,5 +280,5 @@ class Exit(StageBase):
     def _end(self):
         """Set marker to black and initiate disconnection interruption-"""
         super(Exit, self)._end()
-        self.agent.format_marker('black')
+        self.agent.format_marker(colour='black')
         self.agent.set_interrupt('disconnect', 'base', self.agent['id'], "Task")
