@@ -21,7 +21,8 @@ class MarkerPublisher(object):
     def __init__(self):
         self.agents = dict()
 
-        folderpath = rospkg.RosPack().get_path('rasberry_coordination')+"/src/rasberry_coordination/rviz_markers/"
+        folderpath = filepath = os.getenv('RVIZ_STUCTURES_CONFIG', None)
+rospkg.RosPack().get_path('rasberry_coordination')+"/src/rasberry_coordination/rviz_markers/"
 
         with open(folderpath+"colours.yaml",   'r') as f: self.colour_dict = yaml.safe_load(f)
         with open(folderpath+"components.yaml",'r') as f: self.component_dict = yaml.safe_load(f)

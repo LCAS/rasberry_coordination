@@ -1,0 +1,22 @@
+modules:
+  - name: base
+    interface: LocalisedHuman
+    details:
+      - rviz:
+            structure: 'human'
+            colour: 'red'
+            tf_source_topic: '/gps_positions'
+            tf_source_type: 'gps_grouped_array'
+
+  - name: navigation
+    interface: Human
+    details:
+      - has_presence: false
+      - restrictions: short
+
+  - name: rasberry_transportation_pkg
+    interface: Picker
+    details:
+      - state_listener: /car_client/get_states_kv
+      - state_publisher: /car_client/set_states_kv
+

@@ -1,0 +1,20 @@
+modules:
+  - name: base
+    interface: LocalisedHuman
+    details:
+      - rviz:
+            structure: 'special_node'
+            colour: 'green'
+            attach_pose: True
+            tf_source_type: 'static'
+
+  - name: navigation
+    interface: Human
+    details:
+      - has_presence: false
+
+  - name: rasberry_transportation_pkg
+    interface: Storage
+    details:
+      - state_subscriber: /car_client/get_states_kv
+      - state_publisher: /car_client/set_states_kv

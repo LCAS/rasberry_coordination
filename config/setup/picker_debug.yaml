@@ -1,0 +1,22 @@
+modules:
+  - name: base
+    interface: Human
+    details:
+      - structure_type: human
+      - rviz:
+            structure: 'picker'
+            colour: 'red'
+            attach_pose: True
+            tf_source_topic: '~pose'
+            tf_source_type: 'geometry_msgs/PoseStamped'
+  - name: navigation
+    interface: Human
+    details:
+      - has_presence: false
+      - restrictions: short
+
+  - name: rasberry_transportation_pkg
+    interface: Picker
+    details:
+      - state_listener: /car_client/get_states_kv
+      - state_publisher: /car_client/set_states_kv
