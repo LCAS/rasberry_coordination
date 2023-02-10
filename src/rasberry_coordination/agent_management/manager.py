@@ -137,6 +137,7 @@ class AgentManager(object):
             col = ''
             col = rviz['colour'] if 'colour' in rviz else col
             col = loca['rviz_default_colour'] if 'rviz_default_colour' in loca else col
+            col = a.colour or col
             stu = rviz['structure'] if 'structure' in rviz else ''
             return AgentRendering(colour=col, structure=stu)
         return AgentRendering(colour="None", structure="None")
@@ -257,6 +258,7 @@ class AgentDetails(object):
         self.map_handler = Map(agent=self, topic=topic)
 
         #Visualisers
+        self.colour = None
         self.modules['base'].details['default_colour'] = lp['rviz_default_colour'] if 'rviz_default_colour' in lp else ''
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
 
@@ -265,7 +267,7 @@ class AgentDetails(object):
 
         #Final Setup
         for m in self.modules.values(): m.add_init_task()
-        self.format_marker(style='red')
+        self.format_marker(colour='red')
 
 
 
@@ -396,7 +398,7 @@ class AgentDetails(object):
 
 
     """ Visuals """
-    def format_marker(self, color=None, style=None):
+    def format_marker(self, colour=None):
         """
         Add/modify marker to display in rviz
 
@@ -410,13 +412,13 @@ class AgentDetails(object):
         local = self.local_properties
         local['rviz_default_colour'] = local['rviz_default_colour'] if 'rviz_default_colour' in local else ''
         local['rviz_structure'] = local['rviz_structure'] if 'rviz_structure' in local else ''
-
+        self.colour = colour
 
         # Construct the marker details
         marker = MarkerDetails()
         marker.id = self.agent_id
         marker.structure = local['rviz_structure'] or rviz['structure']
-        marker.colour = local['rviz_default_colour'] or rviz['colour'] or ''
+        marker.colour = local['rviz_default_colour'] or rviz['colour'] or self.colour or ''
 
         # Set where the location should come from
         if 'tf_source_topic' in rviz:
