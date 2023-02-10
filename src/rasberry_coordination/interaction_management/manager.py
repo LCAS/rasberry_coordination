@@ -121,8 +121,9 @@ class InteractionManager(object):
         ST = interaction.style
         SD = interaction.style_details
         if ST == 'named_agent':
-            i = list.keys()[0]
-            I = self.AllAgentsList[i] if i in self.AllAgentsList else None
+            if list:
+                i = list.keys()[0]
+                I = self.AllAgentsList[i] if i in self.AllAgentsList else None
 
         elif ST == 'closest_agent':
             # Find closet agent in list
