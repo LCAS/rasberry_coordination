@@ -19,19 +19,36 @@ class GeneralNavigator(Interface):
 
     def occupation(self):
         """ Filter map based on occupation types associated to node name """
+
+        # Early return if agent has no presence
         if not self.agent.location.has_presence:
+            logmsg(category="occupy", msg="   :   | no presence")
             return []
 
         #Get location name
         node = self.agent.location(accurate=False)
 
-        # Find filter types to apply
+        # Early return if agent has no location
+        if not node:
+            logmsg(category="occupy", msg="   :   | no location")
+            return []
+
+        # Early return if agent has no map
+        if not self.agent.map_handler.global_node_list:
+            logmsg(category="occupy", msg="   :   | no map")
+            return []
+
+        # Find filter type
+        occ_type = 'self'
         if node and node.startswith('dock_'):
-            type_list = self.occupation_type['dock-'] if 'dock-' in self.occupation_type else ["self"]
+            occ_type = 'dock-'
         elif node and node.startswith('r') and '-c' in node:
-            type_list = self.occupation_type['r-c'] if 'r-c' in self.occupation_type else ["self"]
-        else:
-            type_list = ["self"]
+            occ_type = 'r-c'
+
+        # Find occupation type to apply
+        type_list = ['self']
+        if occ_type in self.occupation_type:
+            type_list = self.occupation_type[occ_type]
 
         # Apply filters
         nodes_to_filter = []
@@ -42,7 +59,6 @@ class GeneralNavigator(Interface):
             nodes.sort()
             nodes_to_filter += nodes
             logmsg(category="occupy", msg="   :   | %s: %s"%(typ, str(nodes)))
-
         return nodes_to_filter
 
     def wait_at_node_cb(self, msg):
