@@ -281,6 +281,8 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
         info_colour = '\033[38;5;231m\033[0m'
         warn_colour = '\033[38;5;136m'
         err_colour = '\033[38;5;1m'
+        test_colour = '\033[4;7;1m'
+
         green_highlight = '\033[01;32m'
         yellow_highlight = '\033[01;33m'
 
@@ -302,6 +304,9 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
         if str(category).upper() in colour_categories:
             catcol = colour_categories[str(category).upper()]
             c1 = colour_template%catcol if catcol else yellow_highlight
+            if str(category).upper() == "TEST":
+                c4 = c4 + test_colour
+
         if str(id) in colour_id:
             c3 = colour_id[str(id)]
 

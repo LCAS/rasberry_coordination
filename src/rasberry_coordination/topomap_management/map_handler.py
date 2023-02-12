@@ -1,7 +1,8 @@
-from copy import deepcopy
+from copy import copy, deepcopy
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
 from rospy_message_converter.message_converter import convert_dictionary_to_ros_message as rosmsg
 
+from time import time
 from std_msgs.msg import Bool, String as Str, Empty as Emp
 import strands_executive_msgs.msg
 
@@ -47,22 +48,50 @@ class MapObj(object):
         self.local_tmap_sub = Subscriber(self.topic, Str, self.local_map_cb, queue_size=5)
 
     def global_map_cb(self, msg):
+        # This is included for each agent as a single global map is needed for an agent to
+        # find their neighbouring nodes. In theory, we currently are loading a global map
+        # for every agent, we could instead have a single central one to reference.
         # used for sharing occupancy
+        t0 = time()
+
+        t1 = time()-t0
         self.global_map = self.load_raw_tmap(msg.data)
+        t2 = time()-t0
         self.global_node_list = [node["node"]["name"] for node in self.global_map['nodes']]
+        t3 = time()-t0
+
+        tim = (round(t2-t1,2), round(t3-t2,2))
+        logmsg(category="TEST", id=self.agent.agent_id, msg="global(%s|%s)"%tim)
 
     def local_map_cb(self, msg):
+        t0 = time()
+
+        # Save copy of message
+        t1 = time()-t0
         self.raw_msg = msg.data
+        t2 = time()-t0
 
         # used for planning direct routes
         self.empty_map = self.load_raw_tmap(self.raw_msg)
+        t3 = time()-t0
         self.empty_route_search = TopologicalRouteSearch(self.empty_map)
+        t4 = time()-t0
         self.empty_node_list = [node["node"]["name"] for node in self.empty_map['nodes']]
+        t5 = time()-t0
 
         # used for planning in cluttered workspace
-        self.filtered_map = self.load_raw_tmap(self.raw_msg)
+        self.filtered_map = deepcopy(self.empty_map)
+        #self.filtered_map = self.load_raw_tmap(self.raw_msg)
+        t6 = time()-t0
         self.filtered_route_search = TopologicalRouteSearch(self.filtered_map)
-        self.filtered_node_list = [node["node"]["name"] for node in self.filtered_map['nodes']]
+        t7 = time()-t0
+        self.filtered_node_list = copy(self.empty_node_list)
+        #self.filtered_node_list = [node["node"]["name"] for node in self.filtered_map['nodes']]
+        t8 = time()-t0
+
+        # Log timings
+        tim = tuple([round(t,2) for t in [t2-t1, t3-t2, t4-t3, t5-t4, t6-t5, t7-t6, t8-t7]])
+        logmsg(category="TEST", id=self.agent.agent_id, msg="raw(%s) | empty(%s|%s|%s) | filt(%s|%s|%s)"%tim)
 
     def start_map_reset(self):
         self.filtered_map = deepcopy(self.empty_map)
