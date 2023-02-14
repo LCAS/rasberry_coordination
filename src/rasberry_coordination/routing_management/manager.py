@@ -138,17 +138,17 @@ class RoutingManager(object):
                 new_policy = policy.route.source
                 if policy.route.edge_id: new_policy += [policy.route.edge_id[-1].split('_')[1]]
                 logmsg(category="navig",  msg="   | New Route:")
-                [logmsg(category="navig", msg="   :    | %s" % n) for n in new_policy]
+                [logmsg(category="navig", msg="   :   | %s" % n) for n in new_policy]
                 if not new_policy:
-                    logmsg(category="navig", msg="   :    | (empty)")
+                    logmsg(category="navig", msg="   :   | (empty)")
 
                 oldy = agent.modules['navigation'].interface.execpolicy_goal.route
                 old_policy = oldy.source
                 if oldy.edge_id: old_policy += [oldy.edge_id[-1].split('_')[1]]
-                logmsg(category="navig", msg="    | Prior Route:")
-                [logmsg(category="navig", msg="   :    | %s" % n) for n in old_policy]
+                logmsg(category="navig",  msg="   | Prior Route:")
+                [logmsg(category="navig", msg="   :   | %s" % n) for n in old_policy]
                 if not old_policy:
-                    logmsg(category="navig", msg="   :    | (empty)")
+                    logmsg(category="navig", msg="   :   | (empty)")
 
 
             agent.modules['navigation'].interface.cancel_execpolicy_goal()

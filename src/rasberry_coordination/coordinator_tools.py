@@ -338,26 +338,48 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
     if speech: os.system('espeak "%s"'%basic_msg);
 
 
+
+
+"""  LOAD CONFIGURATION FROM ENVVAR (WE COULD PROBABLY FORCE THIS AGAIN FROM A CORE COORDINATOR INTERFACECALL)  """
+#import load_dats; interface.base.subscriber('/update_logmsg', lambda : load_data(new_filepath))
+
+
 import subprocess
 import rasberry_des.config_utils
 
-config_file = os.getenv('LOGMSG_CONFIG', None)
-if not config_file:
-    result = subprocess.check_output('rospack find rasberry_coordination', shell=True)
-    config_file = result[:-1]+"/src/rasberry_coordination/logging_config/logmsg.yaml"
-config_data = rasberry_des.config_utils.get_config_data(config_file)
 
 def is_rejected(data): #return true if d is rejected
-    if 'reject' in data: return data['reject']
-    else: return False
-def is_not_rejected(data):  return not is_rejected(data)
-def is_coloured(data):      return ('colour' in data and data['colour'])
+    if 'reject' in data:
+        return data['reject'] #True in file
+    return False
+
+def is_coloured(data):
+    return ('colour' in data and data['colour'])
+
 def colour(data):
-    if data in ["true", "True", "TRUE", True]: return False
-    else: return '\033[01;%s'%data
+    if data in ["true", "True", "TRUE", True]:
+        return False
+    return '\033[01;%s'%data
 
-valid_categories =  [D['name'] for D in config_data['categories'] if is_not_rejected(D)]
-reject_categories = [D['name'] for D in config_data['categories'] if is_rejected(D)]
-colour_categories =  {D['name']:colour(D['colour']) for D in config_data['categories'] if is_not_rejected(D) and is_coloured(D)}
 
-colour_id = {D['name']:colour(D['colour']) for D in config_data['ids']}
+def load_data(file):
+    config_file = file
+
+    if not config_file:
+        result = subprocess.check_output('rospack find rasberry_coordination', shell=True)
+        config_file = result[:-1]+"/src/rasberry_coordination/logging_config/logmsg.yaml"
+    config_data = rasberry_des.config_utils.get_config_data(config_file)
+
+    global valid_categories
+    global reject_categories
+    global colour_categories
+    global colour_id
+
+    reject_categories = [D['name'] for D in config_data['categories'] if is_rejected(D)]
+    valid_categories =  [D['name'] for D in config_data['categories'] if not is_rejected(D)]
+    colour_categories =  {D['name']:colour(D['colour']) for D in config_data['categories'] if not is_rejected(D) and is_coloured(D)}
+
+    colour_id = {D['name']:colour(D['colour']) for D in config_data['ids']}
+
+
+load_data(file=os.getenv('LOGMSG_CONFIG', None))

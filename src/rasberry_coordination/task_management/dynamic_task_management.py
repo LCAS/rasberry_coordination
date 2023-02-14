@@ -87,8 +87,8 @@ class DTM(object):
         return task
     def publish_task_list(self, task_list):
         logmsg(level="info", category="SECT", id="SECTION", msg="\033[01;04;92mDTM\033[38;5;231m\033[0m")
-        logmsg(category="DTM", msg="Active Tasks:")
-        [logmsg(category="DTM", msg="    | %s\t  -- %s [%s,%s]" % (t.task_id, t.state.replace("Idle", "\033[01;32mIdle\033[0m"), t.initiator_id, t.responder_id)) for t in task_list.tasks]
+        logmsg(category="DTM",  msg="Active Tasks:")
+        [logmsg(category="DTM", msg="   | %s\t  -- %s [%s,%s]" % (t.task_id, t.state.replace("Idle", "\033[01;32mIdle\033[0m"), t.initiator_id, t.responder_id)) for t in task_list.tasks]
         # logmsg(category="null")
         self.active_tasks_pub.publish(task_list)
 
