@@ -278,9 +278,9 @@ class AgentDetails(object):
             self.add_task(module='base', name='idle')
         if not self.task_buffer:
             logmsg(level="error", category="task", id=self.agent_id, msg="WARNING! Agent has no idle tasks.")
-            logmsg(level="error", category="task", msg="    | All agents must be assigned a module.")
-            logmsg(level="error", category="task", msg="    | Should each module have an idle task for each agent?")
-            logmsg(level="error", category="task", msg="    \ Agent to be assigned a basic idle task.")
+            logmsg(level="error", category="task", msg="   | All agents must be assigned a module.")
+            logmsg(level="error", category="task", msg="   | Should each module have an idle task for each agent?")
+            logmsg(level="error", category="task", msg="   \ Agent to be assigned a basic idle task.")
             self.add_task(module='base', name='idle')
     def add_task(self, module, name, task_id=None, task_stage_list=None, details=None, contacts=None, index=None, quiet=False, initiator_id=""):
         """ Called by task stages, used to buffer new tasks for the agent """
@@ -289,18 +289,18 @@ class AgentDetails(object):
         contacts = contacts if contacts else {}
 
         if module not in self.modules:
-            logmsg(category="TASK", msg="    | module: %s (not valid)"%module)
+            logmsg(category="TASK", msg="   | module: %s (not valid)"%module)
             return
 
         if not hasattr(self.modules[module].interface, name):
-            logmsg(category="TASK", msg="    | task: %s (not found)"%name)
+            logmsg(category="TASK", msg="   | task: %s (not found)"%name)
             return
 
         task_def = getattr(self.modules[module].interface, name)
         task = task_def(task_id=task_id, details=details, contacts=contacts, initiator_id=initiator_id)
 
         if not task:
-            logmsg(category="TASK", msg="    | %s.%s (empty)" % (module, name))
+            logmsg(category="TASK", msg="   | %s.%s (empty)" % (module, name))
             return
 
         if not index: self.task_buffer += [task]
@@ -308,10 +308,10 @@ class AgentDetails(object):
 
         if quiet:
             name = name if task.name == name else "%s/%s"%(name,task.name)
-            logmsg(category="DTM", msg="    :    | buffering %s to task_buffer[%i]" % (name, index or len(self.task_buffer)))
+            logmsg(category="DTM", msg="   :   | buffering %s to task_buffer[%i]" % (name, index or len(self.task_buffer)))
         else:
-            logmsg(category="TASK",  msg="    | [%i] %s.%s:" % (index or len(self.task_buffer), module, task.name))
-            [logmsg(category="TASK", msg="    :    | %s"%t) for t in task.stage_list]
+            logmsg(category="TASK",  msg="   | [%i] %s.%s:" % (index or len(self.task_buffer), module, task.name))
+            [logmsg(category="TASK", msg="   :   | %s"%t) for t in task.stage_list]
 
     def start_next_task(self, idx=0):
         logmsg(category="TASK", id=self.agent_id, msg="Beginning idle tasks", speech=False)
@@ -321,14 +321,14 @@ class AgentDetails(object):
         self.task = self.task_buffer.pop(idx)
 
         logmsg(category="TASK",  msg="Active task: %s" % self['name'], speech=False)
-        [logmsg(category="TASK", msg="    | %s" % stage) for stage in self['stage_list']]
+        [logmsg(category="TASK", msg="   | %s" % stage) for stage in self['stage_list']]
 
     def extend_task(self, task_name, task_id, details):
         if module not in self.interfaces:
-            logmsg(category="TASK", msg="    | module: %s (not valid)"%task_name)
+            logmsg(category="TASK", msg="   | module: %s (not valid)"%task_name)
             return
         if name not in self.interfaces[module]:
-            logmsg(category="TASK", msg="    | task: %s (not found)"%task_name)
+            logmsg(category="TASK", msg="   | task: %s (not found)"%task_name)
             return
         task_def = self.interfaces[module][name]
         task = task_def(self, task_id=task_id, details=details)
@@ -377,7 +377,7 @@ class AgentDetails(object):
     """ Task Interruption """
     def set_interrupt(self, type, module, task_id, scope, quiet=False):
         if quiet:
-            logmsg(category="DTM", msg="    - interrupt attached to %s of type: (%s,%s,%s)." % (self.agent_id, type, module, task_id))
+            logmsg(category="DTM", msg="   - interrupt attached to %s of type: (%s,%s,%s)." % (self.agent_id, type, module, task_id))
         else:
             logmsg(category="DTM", msg="Interrupt attached to %s of type: (%s,%s,%s)." % (self.agent_id, type, module, task_id))
         self.interruption = (type, module, task_id, scope)
@@ -453,7 +453,7 @@ class AgentDetails(object):
         logmsg(category="DRM", msg="References remaining: (%s/1)" % len(gc.get_referrers(a())))
         if len(gc.get_referrers(a())) > 1:
             logmsg(level="error", category="DRM", msg="Remove unhandled refs in place or in AgentDetails.delete_known_references()")
-        [logmsg(category="DRM", msg="    - (%s) %s" % (i+1, r)) for i, r in enumerate(gc.get_referrers(a()))]
+        [logmsg(category="DRM", msg="   - (%s) %s" % (i+1, r)) for i, r in enumerate(gc.get_referrers(a()))]
     def __del__(self):
         logmsg(level="warn", category="DRM", id=self.agent_id, msg="Agent handler is deleted.")
         logmsg(level="warn", category="DRM", msg="Here, we must identify and unregister every subscriber")

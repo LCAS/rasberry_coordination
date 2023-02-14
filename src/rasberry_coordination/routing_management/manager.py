@@ -160,7 +160,7 @@ class RoutingManager(object):
                     agent.modules['health_monitoring'].interface.say_navigation_block()
 
             agent().route_required = False  # Route has now been published
-            logmsg(category="navig", id=agent.agent_id, msg="    | route published: %s" % rationalle_to_publish)
+            logmsg(category="navig", id=agent.agent_id, msg="   | route published: %s" % rationalle_to_publish)
 
             now = str(datetime.datetime.utcnow())
             path = "%s/routing/filtered_map_%s.prof" % (rospkg.RosPack().get_path('rasberry_coordination'), now.replace(' ','-'))
@@ -168,7 +168,7 @@ class RoutingManager(object):
                 yaml.dump(policy, f_handle)
 
         else:
-            logmsg(category="navig", id=agent.agent_id, msg="    | route failed to published: %s" % reason_failed_to_publish)
+            logmsg(category="navig", id=agent.agent_id, msg="   | route failed to published: %s" % reason_failed_to_publish)
 
         agent().route_found = False  # Route has now been published
 
