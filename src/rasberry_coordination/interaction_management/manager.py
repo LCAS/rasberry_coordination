@@ -53,14 +53,14 @@ class InteractionManager(object):
 
         if interaction.response:
             logmsg(category="action", id='MEDIATOR', msg="Performing Interaction Search")
-            [logmsg(category="action", msg="    | %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
+            [logmsg(category="action",    msg="   | %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
             if TP=="search":
-                logmsg(category="action", msg="    | list: %s" % str(list))
-            logmsg(category="action", msg="    | RESULT: %s" % interaction.response)
+                logmsg(category="action", msg="   | list: %s" % str(list))
+            logmsg(category="action",     msg="   | RESULT: %s" % interaction.response)
         elif not interaction.silence:
             logmsg(category="action", id='MEDIATOR', msg="Performing Interaction Search")
-            [logmsg(category="action", msg="    | %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
-            logmsg(category="action", msg="    | Interaction result not found, will notify when result found")
+            [logmsg(category="action",    msg="   | %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
+            logmsg(category="action",     msg="   | Interaction result not found, will notify when result found")
             interaction.silence = True
 
         self.AllAgentsList = None
