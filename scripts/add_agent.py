@@ -71,7 +71,7 @@ class AgentMonitor():
 
     def load(self, msg, agent_type, printer=True):
         logmsg(category="DRM", msg="Recieved new %s information: %s"%(msg.data, agent_type))
-        agent = load_agent_obj(agent_input=msg.data, setup_input=agent_type, printer=printer)
+        agent = load_agent_obj(agent_id=msg.data, setup=agent_type, printer=printer)
         if printer: print(agent)
         self.pub.publish(agent)
 
