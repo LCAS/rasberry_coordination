@@ -3,6 +3,7 @@
 import tf
 import sys
 import rospy
+import os
 import json, yaml
 from std_msgs.msg import String
 import rasberry_coordination
@@ -21,7 +22,8 @@ def get_kvp_list(dict, item):
 
 
 def get_file_path(setup):
-    folder = os.getenv('LOGMSG_CONFIG', None)
+    folder = os.getenv('AGENT_SETUP_CONFIG', None)
+    #folder = '/home/thorvald/rasberry_ws/src/RASberry/rasberry_core/config/site_files/default_farm/default_field/server/setup/'
     setup_file = "%s%s.yaml"%(folder, setup)
     return setup_file
 
@@ -29,8 +31,7 @@ def get_file_path(setup):
 def load_agent_obj(agent_id, setup, printer=True):
 
     # Identify agent and setup filepaths
-    if get_files_from_paths:
-        setup_file = get_file_path(setup)
+    setup_file = get_file_path(setup)
 
     # Load file contents, (fallback on empty file if agent_file not found)
     agent_data = {'agent_id': agent_id.split("/")[-1].split(".")[0]}
@@ -38,7 +39,7 @@ def load_agent_obj(agent_id, setup, printer=True):
 
 
     # Build msg (use yaml.dump to parse further details through to coordinator)
-    setup_data = rasberry_des.config_utils.get_config_data(setup)
+    setup_data = rasberry_des.config_utils.get_config_data(setup_file)
     pprint(setup_data)
     print("\n")
 
