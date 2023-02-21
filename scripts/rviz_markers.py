@@ -7,6 +7,7 @@
 
 import rospy, rospkg
 import yaml
+import os
 
 from std_msgs.msg import Empty
 from geometry_msgs.msg import Point
@@ -21,12 +22,13 @@ class MarkerPublisher(object):
     def __init__(self):
         self.agents = dict()
 
-        folderpath = filepath = os.getenv('RVIZ_STUCTURES_CONFIG', None)
-rospkg.RosPack().get_path('rasberry_coordination')+"/src/rasberry_coordination/rviz_markers/"
+        internal_path = rospkg.RosPack().get_path('rasberry_coordination')+"/src/rasberry_coordination/rviz_markers/"
+        structures_path = os.getenv('RVIZ_STRUCTURES_CONFIG', None)
+        print(structures_path)
 
-        with open(folderpath+"colours.yaml",   'r') as f: self.colour_dict = yaml.safe_load(f)
-        with open(folderpath+"components.yaml",'r') as f: self.component_dict = yaml.safe_load(f)
-        with open(folderpath+"structures.yaml",'r') as f: self.structures_dict = yaml.safe_load(f)
+        with open(internal_path+"colours.yaml",   'r') as f: self.colour_dict = yaml.safe_load(f)
+        with open(internal_path+"components.yaml",'r') as f: self.component_dict = yaml.safe_load(f)
+        with open(structures_path,'r') as f: self.structures_dict = yaml.safe_load(f)
 
         self.agents_to_render, self.agents_to_pop = [], []
         self.publish_time = rospy.get_rostime()
