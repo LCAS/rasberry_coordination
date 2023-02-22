@@ -165,6 +165,8 @@ class Robot(GeneralNavigator):
 
         self.publish_route(goal.route.source, goal.route.edge_id)
 
+        if len(goal.route.source) > len(goal.route.edge_id):
+            del goal.route.source[-1]
         self.execpolicy_goal = goal
         self.execpolicy_current_wp = None
         self.execpolicy_result = None
