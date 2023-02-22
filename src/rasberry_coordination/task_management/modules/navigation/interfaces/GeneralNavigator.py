@@ -47,6 +47,8 @@ class GeneralNavigator(Interface):
 
         # Find occupation type to apply
         type_list = ['self']
+        print(self.occupation_type)
+        print(occ_type)
         if occ_type in self.occupation_type:
             type_list = self.occupation_type[occ_type]
 

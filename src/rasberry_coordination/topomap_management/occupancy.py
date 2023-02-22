@@ -14,6 +14,7 @@ class OccupancyFilters(object):
 
     @classmethod
     def entry(cls, map, node_list, node):
+        return [node]
 
         #find entry node (all edges to node)
         #loop through edges till reaching a node with more than 1 new edge
