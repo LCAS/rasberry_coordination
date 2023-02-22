@@ -31,11 +31,11 @@ class Interface(object):
                         ]))
 
     def release_task(self, agent):
-        logmsg(category="DTM", msg="    | releasing task %s" % (self.agent['name']))
+        logmsg(category="DTM", msg="   | releasing task %s" % (self.agent['name']))
         self.agent.task = None
 
     def restart_task(self, agent):
-        logmsg(category="DTM", msg="    | restarting task %s" % (self.agent['name']))
+        logmsg(category="DTM", msg="   | restarting task %s" % (self.agent['name']))
         self.agent.add_task(module='base', name=agent['name'], task_id=self.agent['id'], index=0, quiet=True)
         self.agent.task = None
 

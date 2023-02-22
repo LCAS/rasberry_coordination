@@ -24,9 +24,9 @@ def set_properties(module_dict):
 
     logmsg(category="START",  msg="Properties: ")
     for M in module_dict:
-        logmsg(category="START",  msg="    | %s" % get_module_host(M['name']))
+        logmsg(category="START",  msg="   | %s" % get_module_host(M['name']))
         try:
-            [logmsg(category="START", msg="    :    | %s -> %s" % (key, val)) for key, val in M['properties'].items()]
+            [logmsg(category="START", msg="   :   | %s -> %s" % (key, val)) for key, val in M['properties'].items()]
             [set_param(namespace % (M['name'], k), v) for k, v in M['properties'].items()]
         except:
            pass
@@ -55,7 +55,7 @@ def load_custom_modules(clean_module_list):
     module_list.insert(2, 'rasberry_coordination.task_management.modules.assignment')
 
     logmsg(category="START",  msg="Collecting Interfaces and Stage Definitions for modules: ")
-    [logmsg(category="START", msg="    | %s" % module) for module in module_list]
+    [logmsg(category="START", msg="   | %s" % module) for module in module_list]
 
 
     # For each module, import the Stages, and Interfaces to their respective containers
@@ -69,13 +69,13 @@ def load_custom_modules(clean_module_list):
     for module in module_list:
         host = get_module_host(module)
         Stages[host] = dict()
-        logmsg(category="START", msg="    | %s" % host.upper())
+        logmsg(category="START", msg="   | %s" % host.upper())
 
         ### module_obj = __import__(module+".stage_definitions", globals(), locals(), [''], -1) #this looked cooler
         try:
             module_obj = importlib.import_module(module+".stage_definitions")
         except ImportError as e:
-            logmsg(level="error", category="START", msg="    :    | %s (%s)"%(module,str(e)))
+            logmsg(level="error", category="START", msg="   :   | %s (%s)"%(module,str(e)))
             print(traceback.format_exc())
             continue
 
@@ -84,29 +84,29 @@ def load_custom_modules(clean_module_list):
 
             if type(cls)!=type(StageBase) or not issubclass(cls, StageBase): continue
             Stages[host][obj] = cls
-            logmsg(category="START", msg="    :    | %s" % obj)
+            logmsg(category="START", msg="   :   | %s" % obj)
 
     # Import Interfaces
     logmsg(category="START", msg="INTERFACES: ")
-    logmsg(category="START", msg="    | if an expected interface has not appeard")
-    logmsg(category="START", msg="    | try importing directly in a python terminal:")
-    logmsg(category="START", msg="    :    | import rasberry_coordination.task_management.modules.base.interfaces.Robot")
+    logmsg(category="START", msg="   | if an expected interface has not appeard")
+    logmsg(category="START", msg="   | try importing directly in a python terminal:")
+    logmsg(category="START", msg="   :   | import rasberry_coordination.task_management.modules.base.interfaces.Robot")
     from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface as InterfaceBase
     Interfaces = dict()
     for module in module_list:
         host = get_module_host(module)
         Interfaces[host] = dict()
-        logmsg(category="START", msg="    | %s" % host.upper())
+        logmsg(category="START", msg="   | %s" % host.upper())
 
         ### module_obj = __import__(module, globals(), locals(), ['interfaces'], -1).interfaces #this looked cooler
         try:
             module_obj = importlib.import_module(module+".interfaces")
         except ImportError as e:
             if "No module named" in str(e):
-                logmsg(category="START", msg="    :    | "+str(e))
+                logmsg(category="START", msg="   :   | "+str(e))
             else:
-                logmsg(level="error", category="START", msg="    :    | %s (%s)"%(module,str(e)))
-                #logmsg(level="error", category="START", msg="    :    | ensure ...interfaces.__init__.py imports to your modules")
+                logmsg(level="error", category="START", msg="   :   | %s (%s)"%(module,str(e)))
+                #logmsg(level="error", category="START", msg="   :   | ensure ...interfaces.__init__.py imports to your modules")
                 print(traceback.format_exc())
                 quit()
             continue
@@ -120,7 +120,7 @@ def load_custom_modules(clean_module_list):
 
             if type(cls)!=type(InterfaceBase) or not issubclass(cls, InterfaceBase): continue
             Interfaces[host][obj] = cls
-            logmsg(category="START", msg="    :    | %s" % obj)
+            logmsg(category="START", msg="   :   | %s" % obj)
 #    exit()
 
 class Stg(object):
