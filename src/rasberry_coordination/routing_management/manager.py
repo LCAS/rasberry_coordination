@@ -153,11 +153,11 @@ class RoutingManager(object):
 
             agent.modules['navigation'].interface.cancel_execpolicy_goal()
             agent.modules['navigation'].interface.set_execpolicy_goal(policy)
-            if 'health_monitoring' in agent.modules:
-                if agent.modules['health_monitoring'].interface.navigation_available():
+            if 'rasberry_health_monitoring_pkg' in agent.modules:
+                if agent.modules['rasberry_health_monitoring_pkg'].interface.is_navigation_available():
                     agent.speaker("caution: moving")
                 else:
-                    agent.modules['health_monitoring'].interface.say_navigation_block()
+                    agent.modules['rasberry_health_monitoring_pkg'].interface.say_navigation_block()
 
             agent().route_required = False  # Route has now been published
             logmsg(category="navig", id=agent.agent_id, msg="   | route published: %s" % rationalle_to_publish)
