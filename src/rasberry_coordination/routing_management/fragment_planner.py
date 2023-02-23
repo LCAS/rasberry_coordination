@@ -6,7 +6,7 @@
 # ----------------------------------
 
 
-import threading
+import threading, traceback
 from pprint import pprint
 
 from rasberry_coordination.routing_management.base_planner import BasePlanner
@@ -226,7 +226,13 @@ class FragmentPlanner(BasePlanner):
             FragmentPlanner_map_filter.generate_filtered_map(agent, start_node, goal_node, self.occupied_nodes)
 
             # generate route from start node to goal node
-            route = agent.map_handler.filtered_route_search.search_route(start_node, goal_node)
+            if not ( agent.map_handler.is_node(start_node) or agent.map_handler.is_node(start_node) ):
+                logmsg(level='error', category="route", msg="   | problem: node is not in map")
+            try:
+                route = agent.map_handler.filtered_route_search.search_route(start_node, goal_node)
+            except:
+                print(traceback.format_exc())
+                return
 
             # if failed to find route, set robot as inactive and mark navigation as failed
             if route.source == [] and route.edge_id == []:
