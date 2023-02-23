@@ -1,3 +1,4 @@
+from pprint import pprint
 from copy import deepcopy
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
 
@@ -21,8 +22,6 @@ class ModuleObj(object):
         self.agent = agent
         self.name = name
         from rasberry_coordination.task_management.__init__ import Interfaces, PropertiesDef
-        logmsg(category="module", msg="   | CREATING: %s" % Interfaces[name][interface])
-
         self.interface = Interfaces[name][interface](agent=agent, details=details)
         self.properties = PropertiesDef[name] if name in PropertiesDef else dict()
         self.details = details
