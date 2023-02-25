@@ -1,4 +1,4 @@
 rasberry_coordination/TaskIdentifier credentials
 rasberry_coordination/TaskContents criteria
-rasberry_coordinatino/TaskSchedule schedule
+rasberry_coordination/TaskSchedule schedule
 rasberry_coordination/TaskStatus status

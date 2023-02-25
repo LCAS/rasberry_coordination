@@ -11,6 +11,7 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <build_depend>actionlib</build_depend>
+  <build_depend>diagnostic_msgs</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>message_generation</build_depend>
   <build_depend>rasberry_des</build_depend>
@@ -27,6 +28,7 @@
   <build_depend>topological_navigation_msgs</build_depend>
 
   <build_export_depend>actionlib</build_export_depend>
+  <build_export_depend>diagnostic_msgs</build_export_depend>
   <build_export_depend>geometry_msgs</build_export_depend>
   <build_export_depend>message_generation</build_export_depend>
   <build_export_depend>rasberry_des</build_export_depend>
@@ -43,6 +45,7 @@
   <build_export_depend>topological_navigation_msgs</build_export_depend>
 
   <exec_depend>actionlib</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>message_runtime</exec_depend>
   <exec_depend>rasberry_des</exec_depend>

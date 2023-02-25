@@ -1,2 +1,2 @@
 string action
-rasberry_scheduling/TaskContents[] criterian
+rasberry_coordination/TaskContents[] criterian
