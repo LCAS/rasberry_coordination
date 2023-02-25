@@ -25,12 +25,6 @@ catkin_python_setup()
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  OldAgentLocation.msg
-  OldAgentLocationList.msg
-  OldAgentRegistration.msg
-  OldAgentRegistrationList.msg
-  OldAgentState.msg
-  OldAgentStateList.msg
   AgentList.msg
   Agent.msg
   AgentLocation.msg
@@ -48,6 +42,15 @@ add_message_files(
   TaskDetails.msg
   TasksDetails.msg
   TopoLocation.msg
+
+  # Scheduling
+  AllSchedulableTasks.msg
+  SchedulableTasks.msg
+  Task.msg
+  TaskIdentifier.msg
+  TaskContents.msg
+  TaskSchedule.msg
+  TaskStatus.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -59,7 +62,7 @@ add_service_files(
 )
 
 generate_messages(
-  DEPENDENCIES std_msgs strands_executive_msgs diagnostic_msgs
+  DEPENDENCIES std_msgs diagnostic_msgs
 )
 
 catkin_package(
