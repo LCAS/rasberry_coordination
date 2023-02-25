@@ -1,0 +1,4 @@
+rasberry_scheduling/TaskIdentifier credentials
+rasberry_scheduling/TaskContents criteria
+rasberry_scheduling/TaskSchedule schedule
+rasberry_scheduling/TaskStatus status
