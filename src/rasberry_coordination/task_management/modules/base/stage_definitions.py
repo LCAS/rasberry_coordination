@@ -53,7 +53,7 @@ class StageBase(object):
     def flag(self, completion):
         """Collection function when a stage is to be flagged as completed"""
         if not self.agent.interruption: #Prevent completion of stage if interruption is pending.
-            self.stage_complete = self.stage_complete or completion
+            self.stage_complete = self.stage_complete or completion #If set to true, dont unset
     def __init__(self, agent):
         """Class initialisation for populating default values"""
         self.agent = agent
@@ -178,7 +178,7 @@ class Timeout(StageBase):
             if self.start_time:
                 remaining_time = self.duration - (Time.now()-self.start_time).secs
                 return "%s(%s, %s)" % (self.get_class(), self.agent.location(), remaining_time)
-            return "%s(%s,x)" % (self.get_class(), self.agent.location())
+            return "%s(%s, ...)" % (self.get_class(), self.agent.location())
         return self.get_class()
     def __init__(self, agent, duration=None, **kw):
         super(Timeout, self).__init__(agent, **kw)
@@ -186,34 +186,43 @@ class Timeout(StageBase):
         self.timeout = None
     def _start(self, duration=None, **kw):
         super(Timeout, self)._start(**kw)
-        self.duration = duration or self.duration
+        self.duration = duration if duration != None else self.duration
         self.timeout = Duration(secs=self.duration)
     def _query(self):
         success_conditions = [Time.now() - self.start_time > self.timeout]
         self.flag(any(success_conditions))
 
 class FlagCheck(StageBase):
-    def __init__(self, agent, flag_name=None, flag_success=None, **kw):
+    def __init__(self, agent, flag_name=None, default=None, success=None, **kw):
         super(FlagCheck, self).__init__(agent, **kw)
         self.flag_name = flag_name
-        self.flag_success = flag_success
-    def _start(self, flag_name=None, flag_success=None, **kw):
+        self.default = default
+        self.success = success
+    def _start(self, flag_name=None, default=None, success=None, **kw):
         super(FlagCheck, self)._start(**kw)
-        self.flag_name = flag_name or self.flag_name
-        self.flag_success = flag_success or self.flag_success
+        self.flag_name = flag_name if flag_name != None else self.flag_name
+        self.default = default if default != None else self.default
+        self.success = success if success != None else self.success
+        self.agent[self.flag_name] = self.default
     def _query(self):
-        success_conditions = [self.agent[self.flag_name] == self.flag_success]
+        success_conditions = [self.agent[self.flag_name] == self.success]
         self.flag(any(success_conditions))
 
 
 """ Joined Trigger Events (example) """
+# If start is called twice, arent the reset parts called after being set?
+# __mro__ only moves to next if super is called in latest of list
+# As query does not call super, it will stall, thus we must be explicit
+
 class IdleTimeout(Idle, Timeout):
-    def _start(self, duration):
-        super(IdleTimeout, self)._start(duration=duration)
+    def _query(self):
+        Idle._query(self)
+        Timeout._query(self)
 
 class TimeoutFlagCheck(Timeout, FlagCheck):
-    def _start(self, duration, flag_name, flag_success):
-        super(TimeoutFlagCheck, self)._start(duration=duration, flag_name=flag_name, flag_success=flag_success)
+    def _query(self):
+        Timeout._query(self)
+        FlagCheck._query(self)
 
 
 """ Communications """

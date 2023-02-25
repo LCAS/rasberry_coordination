@@ -90,8 +90,9 @@ class RoutingManager(object):
         reason_failed_to_publish = ""
 
         """ Identify key elements in routes. """
-        old_node = agent.modules['navigation'].interface.execpolicy_goal.route.source
-        old_edge = agent.modules['navigation'].interface.execpolicy_goal.route.edge_id
+        old_goal = agent.modules['navigation'].interface.execpolicy_goal
+        old_node = old_goal.route.source if old_goal else []
+        old_edge = old_goal.route.edge_id if old_goal else []
         new_node = policy.route.source
         new_edge = policy.route.edge_id
 
@@ -109,7 +110,7 @@ class RoutingManager(object):
             if len(new_edge) > len(old_edge):
                 publish_route = True
                 rationalle_to_publish = "New route is larger then old route."
-                logmsg(category="navig", msg="    | new route longer than existing one")
+                logmsg(category="navig", msg="   | new route longer than existing one")
             else:
                 publish_route = False
                 reason_failed_to_publish = "New shorter route could just be a partially used route"
@@ -125,7 +126,7 @@ class RoutingManager(object):
                     if o != n:
                         publish_route = True
                         rationalle_to_publish = "New route takes a different route to target."
-                        logmsg(category="navig", msg="    | new route different from existing route")
+                        logmsg(category="navig", msg="   | new route different from existing route")
                         break
                     else:
                         publish_route = False
@@ -142,13 +143,16 @@ class RoutingManager(object):
                 if not new_policy:
                     logmsg(category="navig", msg="   :   | (empty)")
 
-                oldy = agent.modules['navigation'].interface.execpolicy_goal.route
-                old_policy = oldy.source
-                if oldy.edge_id: old_policy += [oldy.edge_id[-1].split('_')[1]]
+                oldy = agent.modules['navigation'].interface.execpolicy_goal
                 logmsg(category="navig",  msg="   | Prior Route:")
-                [logmsg(category="navig", msg="   :   | %s" % n) for n in old_policy]
-                if not old_policy:
-                    logmsg(category="navig", msg="   :   | (empty)")
+                if not oldy:
+                    logmsg(category="navig",  msg="   :   | (empty)")
+                else:
+                    old_policy = oldy.route.source
+                    if oldy.route.edge_id: old_policy += [oldy.route.edge_id[-1].split('_')[1]]
+                    [logmsg(category="navig", msg="   :   | %s" % n) for n in old_policy]
+                    if not old_policy:
+                        logmsg(category="navig", msg="   :   | (empty)")
 
 
             agent.modules['navigation'].interface.cancel_execpolicy_goal()
