@@ -99,7 +99,7 @@ subgoal()
             goal.route.edge_id.pop(0)
 
         # Display filtered routes
-        self.path_gen(goal=goal)
+        self.path_gen(goal.route)
         self.buffer.append(goal)
         self.pubgoal()
 
@@ -107,10 +107,17 @@ subgoal()
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='New Execpolicy Goal Published')
         if self.buffer:
             self.execpolicy_goal, self.buffer = self.buffer[-1], []
-        self.path_gen()
 
+        # Print route details
+        if self.execpolicy_goal:
+            self.path_gen(self.execpolicy_goal.route)
+
+        # Publish route to execute
         self.goal_publisher.publish(self.execpolicy_goal)
-        self.publish_path()
+
+        # Publish path to rviz
+        if self.execpolicy_goal:
+            self.publish_path(self.execpolicy_goal.route)
 
     def subgoal(self, msg):
         try:
@@ -118,37 +125,39 @@ subgoal()
             if not self.execpolicy_goal.route.source and not self.execpolicy_goal.route.edge_id:
                 return
             print("\n\n")
-            #logmsg(level='warn', category='test', id=aid, msg='debug robot subgoal cycling empty execpolicies')
 
             logmsg(category='vr_rob', id=aid, msg='Execpolicy Goal:')
             logmsg(category='vr_rob', id=aid, msg='   | Route:')
-            self.path_gen(format='   :   | %s')
+            self.path_gen(self.execpolicy_goal.route, format='   :   | %s')
 
             # Move to next edge in route unless next node is not reached
-            route = self.execpolicy_goal.route
-            if route.edge_id and route.source and not route.edge_id[0].startswith(route.source[0]):
-                nxt = self.execpolicy_goal.route.edge_id[0] if self.execpolicy_goal.route.edge_id else ''
-                logmsg(category='vr_rob', id=aid, msg='Moving to edge: %s'%nxt)
+            goal = self.execpolicy_goal
+            if goal and goal.route.edge_id and goal.route.source and not goal.route.edge_id[0].startswith(goal.route.source[0]):
+                edge = goal.route.edge_id[0]
+                logmsg(category='vr_rob', id=aid, msg='Moving to edge: %s'%edge)
                 self.wait()
-                logmsg(category='vr_rob', id=aid, msg='Moved to edge: %s'%nxt)
-                self.telemove()
+                logmsg(category='vr_rob', id=aid, msg='Moved to edge: %s'%edge)
+                self.telemove(edge)
                 logmsg(category='vr_rob', id=aid, msg='   | Remaining Route:')
-                self.filter_edge()
-                self.path_gen(format='   :   | %s')
+                self.filter_edge(edge)
+                self.path_gen(goal.route, format='   :   | %s')
 
             # Move to next node in route
-            if self.execpolicy_goal.route.source:
-                nxt = self.execpolicy_goal.route.source[0] if self.execpolicy_goal.route.source else ''
-                logmsg(category='vr_rob', id=aid, msg='Moving to node: %s'%nxt)
+            goal = self.execpolicy_goal
+            if goal and goal.route.source:
+                node = goal.route.source[0]
+                logmsg(category='vr_rob', id=aid, msg='Moving to node: %s'%node)
                 self.wait()
-                logmsg(category='vr_rob', id=aid, msg='Moved to node: %s'%nxt)
-                self.teleport()
+                logmsg(category='vr_rob', id=aid, msg='Moved to node: %s'%node)
+                self.teleport(node)
                 logmsg(category='vr_rob', id=aid, msg='   | Remaining Route:')
-                self.filter_node()
-                self.path_gen(format='   :   | %s')
+                self.filter_node(node)
+                self.path_gen(goal.route, format='   :   | %s')
 
             # Publish remainder of route for next cycle
-            if self.execpolicy_goal.route.source:
+            goal = self.execpolicy_goal
+            if goal:
+                self.publish_path(goal.route)
                 self.pubgoal()
 
         except:
@@ -158,20 +167,20 @@ subgoal()
     """ --------------- UTILS 1 ------------- """
 
     """
-wait()
+    wait()
 
-telemove()
-  publish edge_tf
-  publish edge_pose
-  publish edge
+    telemove()
+      publish edge_tf
+      publish edge_pose
+      publish edge_name
 
-teleport()
-  publish tf
-  publish pose
-  publish node
-  publish path
+    teleport()
+      publish node_tf
+      publish node_pose
+      publish node_name
+      publish path
 
-filter()
+    filter()
     """
 
     def wait(self):
@@ -181,74 +190,72 @@ filter()
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Travel time: %s seconds'%delay)
         rospy.sleep(delay)
 
-    def telemove(self):
+    def telemove(self, edge):
         logmsg(category='vr_roc', id=self.agent.agent_id, msg='   | Arrived at Edge')
-        #self.path_gen(format='   :   | %s')
-        self.publish_edge_pose()
-        self.publish_edge_name()
+        self.publish_edge_pose(edge)
+        self.publish_edge_name(edge)
 
-    def teleport(self):
+    def teleport(self, node):
         logmsg(category='vr_roc', id=self.agent.agent_id, msg='   | Arrived at Node')
-        #self.path_gen(format='   :   | %s')
-        self.publish_node_pose()
-        self.publish_node_name()
-        self.publish_path()
+        self.publish_node_pose(node)
+        self.publish_node_name(node)
 
-    def filter_edge(self):
+    def filter_edge(self, edge):
         logmsg(category='vr_roc', id=self.agent.agent_id, msg='   | Route Edge Popped')
+        if not self.execpolicy_goal or self.execpolicy_goal.route.edge_id[0] != edge:
+            logmsg(level='error', category='vr_roc', id=self.agent.agent_id, msg='   :   | Edge is not in route, has route changed?')
+            return
         self.execpolicy_goal.route.edge_id.pop(0)
-        #self.path_gen(format='   :   | %s')
 
-    def filter_node(self):
+    def filter_node(self, node):
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Route Node Popped')
+        if not self.execpolicy_goal or self.execpolicy_goal.route.source[0] != node:
+            logmsg(level='error', category='vr_roc', id=self.agent.agent_id, msg='   :   | Node is not in route, has route changed?')
+            return
         self.execpolicy_goal.route.source.pop(0)
-        #self.path_gen(format='   :   | %s')
 
     """ --------------- UTILS 2 ------------- """
 
     """
-publish_node_tf()
-publish_edge_tf()
+    publish_node_tf()
+    publish_edge_tf()
 
-publish_node_pose()
-publish_edge_pose()
+    publish_node_pose()
+    publish_edge_pose()
 
-publish_node_name()
-publish_edge_name()
+    publish_node_name()
+    publish_edge_name()
 
-publish_path()
+    publish_path()
     """
 
 
-    def publish_node_tf(self):
+    def publish_node_tf(self, node):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | a) Pub Node TF')
-        pos, ori = self.agent.map_handler.get_node_tf(self.execpolicy_goal.route.source[0])
+        pos, ori = self.agent.map_handler.get_node_tf(node)
         tim = rospy.Time.now()
         link = "%s/base_link" % self.agent.agent_id
-        print(pos)
-        print(ori)
         self.tf_broadcaster.sendTransform(pos, ori, tim, link, "map")
-    def publish_edge_tf(self):
+    def publish_edge_tf(self, edge):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | a) Pub Edge TF')
-        n1, n2 = self.execpolicy_goal.route.edge_id[0].split('_')
+        n1, n2 = edge.split('_')
         pos1, ori = self.agent.map_handler.get_node_tf(n1)
         pos2, _   = self.agent.map_handler.get_node_tf(n2)
         pos = tuple([a+b/2 for a, b in zip(pos1,pos2)])
         tim = rospy.Time.now()
         link = "%s/base_link" % self.agent.agent_id
-        print(pos)
-        print(ori)
         self.tf_broadcaster.sendTransform(pos, ori, tim, link, "map")
 
 
-    def publish_node_pose(self):
+    def publish_node_pose(self, node):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | b) Pub Node Pose')
-        pos, ori = self.agent.map_handler.get_node_tf(self.execpolicy_goal.route.source[0])
-        pose = Pose(Point(x=pos[0],y=pos[1],z=pos[2]), Quaternion(x=ori[0],y=ori[1],z=ori[2],w=ori[3]))
+        pos, ori = self.agent.map_handler.get_node_tf(node)
+        pose = Pose(Point(x=pos[0],y=pos[1],z=pos[2]),
+                    Quaternion(x=ori[0],y=ori[1],z=ori[2],w=ori[3]))
         self.pose_publisher.publish(pose)
-    def publish_edge_pose(self):
+    def publish_edge_pose(self, edge):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | b) Pub Edge Pose')
-        n1, n2 = self.execpolicy_goal.route.edge_id[0].split('_')
+        n1, n2 = edge.split('_')
         pos1, ori = self.agent.map_handler.get_node_tf(n1)
         pos2, _   = self.agent.map_handler.get_node_tf(n2)
         pos = [(a+b)/2 for a, b in zip(pos1,pos2)]
@@ -256,37 +263,33 @@ publish_path()
         self.pose_publisher.publish(pose)
 
 
-    def publish_node_name(self):
+    def publish_node_name(self, node):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | c) Pub Node Name')
-        node = self.execpolicy_goal.route.source[0]
         self.current_node_pub.publish(node)
         self.closest_node_pub.publish(node)
-    def publish_edge_name(self):
+    def publish_edge_name(self, edge):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | c) Pub Edge Name')
         self.current_node_pub.publish("none")
-        edge = self.execpolicy_goal.route.edge_id[0]
         edges = ClosestEdges(edge_ids=[edge], distances=[0.0])
         self.closest_edge_pub.publish(edges)
 
 
-    def publish_path(self):
+    def publish_path(self, route):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | d) Pub Path')
-        route = Path()
-        route.header.frame_id = "map"
-        if self.execpolicy_goal.route.source:
-            route.poses = [self.get_pose(self.agent.location())]
-            route.poses += [self.get_pose(node) for node in self.execpolicy_goal.route.source]
-        self.rviz_route_publisher.publish(route)
+        path = Path()
+        path.header.frame_id = "map"
+        if route.source:
+            path.poses = [self.get_pose(self.agent.location())]
+            path.poses += [self.get_pose(node) for node in route.source]
+        self.rviz_route_publisher.publish(path)
 
 
     """ --------------- UTILS 3 ------------- """
 
-    def path_gen(self, format='   | %s', goal=None, colour_head=False):
-        route = self.execpolicy_goal.route if not goal else goal.route
-        path = []
-
+    def path_gen(self, route, format='   | %s', colour_head=False):
         if not route.source and not route.edge_id: return
 
+        path = []
 
         # Identify starting list
         if route.source and not route.edge_id:
@@ -326,25 +329,6 @@ publish_path()
 
         # Add remaining item
         path += list_1[len(list_2):]
-
-        # Print list
-        #aid = self.agent.agent_id
-        #head, head2 = 'info', 'info'
-        #if colour_head and len(path) > 0:
-        #    if path[0] == route.source[0]:
-        #        head, head2 = 'error', 'warn'
-        #    elif path[0] == route.edge_id[0]:
-        #        head, head2 = 'warn', 'info'
-        #if colour_head:
-        #    if len(path) >= 0:
-        #        logmsg(level=head, category='vr_rod', id=aid, msg=format % path[0])
-        #    if len(path) >= 1:
-        #        logmsg(level=head2, category='vr_rod', id=aid, msg=format % path[1])
-        #    if len(path) >= 2:
-        #        [logmsg(level='info', category='vr_rod', id=aid, msg=format%i) for i in path[2:]]
-        #else:
-        #    [logmsg(level='info', category='vr_rod', id=aid, msg=format%i) for i in path]
-
         [logmsg(level='info', category='vr_rod', id=self.agent.agent_id, msg=format%i) for i in path]
 
 
