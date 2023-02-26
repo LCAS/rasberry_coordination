@@ -107,7 +107,7 @@ class SetUnregister(StageBase):
         """Mark agent as unregistered and send a message to rviz to display the agent as red"""
         super(SetUnregister, self)._start()
         self.agent.registration = False
-        self.agent.format_marker(colour='red')
+        self.agent.format_marker(colour='FF0000')
     def _query(self):
         """Complete the stage without any condition"""
         self.flag(True)
@@ -261,7 +261,7 @@ class Pause(StageBase):
     def _start(self):
         """On start, cancel any active navigation"""
         super(Pause, self)._start()
-        self.agent.format_marker(colour='red')
+        self.agent.format_marker(colour='FF0000')
         if 'navigation' in self.agent.modules and hasattr(self.agent.modules['navigation'].interface, 'cancel_execpolicy_goal'):
             self.agent.modules['navigation'].interface.cancel_execpolicy_goal() #navigation_interface
         #TODO: set an agent function for generic definition of pausing?
@@ -289,5 +289,5 @@ class Exit(StageBase):
     def _end(self):
         """Set marker to black and initiate disconnection interruption-"""
         super(Exit, self)._end()
-        self.agent.format_marker(colour='black')
+        self.agent.format_marker(colour='000000')
         self.agent.set_interrupt('disconnect', 'base', self.agent['id'], "Task")

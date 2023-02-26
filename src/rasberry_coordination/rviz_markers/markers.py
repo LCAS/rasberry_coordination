@@ -21,14 +21,13 @@ class AgentMarker(object):
         self.id = msg.id
 
         # Save local references to dictionaries
-        self.colour_dict = dicts['colour']
         self.structure_dict = dicts['structures']
         self.components_dict = dicts['components']
 
         # Construct placeholder for marker
         self.marker_array = MarkerArray()
         self.structure = msg.structure
-        self.colour = msg.colour
+        self.colour = [msg.colour.r, msg.colour.g, msg.colour.b, msg.colour.a]
 
         # Construct tf manager to update position of published marker
         self.tf = TFPublishers.get_tf_convertor(msg)
@@ -67,8 +66,10 @@ class AgentMarker(object):
         component.scale = Vector3(scale[0], scale[1], scale[2])
 
         colour = component_dict['colour']
-        if self.colour != '' and component_type in self.colour_dict[self.colour]:
-            colour = self.colour_dict[self.colour][component_type]
+        if self.colour != '':
+            print(self.colour)
+            print(component_dict['colour_multiplier'])
+            colour = [c*m for c,m in zip(self.colour, component_dict['colour_multiplier'])]
         component.color = ColorRGBA(colour[0], colour[1], colour[2], colour[3])
 
         component.frame_locked = component_dict['frame_locked']

@@ -35,7 +35,7 @@ class TaskManager(object):
         logmsg(category="DTM", msg="      | stage state: %s" % agent().__repr__())
 
         agent.interruption = None  # reset interruption trigger
-        agent.format_marker(colour='red')
+        agent.format_marker(colour='FF0000')
 
 
     def resume(self, agent, agent_list):
@@ -91,7 +91,7 @@ class TaskManager(object):
     def unregister(self, agent_id, agent_list):
         logmsg(category="DTM", msg="    | unregistering agent: %s" % agent_id)
         agent_list[agent_id].registration = False
-        agent_list[agent_id].format_marker(colour='red')
+        agent_list[agent_id].format_marker(colour='FF0000')
 
 
     def disconnect(self, agent, agent_list):

@@ -11,7 +11,7 @@ import traceback
 
 from rospy import Subscriber, Publisher, Service, Time
 
-from std_msgs.msg import String as Str, Empty, Bool
+from std_msgs.msg import String as Str, Empty, Bool, ColorRGBA as ColourRGBA
 from std_srvs.srv import Trigger, TriggerResponse
 
 from diagnostic_msgs.msg import KeyValue
@@ -199,7 +199,7 @@ class AgentDetails(object):
 
         #Final Setup
         for m in self.modules.values(): m.add_init_task()
-        self.format_marker(colour='red')
+        self.format_marker(colour='FF0000')
 
 
 
@@ -335,7 +335,7 @@ class AgentDetails(object):
         Add/modify marker to display in rviz
 
         Create Marker: call self.format_marker("")
-        Modify Marker: call self.format_marker("red")
+        Modify Marker: call self.format_marker("FF0000")
         """
         if 'base' not in self.modules: return
         if 'rviz' not in self.modules['base'].details: return
@@ -344,13 +344,15 @@ class AgentDetails(object):
         local = self.local_properties
         local['rviz_default_colour'] = local['rviz_default_colour'] if 'rviz_default_colour' in local else ''
         local['rviz_structure'] = local['rviz_structure'] if 'rviz_structure' in local else ''
-        self.colour = colour
+
+        # Identify new colour
+        self.colour = colour or self.colour or local['rviz_default_colour'] or rviz['colour'] or ''
 
         # Construct the marker details
         marker = MarkerDetails()
         marker.id = self.agent_id
         marker.structure = local['rviz_structure'] or rviz['structure']
-        marker.colour = local['rviz_default_colour'] or rviz['colour'] or self.colour or ''
+        marker.colour = ColourRGBA(int(self.colour[0:2],16), int(self.colour[2:4],16), int(self.colour[4:6],16), 1) if self.colour else ColourRGBA()
 
         # Set where the location should come from
         if 'tf_source_topic' in rviz:
@@ -362,7 +364,7 @@ class AgentDetails(object):
         if 'attach_pose' in rviz and rviz['attach_pose'] and self.map_handler.raw_msg:
             marker.pose = self.map_handler.get_node_pose(self.location())
 
-        logmsg(category="rviz", msg="Setting %s %s(%s)" % (marker.structure, marker.id, marker.colour))
+        logmsg(category="rviz", msg="Setting %s %s(%s)" % (marker.structure, marker.id, str(marker.colour).replace('\n','')))
         self.modules['base'].details['marker'] = marker
         self.set_marker_pub.publish(marker)
 

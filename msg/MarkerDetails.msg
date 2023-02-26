@@ -9,8 +9,8 @@ string structure
 # Optional colour to set marker componant scheme
 # details in rviz_markers/colours.yaml
 # leave empty to load default scheme
-string colour
-#std_msgs/ColorRGBA todo
+#string colour
+std_msgs/ColorRGBA colour
 
 # The subscribable location topic (use ~ for /ns/)
 # leave empty to use only a mandatory given pose
