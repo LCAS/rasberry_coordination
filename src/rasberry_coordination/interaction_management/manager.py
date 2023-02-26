@@ -37,7 +37,7 @@ class InteractionManager(object):
         interaction = agent().interaction
         TP = interaction.type
 
-        self.AllAgentsList = self.agent_manager.agent_details.copy()  # TODO: try enter and exit instead of .copy()?
+        self.AllAgentsList = self.agent_manager.agent_details.copy()
         if TP == 'search':
             try:
                 list = self.get_list(agent)
@@ -81,6 +81,7 @@ class InteractionManager(object):
                     (a.registration) and
                     (a().accepting_new_tasks)
                 }
+            if not L: return "empty"
 
         elif GR == 'node_descriptor':
             # Generate list of nodes matching descriptor (special nodes listed in coordinator config)
@@ -91,25 +92,31 @@ class InteractionManager(object):
         elif GR == 'agent_descriptor':
             # Generate list of agents based on some characteristics
             descriptor = interaction.descriptor
+
+            # Format some shorthand
+            m = descriptor['module']
             r = descriptor['interface']
             descriptor['interface'] = r if type(r) == type([]) else [r]
-            L = {a.agent_id: a for a in self.AllAgentsList.values() if
-                     (a is not agent) and #not the agent making the call
-                     (a.registration) and #agent is registered
-                     (a().accepting_new_tasks) and #agent is accepting new tasks / active task is interruptable
-                     (descriptor['module'] in a.modules) and #agent has the required module
-                     (str(a.modules[descriptor['module']].interface) in descriptor['interface']) #agent is of the type required
-                 #TODO: we need to make sure here that the robot has not been assigned to a picker on the same cycle
-                 #and a.id not in self.cycle_repsonse? #todo: this will have tons of problems...
-                 }
-            #TODO make accepitng tasks a different generator
+            r = descriptor['interface']
+
+            # Generate list of all agents which could be of interest
+            L = {a.agent_id: a for a in self.AllAgentsList.values() if (a is not agent)} #not making the call
+
+            # Filter list by filtering out ones of invalid forms
+            L = {k:v for k,v in L.items() if m in v.modules and (str(v.modules[m].interface) in r)}
+
+            # Return here, if no viable agents in the system, rather than none currently avaiable
+            if not L: return "empty"
+
+            # Filter list by filtering out ones not accepting new tasks
+            L = {k:v for k,v in L.items() if (v.registration) and (v().accepting_new_tasks)}
 
         elif GR == 'head_nodes':
             # Generate list of nodes based on format of name
             L = [float(n.split("-c")[0][1:]) for n in agent.map_handler.empty_node_list if n.endswith('ca')]
 
         elif GR == 'new_list_generators_go_here':
-            L = {}
+            L = dict()
 
         return L
 
@@ -120,7 +127,11 @@ class InteractionManager(object):
         location = agent.location()
         ST = interaction.style
         SD = interaction.style_details
-        if ST == 'named_agent':
+
+        if list == "empty":
+           return "empty"
+
+        elif ST == 'named_agent':
             i = list.keys()[0] if list else ''
             I = self.AllAgentsList[i] if i in self.AllAgentsList else None
 

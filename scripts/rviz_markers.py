@@ -26,10 +26,8 @@ class MarkerPublisher(object):
         structures_path = os.getenv('RVIZ_STRUCTURES_CONFIG', None)
         print(structures_path)
 
-        with open(internal_path+"colours.yaml",   'r') as f: self.colour_dict = yaml.safe_load(f)
         with open(internal_path+"components.yaml",'r') as f: self.component_dict = yaml.safe_load(f)
         with open(structures_path,'r') as f: self.structures_dict = yaml.safe_load(f)
-
         self.agents_to_render, self.agents_to_pop = [], []
         self.publish_time = rospy.get_rostime()
 
@@ -41,8 +39,8 @@ class MarkerPublisher(object):
 
         # If agent does not exist, create new container with marker directories
         if msg.id not in self.agents:
-            logmsg(category="rviz", id=msg.id, msg="new %s: %s | %s (%s)"%(msg.structure, msg.colour, msg.tf_source_topic, msg.tf_source_type))
-            dicts = {'colour': self.colour_dict, 'components': self.component_dict, 'structures': self.structures_dict}
+            logmsg(category="rviz", id=msg.id, msg="new %s: %s | %s (%s)"%(msg.structure, str(msg.colour).replace('\n',''), msg.tf_source_topic, msg.tf_source_type))
+            dicts = {'components': self.component_dict, 'structures': self.structures_dict}
             self.agents[msg.id] = AgentMarker(msg, dicts)
             self.agents_to_render.append(msg.id)
             return
@@ -62,9 +60,9 @@ class MarkerPublisher(object):
         if a.structure != msg.structure:
             logmsg(category="rviz", id=msg.id, msg="mod struct: %s -> %s"%(a.structure, msg.structure))
             a.structure = msg.structure
-        if a.colour != msg.colour:
-            logmsg(category="rviz", id=msg.id, msg="mod colour: %s -> %s"%(a.colour, msg.colour))
-            a.colour = msg.colour
+        if a.colour != [msg.colour.r, msg.colour.g, msg.colour.b, msg.colour.a]:
+            logmsg(category="rviz", id=msg.id, msg="mod colour: %s -> %s"%(a.colour, str(msg.colour).replace('\n','')))
+            a.colour = [msg.colour.r, msg.colour.g, msg.colour.b, msg.colour.a]
         self.agents_to_render.append(msg.id)
 
         # Save new pose for tf system to use

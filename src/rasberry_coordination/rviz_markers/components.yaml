@@ -4,6 +4,7 @@ wheel_marker:
   quat: [1.57, 0., 0.]
   scale: [0.3, 0.3, 0.2]
   colour: [0.0, 0.0, 0.0, 1.0]
+  colour_multiplier: [0.0, 0.0, 0.0, 1.0]
   frame_locked: True
 
 
@@ -13,6 +14,7 @@ tower_marker:
   quat: [1.57, 0., 0.]
   scale: [0.3, 0.3, 0.2]
   colour: [1.0, 1.0, 1.0, 1.0]
+  colour_multiplier: [1.0, 1.0, 1.0, 1.0]
   frame_locked: True
 
 
@@ -22,6 +24,7 @@ front_back_pipe_marker:
   quat: [0.0, 1.57, 0.0]
   scale: [0.05, 0.05, 1.2]
   colour: [0.5, 0.5, 0.5, 1.0]
+  colour_multiplier: [1.0, 1.0, 1.0, 1.0]
   frame_locked: True
 
 
@@ -31,6 +34,7 @@ left_right_pipe_marker:
   quat: [1.57, 0.0, 0.0]
   scale: [0.05, 0.05, 0.6]
   colour: [0.5, 0.5, 0.5, 1.0]
+  colour_multiplier: [1.0, 1.0, 1.0, 1.0]
   frame_locked: True
 
 
@@ -40,6 +44,7 @@ name_marker:
   quat: [1.57, 0.0, 0.0]
   scale: [0.05, 0.05, 0.4]
   colour: [0.0, 0.0, 0.0, 1.0]
+  colour_multiplier: [1.0, 1.0, 1.0, 1.0]
   frame_locked: True
 
 
@@ -50,6 +55,7 @@ arch_marker:
   quat: [1.57, 0.0, 1.57]
   scale: [0.54, 0.7, 1.3]
   colour: [0.9, 0.9, 0.9, 1.0]
+  colour_multiplier: [1.0, 1.0, 1.0, 1.0]
   frame_locked: True
 
 
@@ -59,6 +65,7 @@ leg_marker:
   quat: [0.0, 0.0, 0.0]
   scale: [0.08, 0.08, 0.8]
   colour: [0.23, 0.46, 0.72, 1.0]
+  colour_multiplier: [0.5, 0.5, 0.5, 1.0]
   frame_locked: True
 
 
@@ -68,6 +75,7 @@ body_marker:
   quat: [0.0, 0.0, 0.0]
   scale: [0.15, 0.25, 0.5]
   colour: [1.0, 1.0, 1.0, 1.0]
+  colour_multiplier: [1.0, 1.0, 1.0, 1.0]
   frame_locked: True
 
 
@@ -77,6 +85,7 @@ arm_marker:
   quat: [0.0, 0.0, 0.0]
   scale: [0.05, 0.05, 0.55]
   colour: [0.99, 0.87, 0.92, 1.0]
+  colour_multiplier: [0.5, 0.5, 0.5, 1.0]
   frame_locked: True
 
 
@@ -86,6 +95,7 @@ head_marker:
   quat: [0.0, 0.0, 0.0]
   scale: [0.2, 0.2, 0.2]
   colour: [0.99, 0.87, 0.92, 1.0]
+  colour_multiplier: [1.0, 1.0, 1.0, 1.0]
   frame_locked: True
 
 bed_marker:
@@ -94,6 +104,7 @@ bed_marker:
   quat: [0., 0., 0.]
   scale: [1.32, 0.704, 0.02]
   colour: [1.0, 1.0, 1.0, 1.0]
+  colour_multiplier: [1.0, 1.0, 1.0, 1.0]
   frame_locked: True
 
 
@@ -103,6 +114,7 @@ empty_tray_marker:
   quat: [0., 0., 0.]
   scale: [0.4, 0.6, 0.15]
   colour: [0.5, 0.5, 0.5, 1.0]
+  colour_multiplier: [1.0, 1.0, 1.0, 1.0]
   frame_locked: True
 
 full_tray_marker:
@@ -111,6 +123,7 @@ full_tray_marker:
   quat: [0., 0., 0.]
   scale: [0.35, 0.55, 0.1]
   colour: [1.0, 0.1, 0.1, 1.0]
+  colour_multiplier: [1.0, 1.0, 1.0, 1.0]
   frame_locked: True
 
 node_marker:
@@ -119,4 +132,5 @@ node_marker:
   quat: [0.0, 0.0, 0.0]
   scale: [1.0, 1.0, 0.02]
   colour: [0.99, 0.49, 0.01, 1.0]
+  colour_multiplier: [1.0, 1.0, 1.0, 1.0]
   frame_locked: True
