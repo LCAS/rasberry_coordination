@@ -346,7 +346,7 @@ class AgentDetails(object):
         local['rviz_structure'] = local['rviz_structure'] if 'rviz_structure' in local else ''
 
         # Identify new colour
-        self.colour = colour or self.colour or local['rviz_default_colour'] or rviz['colour'] or ''
+        self.colour = colour or local['rviz_default_colour'] or rviz['colour'] or ''
 
         # Construct the marker details
         marker = MarkerDetails()
