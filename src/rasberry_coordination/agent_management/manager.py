@@ -9,6 +9,7 @@ import copy, gc, os, pprint, yaml, json
 import whiptail
 import traceback
 
+import rospy
 from rospy import Subscriber, Publisher, Service, Time
 
 from std_msgs.msg import String as Str, Empty, Bool, ColorRGBA as ColourRGBA
@@ -34,6 +35,9 @@ class AgentManager(object):
         self.agent_details = {}
         self.new_agent_buffer = dict()
 
+        # CallARobot Info Publisher
+        self.car_info_robots_pub = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)  #TODO: this should not be included here
+
         # Load each of the default agents
         self.add_agents(default_agents)
         self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', NewAgentConfig, self.add_agent_cb)
@@ -48,12 +52,22 @@ class AgentManager(object):
         self.fleet_last = None
 
     """ Dynamic Fleet """
+    def add_agent_cb(self, msg):
+        def kvp_list(msg): return {kvp.key: yaml.safe_load(kvp.value) for kvp in msg}
+        self.add_agent({'agent_id': msg.agent_id,
+                        'local_properties': kvp_list(msg.local_properties),
+                        'modules': [{'name':m.name,'interface':str(m.interface), 'details':kvp_list(m.details)} for m in msg.modules]})
+
+    def add_agents(self, agent_list):
+        for agent in agent_list:
+            self.add_agent(agent)
+
     def add_agent(self, agent_dict):
-        if agent_dict['agent_id'] not in self.agent_details:
+        if agent_dict['agent_id'] not in self.agent_details and \
+           agent_dict['agent_id'] not in self.new_agent_buffer:
             self.new_agent_buffer[agent_dict['agent_id']] = agent_dict
-            pub2 = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)
-            #^ TODO: this should not be included here
-            pub2.publish(self.simplify())
+            self.car_info_robots_pub.publish(self.simplify())
+
     def add_agent_from_buffer(self):
         buffer, self.new_agent_buffer = self.new_agent_buffer, dict()
         for agent_dict in buffer.values():
@@ -61,13 +75,6 @@ class AgentManager(object):
                 pprint.pprint(agent_dict)
                 self.agent_details[agent_dict['agent_id']] = AgentDetails(agent_dict, self.cb)
                 logmsg(category="null")
-    def add_agents(self, agent_list):
-        for agent in agent_list: self.add_agent(agent)
-    def add_agent_cb(self, msg):
-        def kvp_list(msg): return {kvp.key: yaml.safe_load(kvp.value) for kvp in msg}
-        self.add_agent({'agent_id': msg.agent_id,
-                        'local_properties': kvp_list(msg.local_properties),
-                        'modules': [{'name':m.name,'interface':str(m.interface), 'details':kvp_list(m.details)} for m in msg.modules]})
 
     """ Conveniences """
     def __getitem__(self, key):
