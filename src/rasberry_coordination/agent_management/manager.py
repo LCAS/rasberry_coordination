@@ -125,7 +125,7 @@ class AgentManager(object):
             col = loca['rviz_default_colour'] if 'rviz_default_colour' in loca else col
             col = a.colour or col
             stu = rviz['structure'] if 'structure' in rviz else ''
-            return AgentRendering(colour=col, structure=stu)
+            return AgentRendering(colour='#%s'%col, structure=stu)
         return AgentRendering(colour="None", structure="None")
 
     def get_health(self, a):
