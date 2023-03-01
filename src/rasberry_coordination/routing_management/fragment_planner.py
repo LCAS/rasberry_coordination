@@ -226,7 +226,7 @@ class FragmentPlanner(BasePlanner):
             FragmentPlanner_map_filter.generate_filtered_map(agent, start_node, goal_node, self.occupied_nodes)
 
             # generate route from start node to goal node
-            if not ( agent.map_handler.is_node(start_node) or agent.map_handler.is_node(start_node) ):
+            if not ( agent.map_handler.is_node(start_node) or agent.map_handler.is_node(goal_node) ):
                 logmsg(level='error', category="route", msg="   | problem: node is not in map")
             try:
                 route = agent.map_handler.filtered_route_search.search_route(start_node, goal_node)
