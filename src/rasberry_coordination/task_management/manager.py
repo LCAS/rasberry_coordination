@@ -69,17 +69,19 @@ class TaskManager(object):
 
         logmsg(category="DTM", msg="If the request came from DTM, it needs to release both?")
 
+        # Handle initiator
         if agent.agent_id == init:
-            task_def = agent.modules['base'].interface.release_task(agent_list[init])
+            agent.modules['base'].interface.release_task(agent_list[init])
             self.unregister(init, agent_list)
         elif agent.agent_id == resp:
-            task_def = agent.modules['base'].interface.restart_task(agent_list[init])
+            agent.modules['base'].interface.restart_task(agent_list[init])
             self.unregister(resp, agent_list)
         agent_list[init].interruption = None  # reset interruption trigger
 
+        # Handle RESPONDER
         if resp and resp in agent_list.keys():
             logmsg(category="DTM", msg="    | responder exists: %s" % (resp))
-            task_def = self.modules['base'].interfaces.release_task(agent_list[resp])
+            agent_list[resp].modules['base'].interface.release_task(agent_list[resp])
             agent_list[resp].interruption = None  # reset interruption trigger
         else:
             logmsg(category="DTM", msg="    | responder does not exist: %s" % (resp))
