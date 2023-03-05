@@ -20,8 +20,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'add_agent = rasberry_coordination.add_agent:main',
-            'ui_speaker = rasberry_coordination.ui_speaker:main'
+            'add_agent = rasberry_coordination.ros2_nodes.add_agent:main',
+            'ui_speaker = rasberry_coordination.ros2_nodes.ui_speaker:main',
+            'abstract_task_executor_node.py = rasberry_coordination.ros2_nodes.abstract_task_executor_node:main'
             # https://stackoverflow.com/a/782984/8929350
         ],
     },
