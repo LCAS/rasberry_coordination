@@ -1,19 +1,20 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-import tf
-import sys
-import rospy
-import os
+import sys, os, time
 import json, yaml
-from std_msgs.msg import String
-import rasberry_coordination
-from rasberry_coordination.msg import NewAgentConfig, Module
-from diagnostic_msgs.msg import KeyValue
-import rasberry_des.config_utils
-from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
 from pprint import pprint
-import rospkg
+
+import rclpy
+import tf_transformations #https://github.com/DLu/tf_transformations
+
+from std_msgs.msg import String
 from geometry_msgs.msg import Pose
+from diagnostic_msgs.msg import KeyValue
+
+from rasberry_coordination.msg import NewAgentConfig, Module
+
+from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
+
 
 def get_kvp_list(dict, item):
     if item in dict:
@@ -23,7 +24,6 @@ def get_kvp_list(dict, item):
 
 def get_file_path(setup):
     folder = os.getenv('AGENT_SETUP_CONFIG', None)
-    #folder = '/home/thorvald/rasberry_ws/src/RASberry/rasberry_core/config/site_files/default_farm/default_field/server/setup/'
     setup_file = "%s%s.yaml"%(folder, setup)
     return setup_file
 
@@ -39,7 +39,9 @@ def load_agent_obj(agent_id, setup, printer=True):
 
 
     # Build msg (use yaml.dump to parse further details through to coordinator)
-    setup_data = rasberry_des.config_utils.get_config_data(setup_file)
+    with open(setup_file) as f:
+        setup_data = yaml.safe_load(f)
+
     pprint(setup_data)
     print("\n")
 
@@ -55,13 +57,13 @@ def load_agent_obj(agent_id, setup, printer=True):
     return agent
 
 
-class AgentMonitor():
+class AgentMonitor(Node):
     def __init__(self):
-        self.pub = rospy.Publisher("/rasberry_coordination/dynamic_fleet/add_agent", NewAgentConfig, latch=True, queue_size=5)
-        self.s1 = rospy.Subscriber("/car/new_agent", String, self.load,  callback_args='picker')
-        self.s2 = rospy.Subscriber("/sar/new_agent", String, self.load,  callback_args='tall_controller')
-        self.s3 = rospy.Subscriber("/car/new_store", String, self.load,  callback_args='storage')
-        self.s4 = rospy.Subscriber('/car_client/get_gps', String, self.add_car_agent)
+        self.pub = rclpy.create_publisher(NewAgentConfig, "/rasberry_coordination/dynamic_fleet/add_agent", latch=True, queue_size=5)
+        self.s1 = rclpy.create_subscriber(String, "/car/new_agent", self.load,  callback_args='picker')
+        self.s2 = rclpy.create_subscriber(String, "/sar/new_agent", self.load,  callback_args='tall_controller')
+        self.s3 = rclpy.create_subscriber(String, "/car/new_store", self.load,  callback_args='storage')
+        self.s4 = rclpy.create_subscriber(String, "/car_client/get_gps", self.add_car_agent)
 
     """ Dynamic Fleet """
     def add_car_agent(self, msg):
@@ -76,53 +78,67 @@ class AgentMonitor():
         if printer: print(agent)
         self.pub.publish(agent)
 
+    def spin(self):
+        rclpy.spin(self)
 
-if __name__ == '__main__':
-    # Initialise node
-    rospy.init_node("AddAgent", anonymous=True)
-    rospy.sleep(1)
+class AgentPublisher(Node):
 
-    if len(sys.argv) < 5:
-        logmsg(category="DRM", msg="AddAgent Monitor launched")
-        monitor = AgentMonitor()
-        rospy.spin()
-
-    else:
-        logmsg(category="DRM", msg="AddAgent Node launched")
-
-        # Collect details
-        agent_id = sys.argv[1]
-        setup = sys.argv[2]
-
+    def __init__(self, agent_id, setup):
         logmsgbreak()
         logmsg(category="DRM", msg="Loading configurations:")
         logmsg(category="DRM", msg="    - agent_file: %s"%agent_id)
         logmsg(category="DRM", msg="    - setup_file: %s"%setup)
 
-        agent = load_agent_obj(agent_id, setup)
+        # Generate agent details
+        self.agent = load_agent_obj(agent_id, setup)
         logmsg(category="DRM", msg="Details of Agent being launched:\n%s\n\n"%agent)
 
         # Create publisher
-        pub = rospy.Publisher("/rasberry_coordination/dynamic_fleet/add_agent", NewAgentConfig, latch=False, queue_size=5)
-        rospy.sleep(1)
+        self.details_pub = rclpy.create_publisher(NewAgentConfig, "/rasberry_coordination/dynamic_fleet/add_agent", latch=False, queue_size=5)
 
         # Create a storage point for the robots pose to be saved on shutdown
-        msg_store = {'pose': Pose()}
-        def save(msg):
-            msg_store['pose'] = msg
-        sub = rospy.Subscriber("/robot_pose", Pose, save)
+        self.pose = Pose()
+        self.pose_sub = rclpy.create_subscriber("/robot_pose", Pose, self.pose_cb)
 
+    def spin(self):
         while not rospy.is_shutdown():
-            pub.publish(agent)
+            pub.publish(self.agent)
             logmsg(category="null", msg="publishing")
-            rospy.sleep(5)
+            time.sleep(5)
+            
+        self.save()
 
+    def pose_cb(msg):
+        self.pose = msg
+
+    def save(msg):
         #On shutdown, save the robots last known location to a file for loading at boot
-        filepath = rospkg.RosPack().get_path('rasberry_core')+"/new_tmule/robots/history/%s.sh"%(agent.agent_id)
+        filepath = os.getenv('ROBOT_LAST_LOCATION_FOLDER', '')+"%s.sh"%(self.agent.agent_id)
         with open(filepath, 'w') as f:
-            o = msg_store['pose'].orientation
-            rot = tf.transformations.euler_from_quaternion([o.x, o.y, o.w, o.z])[2]
-            f.write('export_override ROBOT_POS_A %s\n'%rot)
-            f.write('export_override ROBOT_POS_X %s\n'%msg_store['pose'].position.x)
-            f.write('export_override ROBOT_POS_Y %s\n'%msg_store['pose'].position.y)
+            o = self.pose.orientation
+            rot = tf_transformations.euler_from_quaternion([o.x, o.y, o.w, o.z])[2]
+            f.write('export_override ROBOT_POS_A %s\n' % rot)
+            f.write('export_override ROBOT_POS_X %s\n' % self.pose.position.x)
+            f.write('export_override ROBOT_POS_Y %s\n' % self.pose.position.y)
 
+
+
+def main():
+    rclpy.init()
+
+    if len(sys.argv) < 5:
+        logmsg(category="DRM", msg="AddAgent Monitor launched")
+        manager = AgentMonitor()
+
+    else:
+        logmsg(category="DRM", msg="AddAgent Publisher launched")
+        agent_id = sys.argv[1]
+        setup = sys.argv[2]
+        manager = AgentPublisher(agent_id, setup)
+
+    manager.spin()
+    manager.destroy_node()
+
+
+if __name__ == '__main__':
+    main()

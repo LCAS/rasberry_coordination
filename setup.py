@@ -31,7 +31,11 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            #'add_agent = script.add_agent:main',
+            #'ui_speaker = script.ui_speaker:main'
+            # https://stackoverflow.com/a/782984/8929350
         ],
     },
+
 )
 
