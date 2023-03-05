@@ -84,9 +84,9 @@ install(
 
 
 
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-)
+#include_directories(
+#  ${catkin_INCLUDE_DIRS}
+#)
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
@@ -101,7 +101,7 @@ include_directories(
 #  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 #)
 
-foreach (dir launch config scripts msg srv)
-    install(DIRECTORY ${dir}/
-    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/${dir}/)
-endforeach(dir)
+#foreach (dir launch config scripts msg srv)
+#    install(DIRECTORY ${dir}/
+#    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/${dir}/)
+#endforeach(dir)

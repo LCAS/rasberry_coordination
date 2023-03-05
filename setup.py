@@ -1,14 +1,3 @@
-#from distutils.core import setup
-#from catkin_pkg.python_setup import generate_distutils_setup
-#
-#d = generate_distutils_setup(
-#    install_requires=["whiptail==0.2"],
-#    packages=['rasberry_coordination'],
-#    package_dir={'': 'src'}
-#)
-#
-#setup(**d)
-
 from setuptools import setup
 
 package_name = 'rasberry_coordination'
@@ -31,8 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            #'add_agent = script.add_agent:main',
-            #'ui_speaker = script.ui_speaker:main'
+            'add_agent = rasberry_coordination.add_agent:main',
+            'ui_speaker = rasberry_coordination.ui_speaker:main'
             # https://stackoverflow.com/a/782984/8929350
         ],
     },
