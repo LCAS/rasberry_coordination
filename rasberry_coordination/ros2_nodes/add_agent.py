@@ -13,8 +13,6 @@ from diagnostic_msgs.msg import KeyValue
 
 from rasberry_coordination.msg import NewAgentConfig, Module
 
-from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak
-
 
 def get_kvp_list(dict, item):
     if item in dict:
@@ -28,14 +26,14 @@ def get_file_path(setup):
     return setup_file
 
 
-def load_agent_obj(agent_id, setup, printer=True):
+def load_agent_obj(node, agent_id, setup, printer=True):
 
     # Identify agent and setup filepaths
     setup_file = get_file_path(setup)
 
     # Load file contents, (fallback on empty file if agent_file not found)
     agent_data = {'agent_id': agent_id.split("/")[-1].split(".")[0]}
-    if printer: logmsg(level="warn", category="DRM", msg="Launching with agent_data: %s" % (agent_data))
+    if printer: node.get_logger().warn(f"Launching with agent_data: {agent_data}")
 
 
     # Build msg (use yaml.dump to parse further details through to coordinator)
@@ -60,10 +58,10 @@ def load_agent_obj(agent_id, setup, printer=True):
 class AgentMonitor(Node):
     def __init__(self):
         self.pub = rclpy.create_publisher(NewAgentConfig, "/rasberry_coordination/dynamic_fleet/add_agent", latch=True, queue_size=5)
-        self.s1 = rclpy.create_subscriber(String, "/car/new_agent", self.load,  callback_args='picker')
-        self.s2 = rclpy.create_subscriber(String, "/sar/new_agent", self.load,  callback_args='tall_controller')
-        self.s3 = rclpy.create_subscriber(String, "/car/new_store", self.load,  callback_args='storage')
-        self.s4 = rclpy.create_subscriber(String, "/car_client/get_gps", self.add_car_agent)
+        self.s1 = rclpy.create_subscription(String, "/car/new_agent", self.load, 10, callback_args='picker')
+        self.s2 = rclpy.create_subscription(String, "/sar/new_agent", self.load, 10, callback_args='tall_controller')
+        self.s3 = rclpy.create_subscription(String, "/car/new_store", self.load, 10, callback_args='storage')
+        self.s4 = rclpy.create_subscription(String, "/car_client/get_gps", self.add_car_agent, 10)
 
     """ Dynamic Fleet """
     def add_car_agent(self, msg):
@@ -73,7 +71,7 @@ class AgentMonitor(Node):
             self.load(String(id), 'picker', printer=False)
 
     def load(self, msg, agent_type, printer=True):
-        logmsg(category="DRM", msg="Recieved new %s information: %s"%(msg.data, agent_type))
+        self.get_logger().info(f"Recieved new {msg.data} information: {agent_type}")
         agent = load_agent_obj(agent_id=msg.data, setup=agent_type, printer=printer)
         if printer: print(agent)
         self.pub.publish(agent)
@@ -84,21 +82,21 @@ class AgentMonitor(Node):
 class AgentPublisher(Node):
 
     def __init__(self, agent_id, setup):
-        logmsgbreak()
-        logmsg(category="DRM", msg="Loading configurations:")
-        logmsg(category="DRM", msg="    - agent_file: %s"%agent_id)
-        logmsg(category="DRM", msg="    - setup_file: %s"%setup)
+        print('\n')
+        self.get_logger().info(f"Loading configurations:")
+        self.get_logger().info(f"    - agent_file: {agent_id}")
+        self.get_logger().info(f"    - setup_file: {setup}")
 
         # Generate agent details
         self.agent = load_agent_obj(agent_id, setup)
-        logmsg(category="DRM", msg="Details of Agent being launched:\n%s\n\n"%agent)
+        self.get_logger().info(f"Details of Agent being launched:\n{agemt}\n\n")
 
         # Create publisher
         self.details_pub = rclpy.create_publisher(NewAgentConfig, "/rasberry_coordination/dynamic_fleet/add_agent", latch=False, queue_size=5)
 
         # Create a storage point for the robots pose to be saved on shutdown
         self.pose = Pose()
-        self.pose_sub = rclpy.create_subscriber("/robot_pose", Pose, self.pose_cb)
+        self.pose_sub = rclpy.create_subscription("/robot_pose", Pose, self.pose_cb)
 
     def spin(self):
         while not rospy.is_shutdown():
@@ -123,22 +121,28 @@ class AgentPublisher(Node):
 
 
 
-def main():
-    rclpy.init()
+def main(args=None):
+    rclpy.init(args=args)
 
     if len(sys.argv) < 5:
-        logmsg(category="DRM", msg="AddAgent Monitor launched")
         manager = AgentMonitor()
-
+        manager.get_logger().info("AddAgent Monitor launched")
+        
     else:
-        logmsg(category="DRM", msg="AddAgent Publisher launched")
         agent_id = sys.argv[1]
         setup = sys.argv[2]
         manager = AgentPublisher(agent_id, setup)
-
+        manager.get_logger().info("AddAgent Publisher launched")
+        
     manager.spin()
+
     manager.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':
     main()
+    
+    
+    
+    

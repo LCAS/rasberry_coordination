@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 
-import rospy, rospkg, sys, yaml, os
+import os, sys
+import yaml
 from pprint import pprint
+
+import rospy
+import rospkg
 
 
 def validate_field(file, config, key, datatype, mandatory=False):
@@ -51,9 +55,10 @@ def validate_types(file, config):
         validate_field(file, module, mandatory=False, key='properties', datatype=[dict])
 
 
-if __name__ == '__main__':
-    print("Recommended to set 'force_color_prompt=yes' on line 46 of .bashrc.")
+def main(args=None):
+    rclpy.init(args=args)
 
+    print("Recommended to set 'force_color_prompt=yes' on line 46 of .bashrc.")
     if len(sys.argv) < 2:
         usage = "rosrun rasberry_coordination abstract_task_executor_node.py config_file.yaml"
         print("Not enough arguments passed. Correct usage is:\n\t"+usage)
@@ -92,8 +97,13 @@ if __name__ == '__main__':
         agent['local_properties'] = agent['local_properties'] if 'local_properties' in agent else dict()
         config_data['agents'] += [{'agent_id': agent['agent_id'], 'local_properties':agent['local_properties'], 'modules':setup_data['modules']}]
 
-    # Start ROS Node
-    rospy.init_node('abstract_task_coordinator', anonymous=False) #, log_level=rospy.DEBUG)
+    # Start ROS Node and create global reference to log from any file
+    class CoordinatorNodeHandler(Node):
+        def __init__(self):
+            super().__init__('coordinator')
+            global GlobalLogger
+            GlobalLogger = self.get_logger()
+    GlobalNode = CoordinatorNodeHandler()
 
 
     # Initialise modules for task manager
@@ -114,7 +124,7 @@ if __name__ == '__main__':
 
 
     # Launch Inspector
-    from rasberry_coordination.coordinator_tools import RootInspector
+    from rasberry_coordination.root_inspector import RootInspector
     RootInspector(topic='~root_inspector', root=coordinator)
 
 
@@ -122,7 +132,7 @@ if __name__ == '__main__':
     coordinator.run()
 
 
-
-
+if __name__ == '__main__':
+    main()
 
 
