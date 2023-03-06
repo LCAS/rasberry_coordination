@@ -13,6 +13,9 @@
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
 
+  <depend>ament_cmake</depend>
+  <depend>ament_cmake_python</depend>
+
   <build_depend>rosidl_default_generators</build_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
   <member_of_group>rosidl_interface_packages</member_of_group>
@@ -25,26 +28,11 @@
   <depend>geometry_msgs</depend>
 
 <!--
-  <depend>rosbridge_server</depend>
-  <depend>rosduct</depend>
-  <depend>rospy</depend>
-
-  <depend>topic_tools</depend>
-  <depend>message_generation</depend>
-  <depend>message_runtime</depend>
-
-  <depend>actionlib</depend>
-  <depend>std_srvs</depend>
-
   <depend>strands_executive_msgs</depend>
   <depend>strands_navigation_msgs</depend>
+
   <depend>topological_navigation_msgs</depend>
-
-  <depend>rasberry_des</depend>
-  <depend>rasberry_people_perception</depend>
   <depend>topological_navigation</depend>
-
-  <depend>espeak</depend>
 -->
 
   <export>
@@ -52,5 +40,8 @@
     <build_type>ament_cmake</build_type>
   </export>
 </package>
+
+
+
 
 

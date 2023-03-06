@@ -1,15 +1,16 @@
 cmake_minimum_required(VERSION 3.5)
 project(rasberry_coordination)
 
-# Find necessary packages for message generation
-find_package(ament_cmake REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
-
 
 ############################
 #
 #   DEPENDENCY DEFINITION
 #
+
+# Define build tool dependencies
+find_package(ament_cmake REQUIRED)
+#find_package(ament_cmake_python REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 # Define dependencies for messages
 find_package(std_msgs REQUIRED)
@@ -21,11 +22,13 @@ set(msg_deps
   diagnostic_msgs
 )
 
+
 # Define dependencies for services
 find_package(std_srvs REQUIRED)
 set(srv_deps
   std_srvs
 )
+
 
 
 
@@ -87,6 +90,21 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
 
 
+
+#######################
+#
+#   PYTHON INSTALLATION
+#
+
+#ament_python_install_package(${PROJECT_NAME})
+
+# Install Python executables
+#install(PROGRAMS
+#  scripts/py_node.py
+#  DESTINATION lib/${PROJECT_NAME}
+#)
+
+
 ###################################
 #
 #   DOWNSTREAM DEPENDENCY EXPORT
@@ -95,6 +113,14 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 # Export information to downstream packages
 ament_export_dependencies(rosidl_default_runtime)
 ament_package()
+
+
+
+
+
+
+
+
 
 
 
