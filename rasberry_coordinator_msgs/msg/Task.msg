@@ -1,0 +1,4 @@
+rasberry_coordination_msgs/TaskIdentifier credentials
+rasberry_coordination_msgs/TaskContents criteria
+rasberry_coordination_msgs/TaskSchedule schedule
+rasberry_coordination_msgs/TaskStatus status

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(rasberry_coordination)
+project(rasberry_coordination_msgs)
 
 
 ############################
@@ -9,7 +9,6 @@ project(rasberry_coordination)
 
 # Define build tool dependencies
 find_package(ament_cmake REQUIRED)
-#find_package(ament_cmake_python REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 # Define dependencies for messages
@@ -87,22 +86,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   ${srv_files}
   DEPENDENCIES ${msg_deps}
 )
-
-
-
-
-#######################
-#
-#   PYTHON INSTALLATION
-#
-
-#ament_python_install_package(${PROJECT_NAME})
-
-# Install Python executables
-#install(PROGRAMS
-#  scripts/py_node.py
-#  DESTINATION lib/${PROJECT_NAME}
-#)
 
 
 ###################################
