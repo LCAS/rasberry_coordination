@@ -1,7 +1,9 @@
 import traceback
+
 from std_msgs.msg import String as Str
-from rospy import Publisher
-from rasberry_coordination.coordinator_tools import logmsg
+
+from rasberry_coordination_core.logmsg_utils import logmsg
+
 
 class InteractionDetails(object):
     """TODO: move to encapsulators"""
@@ -173,9 +175,12 @@ class InteractionManager(object):
         FO = interaction.info
 
         if FO == 'send_info':
-            pub1 = Publisher('/car_client/info/map', Str, queue_size=1, latch=True)
+            global Publisher
+
+            pub1 = Publisher('/car_client/info/map', Str)
             pub1.publish(agent.map_handler.simplify())  # issues with res_map?, (but called by humans & they use full)
-            pub2 = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)
+
+            pub2 = Publisher('/car_client/info/robots', Str)
             pub2.publish(self.agent_manager.simplify())
             return 'sent'
 

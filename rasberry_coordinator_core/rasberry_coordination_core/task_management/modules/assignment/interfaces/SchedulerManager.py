@@ -1,17 +1,20 @@
-from rospy import Publisher, Subscriber
 from rasberry_coordination_msgs.msg import Task as TaskMsg, AllSchedulableTasks, SchedulableTasks
-from rasberry_coordination.task_management.containers.Task import TaskObj as Task
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 
-from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
-from rasberry_coordination.task_management.__init__ import Stages
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface
+from rasberry_coordination_core.task_management.__init__ import Stages
+from rasberry_coordination_core.logmsg_utils import logmsg
 
 
 class SchedulerManager(Interface):
 
     def __init__(self, agent, details=None):
         super(SchedulerManager, self).__init__(agent=agent, details=details)
+
+        global Subscriber
         self.schedule_sub = Subscriber('~scheduler/start_task', TaskMsg, self.schedule_new_task)
+
+        global Publisher
         self.available_schedulers_pub = Publisher('~scheduler/available', AllSchedulableTasks, latch=True, queue_size=1)
 
     def list_schedulable_tasks(self):

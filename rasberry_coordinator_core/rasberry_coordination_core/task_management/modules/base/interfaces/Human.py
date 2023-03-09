@@ -1,7 +1,7 @@
-from rasberry_coordination.task_management.containers.Task import TaskObj as Task
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 
-from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
-from rasberry_coordination.task_management.__init__ import Stages
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface
+from rasberry_coordination_core.task_management.__init__ import Stages
 
 class Human(Interface):
 

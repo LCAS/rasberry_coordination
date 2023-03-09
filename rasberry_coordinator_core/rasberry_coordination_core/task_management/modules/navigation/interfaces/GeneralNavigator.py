@@ -1,18 +1,18 @@
-from rasberry_coordination.task_management.containers.Task import TaskObj as Task
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
+from rasberry_coordination_core.logmsg_utils import logmsg
 
-from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
-from rasberry_coordination.task_management.__init__ import Stages
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface
+from rasberry_coordination_core.task_management.__init__ import Stages
 
-from rasberry_coordination.topomap_management.occupancy import OccupancyFilters
+from rasberry_coordination_core.topomap_management.occupancy import OccupancyFilters
 
-from rospy import Subscriber
 from std_msgs.msg import String as Str
 
 class GeneralNavigator(Interface):
 
     def __init__(self, agent, details):
         super(GeneralNavigator, self).__init__(agent, details)
+        global Subscriber
         self.move_idle_sub = Subscriber('/%s/navigation/move_idle' % agent.agent_id, Str, self.wait_at_node_cb)
         self.exit_at_node_sub = Subscriber('/%s/navigation/exit_at_node' % agent.agent_id, Str, self.exit_at_node_cb)
         self.occupation_type = self.details['occupation'] if 'occupation' in self.details else None

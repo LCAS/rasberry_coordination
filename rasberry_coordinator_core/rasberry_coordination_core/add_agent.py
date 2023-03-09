@@ -103,7 +103,7 @@ class AgentPublisher(Node):
         self.pose_sub = self.create_subscription("/robot_pose", Pose, self.pose_cb)
 
     def spin(self):
-        while not rospy.is_shutdown():
+        while self.ok():
             pub.publish(self.agent)
             logmsg(category="null", msg="publishing")
             time.sleep(5)

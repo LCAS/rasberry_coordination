@@ -1,6 +1,6 @@
-from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
-from rasberry_coordination.topomap_management.occupancy import OccupancyFilters
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface
+from rasberry_coordination_core.topomap_management.occupancy import OccupancyFilters
+from rasberry_coordination_core.logmsg_utils import logmsg
 
 
 class Human(Interface):

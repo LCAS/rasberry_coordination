@@ -1,21 +1,20 @@
 """Base"""
 
 from copy import deepcopy
-from rospy import Time, Duration, Subscriber, Service, Publisher, Time, get_param
+
 from std_msgs.msg import Bool, String as Str
 from diagnostic_msgs.msg import KeyValue
-import strands_executive_msgs.msg
 from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
-from rasberry_coordination.interaction_management.manager import InteractionDetails
-from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
-from rasberry_coordination.task_management.containers.Task import TaskObj as Task
-from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
-from rasberry_coordination.task_management.modules.base.stage_definitions import StageBase, Idle
+from rasberry_coordination_core.interaction_management.manager import InteractionDetails
+from rasberry_coordination_core.task_management.containers.Module import ModuleObj as Module
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 
+from rasberry_coordination_core.logmsg_utils import logmsg
 
-try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
+from rasberry_coordination_core.task_management.modules.base.stage_definitions import StageBase, Idle
+
+try: from rasberry_coordination_core.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
 
 

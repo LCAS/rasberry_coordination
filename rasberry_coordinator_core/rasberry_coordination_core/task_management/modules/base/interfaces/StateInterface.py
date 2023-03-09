@@ -1,14 +1,15 @@
-from rospy import Publisher, Subscriber
 from diagnostic_msgs.msg import KeyValue
 
-from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface
+from rasberry_coordination_core.logmsg_utils import logmsg
 
 class StateInterface(Interface):
     def __init__(self, agent, details, state_publisher, state_subscriber):
         #setup communication channels
         super(StateInterface, self).__init__(agent, details)
+        global Publisher
         self.pub = Publisher(state_publisher, KeyValue, queue_size=5)
+        global Subscriber
         self.sub = Subscriber(state_subscriber, KeyValue, self.callback, self.agent.agent_id)
 
     def callback(self, msg, agent_id):

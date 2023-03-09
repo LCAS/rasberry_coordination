@@ -4,13 +4,12 @@ import os, sys
 import yaml
 from pprint import pprint
 
-import rospy
-import rospkg
+import rclpy
+from rclpy.node import Node
 
 
 def validate_field(file, config, key, datatype, mandatory=False):
-    """
-    Validate the data type for a given field in the config against a given data type
+    """ Validate the data type for a given field in the config against a given data type
     """
     if key not in config:
         if mandatory:
@@ -68,7 +67,7 @@ def main(args=None):
     # Load yaml
     config_file = sys.argv[1]
     with open(config_file) as f:
-        confid_data = yaml.safe_load(f)
+        config_data = yaml.safe_load(f)
 
     # Configuration File Validation
     VERSION = "1.2.4"
@@ -86,45 +85,42 @@ def main(args=None):
     config_data['default_agents'] = config_data['default_agents'] or dict()
     config_data['agents'] = []
     for agent in config_data['default_agents']:
-        #filepath = "%s/config/setup/" % rospkg.RosPack().get_path('rasberry_coordination')
         filepath = os.getenv('AGENT_SETUP_CONFIG', None)
         setup_file = filepath + "%s.yaml" % agent['setup']
-        setup_data = rasberry_des.config_utils.get_config_data(setup_file)
+        with open(setup_file) as f:
+            setup_data = yaml.safe_load(f)
         for m in setup_data['modules']:
-            m['details'] = {d.keys()[0]:d.values()[0] for d in m['details']} if 'details' in m else dict()
+            if 'details' in m:
+                m['details'] = {list(d.keys())[0]:list(d.values())[0] for d in m['details']}
+            else:
+                m['details'] = dict()
+
         agent['local_properties'] = agent['local_properties'] if 'local_properties' in agent else dict()
         config_data['agents'] += [{'agent_id': agent['agent_id'], 'local_properties':agent['local_properties'], 'modules':setup_data['modules']}]
 
-    # Start ROS Node and create global reference to log from any file
-    class CoordinatorNodeHandler(Node):
-        def __init__(self):
-            super().__init__('coordinator')
-            global GlobalLogger
-            GlobalLogger = self.get_logger()
-            global ROS2Node
-            ROS2Node = self
-    GlobalNode = CoordinatorNodeHandler()
 
+    # Start ROS Node and create global reference to log from any file
+    from rasberry_coordination_core.coordinator_node import initialise_ros2_node, GlobalNode
+    initialise_ros2_node()
 
     # Initialise modules for task manager
-    import rasberry_coordination.task_management.__init__ as task_init
+    import rasberry_coordination_core.task_management.__init__ as task_init
     task_init.set_properties(config_data['active_modules'])
     task_init.load_custom_modules(list(set([t['name'] for t in config_data['active_modules']])))
 
 
     # Create Coordinator
-    import rasberry_coordination.rasberry_coordinator
+    import rasberry_coordination_core.rasberry_coordinator
     coordinator = rasberry_coordination.rasberry_coordinator.RasberryCoordinator(
         default_agents=config_data['agents'],
         planning_format=config_data['planning_format'],
         special_nodes=config_data['special_nodes'])
 
-    rospy.on_shutdown(coordinator.on_shutdown)
-    rospy.sleep(1)  # give a second to let everything settle
+    time.sleep(1)  # give a second to let everything settle
 
 
     # Launch Inspector
-    from rasberry_coordination.root_inspector import RootInspector
+    from rasberry_coordination_core.root_inspector import RootInspector
     RootInspector(topic='~root_inspector', root=coordinator)
 
 

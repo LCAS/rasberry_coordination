@@ -1,18 +1,20 @@
-"""Base"""
-
+# Builtins
 from copy import deepcopy
-from rospy import Time, Duration, Subscriber, Service, Publisher, get_param
+
+# Messages
 from std_msgs.msg import Bool, String as Str
 from diagnostic_msgs.msg import KeyValue
-import strands_executive_msgs.msg
 from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
-from rasberry_coordination.interaction_management.manager import InteractionDetails
-from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
-from rasberry_coordination.task_management.containers.Task import TaskObj as Task
-from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 
-try: from rasberry_coordination.task_management.__init__ import PropertiesDef as PDef, fetch_property
+# Components
+from rasberry_coordination_core.interaction_management.manager import InteractionDetails
+from rasberry_coordination_core.task_management.containers.Module import ModuleObj as Module
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
+
+# Logging
+from rasberry_coordination_core.logmsg_utils import logmsg
+
+try: from rasberry_coordination_core.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass
 
 
@@ -71,7 +73,7 @@ class StageBase(object):
     def _start(self):
         """Stage start, called when this is the active stage."""
         logmsg(category="stage", id=self.agent.agent_id, msg="Begun stage %s" % self)
-        self.start_time = Time.now()
+        self.start_time = time.time()
         self.accepting_new_tasks = False
     def _query(self):
         """Used to define the criteria which ust be met for the stage to be completed"""
@@ -93,7 +95,7 @@ class StartTask(StageBase):
         self.agent.task_details = {}
         super(StartTask, self)._start()
         self.agent['id'] = self.task_id #Set task_id as active_task_id for agent
-        self.agent['start_time'] = Time.now()
+        self.agent['start_time'] = time.time()
         self.agent.format_marker(colour='')
     def _query(self):
         """Complete the stage without any condition"""
@@ -176,7 +178,7 @@ class Timeout(StageBase):
         if self.agent:
             remaining_time = 0
             if self.start_time:
-                remaining_time = self.duration - (Time.now()-self.start_time).secs
+                remaining_time = self.duration - (time.time()-self.start_time).secs
                 return "%s(%s, %s)" % (self.get_class(), self.agent.location(), remaining_time)
             return "%s(%s, ...)" % (self.get_class(), self.agent.location())
         return self.get_class()
@@ -187,9 +189,9 @@ class Timeout(StageBase):
     def _start(self, duration=None, **kw):
         super(Timeout, self)._start(**kw)
         self.duration = duration if duration != None else self.duration
-        self.timeout = Duration(secs=self.duration)
+        self.timeout = self.duration
     def _query(self):
-        success_conditions = [Time.now() - self.start_time > self.timeout]
+        success_conditions = [time.time() - self.start_time > self.timeout]
         self.flag(any(success_conditions))
 
 class FlagCheck(StageBase):

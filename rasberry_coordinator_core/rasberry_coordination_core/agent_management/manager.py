@@ -5,28 +5,32 @@
 # @date:
 # ----------------------------------
 
-import copy, gc, os, pprint, yaml, json
+# Builtins
+import os
+import copy, gc
+import yaml, json
+import traceback, pprint
+
+# Dependencies
 import whiptail
-import traceback
 
-import rospy
-from rospy import Subscriber, Publisher, Service, Time
-
-from std_msgs.msg import String as Str, Empty, Bool, ColorRGBA as ColourRGBA
+# Messages
 from std_srvs.srv import Trigger, TriggerResponse
-
+from std_msgs.msg import String as Str, Empty, Bool, ColorRGBA as ColourRGBA
 from diagnostic_msgs.msg import KeyValue
 from rasberry_coordination_msgs.msg import NewAgentConfig, MarkerDetails
 from rasberry_coordination_msgs.msg import Agent, AgentList, AgentRegistration, AgentState, AgentLocation, AgentHealth, AgentRendering
-from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.agent_management.location_handler import LocationObj as Location
-from rasberry_coordination.topomap_management.map_handler import MapObj as Map
-from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
-from rasberry_coordination.task_management.containers.Task import TaskObj as Task
-from rasberry_coordination.task_management.__init__ import Interfaces
 
-import rasberry_des.config_utils
-from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
+# Components
+from rasberry_coordination_core.agent_management.location_handler import LocationObj as Location
+from rasberry_coordination_core.topomap_management.map_handler import MapObj as Map
+from rasberry_coordination_core.task_management.containers.Module import ModuleObj as Module
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
+from rasberry_coordination_core.task_management.__init__ import Interfaces
+
+# Logging
+from rasberry_coordination_core.logmsg_utils import logmsg
+
 
 class AgentManager(object):
 
@@ -34,6 +38,10 @@ class AgentManager(object):
     def __init__(self, default_agents):
         self.agent_details = {}
         self.new_agent_buffer = dict()
+
+        global ROSNode
+        global Publisher
+        global Subscriber
 
         # CallARobot Info Publisher
         self.car_info_robots_pub = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)  #TODO: this should not be included here
@@ -197,6 +205,7 @@ class AgentDetails(object):
         self.map_handler = Map(agent=self, topic=topic)
 
         #Visualisers
+        global Publisher
         self.colour = None
         self.modules['base'].details['default_colour'] = lp['rviz_default_colour'] if 'rviz_default_colour' in lp else ''
         self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)

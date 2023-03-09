@@ -1,4 +1,4 @@
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination_core.logmsg_utils import logmsg
 from math import floor, ceil
 from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode
 
@@ -20,6 +20,7 @@ class OccupancyFilters(object):
         #loop through edges till reaching a node with more than 1 new edge
         for i in range(1000):
 
+            #TODO: GetNode should be referencing the map_manager, not a new function
             #Get list of ins and outs exclusing source
             edges = [e['node'] for e in GetNode(map, node)['node']['edges'] if e['node'] != node]
 

@@ -75,25 +75,7 @@ ids:
   - name: "MEDIATOR"
     colour: '46m'
 
-  - name: "storage01"
-    colour: '31m'
-  - name: "thorvald_001"
+  - name: "robot_01"
     colour: '36m'
-  - name: "thorvald_002"
+  - name: "robot_02"
     colour: '33m'
-  - name: "picker01"
-    colour: '34m'
-  - name: "picker02"
-    colour: '35m'
-  - name: "uv1"
-    colour: '39m'
-  - name: "thorvald_023"
-    colour: '36m'
-  - name: "thorvald_024"
-    colour: '33m'
-  - name: "thorvald_025"
-    colour: '34m'
-#  - name: "STD_v2_246f284a6c94"
-#    colour: '35m'
-#  - name: "STD_v2_70b8f606c710"
-#    colour: '35m'

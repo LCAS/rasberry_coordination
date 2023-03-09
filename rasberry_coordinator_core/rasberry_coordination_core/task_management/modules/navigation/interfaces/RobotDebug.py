@@ -6,24 +6,21 @@
 # ----------------------------------
 
 import actionlib
-import rospy
-import tf
+import tf2_ros
 import traceback
-#from random import random
-from rospy import Publisher, Subscriber
+
 from rospy_message_converter.message_converter import convert_dictionary_to_ros_message as rosmsg
 
-#from topological_navigation.tmap_utils import get_node as get_topomap_node, get_distance_node_pose_from_tmap2 as node_pose_dist
-#from topological_navigation.route_search import TopologicalRouteSearch
 from std_msgs.msg import Header, String
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
-from topological_navigation_msgs.msg import GotoNodeGoal, GotoNodeAction, ClosestEdges
+from topological_navigation_msgs.msg import ClosestEdges
 from strands_navigation_msgs.msg import ExecutePolicyModeGoal, ExecutePolicyModeAction, TopologicalMap, TopologicalRoute
 
-from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.task_management.modules.navigation.interfaces.GeneralNavigator import GeneralNavigator
+from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.task_management.modules.navigation.interfaces.GeneralNavigator import GeneralNavigator
 
+from rasberry_coordination_core.task_management.__init__ import fetch_property
 
 class RobotDebug(GeneralNavigator):
     def __init__(self, agent, details):
@@ -36,7 +33,10 @@ class RobotDebug(GeneralNavigator):
 
         # Set step-delay param
         param = '/rasberry_coordination/task_modules/navigation/debug_robot_step_delay'
-        default = rospy.get_param(param, 0.5)
+        default = fetch_property(param, 0.5)
+
+        global Subscriber
+        global Publisher
 
         # Route Publishers
         goal_topic = "/%s/topological_navigation/execute_policy_mode/goal" % aid
@@ -50,8 +50,7 @@ class RobotDebug(GeneralNavigator):
 
         # RVIZ display tools
         self.rviz_route_publisher = Publisher("/%s/current_route" % aid, Path, latch=True, queue_size=5)
-        #self.rviz_route_progress_publisher = Publisher("/%s/current_route_remaining" % aid, Path, latch=True, queue_size=5)
-        self.tf_broadcaster = tf.TransformBroadcaster()
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster()
         self.pose_publisher = Publisher("/%s/robot_pose" % aid, Pose, latch=True, queue_size=5)
 
 
@@ -186,9 +185,9 @@ subgoal()
     def wait(self):
         #if self.details['smart_delay']:
         #    get_smart_travel_time(route.edge)/2
-        delay = rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2)/2
+        delay = fetch_property('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2)/2
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Travel time: %s seconds'%delay)
-        rospy.sleep(delay)
+        time.sleep(delay)
 
     def telemove(self, edge):
         logmsg(category='vr_roc', id=self.agent.agent_id, msg='   | Arrived at Edge')
@@ -233,7 +232,7 @@ subgoal()
     def publish_node_tf(self, node):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | a) Pub Node TF')
         pos, ori = self.agent.map_handler.get_node_tf(node)
-        tim = rospy.Time.now()
+        tim = time.time()
         link = "%s/base_link" % self.agent.agent_id
         self.tf_broadcaster.sendTransform(pos, ori, tim, link, "map")
     def publish_edge_tf(self, edge):
@@ -242,7 +241,7 @@ subgoal()
         pos1, ori = self.agent.map_handler.get_node_tf(n1)
         pos2, _   = self.agent.map_handler.get_node_tf(n2)
         pos = tuple([a+b/2 for a, b in zip(pos1,pos2)])
-        tim = rospy.Time.now()
+        tim = time.time()
         link = "%s/base_link" % self.agent.agent_id
         self.tf_broadcaster.sendTransform(pos, ori, tim, link, "map")
 

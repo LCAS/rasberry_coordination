@@ -6,7 +6,6 @@
 # ----------------------------------
 
 import os
-import rospy
 
 class Lock:
     def __init__(self): self.status = False

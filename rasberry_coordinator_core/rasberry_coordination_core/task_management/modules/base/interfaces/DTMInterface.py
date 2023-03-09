@@ -1,8 +1,7 @@
-from rospy import Publisher, Subscriber
 from diagnostic_msgs.msg import KeyValue
 
-from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface
+from rasberry_coordination_core.logmsg_utils import logmsg
 
 class DTMInterface(Interface):
     def __init__(self, agent, details, coordinator):
@@ -14,10 +13,12 @@ class DTMInterface(Interface):
         """ DTM Publishers """
         self.previous_task_list = None
         self.previous_task_list_2 = None
+        global Publisher
         self.active_tasks_pub = Publisher('%s/active_tasks_details'%ns, TasksDetailsList, latch=True, queue_size=5)
         self.task_pause_pub = Publisher('%s/pause_state'%ns, Bool, queue_size=5, latch=True)
 
         """ DTM Dynamic Task Management """
+        global Subscriber
         Subscriber('/rasberry_coordination/dtm', Interruption, self.InterruptTask)
 
         """ Reset the DTM Active Task List """

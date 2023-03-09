@@ -12,9 +12,9 @@ modules:
   - name: assignment
     interface: SchedulerManager
 
-  - name: rasberry_data_collection_pkg
-    interface: Scheduler
+#  - name: rasberry_data_collection_pkg
+#    interface: Scheduler
 
-  - name: rasberry_health_monitoring_pkg
-    interface: Scheduler
+#  - name: rasberry_health_monitoring_pkg
+#    interface: Scheduler
 

@@ -5,23 +5,23 @@
 # @date:
 # ----------------------------------
 
-import actionlib
-import rospy
-import tf
 from random import random
-from rospy import Publisher, Subscriber
-from rasberry_coordination.coordinator_tools import logmsg, Lock
 
-from topological_navigation.tmap_utils import get_node as get_topomap_node, get_distance_node_pose_from_tmap2 as node_pose_dist
-from topological_navigation.route_search import TopologicalRouteSearch
-from topological_navigation_msgs.msg import GotoNodeGoal, GotoNodeAction
+import actionlib
+import tf2_ros
 
 from std_msgs.msg import Header, String
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Pose
 from strands_navigation_msgs.msg import ExecutePolicyModeGoal, ExecutePolicyModeAction, TopologicalMap, TopologicalRoute
+from topological_navigation_msgs.msg import GotoNodeGoal, GotoNodeAction
 
-from rasberry_coordination.task_management.modules.navigation.interfaces.GeneralNavigator import GeneralNavigator
+from topological_navigation.tmap_utils import get_node as get_topomap_node
+from topological_navigation.route_search import TopologicalRouteSearch # we should be using TopologicalRouteSearch2 and this should be handled by map_handler
+from rasberry_coordination_core.task_management.modules.navigation.interfaces.GeneralNavigator import GeneralNavigator
+
+from rasberry_coordination_core.logmsg_utils import logmsg, Lock
+
 
 
 class Robot(GeneralNavigator):
@@ -38,7 +38,7 @@ class Robot(GeneralNavigator):
         self.speaker_fn = self.agent.speaker
 
         self.goal_node = "none"
-        self.start_time = rospy.get_rostime()
+        self.start_time = time.time()
         self.toponav_goal = GotoNodeGoal()
         self.toponav_result = None
         self.toponav_status = None
@@ -48,6 +48,9 @@ class Robot(GeneralNavigator):
         self.execpolicy_result = None
         self.execpolicy_status = None
         self.execpolicy_current_wp = None
+
+        global Subscriber
+        global Publisher
 
         self.topo_map = None
         self.rec_topo_map = False
@@ -91,7 +94,7 @@ class Robot(GeneralNavigator):
         Keyword arguments:
 
         node -- name of the node in topological map"""
-        return get_topomap_node(self.topo_map, node)
+        return get_topomap_node(self.topo_map, node) #TODO: we should be using the utilities in the map_handler
 
     def get_path(self, start_node, goal_node):
         """get route_nodes and route_edges from start_node to goal_node
@@ -232,5 +235,5 @@ class Robot(GeneralNavigator):
                     break
 
         self.route_publisher.publish(route)
-        rospy.sleep(0.1)
+        time.sleep(0.1)
 

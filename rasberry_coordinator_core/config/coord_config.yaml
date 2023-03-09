@@ -1,0 +1,55 @@
+version: 1.2.4
+
+#STANDARD AGENTS
+default_agents:
+  - agent_id: scheduler
+    setup: scheduler
+
+  - agent_id: robot_01
+    setup: general_robot_debug
+    local_properties:
+        rviz_default_colour: '0000FF'
+        initial_location: WayPoint140
+
+  - agent_id: robot_02
+    setup: general_robot_debug
+    local_properties:
+        rviz_default_colour: '00FF00'
+        initial_location: WayPoint141
+
+#TOPOLOGY (Node Descriptors)
+special_nodes:
+  - id: WayPoint140
+    descriptors:
+      - base_tp_node
+      - base_dc_node
+      - wait_node
+  - id: WayPoint141
+    descriptors:
+      - base_tp_node
+      - base_dc_node
+      - wait_node
+  - id: WayPoint142
+    descriptors:
+      - base_tp_node
+      - base_dc_node
+      - wait_node
+  - id: WayPoint72
+    descriptors:
+      - charging_station
+  - id: WayPoint63
+    descriptors:
+      - charging_station
+
+#ROUTING
+planning_format:
+    planning_type: fragment_planner
+    heterogeneous_map: true
+
+#MODULES
+active_modules:
+  - name: base
+  - name: assignment
+  - name: navigation
+    properties:
+        debug_robot_step_delay: 5

@@ -1,9 +1,9 @@
 """ Interrupt Task """
 
 import weakref
-from rasberry_coordination.task_management.__init__ import Stages, Interfaces
-from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, Rasberry_Logger
-from rasberry_coordination.task_management.dynamic_task_management import DTM
+from rasberry_coordination_core.task_management.__init__ import Stages, Interfaces
+from rasberry_coordination_core.logmsg_utils import logmsg, logmsgbreak, Rasberry_Logger
+from rasberry_coordination_core.task_management.dynamic_task_management import DTM
 
 class TaskManager(object):
 

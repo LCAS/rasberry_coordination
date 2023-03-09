@@ -5,17 +5,16 @@
 # @date:
 # ----------------------------------
 
-import time, datetime
-import rospkg
-import yaml
-from rospy import Subscriber
 import traceback
+import time, datetime
+import yaml
 
 from std_msgs.msg import Empty
 import strands_navigation_msgs.msg
 
-from rasberry_coordination.routing_management.fragment_planner import FragmentPlanner
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination_core.routing_management.fragment_planner import FragmentPlanner
+
+from rasberry_coordination_core.logmsg_utils import logmsg
 
 class RoutingManager(object):
     def __init__(self, agent_manager, planning_format):
@@ -32,6 +31,7 @@ class RoutingManager(object):
         self.last_replan_time = time.time()
         self.force_replan_to_publish = False
         self.log_routes = True
+        global Subscriber
         self.force_replan_cb = Subscriber('/rasberry_coordination/force_replan', Empty, self.force_replan)
 
         # Define route polanner properties
@@ -167,7 +167,7 @@ class RoutingManager(object):
             logmsg(category="navig", id=agent.agent_id, msg="   | route published: %s" % rationalle_to_publish)
 
             now = str(datetime.datetime.utcnow())
-            path = "%s/routing/filtered_map_%s.prof" % (rospkg.RosPack().get_path('rasberry_coordination'), now.replace(' ','-'))
+            path = "~/routing/filtered_map_%s.prof" % (now.replace(' ','-'))
             with open("output_file.txt", "w") as f_handle:
                 yaml.dump(policy, f_handle)
 

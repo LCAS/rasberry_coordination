@@ -7,26 +7,34 @@
 
 
 # Standard Modules
-import copy, os, time, datetime
-import sys
-import weakref
-import yaml
+import sys, os
+import time, datetime
 from time import time as Now, sleep
+import copy, weakref
+import yaml
 from pprint import pprint
-import rospy, rospkg
-from rospy import Subscriber, Publisher
+
+# ROS2
+import rclpy
+
+# Messages
 from std_msgs.msg import String as Str, Empty
-
-from rasberry_coordination.interaction_management.manager import InteractionManager
-from rasberry_coordination.task_management.manager import TaskManager
-from rasberry_coordination.agent_management.manager import AgentManager
-from rasberry_coordination.routing_management.manager import RoutingManager
-
-from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, Rasberry_Logger
-from rasberry_coordination.agent_management.location_handler import LocationObj as Location
-from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
-from rasberry_coordination.task_management.containers.Task import TaskObj as Task
 from rasberry_coordination_msgs.msg import MarkerDetails
+
+# Modules
+from rasberry_coordination_core.interaction_management.manager import InteractionManager
+from rasberry_coordination_core.task_management.manager import TaskManager
+from rasberry_coordination_core.agent_management.manager import AgentManager
+from rasberry_coordination_core.routing_management.manager import RoutingManager
+
+# Tools
+from rasberry_coordination_core.agent_management.location_handler import LocationObj as Location
+from rasberry_coordination_core.task_management.containers.Module import ModuleObj as Module
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
+
+# Logging
+from rasberry_coordination_core.logmsg_utils import logmsg, logmsgbreak
+from rasberry_coordination_core.coordinator_tools import Rasberry_Logger
 
 
 class RasberryCoordinator(object):
@@ -44,14 +52,7 @@ class RasberryCoordinator(object):
         self.agent_manager.cb['force_replan'] = self.routing_manager.force_replan
         self.agent_manager.cb['trigger_replan'] = self.routing_manager.trigger_replan
 
-    def on_shutdown(self, ):
-        """on shutdown cancel all goals
-        """
-        logmsg(level='warn', msg='Coordinator shutting down, performing shutdown actions')
 
-        logmsg(level='warn', msg='AgentManager shutting down, saving agent_list')
-        dict_list = [a.agent_dict for a in self.agent_manager.agent_details.values()]
-        with open('coordinator-loaded-agents-save-state.yaml', 'w') as file: yaml.dump(dict_list, file)
     def run(self):
 
         # Remappings to for commonly used functions
@@ -85,7 +86,7 @@ class RasberryCoordinator(object):
 
         # Begin task progression
         l(-1)
-        while not rospy.is_shutdown():
+        while rclpy.ok():
 
             # Add New Agents
             new_agent_buffer = AM.new_agent_buffer
@@ -139,7 +140,7 @@ class RasberryCoordinator(object):
             if any(E): DTM.EndTask(E);                                                   """ Update DTM w/ Completed """
 
             # Publish Log and Wait
-            l(-2); rospy.sleep(0.2)
+            l(-2); time.sleep(0.2)
 
 
     def get_agents(self):

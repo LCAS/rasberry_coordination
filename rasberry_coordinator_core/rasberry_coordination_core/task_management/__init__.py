@@ -1,11 +1,14 @@
+#Builtins
 from os import walk
 import importlib
 from pprint import pprint
-from rospy import set_param, get_param
-import rospkg
-from rasberry_coordination.coordinator_tools import logmsg
 import traceback
+
+# Components
 global Stages, Interfaces, PropertiesDef
+
+# Logging
+from rasberry_coordination_core.logmsg_utils import logmsg
 
 
 def get_module_host(module):
@@ -33,7 +36,8 @@ def set_properties(module_dict):
 
 
 def fetch_property(module, key, default=None):
-    return get_param('/rasberry_coordination/task_modules/%s/%s' % (module, key), default)
+    global ROS2Node
+    return ROS2Node.get_parameter_or('/rasberry_coordination/task_modules/%s/%s' % (module, key), default)
 
 
 def rename(cls, prefix):
@@ -45,14 +49,15 @@ def rename(cls, prefix):
 
 
 def load_custom_modules(clean_module_list):
-    base_folder = rospkg.RosPack().get_path('rasberry_coordination')+"/src/rasberry_coordination/task_management/modules"
+    import rasberry_coordination_core
+    base_folder = rasberry_coordination_core.__path__[-1] + "/task_management/modules"
     std_modules = next(walk(base_folder), (None, None, []))[1]
 
     clean_module_list = [t for t in clean_module_list if t not in std_modules]
     module_list = ['%s.coordination.task_module' % module for module in clean_module_list] #change to import the three from seperate files
-    module_list.insert(0, 'rasberry_coordination.task_management.modules.base')
-    module_list.insert(1, 'rasberry_coordination.task_management.modules.navigation')
-    module_list.insert(2, 'rasberry_coordination.task_management.modules.assignment')
+    module_list.insert(0, 'rasberry_coordination_core.task_management.modules.base')
+    module_list.insert(1, 'rasberry_coordination_core.task_management.modules.navigation')
+    module_list.insert(2, 'rasberry_coordination_core.task_management.modules.assignment')
 
     logmsg(category="START",  msg="Collecting Interfaces and Stage Definitions for modules: ")
     [logmsg(category="START", msg="   | %s" % module) for module in module_list]
@@ -64,7 +69,7 @@ def load_custom_modules(clean_module_list):
     global Stages, Interfaces
 
     logmsg(category="START", msg="STAGES: ")
-    from rasberry_coordination.task_management.modules.base.stage_definitions import StageBase
+    from rasberry_coordination_core.task_management.modules.base.stage_definitions import StageBase
     Stages = dict()
     for module in module_list:
         host = get_module_host(module)
@@ -91,7 +96,7 @@ def load_custom_modules(clean_module_list):
     logmsg(category="START", msg="   | if an expected interface has not appeard")
     logmsg(category="START", msg="   | try importing directly in a python terminal:")
     logmsg(category="START", msg="   :   | import rasberry_coordination.task_management.modules.base.interfaces.Robot")
-    from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface as InterfaceBase
+    from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface as InterfaceBase
     Interfaces = dict()
     for module in module_list:
         host = get_module_host(module)
@@ -211,12 +216,12 @@ class Stg(object):
 
 def print_stages_md():
     import rasberry_coordination
-    from rasberry_coordination.task_management import Stg
-    from rasberry_coordination.task_management import base
-    from rasberry_coordination.task_management.modules import health_monitoring
-    from rasberry_coordination.task_management.modules import transportation
-    from rasberry_coordination.task_management.modules import uv_treatment
-    from rasberry_coordination.task_management.modules import data_collection
+    from rasberry_coordination_core.task_management import Stg
+    from rasberry_coordination_core.task_management import base
+    from rasberry_coordination_core.task_management.modules import health_monitoring
+    from rasberry_coordination_core.task_management.modules import transportation
+    from rasberry_coordination_core.task_management.modules import uv_treatment
+    from rasberry_coordination_core.task_management.modules import data_collection
 
     # Stg(base.StageDef.__dict__['NavigateToBaseNode'])
     ba = ([v for k, v in base.StageDef.__dict__.items() if not k.startswith('_')],              base)
@@ -225,10 +230,6 @@ def print_stages_md():
     uv = ([v for k, v in uv_treatment.StageDef.__dict__.items() if not k.startswith('_')],      uv_treatment)
     dm = ([v for k, v in data_collection.StageDef.__dict__.items() if not k.startswith('_')],   data_collection)
 
-    # import rospkg
-    # rospack = rospkg.RosPack()
-    # rospack.list()
-    # rasberry_coordination = rospack.get_path('rasberry_coordination')
     filepath = rasberry_coordination.__path__[-1].replace('/src/rasberry_coordination', '/docs/StageList.md')
     modules = [ba, hm, tp, uv, dm]
     with open(filepath, 'w') as f:
@@ -245,5 +246,5 @@ def print_stages_md():
             for v in m[0]: f.write(Stg(v, True).__repr__())
 
 # if __name__ == '__main__':
-    # from rasberry_coordination.task_management import print_stages_md; print_stages_md()
+    # from rasberry_coordination_core.task_management import print_stages_md; print_stages_md()
     # print_stages_md()

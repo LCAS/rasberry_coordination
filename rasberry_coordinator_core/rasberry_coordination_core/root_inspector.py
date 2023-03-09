@@ -6,16 +6,17 @@
 # ----------------------------------
 
 import os
-import rospy
 
-from rasberry_coordination.srv import String as StringRequest
-from rasberry_coordination.srv import StringResponse as StringResponse
+from rasberry_coordination_core.srv import String as StringRequest
+from rasberry_coordination_core.srv import StringResponse as StringResponse
 
 class RootInspector(object):
 
     def __init__(self, topic, root):
         self.root = root
-        rospy.Service(topic, StringRequest, self.root_inspector_srv)
+
+        global Service
+        Service(topic, StringRequest, self.root_inspector_srv)
 
     def root_inspector_srv(self, req):
         resp = StringResponse()

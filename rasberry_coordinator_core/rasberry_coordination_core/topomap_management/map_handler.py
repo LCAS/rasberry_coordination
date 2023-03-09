@@ -1,18 +1,22 @@
+# Builtins
 from copy import copy, deepcopy
-from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
+from time import time
+import yaml
+
+# ROS2
 from rospy_message_converter.message_converter import convert_dictionary_to_ros_message as rosmsg
 
-from time import time
+# Messages
 from std_msgs.msg import Bool, String as Str, Empty as Emp
-import strands_executive_msgs.msg
-
-from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 
-import yaml
+# Components
 from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
 from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, get_distance_to_node_tmap2 as GetNodeDist
-from topological_navigation_msgs.msg import ClosestEdges
+
+# Logging
+from rasberry_coordination_core.logmsg_utils import logmsg
+
 
 class MapObj(object):
     """
@@ -44,8 +48,9 @@ class MapObj(object):
 
     def enable_map_monitoring(self):
         # callback are enabled in base.StageDef.WaitForMap._start()
-        self.global_tmap_sub = Subscriber('/topological_map_2', Str, self.global_map_cb, queue_size=5)
-        self.local_tmap_sub = Subscriber(self.topic, Str, self.local_map_cb, queue_size=5)
+        global Subscriber
+        self.global_tmap_sub = Subscriber('/topological_map_2', Str, self.global_map_cb)
+        self.local_tmap_sub = Subscriber(self.topic, Str, self.local_map_cb)
 
     def global_map_cb(self, msg):
         # This is included for each agent as a single global map is needed for an agent to

@@ -5,8 +5,8 @@
 # @date:
 # ----------------------------------
 
-import os
-import rclpy
+import os, yaml
+from rasberry_coordination_core.coordinator_node import GlobalLogger
 
 def logmsgbreak(total=3):
     """ Print a number of lines using logmsg formatting
@@ -136,11 +136,10 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
         msg = category + " | " + str(id) + " | " + msg
 
     # log in different manners based on the severity level and throttling
-    global GlobalLogger
     logs = {"debug": GlobalLogger.debug,
             "info":  GlobalLogger.info,
             "warn":  GlobalLogger.warn,
-            "error": GlobalLogger.err,
+            "error": GlobalLogger.error,
             "fatal": GlobalLogger.fatal}
     logs[level](msg)
 
@@ -176,11 +175,8 @@ def colour(data):
 def load_data(file):
     config_file = file
 
-    if not config_file:
-####        result = subprocess.check_output('rospack find rasberry_coordination', shell=True)
-        config_file = result[:-1]+"/src/rasberry_coordination/logging_config/logmsg.yaml"
-        with open(config_file) as f:
-            config_data = yaml.safe_load(f)
+    with open(config_file) as f:
+        config_data = yaml.safe_load(f)
 
     global valid_categories
     global reject_categories

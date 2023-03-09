@@ -1,13 +1,16 @@
 from copy import deepcopy
 from rospy import Time, Duration, Subscriber, Service, Publisher, Time, get_param
+
 from std_msgs.msg import Bool, String as Str
 from diagnostic_msgs.msg import KeyValue
-import strands_executive_msgs.msg
+
 from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
-from rasberry_coordination.task_management.containers.Task import TaskObj as Task
-from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
-from rasberry_coordination.task_management.__init__ import Stages
-from rasberry_coordination.coordinator_tools import logmsg
+
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface
+from rasberry_coordination_core.task_management.__init__ import Stages
+
+from rasberry_coordination_core.logmsg_utils import logmsg
 
 
 class DTM(object):
@@ -19,10 +22,13 @@ class DTM(object):
         """ DTM Publishers """
         self.previous_task_list = None
         self.previous_task_list_2 = None
-        self.active_tasks_pub = Publisher('%s/active_tasks_details'%ns, TasksDetailsList, latch=True, queue_size=5)
-        self.task_pause_pub = Publisher('%s/pause_state'%ns, Bool, queue_size=5, latch=True)
+
+        global Publisher
+        self.active_tasks_pub = Publisher('%s/active_tasks_details'%ns, TasksDetailsList)
+        self.task_pause_pub = Publisher('%s/pause_state'%ns, Bool)
 
         """ DTM Dynamic Task Management """
+        global Subscriber
         Subscriber('/rasberry_coordination/dtm', Interruption, self.InterruptTask)
 
         """ Reset the DTM Active Task List """

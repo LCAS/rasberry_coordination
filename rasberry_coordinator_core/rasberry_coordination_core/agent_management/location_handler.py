@@ -1,16 +1,14 @@
+# Builtins
 from copy import deepcopy
-from rospy import Time, Duration, Subscriber, Service, Publisher, Time, ServiceProxy
+import yaml
 
+# Messages
 from std_msgs.msg import Bool, String as Str, Empty as Emp
-import strands_executive_msgs.msg
-
-from rasberry_coordination.coordinator_tools import logmsg
+from topological_navigation_msgs.msg import ClosestEdges
 from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 
-import yaml
-from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
-from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, get_distance_to_node_tmap2 as GetNodeDist
-from topological_navigation_msgs.msg import ClosestEdges
+# Logging
+from rasberry_coordination_core.logmsg_utils import logmsg
 
 class LocationObj(object):
 
@@ -24,6 +22,7 @@ class LocationObj(object):
 
     def enable_location_monitoring(self, agent_id):
         # callback are enabled in base.StageDef.WaitForLocalisation._start()
+        global Subscriber
         self.current_node_sub = Subscriber('/%s/current_node'    % agent_id, Str, self.current_node_cb)
         self.closest_node_sub = Subscriber('/%s/closest_node'    % agent_id, Str, self.closest_node_cb)
         self.closest_node_sub = Subscriber('/%s/closest_edges'    % agent_id, ClosestEdges, self.closest_edges_cb)
@@ -57,5 +56,6 @@ class LocationObj(object):
 
     def enable_localisation(self, msg):
         self.previous_node, self.current_node, self.closest_node = None, None, None
+        global Subscriber
         self.current_node_sub = Subscriber(self.picker_id + "/current_node", Str, self.current_node_cb)
         self.closest_node_sub = Subscriber(self.picker_id + "/closest_node", Str, self.closest_node_cb)
