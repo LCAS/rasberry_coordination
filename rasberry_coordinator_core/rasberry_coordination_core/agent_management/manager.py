@@ -16,8 +16,8 @@ from std_msgs.msg import String as Str, Empty, Bool, ColorRGBA as ColourRGBA
 from std_srvs.srv import Trigger, TriggerResponse
 
 from diagnostic_msgs.msg import KeyValue
-from rasberry_coordination.msg import NewAgentConfig, MarkerDetails
-from rasberry_coordination.msg import Agent, AgentList, AgentRegistration, AgentState, AgentLocation, AgentHealth, AgentRendering
+from rasberry_coordination_msgs.msg import NewAgentConfig, MarkerDetails
+from rasberry_coordination_msgs.msg import Agent, AgentList, AgentRegistration, AgentState, AgentLocation, AgentHealth, AgentRendering
 from rasberry_coordination.coordinator_tools import logmsg
 from rasberry_coordination.agent_management.location_handler import LocationObj as Location
 from rasberry_coordination.topomap_management.map_handler import MapObj as Map

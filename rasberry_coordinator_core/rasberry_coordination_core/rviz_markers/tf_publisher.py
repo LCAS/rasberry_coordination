@@ -1,15 +1,16 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # ----------------------------------
-# @author: gpdas
-# @email: pdasgautham@gmail.com
-# @date:
+# @author: jheselden
+# @email: jheselden@lincoln.ac.uk
+# @date: 10/aug/2022
 # ----------------------------------
 
-import rospy
-import tf, json
+import time
+
+import tf2_ros
+
 import geometry_msgs.msg
-import bayes_people_tracker.msg
-from rasberry_coordination.coordinator_tools import logmsg
+#import bayes_people_tracker.msg
 
 
 class TFPublishers:
@@ -18,18 +19,19 @@ class TFPublishers:
     def get_tf_convertor(msg):
         tf_source_type = {'geometry_msgs/Pose': TFPublishers.PoseTFConvertor,
                           'geometry_msgs/PoseStamped': TFPublishers.PoseStampedTFConvertor,
-                          'gps_grouped_array': TFPublishers.GPSPositionsTFConvertor,
+                          #'gps_grouped_array': TFPublishers.GPSPositionsTFConvertor,
                           'static': TFPublishers.StaticTFConvertor}
         return tf_source_type[msg.tf_source_type](msg)
 
 
     class TFConvertor(object):
-        def __init__(self, msg):
+        def __init__(self, msg, ros2node):
+            self.ros2node = ros2node
             self.id = msg.id
 
             # Specify tf details
             self.base_frame = self.id + "/base_link" if self.id else "base_link"
-            self.tf_broadcaster = tf.TransformBroadcaster()
+            self.tf_broadcaster = tf2_ros.TransformBroadcaster()
 
             # Specify subscriber details
             self.source_topic = msg.tf_source_topic
@@ -49,10 +51,10 @@ class TFPublishers:
         def cycle_tf(self):
             if not self.pose: return
             m = [[round(v,2) for v in g] for g in self.pose]
-            logmsg(category="rviz", id=self.id, msg="%s cycle_tf %s" % (self.source_type, str(m).replace('\n','')))
+            print("%s %s cycle_tf %s" % (self.id, self.source_type, str(m).replace('\n','')))
             self.tf_broadcaster.sendTransform((m[0][0], m[0][1], m[0][2]),
                                               (m[1][0], m[1][1], m[1][2], m[1][3]),
-                                              rospy.Time.now(),
+                                              time.time(),
                                               self.base_frame,
                                               "map")
 
@@ -66,7 +68,7 @@ class TFPublishers:
     class PoseTFConvertor(TFConvertor):
         def __init__(self, msg):
             super(TFPublishers.PoseTFConvertor, self).__init__(msg)
-            self.pose_sub = rospy.Subscriber(self.source_topic, geometry_msgs.msg.Pose, self.pose_cb)
+            self.pose_sub = self.ros2node.create_subscription(geometry_msgs.msg.Pose, self.source_topic, self.pose_cb)
         def convert_to_array(self, msg):
             pos, ori = msg.position, msg.orientation
             return [[pos.x, pos.y, pos.z],[ori.x, ori.y, ori.z, ori.w]]
@@ -75,18 +77,19 @@ class TFPublishers:
     class PoseStampedTFConvertor(TFConvertor):
         def __init__(self, msg):
             super(TFPublishers.PoseStampedTFConvertor, self).__init__(msg)
-            self.pose_sub = rospy.Subscriber(self.source_topic, geometry_msgs.msg.PoseStamped, self.pose_cb)
+            self.pose_sub = self.ros2node.create_subscription(geometry_msgs.msg.PoseStamped, self.source_topic, self.pose_cb)
         def convert_to_array(self, msg):
             pos, ori = msg.pose.position, msg.pose.orientation
             return [[pos.x, pos.y, pos.z],[ori.x, ori.y, ori.z, ori.w]]
 
 
-    class GPSPositionsTFConvertor(TFConvertor):
-        def __init__(self, msg):
-            super(TFPublishers.GPSPositionsTFConvertor, self).__init__(msg)
-            self.gps_sub = rospy.Subscriber(self.source_topic, bayes_people_tracker.msg.PeopleStamped, self.pose_cb)
-        def convert_to_array(self, msg):
-            person = [p.person for p in msg.people if p.person.name == self.id and p.person.position != geometry_msgs.msg.Point()]
-            if len(person) < 1: return [[0,0,0],[0,0,0,1]]
-            pos = person[0].position
-            return [[pos.x, pos.y, pos.z],[0, 0, 0, 1]]
+#    class GPSPositionsTFConvertor(TFConvertor):
+#        def __init__(self, msg):
+#            super(TFPublishers.GPSPositionsTFConvertor, self).__init__(msg)
+#            self.gps_sub = self.ros2node.create_subscription(bayes_people_tracker.msg.PeopleStamped, self.source_topic, self.pose_cb)
+#        def convert_to_array(self, msg):
+#            person = [p.person for p in msg.people if p.person.name == self.id and p.person.position != geometry_msgs.msg.Point()]
+#            if len(person) < 1: return [[0,0,0],[0,0,0,1]]
+#            pos = person[0].position
+#            return [[pos.x, pos.y, pos.z],[0, 0, 0, 1]]
+

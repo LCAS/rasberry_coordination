@@ -26,7 +26,7 @@ from rasberry_coordination.coordinator_tools import logmsg, logmsgbreak, Rasberr
 from rasberry_coordination.agent_management.location_handler import LocationObj as Location
 from rasberry_coordination.task_management.containers.Module import ModuleObj as Module
 from rasberry_coordination.task_management.containers.Task import TaskObj as Task
-from rasberry_coordination.msg import MarkerDetails
+from rasberry_coordination_msgs.msg import MarkerDetails
 
 
 class RasberryCoordinator(object):

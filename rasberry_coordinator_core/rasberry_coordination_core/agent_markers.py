@@ -1,53 +1,59 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # ----------------------------------
 # @author: jheselden
 # @email: jheselden@lincoln.ac.uk
-# @date:
+# @date: 10/aug/2022
 # ----------------------------------
 
-import rospy, rospkg
-import yaml
 import os
+import yaml
+
+import rclpy
+from rclpy.node import Node
+
+import time
 
 from std_msgs.msg import Empty
 from geometry_msgs.msg import Point
 from visualization_msgs.msg import MarkerArray
+from rasberry_coordination_msgs.msg import MarkerDetails
 
-from rasberry_coordination.msg import MarkerDetails
-from rasberry_coordination.coordinator_tools import logmsg
-from rasberry_coordination.rviz_markers.markers import AgentMarker
+from rasberry_coordination_core.rviz_markers.markers import AgentMarker
 
 
-class MarkerPublisher(object):
+class MarkerPublisher(Node):
     def __init__(self):
+        super().__init__('rviz_markers')
+
         self.agents = dict()
 
-        internal_path = rospkg.RosPack().get_path('rasberry_coordination')+"/src/rasberry_coordination/rviz_markers/"
+        #TODO: replace with args
+        components_path = os.getenv('RVIZ_COMPONENTS_CONFIG', None)
         structures_path = os.getenv('RVIZ_STRUCTURES_CONFIG', None)
         print(structures_path)
 
-        with open(internal_path+"components.yaml",'r') as f: self.component_dict = yaml.safe_load(f)
+        with open(components_path,'r') as f: self.component_dict = yaml.safe_load(f)
         with open(structures_path,'r') as f: self.structures_dict = yaml.safe_load(f)
         self.agents_to_render, self.agents_to_pop = [], []
-        self.publish_time = rospy.get_rostime()
+        self.publish_time = time.time()
 
-        self.marker_set_sub = rospy.Subscriber('/rasberry_coordination/set_marker', MarkerDetails, self.set_marker_cb)
-        self.get_marker_pub = rospy.Publisher('/rasberry_coordination/get_markers', Empty, queue_size=5)
-        self.marker_pub_all = rospy.Publisher("/vis_all/all", MarkerArray, queue_size=10)
+        self.marker_set_sub = self.create_subscription(MarkerDetails, "/rasberry_coordination/set_marker", self.set_marker_cb, 10)
+        self.get_marker_pub = self.create_publisher(Empty, "/rasberry_coordination/get_markers", 5)
+        self.marker_pub_all = self.create_publisher(MarkerArray, "/vis_all/all", 10)
 
     def set_marker_cb(self, msg):
-
+    
         # If agent does not exist, create new container with marker directories
         if msg.id not in self.agents:
-            logmsg(category="rviz", id=msg.id, msg="new %s: %s | %s (%s)"%(msg.structure, str(msg.colour).replace('\n',''), msg.tf_source_topic, msg.tf_source_type))
+            print("%s new %s: %s | %s (%s)"%(msg.id, msg.structure, str(msg.colour).replace('\n',''), msg.tf_source_topic, msg.tf_source_type))
             dicts = {'components': self.component_dict, 'structures': self.structures_dict}
-            self.agents[msg.id] = AgentMarker(msg, dicts)
+            self.agents[msg.id] = AgentMarker(msg, dicts, self)
             self.agents_to_render.append(msg.id)
             return
 
         # If no structure given, delete agent
         if msg.structure == '':
-            logmsg(category="rviz", id=msg.agent_id, msg="del: %s"%(msg.agent_id))
+            print("%s del"%(msg.agent_id))
             self.agents_to_pop.append(msg.agent_id)
             return
 
@@ -58,30 +64,29 @@ class MarkerPublisher(object):
 
         # Save structure change and colour change
         if a.structure != msg.structure:
-            logmsg(category="rviz", id=msg.id, msg="mod struct: %s -> %s"%(a.structure, msg.structure))
+            print("%s mod struct: %s -> %s"%(msg.id, a.structure, msg.structure))
             a.structure = msg.structure
         if a.colour != [msg.colour.r, msg.colour.g, msg.colour.b, msg.colour.a]:
-            logmsg(category="rviz", id=msg.id, msg="mod colour: %s -> %s"%(a.colour, str(msg.colour).replace('\n','')))
+            print("%s mod colour: %s -> %s"%(msg.id, a.colour, str(msg.colour).replace('\n','')))
             a.colour = [msg.colour.r, msg.colour.g, msg.colour.b, msg.colour.a]
         self.agents_to_render.append(msg.id)
 
         # Save new pose for tf system to use
         if msg.pose and msg.pose.position != Point():
-            logmsg(category="rviz", id=msg.id, msg="mod pose: %s"%(str(msg.pose.position).replace('\n','')))
+            print("%s mod pose: %s"%(msg.id, str(msg.pose.position).replace('\n','')))
             pos, ori = msg.pose.position, msg.pose.orientation
             a.tf.pose = [[pos.x, pos.y, pos.z],[ori.x, ori.y, ori.z, ori.w]]
 
 
     def run(self):
-        rospy.sleep(1)
+        time.sleep(1)
         self.get_marker_pub.publish(Empty())
         i = 0
-        while not rospy.is_shutdown():
+        while rclpy.ok():
 
             #if there are any pending updates
-            if (self.agents_to_render or self.agents_to_pop) or (rospy.get_rostime() - self.publish_time > rospy.Duration(5)):
-                logmsg(category="null")
-                logmsg(category="rviz", msg="Cycle: %s"%i)
+            if (self.agents_to_render or self.agents_to_pop) or (time.time() - self.publish_time > 5):
+                print("Cycle: %s"%i)
                 i+=1
 
                 #delete any agents to remove
@@ -100,21 +105,26 @@ class MarkerPublisher(object):
                     marker_array.markers += a.marker_array.markers
 
                 #set the timeouts
-                self.publish_time = rospy.get_rostime()
+                self.publish_time = time.time()
                 for m in marker_array.markers:
                     m.header.stamp = self.publish_time
-                    m.lifetime = rospy.Duration(10)
+                    m.lifetime = 10
 
                 self.marker_pub_all.publish(marker_array)
 
-            rospy.sleep(0.5)
+            time.sleep(0.5)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    MP = MarkerPublisher()
+    MP.run()
+
+    MP.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == "__main__":
-    rospy.init_node("visualise_agent_markers")
-    MP = MarkerPublisher()
+    main()
 
-    from rasberry_coordination.coordinator_tools import RootInspector
-    RootInspector(topic='~root_inspector', root=MP)
-
-    MP.run()

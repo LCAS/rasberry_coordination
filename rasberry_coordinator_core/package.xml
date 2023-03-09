@@ -16,6 +16,8 @@
   <depend>python-transforms3d-pip</depend>
   <depend>espeak</depend>
 
+  <depend>tf2</depend>
+
 <!--
   <depend>strands_executive_msgs</depend>
   <depend>strands_navigation_msgs</depend>

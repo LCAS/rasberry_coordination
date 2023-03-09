@@ -5,13 +5,15 @@ import json, yaml
 from pprint import pprint
 
 import rclpy
+from rclpy.node import Node
+
 import tf_transformations #https://github.com/DLu/tf_transformations
 
 from std_msgs.msg import String
 from geometry_msgs.msg import Pose
 from diagnostic_msgs.msg import KeyValue
 
-from rasberry_coordination.msg import NewAgentConfig, Module
+from rasberry_coordination_msgs.msg import NewAgentConfig, Module
 
 
 def get_kvp_list(dict, item):
@@ -57,11 +59,11 @@ def load_agent_obj(node, agent_id, setup, printer=True):
 
 class AgentMonitor(Node):
     def __init__(self):
-        self.pub = rclpy.create_publisher(NewAgentConfig, "/rasberry_coordination/dynamic_fleet/add_agent", latch=True, queue_size=5)
-        self.s1 = rclpy.create_subscription(String, "/car/new_agent", self.load, 10, callback_args='picker')
-        self.s2 = rclpy.create_subscription(String, "/sar/new_agent", self.load, 10, callback_args='tall_controller')
-        self.s3 = rclpy.create_subscription(String, "/car/new_store", self.load, 10, callback_args='storage')
-        self.s4 = rclpy.create_subscription(String, "/car_client/get_gps", self.add_car_agent, 10)
+        super().__init__('add_agent')
+        self.pub = self.create_publisher(NewAgentConfig, "/rasberry_coordination/dynamic_fleet/add_agent", 5)
+        self.s1 = self.create_subscription(String, "/car/new_agent", self.load_picker, 10)
+        self.s2 = self.create_subscription(String, "/sar/new_agent", self.load_tall_controller, 10)
+        self.s4 = self.create_subscription(String, "/car_client/get_gps", self.add_car_agent, 10)
 
     """ Dynamic Fleet """
     def add_car_agent(self, msg):
@@ -70,6 +72,8 @@ class AgentMonitor(Node):
         if 'STD_v2' in id:
             self.load(String(id), 'picker', printer=False)
 
+    def load_picker(self, msg): self.load(self, msg, 'picker')
+    def load_tall_controller(self, msg): self.load(self, msg, 'tall_controller')
     def load(self, msg, agent_type, printer=True):
         self.get_logger().info(f"Recieved new {msg.data} information: {agent_type}")
         agent = load_agent_obj(agent_id=msg.data, setup=agent_type, printer=printer)
@@ -92,18 +96,17 @@ class AgentPublisher(Node):
         self.get_logger().info(f"Details of Agent being launched:\n{agemt}\n\n")
 
         # Create publisher
-        self.details_pub = rclpy.create_publisher(NewAgentConfig, "/rasberry_coordination/dynamic_fleet/add_agent", latch=False, queue_size=5)
+        self.details_pub = self.create_publisher(NewAgentConfig, "/rasberry_coordination/dynamic_fleet/add_agent", 5)
 
         # Create a storage point for the robots pose to be saved on shutdown
         self.pose = Pose()
-        self.pose_sub = rclpy.create_subscription("/robot_pose", Pose, self.pose_cb)
+        self.pose_sub = self.create_subscription("/robot_pose", Pose, self.pose_cb)
 
     def spin(self):
         while not rospy.is_shutdown():
             pub.publish(self.agent)
             logmsg(category="null", msg="publishing")
             time.sleep(5)
-            
         self.save()
 
     def pose_cb(msg):
@@ -127,13 +130,13 @@ def main(args=None):
     if len(sys.argv) < 5:
         manager = AgentMonitor()
         manager.get_logger().info("AddAgent Monitor launched")
-        
+
     else:
         agent_id = sys.argv[1]
         setup = sys.argv[2]
         manager = AgentPublisher(agent_id, setup)
         manager.get_logger().info("AddAgent Publisher launched")
-        
+
     manager.spin()
 
     manager.destroy_node()
@@ -142,7 +145,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-    
-    
-    
-    
+

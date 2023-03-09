@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # ----------------------------------
 # @author: jheselden
 # @email: jheselden@lincoln.ac.uk
@@ -10,14 +10,14 @@ from std_msgs.msg import ColorRGBA, String
 from geometry_msgs.msg import Point, Quaternion, Vector3
 from visualization_msgs.msg import MarkerArray, Marker
 
-from tf.transformations import quaternion_from_euler
+from tf_transformations import quaternion_from_euler
 
-from rasberry_coordination.rviz_markers.tf_publisher import TFPublishers
-from rasberry_coordination.coordinator_tools import logmsg
+from rasberry_coordination_core.rviz_markers.tf_publisher import TFPublishers
 
 
 class AgentMarker(object):
-    def __init__(self, msg, dicts):
+    def __init__(self, msg, dicts, ros2node):
+        self.ros2node = ros2node
         self.id = msg.id
 
         # Save local references to dictionaries
@@ -30,14 +30,14 @@ class AgentMarker(object):
         self.colour = [msg.colour.r, msg.colour.g, msg.colour.b, msg.colour.a]
 
         # Construct tf manager to update position of published marker
-        self.tf = TFPublishers.get_tf_convertor(msg)
+        self.tf = TFPublishers.get_tf_convertor(msg, self.ros2node)
 
 
     def generate_marker_array(self):
-        logmsg(category="rviz", id=self.id, msg="generating marker")
+        print(self.id + " generating marker")
         marker_array = MarkerArray()
         if self.structure not in self.structure_dict:
-            logmsg(category="rviz", msg="    | %s not found, generating short_robot_load_4"%self.structure)
+            print("    | %s not found, generating short_robot_load_4"%self.structure)
             self.structure = 'short_robot_load_4'
         for component_type,items in self.structure_dict[self.structure].items():
             for i in items:

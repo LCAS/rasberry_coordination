@@ -1,5 +1,5 @@
 from rospy import Publisher, Subscriber
-from rasberry_coordination.msg import Task as TaskMsg, AllSchedulableTasks, SchedulableTasks
+from rasberry_coordination_msgs.msg import Task as TaskMsg, AllSchedulableTasks, SchedulableTasks
 from rasberry_coordination.task_management.containers.Task import TaskObj as Task
 
 from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface

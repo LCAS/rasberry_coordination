@@ -3,7 +3,7 @@ from rospy import Time, Duration, Subscriber, Service, Publisher, Time, get_para
 from std_msgs.msg import Bool, String as Str
 from diagnostic_msgs.msg import KeyValue
 import strands_executive_msgs.msg
-from rasberry_coordination.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
+from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 from rasberry_coordination.task_management.containers.Task import TaskObj as Task
 from rasberry_coordination.task_management.modules.base.interfaces.Interface import Interface
 from rasberry_coordination.task_management.__init__ import Stages

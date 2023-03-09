@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os, sys
 import yaml
@@ -60,17 +60,15 @@ def main(args=None):
 
     print("Recommended to set 'force_color_prompt=yes' on line 46 of .bashrc.")
     if len(sys.argv) < 2:
-        usage = "rosrun rasberry_coordination abstract_task_executor_node.py config_file.yaml"
+        usage = "rosrun rasberry_coordination abstract_task_executor_node.py $YAML_CONFIG_FILE"
         print("Not enough arguments passed. Correct usage is:\n\t"+usage)
         exit()
 
 
     # Load yaml
     config_file = sys.argv[1]
-    import rasberry_des.config_utils
-    config_data = rasberry_des.config_utils.get_config_data(config_file)
-    config_keys = rasberry_des.config_utils.get_config_keys(config_file)
-
+    with open(config_file) as f:
+        confid_data = yaml.safe_load(f)
 
     # Configuration File Validation
     VERSION = "1.2.4"
@@ -103,6 +101,8 @@ def main(args=None):
             super().__init__('coordinator')
             global GlobalLogger
             GlobalLogger = self.get_logger()
+            global ROS2Node
+            ROS2Node = self
     GlobalNode = CoordinatorNodeHandler()
 
 
