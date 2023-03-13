@@ -1,250 +1,164 @@
 #Builtins
 from os import walk
+import os.path, pkgutil
 import importlib
 from pprint import pprint
 import traceback
 
 # Components
 global Stages, Interfaces, PropertiesDef
+Stages, Interfaces, PropertiesDef = None, None, None
 
 # Logging
 from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.coordinator_node import GlobalNode
 
 
-def get_module_host(module):
-    if 'rasberry_coordination' in module:
-       host = module.split('.')[3]
+def get_package_host(pkg_name):
+    if 'rasberry_coordination_core' in pkg_name:
+       host = pkg_name.split('.')[3]
     else:
-       host = module.split('.')[0]
+       host = pkg_name.split('.')[0]
     return host
 
 
-def set_properties(module_dict):
+def set_properties(package_dict):
     global PropertiesDef
-    PropertiesDef = {M['name']: M['properties'] for M in module_dict if 'properties' in M}
+
+    PropertiesDef = {M['name']: M['properties'] for M in package_dict if 'properties' in M}
     PropertiesDef.update({'base': {}})
     namespace = '/rasberry_coordination/task_modules/%s/%s'
 
     logmsg(category="START",  msg="Properties: ")
-    for M in module_dict:
-        logmsg(category="START",  msg="   | %s" % get_module_host(M['name']))
+    for M in package_dict:
+        logmsg(category="START",  msg="   | %s" % get_package_host(M['name']))
         try:
-            [logmsg(category="START", msg="   :   | %s -> %s" % (key, val)) for key, val in M['properties'].items()]
-            [set_param(namespace % (M['name'], k), v) for k, v in M['properties'].items()]
+            if 'properties' in M:
+                [logmsg(category="START", msg="   :   | %s -> %s" % (key, val)) for key, val in M['properties'].items()]
+                [GlobalNode.declare_paramater(namespace % (M['name'], k), v) for k, v in M['properties'].items()]
         except:
-           pass
+           print(traceback.format_exc())
 
 
 def fetch_property(module, key, default=None):
-    global ROS2Node
-    return ROS2Node.get_parameter_or('/rasberry_coordination/task_modules/%s/%s' % (module, key), default)
+    return GlobalNode.get_parameter_or('/rasberry_coordination/task_modules/%s/%s' % (module, key), default)
 
 
-def rename(cls, prefix):
-    for fcn_name in [f for f in dir(cls) if not f.startswith('__') and prefix != 'base']:
-        fcn = getattr(cls, fcn_name)
-        delattr(cls, fcn_name)
-        setattr(cls, prefix+'_'+fcn_name, fcn)
-    return cls
-
-
-def load_custom_modules(clean_module_list):
+def load_custom_modules(clean_package_list):
     import rasberry_coordination_core
     base_folder = rasberry_coordination_core.__path__[-1] + "/task_management/modules"
-    std_modules = next(walk(base_folder), (None, None, []))[1]
+    std_packages = next(walk(base_folder), (None, None, []))[1]
 
-    clean_module_list = [t for t in clean_module_list if t not in std_modules]
-    module_list = ['%s.coordination.task_module' % module for module in clean_module_list] #change to import the three from seperate files
-    module_list.insert(0, 'rasberry_coordination_core.task_management.modules.base')
-    module_list.insert(1, 'rasberry_coordination_core.task_management.modules.navigation')
-    module_list.insert(2, 'rasberry_coordination_core.task_management.modules.assignment')
+    clean_package_list = [t for t in clean_package_list if t not in std_packages]
+    package_list = ['%s.coordination.task_module' % package for package in clean_package_list]
+    #^ change to import the three from seperate files
 
-    logmsg(category="START",  msg="Collecting Interfaces and Stage Definitions for modules: ")
-    [logmsg(category="START", msg="   | %s" % module) for module in module_list]
+    package_list.insert(0, 'rasberry_coordination_core.task_management.modules.base')
+    package_list.insert(1, 'rasberry_coordination_core.task_management.modules.navigation')
+    package_list.insert(2, 'rasberry_coordination_core.task_management.modules.assignment')
 
+    logmsg(category="START",  msg="Collecting Interfaces and Stage Definitions for Active Packages: ")
+    [logmsg(category="START", msg="   | %s" % package) for package in package_list]
 
-    # For each module, import the Stages, and Interfaces to their respective containers
+    # For each package, import the Stages, and Interfaces to their respective containers
     # these containers can then be imported directly to access all components irrespective of location
-    # thus it allows for the coordinator to not be modified when new python classes are added for modules
+    # thus allowing for the coordinator to not be modified when new modules are added within packages
     global Stages, Interfaces
 
+
+    # Import Stages
     logmsg(category="START", msg="STAGES: ")
     from rasberry_coordination_core.task_management.modules.base.stage_definitions import StageBase
+
+    # Loop through list of included packages
     Stages = dict()
-    for module in module_list:
-        host = get_module_host(module)
+    for package in package_list:
+
+        # Identify the host to reference by
+        host = get_package_host(package)
         Stages[host] = dict()
         logmsg(category="START", msg="   | %s" % host.upper())
+        pkg = f"{package}.stage_definitions"
 
-        ### module_obj = __import__(module+".stage_definitions", globals(), locals(), [''], -1) #this looked cooler
+        # Attempt to load the package
         try:
-            module_obj = importlib.import_module(module+".stage_definitions")
+            stages_module = importlib.import_module(pkg)
         except ImportError as e:
-            logmsg(level="error", category="START", msg="   :   | %s (%s)"%(module,str(e)))
+            url = "https://github.com/Iranaphor/rasberry-coordination/wiki/ImportError-Debugging"
+            logmsg(level="error", category="START", msg=f"   :   | When importing: {host}.stage_definitions")
+            logmsg(level="error", category="START", msg=f"   :   :   | {str(e).split(' (')[0]}")
+            logmsg(level="error", category="START", msg=f"   :   :   | TRY: python3 -c 'import {pkg}.stage_definitions'")
+            #logmsg(level="error",category="START", msg=f"   :   :   | FAQ: {url}")
             print(traceback.format_exc())
-            continue
+            exit()
 
-        for obj in dir(module_obj):
-            cls = getattr(module_obj, obj)
 
-            if type(cls)!=type(StageBase) or not issubclass(cls, StageBase): continue
-            Stages[host][obj] = cls
-            logmsg(category="START", msg="   :   | %s" % obj)
+        # Add the iFACE for each file
+        for stage_class_name in dir(stages_module):
+            try:
+                stage_class = getattr(stages_module, stage_class_name)
+                if type(stage_class)!=type(StageBase) or not issubclass(stage_class, StageBase):
+                    continue
+                logmsg(category="START", msg=f"   :   | {stage_class_name}")
+                Stages[host][stage_class_name] = stage_class
+            except ImportError as e:
+                url = "https://github.com/Iranaphor/rasberry-coordination/wiki/ImportError-Debugging"
+                logmsg(level="error", category="START", msg=f"   :   | When importing: {host}.stage_definitions.{stage_class_name}")
+                logmsg(level="error", category="START", msg=f"   :   :   | {str(e).split(' (')[0]}")
+                logmsg(level="error", category="START", msg=f"   :   :   | TRY: python3 -c 'import {pkg}.stage_definitions'")
+                #logmsg(level="error",category="START", msg=f"   :   :   | FAQ: {url}")
+                print(traceback.format_exc())
+                exit()
+
+
+
+
 
     # Import Interfaces
     logmsg(category="START", msg="INTERFACES: ")
-    logmsg(category="START", msg="   | if an expected interface has not appeard")
-    logmsg(category="START", msg="   | try importing directly in a python terminal:")
-    logmsg(category="START", msg="   :   | import rasberry_coordination.task_management.modules.base.interfaces.Robot")
-    from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface as InterfaceBase
+    from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as InterfaceBase
+
+
+    # Loop through list of included packages
     Interfaces = dict()
-    for module in module_list:
-        host = get_module_host(module)
+    for package in package_list:
+
+        # Identify the route for the interface sub-package
+        host = get_package_host(package)
         Interfaces[host] = dict()
         logmsg(category="START", msg="   | %s" % host.upper())
+        pkg = f"{package}.interfaces"
 
-        ### module_obj = __import__(module, globals(), locals(), ['interfaces'], -1).interfaces #this looked cooler
+
+        # Attempt to load the package and identify all of its modules
         try:
-            module_obj = importlib.import_module(module+".interfaces")
+            interface_pkg = importlib.import_module(pkg)
+            interface_pkg_path = os.path.dirname(interface_pkg.__file__)
+            interface_modules = [name for _, name, _ in pkgutil.iter_modules([interface_pkg_path])]
         except ImportError as e:
-            if "No module named" in str(e):
-                logmsg(category="START", msg="   :   | "+str(e))
-            else:
-                logmsg(level="error", category="START", msg="   :   | %s (%s)"%(module,str(e)))
-                #logmsg(level="error", category="START", msg="   :   | ensure ...interfaces.__init__.py imports to your modules")
+            url = "https://github.com/Iranaphor/rasberry-coordination/wiki/ImportError-Debugging"
+            logmsg(level="error", category="START",msg=f"   :   | {package} ({str(e)})")
+            print(traceback.format_exc())
+            logmsg(level="error", category="START", msg="   :   | Ensure <<package>>.interfaces.<<module>>.iFACE")
+            logmsg(level="error", category="START",msg=f"   :   | FAQ @ {url}")
+            exit()
+
+        # Add the iFACE for each file
+        for interface_module in interface_modules:
+            try:
+                iFACE = importlib.import_module(f"{pkg}.{interface_module}").iFACE
+                if type(iFACE) != type(InterfaceBase) or not issubclass(iFACE, InterfaceBase):
+                    logmsg(level="error", category="START", msg=f"   :   | {submodule} invalid")
+                    exit()
+                logmsg(category="START", msg=f"   :   | {interface_module}")
+                Interfaces[host][interface_module] = iFACE
+            except ImportError as e:
+                url = "https://github.com/Iranaphor/rasberry-coordination/wiki/ImportError-Debugging"
+                logmsg(level="error", category="START", msg=f"   :   | When importing: {host}.interfaces.{interface_module}")
+                logmsg(level="error", category="START", msg=f"   :   :   | {str(e).split(' (')[0]}")
+                logmsg(level="error", category="START", msg=f"   :   :   | TRY: python3 -c 'import {pkg}.{interface_module}'")
+                #logmsg(level="error",category="START", msg=f"   :   :   | FAQ: {url}")
                 print(traceback.format_exc())
-                quit()
-            continue
-
-        for obj in [d for d in dir(module_obj) if not d.startswith('__')]:
-            file = getattr(module_obj, obj)
-
-            if not hasattr(file, obj):
-                continue
-            cls = getattr(file, obj)
-
-            if type(cls)!=type(InterfaceBase) or not issubclass(cls, InterfaceBase): continue
-            Interfaces[host][obj] = cls
-            logmsg(category="START", msg="   :   | %s" % obj)
-#    exit()
-
-class Stg(object):
-    from math import ceil, floor
-
-    def __init__(self, cls, md=False):
-        self.functions = ['__repr__', '__init__', '_start', '_query', '_end']
-
-        self.md = md
-        self.md_surround = '`' if md else ''
-        self.md_spacer = '\n' if self.md else ''
-
-        self.name = cls.__name__
-
-        self.parents = [cls]
-        self.get_parents()
-
-        self.indexes = []
-        self.get_indexes()
-
-    def get_parents(self):
-        while self.parents[-1] is not object:
-            self.parents.append(self.parents[-1].__bases__[0])
-        self.parents = [p for p in self.parents[:-1]]
-
-    def get_indexes(self):
-        self.indexes = []
-        for i in range(len(self.parents)):
-            a, b = divmod(i, 2)
-            self.indexes.append(('.' if b else '') + (':' * a))
-        self.indexes = [' '*(a+b-len(i)) + i for i in self.indexes]
-
-    def __repr__(self):
-        """
-        ---------------------------------------------------------------------------
-        #### NavigateToBaseNode: [`NavigateToNode(.)`, `Navigation(:)`, `StageBase(.:)`]
-        Used to navigate to a given base_node
-
-            -> __repr__
-               | .: | Simplified representation of class for clean informative logging
-               |  : | Display class with idle navigation target
-
-            -> __init__
-               | .: | Class initialisation for populating default values
-               |  : | Identify the location from which the target is identified
-               |    | Call super to set association to base_node
-
-            -> _start
-               | .: | Stage start, called when this is the active stage.
-               |  : | Flag the agent as requiring a route
-               |  . | Start task by setting the target to a given node
-
-            -> _query
-               | .: | Used to define the criteria which must be met for the stage to be completed
-               |  : | Complete when the agent's location is identical to the target location.
-
-            -> _end
-               | .: | Used to set any fields as the stage is about to be removed
-               |  : | End navigation by refreshing routes for other agents in motion.
-        """
-        self.repr = ''
-        def pint(s): self.repr = self.repr+"\n"+s
-        pint("\n")
-        z = zip(self.parents[1:], self.indexes[1:])
-        parents = str(["%s(%s)" % (p.__name__, i.replace(' ', '')) for p, i in z]).replace("'", "%s" % self.md_surround)
-        title = "%s: %s" % (self.parents[0].__name__, parents)
-        if self.md:
-            pint("-"*len(title))
-            pint("#### %s" % title)
-            pint("%s" % self.parents[0].__doc__)
-        else:
-            pint(title)
-            pint("-"*len(title))
-            pint("    DESC: %s" % self.parents[0].__doc__)
-
-        for f in self.functions:
-            self.repr += self.md_spacer
-            pint("    -> %s" % f)
-            zp = zip(self.parents, self.indexes)
-            zp.reverse()
-            for p, i in zp:
-                if f in p.__dict__:
-                    d = p.__dict__[f].__doc__
-                    pint("       | %s | %s" % (i, d))
-        pint("\n")
-        return self.repr
+                exit()
 
 
-def print_stages_md():
-    import rasberry_coordination
-    from rasberry_coordination_core.task_management import Stg
-    from rasberry_coordination_core.task_management import base
-    from rasberry_coordination_core.task_management.modules import health_monitoring
-    from rasberry_coordination_core.task_management.modules import transportation
-    from rasberry_coordination_core.task_management.modules import uv_treatment
-    from rasberry_coordination_core.task_management.modules import data_collection
-
-    # Stg(base.StageDef.__dict__['NavigateToBaseNode'])
-    ba = ([v for k, v in base.StageDef.__dict__.items() if not k.startswith('_')],              base)
-    hm = ([v for k, v in health_monitoring.StageDef.__dict__.items() if not k.startswith('_')], health_monitoring)
-    tp = ([v for k, v in transportation.StageDef.__dict__.items() if not k.startswith('_')],    transportation)
-    uv = ([v for k, v in uv_treatment.StageDef.__dict__.items() if not k.startswith('_')],      uv_treatment)
-    dm = ([v for k, v in data_collection.StageDef.__dict__.items() if not k.startswith('_')],   data_collection)
-
-    filepath = rasberry_coordination.__path__[-1].replace('/src/rasberry_coordination', '/docs/StageList.md')
-    modules = [ba, hm, tp, uv, dm]
-    with open(filepath, 'w') as f:
-
-        f.write('# Stage List:\nThis document details the structure and formatting of the stages defined in the StageDef for each module in:\n\n')
-
-        for m in modules:
-            f.write('\n- [%s](#%s)' % (m[1].__doc__, m[1].__doc__.replace(' ','')))
-
-        for m in modules:
-            module_name = m[1].__doc__
-            module_ref = m[1].__name__.replace('rasberry_coordination.task_management.','')
-            f.write('\n\n%s\n<a name="%s"></a>\n## %s\nStages defined in the %s module:  ' % ("-"*50, module_name.replace(' ', ''), module_name, module_ref))
-            for v in m[0]: f.write(Stg(v, True).__repr__())
-
-# if __name__ == '__main__':
-    # from rasberry_coordination_core.task_management import print_stages_md; print_stages_md()
-    # print_stages_md()

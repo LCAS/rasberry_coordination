@@ -1,9 +1,17 @@
-from rasberry_coordination_core.task_management.__init__ import Stages
+# -*- coding: utf-8 -*-
+#! /usr/bin/env python3
+# ----------------------------------
+# @author: jheselden
+# @email: jheselden@lincoln.ac.uk
+# @date:
+# ----------------------------------
+
+from rasberry_coordination_core.task_management import Stages
 from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 from rasberry_coordination_core.logmsg_utils import logmsg
 
 
-class Interface(object):
+class iFACE(object):
 
     def __repr__(self):
         return str(self.__class__).split('\'')[1].split('.')[-1]
@@ -38,4 +46,5 @@ class Interface(object):
         logmsg(category="DTM", msg="   | restarting task %s" % (self.agent['name']))
         self.agent.add_task(module='base', name=agent['name'], task_id=self.agent['id'], index=0, quiet=True)
         self.agent.task = None
+
 

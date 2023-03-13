@@ -1,30 +1,35 @@
-#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+#! /usr/bin/env python3
 # ----------------------------------
 # @author: jheselden
 # @email: jheselden@lincoln.ac.uk
 # @date:
 # ----------------------------------
 
-import actionlib
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as Interface
+from rasberry_coordination_core.task_management import Stages
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
+from rasberry_coordination_core.logmsg_utils import logmsg
+
 import tf2_ros
 import traceback
-
 from rospy_message_converter.message_converter import convert_dictionary_to_ros_message as rosmsg
+from rasberry_coordination_core.task_management.modules.navigation.interfaces.GeneralNavigator import GeneralNavigator
+from rasberry_coordination_core.task_management.__init__ import fetch_property
 
 from std_msgs.msg import Header, String
 from nav_msgs.msg import Path
+from diagnostic_msgs.msg import KeyValue
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from topological_navigation_msgs.msg import ClosestEdges
 from strands_navigation_msgs.msg import ExecutePolicyModeGoal, ExecutePolicyModeAction, TopologicalMap, TopologicalRoute
 
-from rasberry_coordination_core.logmsg_utils import logmsg
-from rasberry_coordination_core.task_management.modules.navigation.interfaces.GeneralNavigator import GeneralNavigator
-
-from rasberry_coordination_core.task_management.__init__ import fetch_property
-
-class RobotDebug(GeneralNavigator):
+# Automanaged by rasberry_coordination_core.task_management.__init__.load_modules
+# Interface class must be named `iFACE` to be recognised for import
+# It will then be identifiable by its Interfaces[<<module>>][<<filename>>]
+class iFACE(Interface):
     def __init__(self, agent, details):
-        super(RobotDebug, self).__init__(agent, details)
+        super(iFACE, self).__init__(agent, details)
         aid = self.agent.agent_id
 
         # Containers

@@ -6,6 +6,7 @@
 # ----------------------------------
 
 import os, yaml
+from rclpy.impl.logging_severity import LoggingSeverity
 from rasberry_coordination_core.coordinator_node import GlobalLogger
 
 def logmsgbreak(total=3):
@@ -18,7 +19,7 @@ def logmsgbreak(total=3):
     for i in range(total):
         logmsg(category="null")
 
-
+os.environ["RCUTILS_CONSOLE_OUTPUT_FORMAT"] = "{severity}: {message}"
 def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speech=False):
     """ Print formatted log messages to console.
 
@@ -58,19 +59,10 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
         return
 
     use_custom_formatting = True
-    disable_ros_time_printout = True  # Can cause visual issues on console such as below:
-    # [INFO] [1605509085.140152]: OTHER  | var: 1	#output as false
-    # [INFO] OTHER  | var: 1 						#ideal output if true
-    # [INFO] OTHER  | var: 1152]:					#rostime char after end of ideal output appear (\b cant reach)
-    # TODO: include padding at end of msg
 
     if category.upper() in reject_categories: return
 
     if use_custom_formatting:
-
-        ros_time = ''
-        if disable_ros_time_printout:
-            ros_time = '\b' * 21  # TODO: swap out using \u001b[{n}D
 
         """ Format category portion of message """
         total_pad_space = max([len(_category) + 1 for _category in valid_categories])
@@ -130,23 +122,29 @@ def logmsg(level="info", category="OTHER", id="empty", msg='', throttle=0, speec
             c3 = colour_id[str(id)]
 
         basic_msg = msg
-        msg = ros_time + "%s%s%s|%s%s%s %s%s%s" % (c1, cat, c2, c3, ids, reset, c4, msg, reset)
+        msg = f"{c1}{cat}{c2}|{c3}{ids}{reset} {c4}{msg}{reset}"
     else:
         if category == "null": return
         msg = category + " | " + str(id) + " | " + msg
 
     # log in different manners based on the severity level and throttling
-    logs = {"debug": GlobalLogger.debug,
-            "info":  GlobalLogger.info,
-            "warn":  GlobalLogger.warn,
-            "error": GlobalLogger.error,
-            "fatal": GlobalLogger.fatal}
-    logs[level](msg)
+    if level == "debug": GlobalLogger.debug(msg)
+    elif level == "info": GlobalLogger.info(msg)
+    elif level == "warn": GlobalLogger.warn(msg)
+    elif level == "error": GlobalLogger.error(msg)
+    elif level == "fatal": GlobalLogger.fatal(msg)
+    #logger = {"debug": GlobalLogger.debug,
+    #          "info":  GlobalLogger.info,
+    #          "warn":  GlobalLogger.warn,
+    #          "error": GlobalLogger.error,
+    #          "fatal": GlobalLogger.fatal}
+    #slogger['info'](msg)
 
 
     if id=="empty": id='';
     # if speech: os.system('spd-say "%s, %s" -r 10 -t female2 -w'%(id, basic_msg));
     if speech: os.system('espeak "%s"'%basic_msg);
+
 
 
 

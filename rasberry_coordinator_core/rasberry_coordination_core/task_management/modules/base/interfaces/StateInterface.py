@@ -1,9 +1,23 @@
-from diagnostic_msgs.msg import KeyValue
+# -*- coding: utf-8 -*-
+#! /usr/bin/env python3
+# ----------------------------------
+# @author: jheselden
+# @email: jheselden@lincoln.ac.uk
+# @date:
+# ----------------------------------
 
-from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as Interface
+from rasberry_coordination_core.task_management import Stages
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 from rasberry_coordination_core.logmsg_utils import logmsg
 
-class StateInterface(Interface):
+from diagnostic_msgs.msg import KeyValue
+
+
+# Automanaged by rasberry_coordination_core.task_management.__init__.load_modules
+# Interface class must be named `iFACE` to be recognised for import
+# It will then be identifiable by its Interfaces[<<module>>][<<filename>>]
+class iFACE(Interface):
     def __init__(self, agent, details, state_publisher, state_subscriber):
         #setup communication channels
         super(StateInterface, self).__init__(agent, details)

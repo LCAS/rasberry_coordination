@@ -1,7 +1,7 @@
 version: 1.2.4
 
 #STANDARD AGENTS
-default_agents:
+debug_agents:
   - agent_id: scheduler
     setup: scheduler
 
@@ -47,7 +47,7 @@ planning_format:
     heterogeneous_map: true
 
 #MODULES
-active_modules:
+included_task_packages:
   - name: base
   - name: assignment
   - name: navigation

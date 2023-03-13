@@ -1,6 +1,5 @@
 from rasberry_coordination_core.logmsg_utils import logmsg
 from math import floor, ceil
-from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode
 
 class OccupancyFilters(object):
 
@@ -18,6 +17,8 @@ class OccupancyFilters(object):
 
         #find entry node (all edges to node)
         #loop through edges till reaching a node with more than 1 new edge
+        """
+        from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode
         for i in range(1000):
 
             #TODO: GetNode should be referencing the map_manager, not a new function
@@ -31,6 +32,7 @@ class OccupancyFilters(object):
             node = edges[0]
 
         return [node]
+        """
 
     @classmethod
     def neighbour_row_tall_ends(cls, map, node_list, node):

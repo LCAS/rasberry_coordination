@@ -1,10 +1,24 @@
-from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface
-from rasberry_coordination_core.topomap_management.occupancy import OccupancyFilters
+# -*- coding: utf-8 -*-
+#! /usr/bin/env python3
+# ----------------------------------
+# @author: jheselden
+# @email: jheselden@lincoln.ac.uk
+# @date:
+# ----------------------------------
+
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as Interface
+from rasberry_coordination_core.task_management import Stages
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 from rasberry_coordination_core.logmsg_utils import logmsg
 
 
-class Human(Interface):
+from diagnostic_msgs.msg import KeyValue
+from rasberry_coordination_core.topomap_management.occupancy import OccupancyFilters
 
+# Automanaged by rasberry_coordination_core.task_management.__init__.load_modules
+# Interface class must be named `iFACE` to be recognised for import
+# It will then be identifiable by its Interfaces[<<module>>][<<filename>>]
+class iFACE(Interface):
     def occupation(self):
         """ Filter map based on occupation types associated to node name """
         if not self.agent.location.has_presence:

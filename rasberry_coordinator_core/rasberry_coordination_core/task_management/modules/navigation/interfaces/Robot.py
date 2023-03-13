@@ -1,38 +1,33 @@
-#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+#! /usr/bin/env python3
 # ----------------------------------
-# @author: gpdas
-# @email: pdasgautham@gmail.com
+# @author: jheselden
+# @email: jheselden@lincoln.ac.uk
 # @date:
 # ----------------------------------
 
-from random import random
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as Interface
+from rasberry_coordination_core.task_management.modules.navigation.interfaces.GeneralNavigator import iFACE as GeneralNavigator
+from rasberry_coordination_core.task_management import Stages
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
+from rasberry_coordination_core.logmsg_utils import logmsg
 
-import actionlib
+from random import random
+from rclpy.action import ActionClient
 import tf2_ros
 
 from std_msgs.msg import Header, String
 from nav_msgs.msg import Path
+from diagnostic_msgs.msg import KeyValue
 from geometry_msgs.msg import PoseStamped, Pose
 from strands_navigation_msgs.msg import ExecutePolicyModeGoal, ExecutePolicyModeAction, TopologicalMap, TopologicalRoute
-from topological_navigation_msgs.msg import GotoNodeGoal, GotoNodeAction
 
-from topological_navigation.tmap_utils import get_node as get_topomap_node
-from topological_navigation.route_search import TopologicalRouteSearch # we should be using TopologicalRouteSearch2 and this should be handled by map_handler
-from rasberry_coordination_core.task_management.modules.navigation.interfaces.GeneralNavigator import GeneralNavigator
-
-from rasberry_coordination_core.logmsg_utils import logmsg, Lock
-
-
-
-class Robot(GeneralNavigator):
+# Automanaged by rasberry_coordination_core.task_management.__init__.load_modules
+# Interface class must be named `iFACE` to be recognised for import
+# It will then be identifiable by its Interfaces[<<module>>][<<filename>>]
+class iFACE(Interface):
     def __init__(self, agent, details):
-        """initialise the Robot class
-
-        Keyword arguments:
-
-        robot_id - id of robot
-        """
-        super(Robot, self).__init__(agent, details)
+        super(iFACE, self).__init__(agent, details)
         self.robot_id = self.agent.agent_id
         self.ns = "/%s/" %(self.robot_id)
         self.speaker_fn = self.agent.speaker
@@ -52,109 +47,14 @@ class Robot(GeneralNavigator):
         global Subscriber
         global Publisher
 
-        self.topo_map = None
-        self.rec_topo_map = False
-        self.topological_map_sub = Subscriber("topological_map", TopologicalMap, self._map_cb)
-
         self.route_search = None
         self.route_publisher = Publisher("/%s/current_route" %(self.robot_id), Path, latch=True, queue_size=5)
-
         self.topo_route_sub = Subscriber("/%s/topological_navigation/route" %(self.robot_id),
-                                               TopologicalRoute,
-                                               self.topo_route_cb,
-                                               queue_size=5)
+                                          TopologicalRoute, self.topo_route_cb, queue_size=5)
 
         # navigation action clients
-        self._topo_nav = actionlib.SimpleActionClient(self.ns + "topological_navigation", GotoNodeAction)
-        self._exec_policy = actionlib.SimpleActionClient(self.ns + "topological_navigation/execute_policy_mode", ExecutePolicyModeAction)
-
-    def _map_cb(self, msg):
-        """This function receives the Topological Map
-        """
-        self.topo_map = msg
-        self.rec_topo_map = True
-
-        self.route_search = TopologicalRouteSearch(self.topo_map)
-        self.publish_route()
-
-    def topo_route_cb(self, msg):
-        """callback for topological_navigation/route messages
-        """
-        edges = []
-        for i in range(len(msg.nodes)-1):
-            _, _edges = self.get_path(msg.nodes[i], msg.nodes[i+1])
-            for edge in _edges:
-                edges.append(edge)
-        self.publish_route(source=msg.nodes, edge_id=edges)
-
-    def get_node(self, node):
-        """get_node: Given a node name return its node object.
-        A wrapper for the get_node function in tmap_utils
-
-        Keyword arguments:
-
-        node -- name of the node in topological map"""
-        return get_topomap_node(self.topo_map, node) #TODO: we should be using the utilities in the map_handler
-
-    def get_path(self, start_node, goal_node):
-        """get route_nodes and route_edges from start_node to goal_node
-
-        Keyword arguments:
-
-        start_node -- name of the starting node
-        goal_node -- name of the goal node
-        """
-        logmsg(category="rob_py", msg='get_path from start_node:[%s] to goal_node:[%s]'%(start_node,goal_node))
-        route = self.route_search.search_route(start_node, goal_node)
-        if route is None:
-            logmsg(category="rob_py", id=self.robot_id, msg='no route found between %s and %s' %(start_node, goal_node))
-            #TODO: Set this up so it doesnt repeat along with with "logwarn(replanning now)"
-
-            return ([], [], [float("inf")])
-        route_nodes = route.source
-        route_nodes.append(goal_node)
-        route_edges = route.edge_id
-
-        return (route_nodes, route_edges)
-
-    def set_toponav_goal(self, goal, done_cb=None, active_cb=None, feedback_cb=None):
-        """send_goal to topo_nav action client
-        """
-        logmsg(category="rob_py", id=self.robot_id, msg='assigned toponav goal set as %s'%(goal.target))
-        if done_cb is None:
-            done_cb = self._done_toponav_cb
-        if feedback_cb is None:
-            feedback_cb = self._fb_toponav_cb
-
-        self.toponav_goal = goal
-        self.toponav_result = None
-        self.toponav_route = None
-        self.toponav_status = None
-        self._topo_nav.send_goal(goal, done_cb=done_cb, active_cb=active_cb, feedback_cb=feedback_cb)
-
-    def _fb_toponav_cb(self, fb):
-        """feedback callback
-        """
-        self.toponav_route = fb.route
-        self.publish_route()
-
-    def _done_toponav_cb(self, status, result):
-        """done callback
-        """
-        self.toponav_goal = GotoNodeGoal()
-        self.toponav_status = status
-        self.toponav_result = result
-        self.publish_route()
-
-    def cancel_toponav_goal(self, ):
-        """
-        """
-        self._topo_nav.cancel_all_goals()
-        self.toponav_goal = GotoNodeGoal()
-        self.toponav_result = None
-        self.toponav_route = None
-        self.toponav_status = None
-        self.publish_route()
+        global ActionClient
+        self._exec_policy = ActionClient(ExecutePolicyModeAction, f"{self.ns}topological_navigation/execute_policy_mode")
 
     def set_execpolicy_goal(self, goal, done_cb=None, active_cb=None, feedback_cb=None):
         """send_goal to execute_policy_mode action client

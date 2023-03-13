@@ -2,7 +2,8 @@
 
 import weakref
 from rasberry_coordination_core.task_management.__init__ import Stages, Interfaces
-from rasberry_coordination_core.logmsg_utils import logmsg, logmsgbreak, Rasberry_Logger
+from rasberry_coordination_core.logmsg_utils import logmsg, logmsgbreak
+from rasberry_coordination_core.coordinator_tools import Rasberry_Logger
 from rasberry_coordination_core.task_management.dynamic_task_management import DTM
 
 class TaskManager(object):

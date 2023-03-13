@@ -31,8 +31,8 @@ def validate_types(file, config):
     validate_field(file, config, mandatory=True, key='version', datatype=[str])
 
     # Agent Initialisation
-    if 'default_agents' in config:
-        for agent in config['default_agents']:
+    if 'debug_agents' in config:
+        for agent in config['debug_agents']:
             validate_field(file, agent, mandatory=True,  key='agent_id', datatype=[str])
             validate_field(file, agent, mandatory=True,  key='setup', datatype=[str])
             validate_field(file, agent, mandatory=False, key='local_properties', datatype=[dict])
@@ -49,7 +49,7 @@ def validate_types(file, config):
     validate_field(file, config['planning_format'], mandatory=True, key='heterogeneous_map', datatype=[bool])
 
     # Module Initialisation
-    for module in config['active_modules']:
+    for module in config['included_task_packages']:
         validate_field(file, module, mandatory=True,  key='name', datatype=[str])
         validate_field(file, module, mandatory=False, key='properties', datatype=[dict])
 
@@ -82,9 +82,9 @@ def main(args=None):
 
 
     # Agent Initialisation
-    config_data['default_agents'] = config_data['default_agents'] or dict()
+    config_data['debug_agents'] = config_data['debug_agents'] or dict()
     config_data['agents'] = []
-    for agent in config_data['default_agents']:
+    for agent in config_data['debug_agents']:
         filepath = os.getenv('AGENT_SETUP_CONFIG', None)
         setup_file = filepath + "%s.yaml" % agent['setup']
         with open(setup_file) as f:
@@ -105,8 +105,8 @@ def main(args=None):
 
     # Initialise modules for task manager
     import rasberry_coordination_core.task_management.__init__ as task_init
-    task_init.set_properties(config_data['active_modules'])
-    task_init.load_custom_modules(list(set([t['name'] for t in config_data['active_modules']])))
+    task_init.set_properties(config_data['included_task_packages'])
+    task_init.load_custom_modules(list(set([t['name'] for t in config_data['included_task_packages']])))
 
 
     # Create Coordinator
