@@ -40,7 +40,7 @@ class RoutingManager(object):
         self.force_replan_to_publish = False
         self.log_routes = True
         global Subscriber
-        self.force_replan_cb = GlobalNode.create_subscription(Empty, '/rasberry_coordination/force_replan', self.force_replan, 0)
+        self.force_replan_cb = GlobalNode.create_subscription(Empty, '~/routing_management/force_replan', self.force_replan, 0)
 
         # Define route polanner properties
         self.planning_type = planning_format['planning_type']

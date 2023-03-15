@@ -34,11 +34,11 @@ class DTM(object):
         """ DTM Publishers """
         self.previous_task_list = None
         self.previous_task_list_2 = None
-        self.active_tasks_pub = GlobalNode.create_publisher(TasksDetailsList, '~/active_tasks_details', 0)
-        self.task_pause_pub = GlobalNode.create_publisher(Bool, '~/pause_state', 0)
+        self.active_tasks_pub = GlobalNode.create_publisher(TasksDetailsList, '~/task_management/actives', 0)
+        self.task_pause_pub = GlobalNode.create_publisher(Bool, '~/task_management/pause_state', 0)
 
         """ DTM Dynamic Task Management """
-        self.dtm_sub = GlobalNode.create_subscription(Interruption, '~/dtm', self.InterruptTask, 0)
+        self.dtm_sub = GlobalNode.create_subscription(Interruption, '~/task_management/interrupt', self.InterruptTask, 0)
 
         """ Reset the DTM Active Task List """
         self.ResetTaskList()

@@ -47,16 +47,16 @@ class AgentManager(object):
 
         # Load each of the default agents
         self.add_agents(default_agents)
-        topic = '~/dynamic_fleet/add_agent'
+        topic = '~/agent_management/add_agent'
         self.s = GlobalNode.create_subscription(NewAgentConfig, topic, self.add_agent_cb, 0)
 
         # Marker Management
         self.cb = dict()
-        self.set_marker_pub = GlobalNode.create_publisher(MarkerDetails, '~/set_marker', 0)
-        self.get_markers_sub = GlobalNode.create_subscription(Empty, '~/get_markers', self.get_markers_cb, 0)
+        self.set_marker_pub = GlobalNode.create_publisher(MarkerDetails, '~/agent_management/set_marker', 0)
+        self.get_markers_sub = GlobalNode.create_subscription(Empty, '~/agent_management/get_markers', self.get_markers_cb, 0)
 
         # Fleet Monitoring
-        self.fleet_pub = GlobalNode.create_publisher(AgentList, '~/fleet_monitoring/fleet', 0)
+        self.fleet_pub = GlobalNode.create_publisher(AgentList, '~/agent_management/fleet_details', 0)
         self.fleet_last = None
 
     """ Dynamic Fleet """
@@ -211,10 +211,10 @@ class AgentDetails(object):
         global Publisher
         self.colour = None
         self.modules['base'].details['default_colour'] = lp['rviz_default_colour'] if 'rviz_default_colour' in lp else ''
-        self.set_marker_pub = GlobalNode.create_publisher(MarkerDetails, '~/set_marker', 0)
+        self.set_marker_pub = GlobalNode.create_publisher(MarkerDetails, '~/agent/set_marker', 0)
 
         #Debug
-        self.speaker_pub = GlobalNode.create_publisher(Str, f"/{self.agent_id}/ui/speaker", 0)
+        self.speaker_pub = GlobalNode.create_publisher(Str, f"/{self.agent_id}/verbal_speaker", 0)
 
         #Final Setup
         for m in self.modules.values(): m.add_init_task()
