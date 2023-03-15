@@ -110,10 +110,6 @@ def load_custom_modules(clean_package_list):
                 print(traceback.format_exc())
                 exit()
 
-
-
-
-
     # Import Interfaces
     logmsg(category="START", msg="INTERFACES: ")
     from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as InterfaceBase
@@ -160,5 +156,3 @@ def load_custom_modules(clean_package_list):
                 #logmsg(level="error",category="START", msg=f"   :   :   | FAQ: {url}")
                 print(traceback.format_exc())
                 exit()
-
-

@@ -5,16 +5,24 @@
 # @date:
 # ----------------------------------
 
+# Builtins
 import traceback
 import time, datetime
 import yaml
 
+# Messages
 from std_msgs.msg import Empty
 import strands_navigation_msgs.msg
 
+# ROS2
+from rasberry_coordination_core.coordinator_node import GlobalNode
+
+# Components
 from rasberry_coordination_core.routing_management.fragment_planner import FragmentPlanner
 
+# Logging
 from rasberry_coordination_core.logmsg_utils import logmsg
+
 
 class RoutingManager(object):
     def __init__(self, agent_manager, planning_format):
@@ -32,7 +40,7 @@ class RoutingManager(object):
         self.force_replan_to_publish = False
         self.log_routes = True
         global Subscriber
-        self.force_replan_cb = Subscriber('/rasberry_coordination/force_replan', Empty, self.force_replan)
+        self.force_replan_cb = GlobalNode.create_subscription(Empty, '/rasberry_coordination/force_replan', self.force_replan, 0)
 
         # Define route polanner properties
         self.planning_type = planning_format['planning_type']

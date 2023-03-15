@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys
+import os, sys, time
 import yaml
 from pprint import pprint
 
@@ -96,7 +96,10 @@ def main(args=None):
                 m['details'] = dict()
 
         agent['local_properties'] = agent['local_properties'] if 'local_properties' in agent else dict()
-        config_data['agents'] += [{'agent_id': agent['agent_id'], 'local_properties':agent['local_properties'], 'modules':setup_data['modules']}]
+        config_data['agents'] += [{'agent_id': agent['agent_id'],
+                                   'local_properties':agent['local_properties'],
+                                   'modules':setup_data['modules']
+                                   }]
 
 
     # Start ROS Node and create global reference to log from any file
@@ -110,18 +113,16 @@ def main(args=None):
 
 
     # Create Coordinator
-    import rasberry_coordination_core.rasberry_coordinator
-    coordinator = rasberry_coordination.rasberry_coordinator.RasberryCoordinator(
-        default_agents=config_data['agents'],
-        planning_format=config_data['planning_format'],
-        special_nodes=config_data['special_nodes'])
-
-    time.sleep(1)  # give a second to let everything settle
-
+    from rasberry_coordination_core.rasberry_coordinator import RasberryCoordinator
+    coordinator = RasberryCoordinator(
+            default_agents=config_data['agents'],
+            planning_format=config_data['planning_format'],
+            special_nodes=config_data['special_nodes']
+    )
 
     # Launch Inspector
-    from rasberry_coordination_core.root_inspector import RootInspector
-    RootInspector(topic='~root_inspector', root=coordinator)
+    #from rasberry_coordination_core.root_inspector import RootInspector
+    #RootInspector(topic='~root_inspector', root=coordinator)
 
 
     # Run the Coordinator

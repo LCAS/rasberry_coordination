@@ -11,7 +11,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'rospy-message-converter'],
     zip_safe=True,
     maintainer='james',
     maintainer_email='primordia@live.com',

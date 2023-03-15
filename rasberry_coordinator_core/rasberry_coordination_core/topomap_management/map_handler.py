@@ -1,18 +1,26 @@
+# -*- coding: utf-8 -*-
+#! /usr/bin/env python3
+# ----------------------------------
+# @author: jheselden
+# @email: jheselden@lincoln.ac.uk
+# @date:
+# ----------------------------------
+
 # Builtins
 from copy import copy, deepcopy
 from time import time
 import yaml
-
-# ROS2
-from rospy_message_converter.message_converter import convert_dictionary_to_ros_message as rosmsg
 
 # Messages
 from std_msgs.msg import Bool, String as Str, Empty as Emp
 from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 
 # Components
-from topological_navigation.route_search2 import TopologicalRouteSearch2 as TopologicalRouteSearch
-from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, get_distance_to_node_tmap2 as GetNodeDist
+#from topological_navigation.route_search2 import TopologicalRouteSearch2
+#from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, get_distance_to_node_tmap2 as GetNodeDist
+
+# ROS2
+from rasberry_coordination_core.coordinator_node import GlobalNode
 
 # Logging
 from rasberry_coordination_core.logmsg_utils import logmsg
@@ -48,9 +56,8 @@ class MapObj(object):
 
     def enable_map_monitoring(self):
         # callback are enabled in base.StageDef.WaitForMap._start()
-        global Subscriber
-        self.global_tmap_sub = Subscriber('/topological_map_2', Str, self.global_map_cb)
-        self.local_tmap_sub = Subscriber(self.topic, Str, self.local_map_cb)
+        self.global_tmap_sub = GlobalNode.create_subscription(Str, '/topological_map_2', self.global_map_cb, 0)
+        self.local_tmap_sub = GlobalNode.create_subscription(Str, self.topic, self.local_map_cb, 0)
 
     def global_map_cb(self, msg):
         # This is included for each agent as a single global map is needed for an agent to
@@ -79,7 +86,7 @@ class MapObj(object):
         # used for planning direct routes
         self.empty_map = self.load_raw_tmap(self.raw_msg)
         t3 = time()-t0
-        self.empty_route_search = TopologicalRouteSearch(self.empty_map)
+        self.empty_route_search = TopologicalRouteSearch2(self.empty_map)
         t4 = time()-t0
         self.empty_node_list = [node["node"]["name"] for node in self.empty_map['nodes']]
         t5 = time()-t0
@@ -88,7 +95,7 @@ class MapObj(object):
         self.filtered_map = deepcopy(self.empty_map)
         #self.filtered_map = self.load_raw_tmap(self.raw_msg)
         t6 = time()-t0
-        self.filtered_route_search = TopologicalRouteSearch(self.filtered_map)
+        self.filtered_route_search = TopologicalRouteSearch2(self.filtered_map)
         t7 = time()-t0
         self.filtered_node_list = copy(self.empty_node_list)
         #self.filtered_node_list = [node["node"]["name"] for node in self.filtered_map['nodes']]
@@ -103,7 +110,7 @@ class MapObj(object):
         # self.filtered_map = self.load_raw_tmap(self.raw_msg)
 
     def complete_map_reset(self):
-        self.filtered_route_search = TopologicalRouteSearch(self.filtered_map)
+        self.filtered_route_search = TopologicalRouteSearch2(self.filtered_map)
         self.filtered_node_list = [node["node"]["name"] for node in self.filtered_map['nodes']]
 
     def load_raw_tmap(self, data):
@@ -163,9 +170,15 @@ class MapObj(object):
         return sum(route_distance)
 
     def get_node_pose(self, node):
-        node = self.get_node(node)['node']['pose']
-        pos, ori = node['position'], node['orientation']
-        return rosmsg('geometry_msgs/Pose', node)
+        p, node = Pose(), self.get_node(node)['node']['pose']
+        p.position.x = node['position'][0]
+        p.position.y = node['position'][1]
+        p.position.z = node['position'][2]
+        p.orientation.x = node['orientation'][0]
+        p.orientation.y = node['orientation'][1]
+        p.orientation.z = node['orientation'][2]
+        p.orientation.w = node['orientation'][3]
+        return p
 
     def get_node_tf(self, node):
         node = self.get_node(node)['node']['pose']

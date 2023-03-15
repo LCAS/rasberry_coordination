@@ -15,11 +15,13 @@ import traceback, pprint
 import whiptail
 
 # Messages
-from std_srvs.srv import Trigger, TriggerResponse
 from std_msgs.msg import String as Str, Empty, Bool, ColorRGBA as ColourRGBA
 from diagnostic_msgs.msg import KeyValue
 from rasberry_coordination_msgs.msg import NewAgentConfig, MarkerDetails
 from rasberry_coordination_msgs.msg import Agent, AgentList, AgentRegistration, AgentState, AgentLocation, AgentHealth, AgentRendering
+
+# ROS2
+from rasberry_coordination_core.coordinator_node import GlobalNode
 
 # Components
 from rasberry_coordination_core.agent_management.location_handler import LocationObj as Location
@@ -39,24 +41,22 @@ class AgentManager(object):
         self.agent_details = {}
         self.new_agent_buffer = dict()
 
-        global ROSNode
-        global Publisher
-        global Subscriber
-
         # CallARobot Info Publisher
-        self.car_info_robots_pub = Publisher('/car_client/info/robots', Str, queue_size=1, latch=True)  #TODO: this should not be included here
+        self.car_info_robots_pub = GlobalNode.create_publisher(Str, '/car_client/info/robots', 0)
+        # todo: ^ should not be included here
 
         # Load each of the default agents
         self.add_agents(default_agents)
-        self.s = Subscriber('/rasberry_coordination/dynamic_fleet/add_agent', NewAgentConfig, self.add_agent_cb)
+        topic = '~/dynamic_fleet/add_agent'
+        self.s = GlobalNode.create_subscription(NewAgentConfig, topic, self.add_agent_cb, 0)
 
         # Marker Management
         self.cb = dict()
-        self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
-        self.get_markers_sub = Subscriber('/rasberry_coordination/get_markers', Empty, self.get_markers_cb)
+        self.set_marker_pub = GlobalNode.create_publisher(MarkerDetails, '~/set_marker', 0)
+        self.get_markers_sub = GlobalNode.create_subscription(Empty, '~/get_markers', self.get_markers_cb, 0)
 
         # Fleet Monitoring
-        self.fleet_pub = Publisher('/rasberry_coordination/fleet_monitoring/fleet', AgentList, latch=True, queue_size=2)
+        self.fleet_pub = GlobalNode.create_publisher(AgentList, '~/fleet_monitoring/fleet', 0)
         self.fleet_last = None
 
     """ Dynamic Fleet """
@@ -64,7 +64,10 @@ class AgentManager(object):
         def kvp_list(msg): return {kvp.key: yaml.safe_load(kvp.value) for kvp in msg}
         self.add_agent({'agent_id': msg.agent_id,
                         'local_properties': kvp_list(msg.local_properties),
-                        'modules': [{'name':m.name,'interface':str(m.interface), 'details':kvp_list(m.details)} for m in msg.modules]})
+                        'modules': [{'name':m.name,
+                                     'interface':str(m.interface),
+                                     'details':kvp_list(m.details)}
+                                   for m in msg.modules]})
 
     def add_agents(self, agent_list):
         for agent in agent_list:
@@ -112,8 +115,8 @@ class AgentManager(object):
             print(traceback.format_exc())
 
     def get_location(self, a):
-        return AgentLocation(current_node=a.location.current_node,
-                             current_edge=a.location.closest_edge)
+        return AgentLocation(current_node=str(a.location.current_node),
+                             current_edge=str(a.location.closest_edge))
 
     def get_registration(self, a):
         return AgentRegistration(registered=a.registration)
@@ -162,7 +165,7 @@ class AgentManager(object):
                 if t in ['base', 'health_monitoring']: continue
                 if t not in out[st]: out[st][t] = []
                 out[st][t] += [a.agent_id]
-        return Str(str(out or 'empty'))
+        return Str(data=str(out if out else 'empty'))
 
 class AgentDetails(object):
     """ Fields:
@@ -208,10 +211,10 @@ class AgentDetails(object):
         global Publisher
         self.colour = None
         self.modules['base'].details['default_colour'] = lp['rviz_default_colour'] if 'rviz_default_colour' in lp else ''
-        self.set_marker_pub = Publisher('/rasberry_coordination/set_marker', MarkerDetails, queue_size=5)
+        self.set_marker_pub = GlobalNode.create_publisher(MarkerDetails, '~/set_marker', 0)
 
         #Debug
-        self.speaker_pub = Publisher('/%s/ui/speaker'%self.agent_id, Str, queue_size=1)
+        self.speaker_pub = GlobalNode.create_publisher(Str, f"/{self.agent_id}/ui/speaker", 0)
 
         #Final Setup
         for m in self.modules.values(): m.add_init_task()
@@ -368,7 +371,12 @@ class AgentDetails(object):
         marker = MarkerDetails()
         marker.id = self.agent_id
         marker.structure = local['rviz_structure'] or rviz['structure']
-        marker.colour = ColourRGBA(int(self.colour[0:2],16), int(self.colour[2:4],16), int(self.colour[4:6],16), 1) if self.colour else ColourRGBA()
+        marker.colour = ColourRGBA()
+        if self.colour:
+            marker.colour.r = float(int(self.colour[0:2],16))
+            marker.colour.g = float(int(self.colour[2:4],16))
+            marker.colour.b = float(int(self.colour[4:6],16))
+            marker.colour.a = 1.0
 
         # Set where the location should come from
         if 'tf_source_topic' in rviz:

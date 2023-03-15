@@ -8,7 +8,7 @@
 
 from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as Interface
 from rasberry_coordination_core.task_management.modules.navigation.interfaces.GeneralNavigator import iFACE as GeneralNavigator
-from rasberry_coordination_core.task_management import Stages
+from rasberry_coordination_core.task_management.__init__ import Stages
 from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 from rasberry_coordination_core.logmsg_utils import logmsg
 
@@ -20,7 +20,8 @@ from std_msgs.msg import Header, String
 from nav_msgs.msg import Path
 from diagnostic_msgs.msg import KeyValue
 from geometry_msgs.msg import PoseStamped, Pose
-from strands_navigation_msgs.msg import ExecutePolicyModeGoal, ExecutePolicyModeAction, TopologicalMap, TopologicalRoute
+from strands_navigation_msgs.action import ExecutePolicyMode
+from strands_navigation_msgs.msg import TopologicalMap, TopologicalRoute
 
 # Automanaged by rasberry_coordination_core.task_management.__init__.load_modules
 # Interface class must be named `iFACE` to be recognised for import

@@ -7,6 +7,9 @@ from std_msgs.msg import Bool, String as Str, Empty as Emp
 from topological_navigation_msgs.msg import ClosestEdges
 from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 
+# ROS2
+from rasberry_coordination_core.coordinator_node import GlobalNode
+
 # Logging
 from rasberry_coordination_core.logmsg_utils import logmsg
 
@@ -23,11 +26,11 @@ class LocationObj(object):
     def enable_location_monitoring(self, agent_id):
         # callback are enabled in base.StageDef.WaitForLocalisation._start()
         global Subscriber
-        self.current_node_sub = Subscriber('/%s/current_node'    % agent_id, Str, self.current_node_cb)
-        self.closest_node_sub = Subscriber('/%s/closest_node'    % agent_id, Str, self.closest_node_cb)
-        self.closest_node_sub = Subscriber('/%s/closest_edges'    % agent_id, ClosestEdges, self.closest_edges_cb)
-        self.disable_loc = Subscriber('/%s/localisation/disable' % agent_id, Str, self.disable_localisation)
-        self.enable_loc  = Subscriber('/%s/localisation/enable'  % agent_id, Emp, self.enable_localisation)
+        self.current_node_sub = GlobalNode.Subscriber('/%s/current_node'    % agent_id, Str, self.current_node_cb)
+        self.closest_node_sub = GlobalNode.Subscriber('/%s/closest_node'    % agent_id, Str, self.closest_node_cb)
+        self.closest_node_sub = GlobalNode.Subscriber('/%s/closest_edges'    % agent_id, ClosestEdges, self.closest_edges_cb)
+        self.disable_loc = GlobalNode.Subscriber('/%s/localisation/disable' % agent_id, Str, self.disable_localisation)
+        self.enable_loc  = GlobalNode.create_subscription('/%s/localisation/enable'  % agent_id, Emp, self.enable_localisation)
 
     def __call__(self, accurate=False):
         if accurate:

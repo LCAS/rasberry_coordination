@@ -1,15 +1,28 @@
-from copy import deepcopy
-from rospy import Time, Duration, Subscriber, Service, Publisher, Time, get_param
+# -*- coding: utf-8 -*-
+#! /usr/bin/env python3
+# ----------------------------------
+# @author: jheselden
+# @email: jheselden@lincoln.ac.uk
+# @date:
+# ----------------------------------
 
+# Builtins
+from copy import deepcopy
+
+#
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as Interface
+from rasberry_coordination_core.task_management import Stages
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
+
+# Messages
 from std_msgs.msg import Bool, String as Str
 from diagnostic_msgs.msg import KeyValue
-
 from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 
-from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
-from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface
-from rasberry_coordination_core.task_management.__init__ import Stages
+# ROS2
+from rasberry_coordination_core.coordinator_node import GlobalNode
 
+# Logging
 from rasberry_coordination_core.logmsg_utils import logmsg
 
 
@@ -17,19 +30,15 @@ class DTM(object):
     def __init__(self, coordinator):
         logmsg(category="SETUP", msg="DTM Initialised")
         self.coordinator = coordinator
-        ns = "/rasberry_coordination"
 
         """ DTM Publishers """
         self.previous_task_list = None
         self.previous_task_list_2 = None
-
-        global Publisher
-        self.active_tasks_pub = Publisher('%s/active_tasks_details'%ns, TasksDetailsList)
-        self.task_pause_pub = Publisher('%s/pause_state'%ns, Bool)
+        self.active_tasks_pub = GlobalNode.create_publisher(TasksDetailsList, '~/active_tasks_details', 0)
+        self.task_pause_pub = GlobalNode.create_publisher(Bool, '~/pause_state', 0)
 
         """ DTM Dynamic Task Management """
-        global Subscriber
-        Subscriber('/rasberry_coordination/dtm', Interruption, self.InterruptTask)
+        self.dtm_sub = GlobalNode.create_subscription(Interruption, '~/dtm', self.InterruptTask, 0)
 
         """ Reset the DTM Active Task List """
         self.ResetTaskList()

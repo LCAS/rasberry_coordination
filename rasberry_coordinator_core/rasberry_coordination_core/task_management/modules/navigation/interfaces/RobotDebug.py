@@ -6,23 +6,31 @@
 # @date:
 # ----------------------------------
 
-from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as Interface
-from rasberry_coordination_core.task_management import Stages
-from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
-from rasberry_coordination_core.logmsg_utils import logmsg
-
 import tf2_ros
 import traceback
-from rospy_message_converter.message_converter import convert_dictionary_to_ros_message as rosmsg
-from rasberry_coordination_core.task_management.modules.navigation.interfaces.GeneralNavigator import GeneralNavigator
-from rasberry_coordination_core.task_management.__init__ import fetch_property
 
+# Messages
 from std_msgs.msg import Header, String
 from nav_msgs.msg import Path
 from diagnostic_msgs.msg import KeyValue
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from topological_navigation_msgs.msg import ClosestEdges
-from strands_navigation_msgs.msg import ExecutePolicyModeGoal, ExecutePolicyModeAction, TopologicalMap, TopologicalRoute
+from strands_navigation_msgs.msg import TopologicalMap, TopologicalRoute
+from strands_navigation_msgs.action import ExecutePolicyMode
+
+# Components
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as Interface
+from rasberry_coordination_core.task_management.modules.navigation.interfaces.GeneralNavigator import iFACE as GeneralNavigator
+from rasberry_coordination_core.task_management.__init__ import Stages
+from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
+from rasberry_coordination_core.task_management.__init__ import fetch_property
+
+# ROS2
+from rasberry_coordination_core.coordinator_node import GlobalNode
+
+# Logging
+from rasberry_coordination_core.logmsg_utils import logmsg
+
 
 # Automanaged by rasberry_coordination_core.task_management.__init__.load_modules
 # Interface class must be named `iFACE` to be recognised for import
@@ -34,29 +42,26 @@ class iFACE(Interface):
 
         # Containers
         self.buffer = []
-        self.execpolicy_goal = ExecutePolicyModeGoal()
+        self.execpolicy_goal = ExecutePolicyMode.Goal()
 
         # Set step-delay param
-        param = '/rasberry_coordination/task_modules/navigation/debug_robot_step_delay'
+        param = '~/task_modules/navigation/debug_robot_step_delay'
         default = fetch_property(param, 0.5)
 
-        global Subscriber
-        global Publisher
-
         # Route Publishers
-        goal_topic = "/%s/topological_navigation/execute_policy_mode/goal" % aid
-        self.goal_publisher  = Publisher(goal_topic, ExecutePolicyModeGoal, latch=True, queue_size=5)
-        self.goal_subscriber = Subscriber(goal_topic, ExecutePolicyModeGoal, self.subgoal)
+        goal_topic = f"/{aid}/topological_navigation/execute_policy_mode/goal"
+        self.goal_publisher  = GlobalNode.create_publisher(ExecutePolicyMode.Goal, goal_topic, 0)
+        self.goal_subscriber = GlobalNode.create_subscription(ExecutePolicyMode.Goal, goal_topic, self.subgoal, 0)
 
         # To update robots current location
-        self.current_node_pub = Publisher("/%s/current_node" % aid, String, latch=True, queue_size=5)
-        self.closest_node_pub = Publisher("/%s/closest_node" % aid, String, latch=True, queue_size=5)
-        self.closest_edge_pub = Publisher("/%s/closest_edges" % aid, ClosestEdges, latch=True, queue_size=5)
+        self.current_node_pub = GlobalNode.create_publisher(String, f"/{aid}/current_node", 0)
+        self.closest_node_pub = GlobalNode.create_publisher(String, f"/{aid}/closest_node", 0)
+        self.closest_edge_pub = GlobalNode.create_publisher(ClosestEdges, f"/{aid}/closest_edges", 0)
 
         # RVIZ display tools
-        self.rviz_route_publisher = Publisher("/%s/current_route" % aid, Path, latch=True, queue_size=5)
-        self.tf_broadcaster = tf2_ros.TransformBroadcaster()
-        self.pose_publisher = Publisher("/%s/robot_pose" % aid, Pose, latch=True, queue_size=5)
+        self.rviz_route_publisher = GlobalNode.create_publisher(Path, f"/{aid}/current_route", 0)
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster(GlobalNode)
+        self.pose_publisher = GlobalNode.create_publisher(Pose, f"/{aid}/robot_pose", 0)
 
 
     def set_execpolicy_goal(self, goal):

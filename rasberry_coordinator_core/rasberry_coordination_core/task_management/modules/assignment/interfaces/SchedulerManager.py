@@ -1,21 +1,32 @@
+# -*- coding: utf-8 -*-
+#! /usr/bin/env python3
+# ----------------------------------
+# @author: jheselden
+# @email: jheselden@lincoln.ac.uk
+# @date:
+# ----------------------------------
+
+# Messages
 from rasberry_coordination_msgs.msg import Task as TaskMsg, AllSchedulableTasks, SchedulableTasks
+
+# ROS2
+from rasberry_coordination_core.coordinator_node import GlobalNode
+
+# Components
+from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as Interface
+from rasberry_coordination_core.task_management.__init__ import Stages
 from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 
-from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import Interface
-from rasberry_coordination_core.task_management.__init__ import Stages
+# Logging
 from rasberry_coordination_core.logmsg_utils import logmsg
 
 
-class SchedulerManager(Interface):
+class iFACE(Interface):
 
     def __init__(self, agent, details=None):
-        super(SchedulerManager, self).__init__(agent=agent, details=details)
-
-        global Subscriber
-        self.schedule_sub = Subscriber('~scheduler/start_task', TaskMsg, self.schedule_new_task)
-
-        global Publisher
-        self.available_schedulers_pub = Publisher('~scheduler/available', AllSchedulableTasks, latch=True, queue_size=1)
+        super(iFACE, self).__init__(agent=agent, details=details)
+        self.schedule_sub = GlobalNode.create_subscription(TaskMsg, '~/scheduler/start_task', self.schedule_new_task, 0)
+        self.available_schedulers_pub = GlobalNode.create_publisher(AllSchedulableTasks, '~/scheduler/available', 0)
 
     def list_schedulable_tasks(self):
         ast = AllSchedulableTasks()
