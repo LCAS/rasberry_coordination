@@ -20,11 +20,11 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'add_agent.py = rasberry_coordination_core.add_agent:main',
-            'coordinator.py = rasberry_coordination_core.coordinator:main',
             'agent_markers.py = rasberry_coordination_core.agent_markers:main',
+            'coordinator.py = rasberry_coordination_core.coordinator:main',
+            'declare_agent.py = rasberry_coordination_core.declare_agent:main',
+            'restrictor.py = rasberry_coordination_core.restrictor:main',
             'speaker.py = rasberry_coordination_core.speaker:main'
-            # https://stackoverflow.com/a/782984/8929350
         ],
     },
 
