@@ -103,7 +103,7 @@ def main(args=None):
 
 
     # Start ROS Node and create global reference to log from any file
-    from rasberry_coordination_core.coordinator_node import initialise_ros2_node, GlobalNode
+    from rasberry_coordination_core.node import initialise_ros2_node, GlobalNode
     initialise_ros2_node()
 
     # Initialise modules for task manager
@@ -113,7 +113,7 @@ def main(args=None):
 
 
     # Create Coordinator
-    from rasberry_coordination_core.rasberry_coordinator import RasberryCoordinator
+    from rasberry_coordination_core.core import RasberryCoordinator
     coordinator = RasberryCoordinator(
             default_agents=config_data['agents'],
             planning_format=config_data['planning_format'],

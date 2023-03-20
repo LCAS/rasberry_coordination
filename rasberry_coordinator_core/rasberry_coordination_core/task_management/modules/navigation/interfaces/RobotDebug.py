@@ -26,10 +26,10 @@ from rasberry_coordination_core.task_management.containers.Task import TaskObj a
 from rasberry_coordination_core.task_management.__init__ import fetch_property
 
 # ROS2
-from rasberry_coordination_core.coordinator_node import GlobalNode
+from rasberry_coordination_core.node import GlobalNode
 
 # Logging
-from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.utils.logmsg import logmsg
 
 
 # Automanaged by rasberry_coordination_core.task_management.__init__.load_modules

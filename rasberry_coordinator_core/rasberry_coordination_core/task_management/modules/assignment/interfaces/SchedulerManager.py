@@ -10,7 +10,7 @@
 from rasberry_coordination_msgs.msg import Task as TaskMsg, AllSchedulableTasks, SchedulableTasks
 
 # ROS2
-from rasberry_coordination_core.coordinator_node import GlobalNode
+from rasberry_coordination_core.node import GlobalNode
 
 # Components
 from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as Interface
@@ -18,7 +18,7 @@ from rasberry_coordination_core.task_management.__init__ import Stages
 from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 
 # Logging
-from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.utils.logmsg import logmsg
 
 
 class iFACE(Interface):

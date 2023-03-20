@@ -13,7 +13,7 @@ from rasberry_coordination_core.task_management.containers.Module import ModuleO
 from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 
 # Logging
-from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.utils.logmsg import logmsg
 
 try: from rasberry_coordination_core.task_management.__init__ import PropertiesDef as PDef, fetch_property
 except: pass

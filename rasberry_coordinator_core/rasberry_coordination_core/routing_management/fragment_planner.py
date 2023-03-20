@@ -10,7 +10,7 @@ import threading, traceback
 from pprint import pprint
 
 from rasberry_coordination_core.routing_management.base_planner import BasePlanner
-from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.utils.logmsg import logmsg
 
 
 class FragmentPlanner(BasePlanner):

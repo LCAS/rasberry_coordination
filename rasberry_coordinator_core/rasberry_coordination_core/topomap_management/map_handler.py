@@ -16,14 +16,14 @@ from std_msgs.msg import Bool, String as Str, Empty as Emp
 from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 
 # Components
-#from topological_navigation.route_search2 import TopologicalRouteSearch2
-#from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, get_distance_to_node_tmap2 as GetNodeDist
+from topological_navigation.route_search2 import TopologicalRouteSearch2
+from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, get_distance_to_node_tmap2 as GetNodeDist
 
 # ROS2
-from rasberry_coordination_core.coordinator_node import GlobalNode
+from rasberry_coordination_core.node import GlobalNode
 
 # Logging
-from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.utils.logmsg import logmsg
 
 
 class MapObj(object):

@@ -15,13 +15,13 @@ from std_msgs.msg import Empty
 import strands_navigation_msgs.msg
 
 # ROS2
-from rasberry_coordination_core.coordinator_node import GlobalNode
+from rasberry_coordination_core.node import GlobalNode
 
 # Components
 from rasberry_coordination_core.routing_management.fragment_planner import FragmentPlanner
 
 # Logging
-from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.utils.logmsg import logmsg
 
 
 class RoutingManager(object):

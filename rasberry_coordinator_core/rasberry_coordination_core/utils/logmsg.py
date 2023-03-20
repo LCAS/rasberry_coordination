@@ -7,7 +7,7 @@
 
 import os, yaml
 from rclpy.impl.logging_severity import LoggingSeverity
-from rasberry_coordination_core.coordinator_node import GlobalLogger
+from rasberry_coordination_core.node import GlobalLogger
 
 def logmsgbreak(total=3):
     """ Print a number of lines using logmsg formatting

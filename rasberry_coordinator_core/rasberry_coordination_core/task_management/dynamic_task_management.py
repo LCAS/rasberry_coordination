@@ -20,10 +20,10 @@ from diagnostic_msgs.msg import KeyValue
 from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 
 # ROS2
-from rasberry_coordination_core.coordinator_node import GlobalNode
+from rasberry_coordination_core.node import GlobalNode
 
 # Logging
-from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.utils.logmsg import logmsg
 
 
 class DTM(object):

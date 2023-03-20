@@ -10,7 +10,7 @@ from rasberry_coordination_core.interaction_management.manager import Interactio
 from rasberry_coordination_core.task_management.containers.Module import ModuleObj as Module
 from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 
-from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.utils.logmsg import logmsg
 
 from rasberry_coordination_core.task_management.modules.base.stage_definitions import StageBase, Idle
 

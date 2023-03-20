@@ -21,7 +21,7 @@ from rasberry_coordination_msgs.msg import NewAgentConfig, MarkerDetails
 from rasberry_coordination_msgs.msg import Agent, AgentList, AgentRegistration, AgentState, AgentLocation, AgentHealth, AgentRendering
 
 # ROS2
-from rasberry_coordination_core.coordinator_node import GlobalNode
+from rasberry_coordination_core.node import GlobalNode
 
 # Components
 from rasberry_coordination_core.agent_management.location_handler import LocationObj as Location
@@ -31,7 +31,7 @@ from rasberry_coordination_core.task_management.containers.Task import TaskObj a
 from rasberry_coordination_core.task_management.__init__ import Interfaces
 
 # Logging
-from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.utils.logmsg import logmsg
 
 
 class AgentManager(object):

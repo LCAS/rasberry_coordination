@@ -10,8 +10,8 @@ global Stages, Interfaces, PropertiesDef
 Stages, Interfaces, PropertiesDef = None, None, None
 
 # Logging
-from rasberry_coordination_core.logmsg_utils import logmsg
-from rasberry_coordination_core.coordinator_node import GlobalNode
+from rasberry_coordination_core.utils.logmsg import logmsg
+from rasberry_coordination_core.node import GlobalNode
 
 
 def get_package_host(pkg_name):

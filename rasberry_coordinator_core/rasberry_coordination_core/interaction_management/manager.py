@@ -2,7 +2,7 @@ import traceback
 
 from std_msgs.msg import String as Str
 
-from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.utils.logmsg import logmsg
 
 
 class InteractionDetails(object):

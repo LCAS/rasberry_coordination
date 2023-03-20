@@ -33,8 +33,8 @@ from rasberry_coordination_core.task_management.containers.Module import ModuleO
 from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 
 # Logging
-from rasberry_coordination_core.logmsg_utils import logmsg, logmsgbreak
-from rasberry_coordination_core.coordinator_tools import Rasberry_Logger
+from rasberry_coordination_core.utils.logmsg import logmsg, logmsgbreak
+from rasberry_coordination_core.utils.coordinator_tools import Rasberry_Logger
 
 
 class RasberryCoordinator(object):

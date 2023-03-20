@@ -6,7 +6,7 @@ from diagnostic_msgs.msg import KeyValue
 
 from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 from rasberry_coordination_core.interaction_management.manager import InteractionDetails
-from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.utils.logmsg import logmsg
 from rasberry_coordination_core.task_management.containers.Module import ModuleObj as Module
 from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 

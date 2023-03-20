@@ -8,7 +8,7 @@
 
 from rasberry_coordination_core.task_management.__init__ import Stages
 from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
-from rasberry_coordination_core.logmsg_utils import logmsg
+from rasberry_coordination_core.utils.logmsg import logmsg
 
 
 class iFACE(object):
