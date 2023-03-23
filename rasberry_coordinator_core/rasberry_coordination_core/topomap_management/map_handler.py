@@ -21,6 +21,7 @@ from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, ge
 
 # ROS2
 from rasberry_coordination_core.node import GlobalNode
+from rclpy.qos import QoSProfile, HistoryPolicy, ReliabilityPolicy, DurabilityPolicy
 
 # Logging
 from rasberry_coordination_core.utils.logmsg import logmsg
@@ -56,14 +57,21 @@ class MapObj(object):
 
     def enable_map_monitoring(self):
         # callback are enabled in base.StageDef.WaitForMap._start()
-        self.global_tmap_sub = GlobalNode.create_subscription(Str, '/topological_map_2', self.global_map_cb, 0)
-        self.local_tmap_sub = GlobalNode.create_subscription(Str, self.topic, self.local_map_cb, 0)
+        print('enablin')
+        qos = QoSProfile(depth=1,
+                         reliability=ReliabilityPolicy.RELIABLE,
+                         history=HistoryPolicy.KEEP_ALL,
+                         durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self.global_tmap_sub = GlobalNode.create_subscription(Str, '/topological_map_2', self.global_map_cb, qos)
+        self.local_tmap_sub = GlobalNode.create_subscription(Str, self.topic, self.local_map_cb, qos)
+        print('subs started!')
 
     def global_map_cb(self, msg):
         # This is included for each agent as a single global map is needed for an agent to
         # find their neighbouring nodes. In theory, we currently are loading a global map
         # for every agent, we could instead have a single central one to reference.
         # used for sharing occupancy
+        print('recieving global')
         t0 = time()
 
         t1 = time()-t0
@@ -76,6 +84,7 @@ class MapObj(object):
         logmsg(category="TEST", id=self.agent.agent_id, msg="global(%s|%s)"%tim)
 
     def local_map_cb(self, msg):
+        print('recieving local')
         t0 = time()
 
         # Save copy of message

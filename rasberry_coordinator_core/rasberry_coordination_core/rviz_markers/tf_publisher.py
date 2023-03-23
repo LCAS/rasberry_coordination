@@ -31,7 +31,7 @@ class TFPublishers:
 
             # Specify tf details
             self.base_frame = self.id + "/base_link" if self.id else "base_link"
-            self.tf_broadcaster = tf2_ros.TransformBroadcaster()
+            self.tf_broadcaster = tf2_ros.transform_broadcaster.TransformBroadcaster()
 
             # Specify subscriber details
             self.source_topic = msg.tf_source_topic

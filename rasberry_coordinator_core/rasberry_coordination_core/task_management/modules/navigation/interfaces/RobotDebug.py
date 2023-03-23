@@ -60,7 +60,7 @@ class iFACE(Interface):
 
         # RVIZ display tools
         self.rviz_route_publisher = GlobalNode.create_publisher(Path, f"/{aid}/current_route", 0)
-        self.tf_broadcaster = tf2_ros.TransformBroadcaster(GlobalNode)
+        self.tf_broadcaster = tf2_ros.transform_broadcaster.TransformBroadcaster(GlobalNode)
         self.pose_publisher = GlobalNode.create_publisher(Pose, f"/{aid}/robot_pose", 0)
 
 

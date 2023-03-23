@@ -13,7 +13,7 @@ modules:
     interface: RobotDebug
     details:
       - has_presence: true
-      - restrictions: short
+#      - restrictions: short
       - occupation:
             r-c: ['self', 'neighbour_row_tall_ends']
             dock-: ['self']
