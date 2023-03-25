@@ -45,7 +45,10 @@ categories:
     colour: '45m'
   - name: "VR_ROC"
     colour: '45m'
-    reject: true
+#    reject: true
+  - name: "VR_ROD"
+    colour: '45m'
+#    reject: true
   - name: "ROBNAV"
 
   #Debug

@@ -11,6 +11,8 @@ from rasberry_coordination_core.task_management.__init__ import Stages
 from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 from rasberry_coordination_core.utils.logmsg import logmsg
 
+# ROS2
+from rasberry_coordination_core.node import GlobalNode
 
 from std_msgs.msg import String as Str
 from diagnostic_msgs.msg import KeyValue
@@ -23,9 +25,8 @@ from rasberry_coordination_core.topomap_management.occupancy import OccupancyFil
 class iFACE(Interface):
     def __init__(self, agent, details):
         super(iFACE, self).__init__(agent, details)
-        global Subscriber
-        self.move_idle_sub = Subscriber('/%s/navigation/move_idle' % agent.agent_id, Str, self.wait_at_node_cb)
-        self.exit_at_node_sub = Subscriber('/%s/navigation/exit_at_node' % agent.agent_id, Str, self.exit_at_node_cb)
+        self.move_idle_sub = GlobalNode.create_subscription(Str, '/%s/navigation/move_idle' % agent.agent_id, self.wait_at_node_cb, 10)
+        self.exit_at_node_sub = GlobalNode.create_subscription(Str, '/%s/navigation/exit_at_node' % agent.agent_id, self.exit_at_node_cb, 10)
         self.occupation_type = self.details['occupation'] if 'occupation' in self.details else None
 
     def occupation(self):
@@ -58,8 +59,6 @@ class iFACE(Interface):
 
         # Find occupation type to apply
         type_list = ['self']
-        print(self.occupation_type)
-        print(occ_type)
         if occ_type in self.occupation_type:
             type_list = self.occupation_type[occ_type]
 

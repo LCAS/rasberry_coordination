@@ -27,21 +27,21 @@ def set_properties(package_dict):
 
     PropertiesDef = {M['name']: M['properties'] for M in package_dict if 'properties' in M}
     PropertiesDef.update({'base': {}})
-    namespace = '/rasberry_coordination/task_modules/%s/%s'
+    namespace = '/rasberry_coordination_core/task_modules/%s/%s'
 
     logmsg(category="START",  msg="Properties: ")
     for M in package_dict:
         logmsg(category="START",  msg="   | %s" % get_package_host(M['name']))
         try:
             if 'properties' in M:
-                [logmsg(category="START", msg="   :   | %s -> %s" % (key, val)) for key, val in M['properties'].items()]
-                [GlobalNode.declare_paramater(namespace % (M['name'], k), v) for k, v in M['properties'].items()]
+                [logmsg(category="START", msg="   :   | %s -> %s" %  (k, v)) for k, v in M['properties'].items()]
+                [GlobalNode.declare_parameter(namespace % (M['name'], k), v) for k, v in M['properties'].items()]
         except:
            print(traceback.format_exc())
 
 
 def fetch_property(module, key, default=None):
-    return GlobalNode.get_parameter_or('/rasberry_coordination/task_modules/%s/%s' % (module, key), default)
+    return GlobalNode.get_parameter_or('/rasberry_coordination_core/task_modules/%s/%s' % (module, key), default).get_parameter_value()
 
 
 def load_custom_modules(clean_package_list):

@@ -86,7 +86,7 @@ class RoutingManager(object):
         logmsg(category="navig", id=agent.agent_id, msg="Attempting to publish route.")
 
         """ Publish ExecutePolicyModeGoal if different from current policy """
-        policy = strands_navigation_msgs.msg.ExecutePolicyModeGoal()
+        policy = strands_navigation_msgs.action.ExecutePolicyMode.Goal()
 
         """ Define route, if no new route is generated, dont do anything. """
         policy.route.source = agent.route_fragments[0] if agent.route_fragments else None

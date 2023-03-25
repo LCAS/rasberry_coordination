@@ -6,6 +6,7 @@
 # @date:
 # ----------------------------------
 
+import time
 import tf2_ros
 import traceback
 
@@ -35,7 +36,7 @@ from rasberry_coordination_core.utils.logmsg import logmsg
 # Automanaged by rasberry_coordination_core.task_management.__init__.load_modules
 # Interface class must be named `iFACE` to be recognised for import
 # It will then be identifiable by its Interfaces[<<module>>][<<filename>>]
-class iFACE(Interface):
+class iFACE(GeneralNavigator):
     def __init__(self, agent, details):
         super(iFACE, self).__init__(agent, details)
         aid = self.agent.agent_id
@@ -193,9 +194,8 @@ subgoal()
     """
 
     def wait(self):
-        #if self.details['smart_delay']:
-        #    get_smart_travel_time(route.edge)/2
-        delay = fetch_property('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2)/2
+        #if self.details['smart_delay']: get_smart_travel_time(route.edge)/2
+        delay = float(fetch_property('navigation', 'debug_robot_step_delay', 2).integer_value)/2
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Travel time: %s seconds'%delay)
         time.sleep(delay)
 
@@ -259,8 +259,14 @@ subgoal()
     def publish_node_pose(self, node):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | b) Pub Node Pose')
         pos, ori = self.agent.map_handler.get_node_tf(node)
-        pose = Pose(Point(x=pos[0],y=pos[1],z=pos[2]),
-                    Quaternion(x=ori[0],y=ori[1],z=ori[2],w=ori[3]))
+        pose = Pose()
+        pose.position.x = pos[0]
+        pose.position.y = pos[1]
+        pose.position.z = pos[2]
+        pose.orientation.x = ori[0]
+        pose.orientation.y = ori[1]
+        pose.orientation.z = ori[2]
+        pose.orientation.w = ori[3]
         self.pose_publisher.publish(pose)
     def publish_edge_pose(self, edge):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | b) Pub Edge Pose')
@@ -268,17 +274,24 @@ subgoal()
         pos1, ori = self.agent.map_handler.get_node_tf(n1)
         pos2, _   = self.agent.map_handler.get_node_tf(n2)
         pos = [(a+b)/2 for a, b in zip(pos1,pos2)]
-        pose = Pose(Point(x=pos[0],y=pos[1],z=pos[2]), Quaternion(x=ori[0],y=ori[1],z=ori[2],w=ori[3]))
+        pose = Pose()
+        pose.position.x = pos[0]
+        pose.position.y = pos[1]
+        pose.position.z = pos[2]
+        pose.orientation.x = ori[0]
+        pose.orientation.y = ori[1]
+        pose.orientation.z = ori[2]
+        pose.orientation.w = ori[3]
         self.pose_publisher.publish(pose)
 
 
     def publish_node_name(self, node):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | c) Pub Node Name')
-        self.current_node_pub.publish(node)
-        self.closest_node_pub.publish(node)
+        self.current_node_pub.publish(String(data=node))
+        self.closest_node_pub.publish(String(data=node))
     def publish_edge_name(self, edge):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | c) Pub Edge Name')
-        self.current_node_pub.publish("none")
+        self.current_node_pub.publish(String(data="none"))
         edges = ClosestEdges(edge_ids=[edge], distances=[0.0])
         self.closest_edge_pub.publish(edges)
 

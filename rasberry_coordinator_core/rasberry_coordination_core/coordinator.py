@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, time
+import os, sys, time, traceback
 import yaml
 from pprint import pprint
 
@@ -126,8 +126,10 @@ def main(args=None):
 
 
     # Run the Coordinator
-    coordinator.run()
-
+    try:
+        coordinator.run()
+    except KeyboardInterrupt as ki:
+        print('\n\nKeyboard Interrupt Detected!\n\n')
 
 if __name__ == '__main__':
     main()

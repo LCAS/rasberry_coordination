@@ -78,7 +78,6 @@ class MapObj(object):
         logmsg(category="TEST", id=self.agent.agent_id, msg="global(%s|%s)"%tim)
 
     def local_map_cb(self, msg):
-        print('recieving local')
         t0 = time()
 
         # Save copy of message

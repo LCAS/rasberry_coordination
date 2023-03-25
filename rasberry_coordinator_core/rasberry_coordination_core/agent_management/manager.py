@@ -409,8 +409,8 @@ class AgentDetails(object):
         if len(gc.get_referrers(a())) > 1:
             logmsg(level="error", category="DRM", msg="Remove unhandled refs in place or in AgentDetails.delete_known_references()")
         [logmsg(category="DRM", msg="   - (%s) %s" % (i+1, r)) for i, r in enumerate(gc.get_referrers(a()))]
-    def __del__(self):
-        logmsg(level="warn", category="DRM", id=self.agent_id, msg="Agent handler is deleted.")
-        logmsg(level="warn", category="DRM", msg="Here, we must identify and unregister every subscriber")
+#    def __del__(self):
+#        logmsg(level="warn", category="DRM", id=self.agent_id, msg="Agent handler is deleted.")
+#        logmsg(level="warn", category="DRM", msg="Here, we must identify and unregister every subscriber")
 
 
