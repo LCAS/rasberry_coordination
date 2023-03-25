@@ -8,7 +8,7 @@
 
 # Builtins
 from copy import copy, deepcopy
-from time import time
+from time import time, sleep
 import yaml
 
 # Messages
@@ -57,21 +57,15 @@ class MapObj(object):
 
     def enable_map_monitoring(self):
         # callback are enabled in base.StageDef.WaitForMap._start()
-        print('enablin')
-        qos = QoSProfile(depth=1,
-                         reliability=ReliabilityPolicy.RELIABLE,
-                         history=HistoryPolicy.KEEP_ALL,
-                         durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.global_tmap_sub = GlobalNode.create_subscription(Str, '/topological_map_2', self.global_map_cb, qos)
         self.local_tmap_sub = GlobalNode.create_subscription(Str, self.topic, self.local_map_cb, qos)
-        print('subs started!')
 
     def global_map_cb(self, msg):
         # This is included for each agent as a single global map is needed for an agent to
         # find their neighbouring nodes. In theory, we currently are loading a global map
         # for every agent, we could instead have a single central one to reference.
         # used for sharing occupancy
-        print('recieving global')
         t0 = time()
 
         t1 = time()-t0

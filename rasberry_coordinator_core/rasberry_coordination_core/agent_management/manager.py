@@ -11,9 +11,6 @@ import copy, gc
 import yaml, json
 import traceback, pprint
 
-# Dependencies
-import whiptail
-
 # Messages
 from std_msgs.msg import String as Str, Empty, Bool, ColorRGBA as ColourRGBA
 from diagnostic_msgs.msg import KeyValue

@@ -12,7 +12,7 @@ import rclpy
 from rclpy.node import Node
 
 from std_msgs.msg import String
-
+from rclpy.qos import QoSProfile, HistoryPolicy, ReliabilityPolicy, DurabilityPolicy
 
 class Speaker(Node):
     def __init__(self):
@@ -22,6 +22,12 @@ class Speaker(Node):
                             topic='~/input',
                             callback=self.callback,
                             qos_profile=10)
+
+        qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self.tmap = self.create_subscription(String, '/topological_map_2', self.cb, qos)
+
+    def cb(self, msg):
+        print(msg)
 
     def callback(self, msg):
         self.get_logger().info(msg.data)

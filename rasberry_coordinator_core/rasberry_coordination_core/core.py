@@ -16,6 +16,7 @@ from pprint import pprint
 
 # ROS2
 import rclpy
+from rasberry_coordination_core.node import GlobalNode
 
 # Messages
 from std_msgs.msg import String as Str, Empty
@@ -140,8 +141,8 @@ class RasberryCoordinator(object):
             if any(E): DTM.EndTask(E);                                                   """ Update DTM w/ Completed """
 
             # Publish Log and Wait
-            l(-2); time.sleep(0.2)
-
+            l(-2)
+            rclpy.spin_once(GlobalNode, timeout_sec=0.01)
 
     def get_agents(self):
         self.AllAgentsList = self.agent_manager.get_agent_list_copy()

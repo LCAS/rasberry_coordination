@@ -3,7 +3,7 @@ from copy import deepcopy
 import yaml
 
 # Messages
-from std_msgs.msg import Bool, String as Str, Empty as Emp
+from std_msgs.msg import Bool, String as Str, Empty
 from topological_navigation_msgs.msg import ClosestEdges
 from rasberry_coordination_msgs.msg import TasksDetails as TasksDetailsList, TaskDetails as SingleTaskDetails, Interruption
 
@@ -25,12 +25,11 @@ class LocationObj(object):
 
     def enable_location_monitoring(self, agent_id):
         # callback are enabled in base.StageDef.WaitForLocalisation._start()
-        global Subscriber
-        self.current_node_sub = GlobalNode.Subscriber('/%s/current_node'    % agent_id, Str, self.current_node_cb)
-        self.closest_node_sub = GlobalNode.Subscriber('/%s/closest_node'    % agent_id, Str, self.closest_node_cb)
-        self.closest_node_sub = GlobalNode.Subscriber('/%s/closest_edges'    % agent_id, ClosestEdges, self.closest_edges_cb)
-        self.disable_loc = GlobalNode.Subscriber('/%s/localisation/disable' % agent_id, Str, self.disable_localisation)
-        self.enable_loc  = GlobalNode.create_subscription('/%s/localisation/enable'  % agent_id, Emp, self.enable_localisation)
+        self.current_node_sub = GlobalNode.create_subscription(Str, '/%s/current_node'    % agent_id, self.current_node_cb, 10)
+        self.closest_node_sub = GlobalNode.create_subscription(Str, '/%s/closest_node'    % agent_id, self.closest_node_cb, 10)
+        self.closest_node_sub = GlobalNode.create_subscription(ClosestEdges, '/%s/closest_edges'   % agent_id, self.closest_edges_cb, 10)
+        self.disable_loc = GlobalNode.create_subscription(Str, '/%s/localisation/disable' % agent_id, self.disable_localisation, 10)
+        self.enable_loc  = GlobalNode.create_subscription(Empty, '/%s/localisation/enable'  % agent_id, self.enable_localisation, 10)
 
     def __call__(self, accurate=False):
         if accurate:
