@@ -1,0 +1,43 @@
+---
+session: server_virtual
+init_cmd:
+  #exec /bin/bash
+  cd @TMULE_CONFIG_DIR@ || true
+  set -o pipefail
+
+  # get and source the details for the workspace from rasberryrc
+#  source $HOME/.rasberryrc
+#  source $WS_DIR/devel/setup.bash
+#  source $(rospack find rasberry_core)/new_tmule/tmule_config/init_cmd_tools.sh
+#  source $(rospack find rasberry_core)/new_tmule/tmule_config/init_cmd_setup.sh
+
+  # Source the environment variables for the scenario
+#  source_module rasberry_coordination_core tmule-server-simulated.sh
+  clear -x
+  uri_server
+
+windows:
+#- name: mqtt_broker
+#  panes: roslaunch rasberry_networking mqtt_broker.launch ip:=$MQTT_IP port:=$MQTT_PORT
+
+#- name: mqtt_server
+#  panes: roslaunch rasberry_networking mqtt_server.launch ip:=$MQTT_IP port:=$MQTT_PORT client_id:=coordinator
+
+- name: topomap_management
+  panes: rosrun topological_navigation map_manager2.py $TMAP_FILE
+#  panes: rosrun rasberry_coordination_core restrictor.py $EVAL_SHORT
+#  panes: rosrun rasberry_coordination_core restrictor.py $EVAL_TALL
+
+- name: coordinator
+  panes: roslaunch rasberry_coordination abstract_task_coordinator.launch config_file:=$TASK_COORD_CONFIG
+
+#- name: rviz
+#  panes:
+#  - rviz -d $(rospack find rasberry_core)/resources/$RVIZ_CONFIG.rviz
+#  - roslaunch rasberry_navigation map_server.launch map:="$METRIC_MAP" use_no_go:=true no_go_map:="$NOGO_MAP"
+#  - rosrun rasberry_coordination rviz_markers.py
+
+#- name: scheduler
+#  panes:
+#  - rosrun rasberry_scheduling task_processor.py
+#  - rosrun rasberry_scheduling server_processor.py
