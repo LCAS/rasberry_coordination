@@ -66,6 +66,7 @@ class RasberryCoordinator(object):
 
         # Remappings for commonly referenced objects
         AM  = self.agent_manager
+        RM  = self.routing_manager
 
         # Systems for unintrusive standardised logging
         RL  = Rasberry_Logger(enable_task_logging=True)
@@ -89,10 +90,19 @@ class RasberryCoordinator(object):
         l(-1)
         while rclpy.ok():
 
+            ### Responses for Managers:
+
             # Add New Agents
             new_agent_buffer = AM.new_agent_buffer
             logbreak("NEW AGENTS", new_agent_buffer)
             if new_agent_buffer: AM.add_agent_from_buffer();                                      """ Add New Agents """
+
+            # Add Route Planner
+            new_planner = RM.planner_id
+            logbreak("NEW PLANNER", [new_planner])
+            if new_planner: RM.create_planner();                                            """ Change Route Planner """
+
+            ### Main Loop
 
             # Update local list of Agents (new might have been added)
             A = get_agents()

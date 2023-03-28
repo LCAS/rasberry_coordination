@@ -11,7 +11,7 @@ import time, datetime
 import yaml
 
 # Messages
-from std_msgs.msg import Empty
+from std_msgs.msg import Empty, String
 import strands_navigation_msgs.msg
 
 # ROS2
@@ -48,9 +48,20 @@ class RoutingManager(object):
         self.agent_manager = agent_manager
 
         # Construct the route planner
+        topic = '~/routing_management/change_route_planner'
+        self.planner = None
+        self.planner_id = self.planning_type
+        self.change_planner(String(data=self.planning_type))
+        self.change_planner_sub = GlobalNode.create_subscription(String, topic, self.change_planner, 0)
+
+    def change_planner(self, msg):
+        self.planner_id = msg.data
+    def create_planner(self):
+        # Construct the route planner
         planning_types = {'fragment_planner': self.fragment_planner,
                           'alternative_planner': self.alternative_planner}
-        self.planner = planning_types[self.planning_type]()
+        self.planner = planning_types[self.planner_id]()
+        self.planner_id = None
 
     def find_routes(self):
         """ Proxy function to self.planner.find_routes()
