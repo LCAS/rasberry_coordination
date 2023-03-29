@@ -25,7 +25,7 @@ from rasberry_coordination_core.topomap_management.occupancy import OccupancyFil
 class iFACE(Interface):
     def __init__(self, agent, details):
         super(iFACE, self).__init__(agent, details)
-        self.move_idle_sub = GlobalNode.create_subscription(Str, '/%s/navigation/move_idle' % agent.agent_id, self.wait_at_node_cb, 10)
+        self.move_idle_sub = GlobalNode.create_subscription(Str, '/%s/navigation/move_idle' % agent.agent_id, self.move_idle_cb, 10)
         self.exit_at_node_sub = GlobalNode.create_subscription(Str, '/%s/navigation/exit_at_node' % agent.agent_id, self.exit_at_node_cb, 10)
         self.occupation_type = self.details['occupation'] if 'occupation' in self.details else None
 
@@ -73,7 +73,7 @@ class iFACE(Interface):
             logmsg(category="occupy", msg="   :   | %s: %s"%(typ, str(nodes)))
         return nodes_to_filter
 
-    def wait_at_node_cb(self, msg):
+    def move_idle_cb(self, msg):
         logmsg(category="Task", id=self.agent.agent_id, msg="Request to Move Idle to (%s)"%msg.data)
 
         # if idle:

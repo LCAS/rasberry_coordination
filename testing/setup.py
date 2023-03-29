@@ -20,6 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'run.py = rasberry_coordination_testing.run:main',
             'routing_robustness.py = rasberry_coordination_testing.routing_robustness:main',
             'routing_comparison.py = rasberry_coordination_testing.routing_comparison:main'
         ],

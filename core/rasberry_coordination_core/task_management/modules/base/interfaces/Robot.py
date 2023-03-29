@@ -11,7 +11,6 @@ from rasberry_coordination_core.task_management.__init__ import Stages
 from rasberry_coordination_core.task_management.containers.Task import TaskObj as Task
 from rasberry_coordination_core.utils.logmsg import logmsg
 
-
 # Automanaged by rasberry_coordination_core.task_management.__init__.load_modules
 # Interface class must be named `iFACE` to be recognised for import
 # It will then be identifiable by its Interfaces[<<module>>][<<filename>>]

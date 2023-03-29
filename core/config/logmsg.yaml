@@ -43,12 +43,13 @@ categories:
   - name: "ROB_PY"
   - name: "VR_ROB"
     colour: '45m'
+    reject: true
   - name: "VR_ROC"
     colour: '45m'
-#    reject: true
+    reject: true
   - name: "VR_ROD"
     colour: '45m'
-#    reject: true
+    reject: true
   - name: "ROBNAV"
 
   #Debug
@@ -79,6 +80,6 @@ ids:
     colour: '46m'
 
   - name: "robot_01"
-    colour: '36m'
+    colour: '35m'
   - name: "robot_02"
-    colour: '33m'
+    colour: '31m'

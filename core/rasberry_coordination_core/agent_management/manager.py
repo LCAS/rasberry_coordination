@@ -19,6 +19,7 @@ from rasberry_coordination_msgs.msg import Agent, AgentList, AgentRegistration, 
 
 # ROS2
 from rasberry_coordination_core.node import GlobalNode
+from rclpy.qos import QoSProfile, DurabilityPolicy, HistoryPolicy
 
 # Components
 from rasberry_coordination_core.agent_management.location_handler import LocationObj as Location
@@ -53,7 +54,10 @@ class AgentManager(object):
         self.get_markers_sub = GlobalNode.create_subscription(Empty, '~/agent_management/get_markers', self.get_markers_cb, 0)
 
         # Fleet Monitoring
-        self.fleet_pub = GlobalNode.create_publisher(AgentList, '~/agent_management/fleet_details', 0)
+        qos = QoSProfile(depth=1,
+                         history=HistoryPolicy.KEEP_LAST,
+                         durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self.fleet_pub = GlobalNode.create_publisher(AgentList, '~/agent_management/fleet_details', qos)
         self.fleet_last = None
 
     """ Dynamic Fleet """

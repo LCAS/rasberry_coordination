@@ -24,8 +24,8 @@ It will consist of the following steps:
 3. For each TMap:
 4.     For each level of compexity:
 5.         Launch the map and coordination servers
-6.         Set the agent positions to X,Y,Z
-7.         Send move-to-node commands to A,B,C
+6.         Set the agent positions to X,Y,Z     (localisation/disable)
+7.         Send move-to-node commands to A,B,C  (navigation/move_to_node)
 8.         Collect statistics
 9.         Send results to WeightsAndBiases
 ```
@@ -39,11 +39,11 @@ It will consist oof the following steps:
 ```
 1. Load in a specific configuration file
 2. Generate a TMap's utilising WFC
-3. For each installed route planner:
+3. For each installed route planner: (routing_manager/change_planner data:2)
 4.     For each level of compexity:
 5.         Launch the map and coordination servers
-6.         Set the agent positions to X,Y,Z
-7.         Send move-to-node commands to A,B,C
+6.         Set the agent positions to X,Y,Z     (localisation/disable data:X)
+7.         Send move-to-node commands to A,B,C  (navigation/move_to_node data:A)
 8.         Collect statistics
 9.         Send results to WeightsAndBiases
 ```

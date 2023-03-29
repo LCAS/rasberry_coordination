@@ -13,9 +13,11 @@ import yaml
 # Messages
 from std_msgs.msg import Empty, String
 import strands_navigation_msgs.msg
+from rasberry_coordination_msgs.msg import Configuration
 
 # ROS2
 from rasberry_coordination_core.node import GlobalNode
+from rclpy.qos import QoSProfile, DurabilityPolicy
 
 # Components
 from rasberry_coordination_core.routing_management.fragment_planner import FragmentPlanner
@@ -42,7 +44,7 @@ class RoutingManager(object):
         global Subscriber
         self.force_replan_cb = GlobalNode.create_subscription(Empty, '~/routing_management/force_replan', self.force_replan, 0)
 
-        # Define route polanner properties
+        # Define route planner properties
         self.planning_type = planning_format['planning_type']
         self.heterogeneous_map = planning_format['heterogeneous_map']
         self.agent_manager = agent_manager
@@ -54,13 +56,26 @@ class RoutingManager(object):
         self.change_planner(String(data=self.planning_type))
         self.change_planner_sub = GlobalNode.create_subscription(String, topic, self.change_planner, 0)
 
-    def change_planner(self, msg):
-        self.planner_id = msg.data
+        # Initialise the broadcaster
+        topic = '~/routing_management/configuration'
+        qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self.active_planner_pub = GlobalNode.create_publisher(Configuration, topic, qos)
+
+
+    def change_planner(self, msg): self.planner_id = msg.data
     def create_planner(self):
         # Construct the route planner
         planning_types = {'fragment_planner': self.fragment_planner,
                           'alternative_planner': self.alternative_planner}
         self.planner = planning_types[self.planner_id]()
+
+        # Publicise the currently used planner
+        conf = Configuration()
+        conf.map='riseholme' # TODO: make this self.planner.map['meta']['pointset']
+        conf.route_planner=str(self.planner_id)
+        self.active_planner_pub.publish(conf)
+
+        # Clear trigger
         self.planner_id = None
 
     def find_routes(self):

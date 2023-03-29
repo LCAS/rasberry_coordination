@@ -52,4 +52,4 @@ included_task_packages:
   - name: assignment
   - name: navigation
     properties:
-        debug_robot_step_delay: 5
+        debug_robot_step_delay: 0.5

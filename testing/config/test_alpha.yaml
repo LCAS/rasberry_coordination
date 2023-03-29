@@ -1,0 +1,20 @@
+global:
+  map: riseholme
+  targets:
+      robot_01:
+        - WayPoint68
+        - WayPoint142
+        - WayPoint68
+      robot_02:
+        - WayPoint69
+        - WayPoint141
+        - WayPoint69
+      robot_03:
+        - WayPoint70
+        - WayPoint140
+        - WayPoint70
+tests:
+  - route_planner: fragment_planner
+#  - route_planner: simple_super
+#  - route_planner: crh_star
+#  - route_planner: olde_faithful

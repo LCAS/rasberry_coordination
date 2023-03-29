@@ -1,0 +1,22 @@
+!!python/object/new:strands_navigation_msgs.action._execute_policy_mode.ExecutePolicyMode_Goal
+state: !!python/tuple
+- null
+- _route: !!python/object/new:strands_navigation_msgs.msg._nav_route.NavRoute
+    state: !!python/tuple
+    - null
+    - _edge_id:
+      - WayPoint68_WayPoint143
+      - WayPoint143_WayPoint144
+      - WayPoint144_WayPoint67
+      - WayPoint67_WayPoint73
+      - WayPoint73_WayPoint74
+      - WayPoint74_WayPoint140
+      - WayPoint140_WayPoint142
+      _source:
+      - WayPoint143
+      - WayPoint144
+      - WayPoint67
+      - WayPoint73
+      - WayPoint74
+      - WayPoint140
+      - WayPoint142

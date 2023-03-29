@@ -45,6 +45,7 @@ set(msg_files
   "msg/AgentState.msg"
   "msg/AgentRendering.msg"
   "msg/AgentHealth.msg"
+  "msg/Configuration.msg"
   "msg/FullLocation.msg"
   "msg/Interruption.msg"
   "msg/MarkerDetails.msg"
