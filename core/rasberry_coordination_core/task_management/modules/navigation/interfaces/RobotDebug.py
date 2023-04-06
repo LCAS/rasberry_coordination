@@ -195,7 +195,7 @@ subgoal()
 
     def wait(self):
         #if self.details['smart_delay']: get_smart_travel_time(route.edge)/2
-        delay = float(fetch_property('navigation', 'debug_robot_step_delay', 2).integer_value)/2
+        delay = float(fetch_property('navigation', 'debug_robot_step_delay', 2).double_value)/2
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Travel time: %s seconds'%delay)
         time.sleep(delay)
 
