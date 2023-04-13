@@ -6,6 +6,8 @@ from pprint import pprint
 
 import rclpy
 from rclpy.node import Node
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 
 
 def validate_field(file, config, key, datatype, mandatory=False):
@@ -103,8 +105,9 @@ def main(args=None):
 
 
     # Start ROS Node and create global reference to log from any file
-    from rasberry_coordination_core.node import initialise_ros2_node, GlobalNode
+    from rasberry_coordination_core.node import initialise_ros2_node
     initialise_ros2_node()
+    from rasberry_coordination_core.node import GlobalNode
 
     # Initialise modules for task manager
     import rasberry_coordination_core.task_management.__init__ as task_init
@@ -128,8 +131,17 @@ def main(args=None):
     # Run the Coordinator
     try:
         coordinator.run()
-    except KeyboardInterrupt as ki:
+
+        executor = MultiThreadedExecutor()
+        executor.add_node(GlobalNode)
+        executor.spin()
+
+    except KeyboardInterrupt:
         print('\n\nKeyboard Interrupt Detected!\n\n')
+
+    GlobalNode.destroy_node()
+    rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

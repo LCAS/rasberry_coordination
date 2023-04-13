@@ -7,6 +7,7 @@
 # ----------------------------------
 
 import time
+import rclpy
 import tf2_ros
 import traceback
 
@@ -15,9 +16,7 @@ from std_msgs.msg import Header, String
 from nav_msgs.msg import Path
 from diagnostic_msgs.msg import KeyValue
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
-from topological_navigation_msgs.msg import ClosestEdges
-from strands_navigation_msgs.msg import TopologicalMap, TopologicalRoute
-from strands_navigation_msgs.action import ExecutePolicyMode
+from topological_navigation_msgs.msg import ClosestEdges, CurrentEdge, ExecutePolicyModeGoal, NavRoute
 
 # Components
 from rasberry_coordination_core.task_management.modules.base.interfaces.Interface import iFACE as Interface
@@ -27,6 +26,8 @@ from rasberry_coordination_core.task_management.containers.Task import TaskObj a
 from rasberry_coordination_core.task_management.__init__ import fetch_property
 
 # ROS2
+from rclpy.qos import QoSProfile, DurabilityPolicy
+from rclpy.callback_groups import ReentrantCallbackGroup as RCG
 from rasberry_coordination_core.node import GlobalNode
 
 # Logging
@@ -43,7 +44,7 @@ class iFACE(GeneralNavigator):
 
         # Containers
         self.buffer = []
-        self.execpolicy_goal = ExecutePolicyMode.Goal()
+        self.execpolicy_goal = ExecutePolicyModeGoal()
 
         # Set step-delay param
         param = '~/task_modules/navigation/debug_robot_step_delay'
@@ -51,19 +52,20 @@ class iFACE(GeneralNavigator):
 
         # Route Publishers
         goal_topic = f"/{aid}/topological_navigation/execute_policy_mode/goal"
-        self.goal_publisher  = GlobalNode.create_publisher(ExecutePolicyMode.Goal, goal_topic, 0)
-        self.goal_subscriber = GlobalNode.create_subscription(ExecutePolicyMode.Goal, goal_topic, self.subgoal, 0)
-
-        # To update robots current location
-        self.current_node_pub = GlobalNode.create_publisher(String, f"/{aid}/current_node", 0)
-        self.closest_node_pub = GlobalNode.create_publisher(String, f"/{aid}/closest_node", 0)
-        self.closest_edge_pub = GlobalNode.create_publisher(ClosestEdges, f"/{aid}/closest_edges", 0)
+        self.goal_publisher  = GlobalNode.create_publisher(ExecutePolicyModeGoal, goal_topic, 2)
+        self.goal_subscriber = GlobalNode.create_subscription(ExecutePolicyModeGoal, goal_topic, self.subgoal1, 10, callback_group=RCG())
 
         # RVIZ display tools
-        self.rviz_route_publisher = GlobalNode.create_publisher(Path, f"/{aid}/current_route", 0)
+        self.rviz_route_publisher = GlobalNode.create_publisher(Path, f"/{aid}/current_route", 1)
         self.tf_broadcaster = tf2_ros.transform_broadcaster.TransformBroadcaster(GlobalNode)
-        self.pose_publisher = GlobalNode.create_publisher(Pose, f"/{aid}/robot_pose", 0)
+        self.pose_publisher = GlobalNode.create_publisher(Pose, f"/{aid}/robot_pose", 1)
 
+        # Location Updating
+        self.use_topic_publishing = False
+        self.closest_node_pub = GlobalNode.create_publisher(String, f"/{aid}/closest_node", 1)
+        self.current_node_pub = GlobalNode.create_publisher(String, f"/{aid}/current_node", 1)
+        self.closest_edges_pub = GlobalNode.create_publisher(ClosestEdges, f"/{aid}/closest_edges", 1)
+        self.current_edge_pub = GlobalNode.create_publisher(CurrentEdge, f"/{aid}/current_edge", 1)
 
     def set_execpolicy_goal(self, goal):
         self.setgoal(goal)
@@ -119,60 +121,179 @@ subgoal()
             self.execpolicy_goal, self.buffer = self.buffer[-1], []
 
         # Print route details
-        if self.execpolicy_goal:
-            self.path_gen(self.execpolicy_goal.route)
+        if self.execpolicy_goal.route == NavRoute(): return
+
+        # Print route details
+        self.path_gen(self.execpolicy_goal.route)
+
+        # Publish new path to rviz
+        self.publish_path(self.execpolicy_goal.route)
 
         # Publish route to execute
-        self.goal_publisher.publish(self.execpolicy_goal)
+        if self.use_topic_publishing:
+            self.goal_publisher.publish(self.execpolicy_goal)
+        else:
+            self.subgoal1(self.execpolicy_goal)
 
-        # Publish path to rviz
-        if self.execpolicy_goal:
-            self.publish_path(self.execpolicy_goal.route)
+    """
+#    def subgoal(self, msg):
+#        try:
+#            aid = self.agent.agent_id
+#            if not self.execpolicy_goal.route.source and not self.execpolicy_goal.route.edge_id:
+#                return
+#            print("\n\n")
+#
+#            logmsg(category='vr_rob', id=aid, msg='Execpolicy Goal:')
+#            logmsg(category='vr_rob', id=aid, msg='   | Route:')
+#            self.path_gen(self.execpolicy_goal.route, format='   :   | %s')
+#
+#
+#            # Move to next edge in route unless next node is not reached
+#            goal = self.execpolicy_goal
+#            if goal and goal.route.edge_id and goal.route.source and not goal.route.edge_id[0].startswith(goal.route.source[0]):
+#                edge = goal.route.edge_id[0]
+#
+#                # Move to start of edge
+#                logmsg(category='vr_rob', id=aid, msg='Moving to edge start: %s'%edge)
+#                self.wait(percentage=1/3)
+#                self.telemove(edge, percentage=1/3)
+#
+#                # Move to end of edge
+#                logmsg(category='vr_rob', id=aid, msg='Moving to edge end: %s'%edge)
+#                self.wait(percentage=1/3)
+#                self.telemove(edge, percentage=2/3)
+#
+#                # Display remaining route
+#                logmsg(category='vr_rod', id=aid, msg='   | Remaining Route:')
+#                self.filter_edge(edge)
+#                self.path_gen(goal.route, format='   :   | %s')
+#
+#
+#            # Move to next node in route
+#            goal = self.execpolicy_goal
+#            if goal and goal.route.source:
+#                node = goal.route.source[0]
+#
+#                # Move to node
+#                logmsg(category='vr_rob', id=aid, msg='Moving to node: %s'%node)
+#                self.wait(percentage=1/3)
+#                self.teleport(node)
+#
+#                # Display remaining route
+#                logmsg(category='vr_rod', id=aid, msg='   | Remaining Route:')
+#                self.filter_node(node)
+#                self.path_gen(goal.route, format='   :   | %s')
+#
+#
+#            # Publish remainder of route for next cycle
+#            goal = self.execpolicy_goal
+#            if goal:
+#                self.publish_path(goal.route)
+#                self.pubgoal()
+#
+#        except:
+#            print(traceback.format_exc())
+#            pass
+"""
 
-    def subgoal(self, msg):
-        try:
-            aid = self.agent.agent_id
-            if not self.execpolicy_goal.route.source and not self.execpolicy_goal.route.edge_id:
-                return
-            print("\n\n")
+###################################################################################################
+###################################################################################################
 
-            logmsg(category='vr_rob', id=aid, msg='Execpolicy Goal:')
-            logmsg(category='vr_rob', id=aid, msg='   | Route:')
-            self.path_gen(self.execpolicy_goal.route, format='   :   | %s')
+    def subgoal1(self, msg):
+        # Check goal is valid
+        if not self.execpolicy_goal.route.source and not self.execpolicy_goal.route.edge_id:
+            return
+        print("\n\n")
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='Execpolicy Goal:')
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Route:')
+        self.path_gen(self.execpolicy_goal.route, format='   :   | %s')
 
-            # Move to next edge in route unless next node is not reached
-            goal = self.execpolicy_goal
-            if goal and goal.route.edge_id and goal.route.source and not goal.route.edge_id[0].startswith(goal.route.source[0]):
-                edge = goal.route.edge_id[0]
-                logmsg(category='vr_rob', id=aid, msg='Moving to edge: %s'%edge)
-                self.wait()
-                logmsg(category='vr_rob', id=aid, msg='Moved to edge: %s'%edge)
-                self.telemove(edge)
-                logmsg(category='vr_rob', id=aid, msg='   | Remaining Route:')
-                self.filter_edge(edge)
-                self.path_gen(goal.route, format='   :   | %s')
+        # Begin traversal onto next edge (unless next node is already reached)
+        goal = self.execpolicy_goal
+        if goal and goal.route.edge_id and goal.route.source and not goal.route.edge_id[0].startswith(goal.route.source[0]):
+            edge = goal.route.edge_id[0]
 
-            # Move to next node in route
-            goal = self.execpolicy_goal
-            if goal and goal.route.source:
-                node = goal.route.source[0]
-                logmsg(category='vr_rob', id=aid, msg='Moving to node: %s'%node)
-                self.wait()
-                logmsg(category='vr_rob', id=aid, msg='Moved to node: %s'%node)
-                self.teleport(node)
-                logmsg(category='vr_rob', id=aid, msg='   | Remaining Route:')
-                self.filter_node(node)
-                self.path_gen(goal.route, format='   :   | %s')
+            # Begin navigation to start of edge
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='Moving to edge start: %s'%edge)
+            delay = self.wait(percentage=1/3)
+            self.subgoal1_timer = GlobalNode.create_timer(delay, self.subgoal2)
+            return
+        else:
+            self.subgoal2()
 
-            # Publish remainder of route for next cycle
-            goal = self.execpolicy_goal
-            if goal:
-                self.publish_path(goal.route)
-                self.pubgoal()
+    def subgoal2(self):
+        self.subgoal1_timer.cancel()
+        # Begin traversal onto next edge (unless next node is already reached)
+        goal = self.execpolicy_goal
+        if goal and goal.route.edge_id and goal.route.source and not goal.route.edge_id[0].startswith(goal.route.source[0]):
+            edge = goal.route.edge_id[0]
 
-        except:
-            print(traceback.format_exc())
-            pass
+            # Complete move to start of edge
+            self.telemove(edge, percentage=1/3)
+
+            # Begin navigation to end of edge
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='Moving to edge end: %s'%edge)
+            delay = self.wait(percentage=1/3)
+            self.subgoal2_timer = GlobalNode.create_timer(delay, self.subgoal3)
+            return
+        else:
+            self.subgoal3()
+
+    def subgoal3(self):
+        self.subgoal2_timer.cancel()
+        # Complete traversal to end of edge (unless next node is already reached)
+        goal = self.execpolicy_goal
+        if goal and goal.route.edge_id and goal.route.source and not goal.route.edge_id[0].startswith(goal.route.source[0]):
+            edge = goal.route.edge_id[0]
+
+            # Complete move to end of edge
+            self.telemove(edge, percentage=2/3)
+
+            # Display remaining route
+            logmsg(category='vr_rod', id=self.agent.agent_id, msg='   | Remaining Route:')
+            self.filter_edge(edge)
+            self.path_gen(goal.route, format='   :   | %s')
+
+        # Move to next node in route
+        goal = self.execpolicy_goal
+        if goal and goal.route.source:
+            node = goal.route.source[0]
+
+            # Begin navigation to node
+            logmsg(category='vr_rob', id=self.agent.agent_id, msg='Moving to node: %s'%node)
+            delay = self.wait(percentage=1/3)
+            self.subgoal3_timer = GlobalNode.create_timer(delay, self.subgoal4)
+            return
+        else:
+            self.subgoal4()
+
+    def subgoal4(self):
+        self.subgoal3_timer.cancel()
+
+        # Move to next node in route
+        goal = self.execpolicy_goal
+        if goal and goal.route.source:
+            node = goal.route.source[0]
+
+            # Complete navigation to node
+            self.teleport(node)
+
+            # Display remaining route
+            logmsg(category='vr_rod', id=self.agent.agent_id, msg='   | Remaining Route:')
+            self.filter_node(node)
+            self.path_gen(goal.route, format='   :   | %s')
+
+        # Publish remainder of route for next cycle
+        goal = self.execpolicy_goal
+        if goal:
+            self.publish_path(goal.route)
+            self.pubgoal()
+
+###################################################################################################
+###################################################################################################
+###################################################################################################
+###################################################################################################
+###################################################################################################
 
     """ --------------- UTILS 1 ------------- """
 
@@ -193,16 +314,35 @@ subgoal()
     filter()
     """
 
-    def wait(self):
-        #if self.details['smart_delay']: get_smart_travel_time(route.edge)/2
-        delay = float(fetch_property('navigation', 'debug_robot_step_delay', 2).double_value)/2
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Travel time: %s seconds'%delay)
-        time.sleep(delay)
+    def wait(self, percentage=1/2):
+        #if self.details['smart_delay']: delay = get_smart_travel_time(route.edge) / 2
+        delay = percentage * float(fetch_property('navigation', 'debug_robot_step_delay', 2).double_value)
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Travel time: %s seconds' % round(delay,3))
 
-    def telemove(self, edge):
+        #time.sleep(delay) # doesnt allow background processes to continue
+
+        #rclpy.spin_once(GlobalNode, timeout_sec=delay) # doesnt allow executor.spin() to take back control
+
+        #GlobalNode.create_timer(delay, self.delayed_callback_fn) # doesnt allow callback to proceed here
+
+        #await asyncio.sleep(delay) # not supported alongside ros2
+
+        #GlobalNode.create_timer(delay, self.end_wait) # i dont want to have multiple callbacks
+
+        #GlobalNode.loop_rate.sleep(delay)
+        #GlobalNode.create_rate(delay, GlobalNode.get_clock()).sleep() # rate hz is not seconds
+
+        #from rclpy.clock import ROSClock
+        #from rclpy.duration import Duration
+        #clock = ROSClock().sleep_for(Duration(seconds=delay)) # stalls main thread
+        #assert ROSClock().sleep_for(Duration(seconds=delay)) # stalls main thread
+        return delay
+
+
+    def telemove(self, edge, percentage=1/2):
         logmsg(category='vr_roc', id=self.agent.agent_id, msg='   | Arrived at Edge')
-        self.publish_edge_pose(edge)
-        self.publish_edge_name(edge)
+        self.publish_edge_pose(edge, percentage)
+        self.publish_edge_name(edge, percentage)
 
     def teleport(self, node):
         logmsg(category='vr_roc', id=self.agent.agent_id, msg='   | Arrived at Node')
@@ -212,14 +352,16 @@ subgoal()
     def filter_edge(self, edge):
         logmsg(category='vr_roc', id=self.agent.agent_id, msg='   | Route Edge Popped')
         if not self.execpolicy_goal or self.execpolicy_goal.route.edge_id[0] != edge:
-            logmsg(level='error', category='vr_roc', id=self.agent.agent_id, msg='   :   | Edge is not in route, has route changed?')
+            aid = self.agent.agent_id
+            logmsg(level='error', category='vr_roc', id=aid, msg='   :   | Edge is not in route, has route changed?')
             return
         self.execpolicy_goal.route.edge_id.pop(0)
 
     def filter_node(self, node):
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Route Node Popped')
+        logmsg(category='vr_roc', id=self.agent.agent_id, msg='   | Route Node Popped')
         if not self.execpolicy_goal or self.execpolicy_goal.route.source[0] != node:
-            logmsg(level='error', category='vr_roc', id=self.agent.agent_id, msg='   :   | Node is not in route, has route changed?')
+            aid = self.agent.agent_id
+            logmsg(level='error', category='vr_roc', id=aid, msg='   :   | Node is not in route, has route changed?')
             return
         self.execpolicy_goal.route.source.pop(0)
 
@@ -245,12 +387,12 @@ subgoal()
         tim = time.time()
         link = "%s/base_link" % self.agent.agent_id
         self.tf_broadcaster.sendTransform(pos, ori, tim, link, "map")
-    def publish_edge_tf(self, edge):
+    def publish_edge_tf(self, edge, percentage):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | a) Pub Edge TF')
-        n1, n2 = edge.split('_')
-        pos1, ori = self.agent.map_handler.get_node_tf(n1)
-        pos2, _   = self.agent.map_handler.get_node_tf(n2)
-        pos = tuple([a+b/2 for a, b in zip(pos1,pos2)])
+        old, new = edge.split('_')
+        pos1, ori = self.agent.map_handler.get_node_tf(old)
+        pos2, _   = self.agent.map_handler.get_node_tf(new)
+        pos = tuple([a+(b-a)*percentage for a, b in zip(pos1,pos2)])
         tim = time.time()
         link = "%s/base_link" % self.agent.agent_id
         self.tf_broadcaster.sendTransform(pos, ori, tim, link, "map")
@@ -268,12 +410,12 @@ subgoal()
         pose.orientation.z = ori[2]
         pose.orientation.w = ori[3]
         self.pose_publisher.publish(pose)
-    def publish_edge_pose(self, edge):
+    def publish_edge_pose(self, edge, percentage=2/3):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | b) Pub Edge Pose')
-        n1, n2 = edge.split('_')
-        pos1, ori = self.agent.map_handler.get_node_tf(n1)
-        pos2, _   = self.agent.map_handler.get_node_tf(n2)
-        pos = [(a+b)/2 for a, b in zip(pos1,pos2)]
+        old, new = edge.split('_')
+        pos1, ori = self.agent.map_handler.get_node_tf(old)
+        pos2, _   = self.agent.map_handler.get_node_tf(new)
+        pos = [a+(b-a)*percentage for a, b in zip(pos1,pos2)]
         pose = Pose()
         pose.position.x = pos[0]
         pose.position.y = pos[1]
@@ -287,14 +429,29 @@ subgoal()
 
     def publish_node_name(self, node):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | c) Pub Node Name')
-        self.current_node_pub.publish(String(data=node))
-        self.closest_node_pub.publish(String(data=node))
-    def publish_edge_name(self, edge):
-        #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | c) Pub Edge Name')
-        self.current_node_pub.publish(String(data="none"))
-        edges = ClosestEdges(edge_ids=[edge], distances=[0.0])
-        self.closest_edge_pub.publish(edges)
+        if self.use_topic_publishing:
+            self.closest_node_pub.publish(String(data=node))
+            self.current_node_pub.publish(String(data=node))
+            self.closest_edges_pub.publish(ClosestEdges())
+            self.current_edge_pub.publish(CurrentEdge())
+        else:
+            self.agent.location.closest_node_cb(String(data=node))
+            self.agent.location.current_node_cb(String(data=node))
+            self.agent.location.closest_edges_cb(ClosestEdges())
+            self.agent.location.current_edge_cb(CurrentEdge())
 
+    def publish_edge_name(self, edge, percentage):
+        #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | c) Pub Edge Name')
+        if self.use_topic_publishing:
+            self.closest_node_pub.publish(String(data=edge.split('_')[percentage >= 0.5]))
+            self.current_node_pub.publish(String())
+            self.closest_edges_pub.publish(ClosestEdges(edge_ids=[edge], distances=[0.0]))
+            self.current_edge_pub.publish(CurrentEdge(edge_id=edge))
+        else:
+            self.agent.location.closest_node_cb(String(data=edge.split('_')[percentage >= 0.5]))
+            self.agent.location.current_node_cb(String())
+            self.agent.location.closest_edges_cb(ClosestEdges(edge_ids=[edge], distances=[0.0]))
+            self.agent.location.current_edge_cb(CurrentEdge(edge_id=edge))
 
     def publish_path(self, route):
         #logmsg(category='vr_roc', id=self.agent.agent_id, msg='   :   | d) Pub Path')

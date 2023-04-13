@@ -2,9 +2,9 @@ version: 1.2.4
 
 #STANDARD AGENTS
 debug_agents:
-  - agent_id: scheduler
-    setup: scheduler
-
+#  - agent_id: scheduler
+#    setup: scheduler
+#
   - agent_id: robot_01
     setup: general_robot_debug
     local_properties:
@@ -52,4 +52,4 @@ included_task_packages:
   - name: assignment
   - name: navigation
     properties:
-        debug_robot_step_delay: 0.5
+        debug_robot_step_delay: 5.0

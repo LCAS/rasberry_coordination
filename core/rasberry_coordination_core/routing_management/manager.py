@@ -12,7 +12,7 @@ import yaml
 
 # Messages
 from std_msgs.msg import Empty, String
-import strands_navigation_msgs.msg
+import topological_navigation_msgs.msg
 from rasberry_coordination_msgs.msg import Configuration
 
 # ROS2
@@ -112,7 +112,7 @@ class RoutingManager(object):
         logmsg(category="navig", id=agent.agent_id, msg="Attempting to publish route.")
 
         """ Publish ExecutePolicyModeGoal if different from current policy """
-        policy = strands_navigation_msgs.action.ExecutePolicyMode.Goal()
+        policy = topological_navigation_msgs.msg.ExecutePolicyModeGoal()
 
         """ Define route, if no new route is generated, dont do anything. """
         policy.route.source = agent.route_fragments[0] if agent.route_fragments else None
@@ -197,7 +197,8 @@ class RoutingManager(object):
                 else:
                     agent.modules['rasberry_health_monitoring_pkg'].interface.say_navigation_block()
 
-            agent().route_required = False  # Route has now been published
+            # Route has now been published
+            agent().route_required = False
             logmsg(category="navig", id=agent.agent_id, msg="   | route published: %s" % rationalle_to_publish)
 
             now = str(datetime.datetime.utcnow())

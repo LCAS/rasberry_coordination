@@ -22,6 +22,7 @@ from topological_navigation.tmap_utils import get_node_from_tmap2 as GetNode, ge
 # ROS2
 from rasberry_coordination_core.node import GlobalNode
 from rclpy.qos import QoSProfile, HistoryPolicy, ReliabilityPolicy, DurabilityPolicy
+from rclpy.callback_groups import ReentrantCallbackGroup as RCG
 
 # Logging
 from rasberry_coordination_core.utils.logmsg import logmsg
@@ -58,8 +59,8 @@ class MapObj(object):
     def enable_map_monitoring(self):
         # callback are enabled in base.StageDef.WaitForMap._start()
         qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
-        self.global_tmap_sub = GlobalNode.create_subscription(Str, '/topological_map_2', self.global_map_cb, qos)
-        self.local_tmap_sub = GlobalNode.create_subscription(Str, self.topic, self.local_map_cb, qos)
+        self.global_tmap_sub = GlobalNode.create_subscription(Str, '/topological_map_2', self.global_map_cb, qos, callback_group=RCG())
+        self.local_tmap_sub = GlobalNode.create_subscription(Str, self.topic, self.local_map_cb, qos, callback_group=RCG())
 
     def global_map_cb(self, msg):
         # This is included for each agent as a single global map is needed for an agent to

@@ -214,6 +214,10 @@ class FragmentPlanner(BasePlanner):
 
             # get start node and goal node
             start_node = agent.location(accurate=False)
+            print("---\nloc")
+            print(agent.location.current_node)
+            print(agent.location.closest_node)
+            print(agent.location.previous_node)
             goal_node  = agent.goal()
 
             # if current node is goal node, mark agent as inactive

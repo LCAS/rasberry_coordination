@@ -11,6 +11,7 @@ GlobalLogger = None
 class CoordinatorNodeHandler(Node):
     def __init__(self):
         super().__init__('coordinator')
+        #self.loop_rate = self.create_rate(1, self.get_clock())
 
         global GlobalLogger
         GlobalLogger = self.get_logger()

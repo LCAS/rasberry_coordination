@@ -20,8 +20,7 @@ from std_msgs.msg import Header, String
 from nav_msgs.msg import Path
 from diagnostic_msgs.msg import KeyValue
 from geometry_msgs.msg import PoseStamped, Pose
-from strands_navigation_msgs.action import ExecutePolicyMode
-from strands_navigation_msgs.msg import TopologicalMap, TopologicalRoute
+from topological_navigation_msgs.msg import TopologicalMap, TopologicalRoute, ExecutePolicyModeGoal
 
 # Automanaged by rasberry_coordination_core.task_management.__init__.load_modules
 # Interface class must be named `iFACE` to be recognised for import

@@ -10,7 +10,7 @@ import yaml
 import operator
 
 from std_msgs.msg import String
-import strands_navigation_msgs.msg
+import topological_navigation_msgs.msg
 
 from rasberry_coordination_core.utils.logmsg import logmsg, logmsgbreak
 from rasberry_coordination_core.task_management.__init__ import Stages

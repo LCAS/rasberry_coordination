@@ -13,6 +13,8 @@ from rasberry_coordination_core.utils.logmsg import logmsg
 
 # ROS2
 from rasberry_coordination_core.node import GlobalNode
+from rclpy.callback_groups import ReentrantCallbackGroup as RCG
+
 
 from std_msgs.msg import String as Str
 from diagnostic_msgs.msg import KeyValue
@@ -25,8 +27,8 @@ from rasberry_coordination_core.topomap_management.occupancy import OccupancyFil
 class iFACE(Interface):
     def __init__(self, agent, details):
         super(iFACE, self).__init__(agent, details)
-        self.move_idle_sub = GlobalNode.create_subscription(Str, '/%s/navigation/move_idle' % agent.agent_id, self.move_idle_cb, 10)
-        self.exit_at_node_sub = GlobalNode.create_subscription(Str, '/%s/navigation/exit_at_node' % agent.agent_id, self.exit_at_node_cb, 10)
+        self.move_idle_sub = GlobalNode.create_subscription(Str, '/%s/navigation/move_idle' % agent.agent_id, self.move_idle_cb, 10, callback_group=RCG())
+        self.exit_at_node_sub = GlobalNode.create_subscription(Str, '/%s/navigation/exit_at_node' % agent.agent_id, self.exit_at_node_cb, 10, callback_group=RCG())
         self.occupation_type = self.details['occupation'] if 'occupation' in self.details else None
 
     def occupation(self):

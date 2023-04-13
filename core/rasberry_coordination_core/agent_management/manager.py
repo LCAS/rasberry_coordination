@@ -97,6 +97,7 @@ class AgentManager(object):
     """ Fleet Monitoring """
     def fleet_monitoring(self):
         try:
+#            print("try")
             # Publish new version of agent monitoring
             lst = [Agent(id=a.agent_id,
                          location=self.get_location(a),
@@ -117,7 +118,9 @@ class AgentManager(object):
 
     def get_location(self, a):
         return AgentLocation(current_node=str(a.location.current_node),
-                             current_edge=str(a.location.closest_edge))
+                             closest_node=str(a.location.closest_node),
+                             current_edge=str(a.location.current_edge),
+                             closest_edge=str(a.location.closest_edge))
 
     def get_registration(self, a):
         return AgentRegistration(registered=a.registration)

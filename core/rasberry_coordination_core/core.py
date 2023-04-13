@@ -16,6 +16,7 @@ from pprint import pprint
 
 # ROS2
 import rclpy
+from rclpy.callback_groups import ReentrantCallbackGroup as RCG
 from rasberry_coordination_core.node import GlobalNode
 
 # Messages
@@ -53,9 +54,14 @@ class RasberryCoordinator(object):
         self.agent_manager.cb['force_replan'] = self.routing_manager.force_replan
         self.agent_manager.cb['trigger_replan'] = self.routing_manager.trigger_replan
 
+        # Begin Spin
+        self.spin_pub = GlobalNode.create_publisher(Empty, f'~/spin', 1)
+        self.spin_sub = GlobalNode.create_subscription(Empty, f'~/spin', self.spin, 1, callback_group=RCG())
 
     def run(self):
-
+        self.spin_pub.publish(Empty())
+        
+    def spin(self, msg):
         # Remappings to for commonly used functions
         get_agents      = self.get_agents
         offer_service   = self.interaction_manager.offer_service
@@ -152,7 +158,8 @@ class RasberryCoordinator(object):
 
             # Publish Log and Wait
             l(-2)
-            rclpy.spin_once(GlobalNode, timeout_sec=0.01)
+            time.sleep(0.1)
+            #rclpy.spin_once(GlobalNode, timeout_sec=0.01) # kills executor.spin()
 
     def get_agents(self):
         self.AllAgentsList = self.agent_manager.get_agent_list_copy()
