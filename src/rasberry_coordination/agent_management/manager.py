@@ -129,9 +129,19 @@ class AgentManager(object):
         return AgentRendering(colour="None", structure="None")
 
     def get_health(self, a):
-        if 'battery_level' in a.local_properties:
-            return AgentHealth(battery_estimate=str(a.local_properties['battery_level']))
-        return AgentHealth(battery_estimate="None")
+        lp = a.local_properties
+        bat = str(lp['battery_level']) if 'battery_level' in lp else "None"
+        con = 'human'
+        if 'rasberry_health_monitoring_pkg' in a.modules:
+            if hasattr(a.modules['rasberry_health_monitoring_pkg'].interface, 'in_auto_mode'):
+                auto = a.modules['rasberry_health_monitoring_pkg'].interface.in_auto_mode
+                if auto == "None":
+                    con = "None"
+                elif auto:
+                    con = "autonomous_robot"
+                elif not auto:
+                    con = "controlled_robot"
+        return AgentHealth(battery_estimate=bat, controller=con)
 
 
 

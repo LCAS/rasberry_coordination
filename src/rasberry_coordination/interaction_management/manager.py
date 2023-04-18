@@ -83,6 +83,13 @@ class InteractionManager(object):
                 }
             if not L: return "empty"
 
+        elif GR == 'forced_agent_list':
+            # Use given list of agents
+            L = {a.agent_id: a for a in self.AllAgentsList.values() if
+                    (a.agent_id in interaction.list)
+                }
+            if not L: return "empty"
+
         elif GR == 'node_descriptor':
             # Generate list of nodes matching descriptor (special nodes listed in coordinator config)
             descriptor = interaction.descriptor
@@ -129,7 +136,7 @@ class InteractionManager(object):
         SD = interaction.style_details
 
         if list == "empty":
-           return "empty"
+            return "empty"
 
         elif ST == 'named_agent':
             i = list.keys()[0] if list else ''
