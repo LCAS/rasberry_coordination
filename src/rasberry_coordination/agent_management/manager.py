@@ -143,8 +143,6 @@ class AgentManager(object):
                     con = "controlled_robot"
         return AgentHealth(battery_estimate=bat, controller=con)
 
-
-
     """ RViZ Visuals """
     def get_markers_cb(self, empty):
         """ Request from RViz to resend all markers """
