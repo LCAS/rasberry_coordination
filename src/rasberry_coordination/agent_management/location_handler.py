@@ -18,6 +18,7 @@ class LocationObj(object):
         self.agent = agent
         self.has_presence = has_presence
         self.current_node = initial_location
+        self.current_edge = None
         self.previous_node = None
         self.closest_node = None
         self.closest_edge = None
@@ -44,7 +45,7 @@ class LocationObj(object):
 
     def closest_edges_cb(self, msg):
         self.closest_edge = msg.edge_ids[msg.distances.index(min(msg.distances))]
-        #print(self.closest_edge)
+        self.current_edge = self.closest_edge if self.current_node == None else None
 
     def disable_localisation(self, msg):
         if True: #self.agent.map.is_node(msg): msg in self.agent.empty_node_list!??!?!

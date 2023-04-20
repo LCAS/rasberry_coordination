@@ -28,7 +28,6 @@ add_message_files(
   AgentList.msg
   Agent.msg
   AgentLocation.msg
-  AgentRegistration.msg
   AgentState.msg
   AgentRendering.msg
   AgentHealth.msg

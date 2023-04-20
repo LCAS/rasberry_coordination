@@ -88,7 +88,6 @@ class AgentManager(object):
             # Publish new version of agent monitoring
             lst = [Agent(id=a.agent_id,
                          location=self.get_location(a),
-                         registration=self.get_registration(a),
                          state=self.get_state(a),
                          rendering=self.get_rendering(a),
                          health=self.get_health(a)) for a in self.agent_details.values()]
@@ -105,10 +104,9 @@ class AgentManager(object):
 
     def get_location(self, a):
         return AgentLocation(current_node=a.location.current_node,
-                             current_edge=a.location.closest_edge)
-
-    def get_registration(self, a):
-        return AgentRegistration(registered=a.registration)
+                             closest_node=a.location.closest_node,
+                             current_edge=a.location.current_edge,
+                             closest_edge=a.location.closest_edge)
 
     def get_state(self, a):
         return AgentState(current_task_id=a['id'],
@@ -141,7 +139,8 @@ class AgentManager(object):
                     con = "autonomous_robot"
                 elif not auto:
                     con = "controlled_robot"
-        return AgentHealth(battery_estimate=bat, controller=con)
+        reg = a.registration
+        return AgentHealth(battery_estimate=bat, controller=con, registered=reg)
 
     """ RViZ Visuals """
     def get_markers_cb(self, empty):
