@@ -41,7 +41,6 @@ set(msg_files
   "msg/AgentList.msg"
   "msg/Agent.msg"
   "msg/AgentLocation.msg"
-  "msg/AgentRegistration.msg"
   "msg/AgentState.msg"
   "msg/AgentRendering.msg"
   "msg/AgentHealth.msg"

@@ -6,16 +6,17 @@
 # ----------------------------------
 
 # Builtins
-import os
+import os, time
 import copy, gc
 import yaml, json
 import traceback, pprint
 
 # Messages
-from std_msgs.msg import String as Str, Empty, Bool, ColorRGBA as ColourRGBA
+from builtin_interfaces.msg import Time
+from std_msgs.msg import String as Str, Empty, Bool, ColorRGBA as ColourRGBA, Header
 from diagnostic_msgs.msg import KeyValue
 from rasberry_coordination_msgs.msg import NewAgentConfig, MarkerDetails
-from rasberry_coordination_msgs.msg import Agent, AgentList, AgentRegistration, AgentState, AgentLocation, AgentHealth, AgentRendering
+from rasberry_coordination_msgs.msg import Agent, AgentList, AgentState, AgentLocation, AgentHealth, AgentRendering
 
 # ROS2
 from rasberry_coordination_core.node import GlobalNode
@@ -101,12 +102,13 @@ class AgentManager(object):
             # Publish new version of agent monitoring
             lst = [Agent(id=a.agent_id,
                          location=self.get_location(a),
-                         registration=self.get_registration(a),
                          state=self.get_state(a),
                          rendering=self.get_rendering(a),
                          health=self.get_health(a)) for a in self.agent_details.values()]
             if self.fleet_last != str(lst):
-                self.fleet_pub.publish(AgentList(list=lst))
+                t = str(time.time()).split('.')
+                hdr = Header(stamp=Time(sec=int(t[0]), nanosec=int(t[1])))
+                self.fleet_pub.publish(AgentList(header=hdr, list=lst))
                 self.fleet_last = str(lst)
 
             # Publish scheduler setup
@@ -121,9 +123,6 @@ class AgentManager(object):
                              closest_node=str(a.location.closest_node),
                              current_edge=str(a.location.current_edge),
                              closest_edge=str(a.location.closest_edge))
-
-    def get_registration(self, a):
-        return AgentRegistration(registered=a.registration)
 
     def get_state(self, a):
         return AgentState(current_task_id=a['id'],
@@ -146,7 +145,25 @@ class AgentManager(object):
     def get_health(self, a):
         if 'battery_level' in a.local_properties:
             return AgentHealth(battery_estimate=str(a.local_properties['battery_level']))
-        return AgentHealth(battery_estimate="None")
+        return AgentHealth(battery_estimate="None", registered=a.registration)
+
+    def get_health(self, a):
+        lp = a.local_properties
+        bat = str(lp['battery_level']) if 'battery_level' in lp else "None"
+        con = ''
+        #con = 'human'
+        #if 'rasberry_health_monitoring_pkg' in a.modules:
+        #    if hasattr(a.modules['health_monitoring'].interface, 'in_auto_mode'):
+        #        auto = a.modules['health_monitoring'].interface.in_auto_mode
+        #        if auto == "None":
+        #            con = "None"
+        #        elif auto:
+        #            con = "autonomous_robot"
+        #        elif not auto:
+        #            con = "controlled_robot"
+        reg = a.registration
+        return AgentHealth(battery_estimate=bat, controller=con, registered=reg)
+
 
 
 

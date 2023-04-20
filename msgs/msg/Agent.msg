@@ -1,6 +1,5 @@
 string id
 rasberry_coordination_msgs/AgentLocation location
-rasberry_coordination_msgs/AgentRegistration registration
 rasberry_coordination_msgs/AgentState state
 rasberry_coordination_msgs/AgentRendering rendering
 rasberry_coordination_msgs/AgentHealth health
