@@ -49,12 +49,12 @@ class Robot(GeneralNavigator):
         self.execpolicy_status = None
         self.execpolicy_current_wp = None
 
+        self.route_search = None
+        self.route_publisher = Publisher("/%s/current_route" %(self.robot_id), Path, latch=True, queue_size=5)
+
         self.topo_map = None
         self.rec_topo_map = False
         self.topological_map_sub = Subscriber("topological_map", TopologicalMap, self._map_cb)
-
-        self.route_search = None
-        self.route_publisher = Publisher("/%s/current_route" %(self.robot_id), Path, latch=True, queue_size=5)
 
         self.topo_route_sub = Subscriber("/%s/topological_navigation/route" %(self.robot_id),
                                                TopologicalRoute,
@@ -72,7 +72,7 @@ class Robot(GeneralNavigator):
         self.rec_topo_map = True
 
         self.route_search = TopologicalRouteSearch(self.topo_map)
-        self.publish_route()
+        #self.publish_route()
 
     def topo_route_cb(self, msg):
         """callback for topological_navigation/route messages

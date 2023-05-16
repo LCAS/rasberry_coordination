@@ -267,7 +267,7 @@ class FragmentPlanner(BasePlanner):
         logmsg(category="route", msg="Results:")
         for a in self.agent_details.values():
             logmsg(category="route", msg="   | %s" % a.agent_id)
-            [logmsg(category="route", msg="   :   | %s" % node.replace('WayPoint', 'wp')) for node in a.route]
+            [logmsg(category="route", msg="   :   | %s" % str(node).replace('WayPoint', 'wp')) for node in a.route]
 
         # find critical points and fragment routes to avoid critical point collisions
         self.split_critical_paths()
