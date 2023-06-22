@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 # ----------------------------------
 # @author: jheselden
 # @email: jheselden@lincoln.ac.uk
@@ -169,9 +169,12 @@ class AgentManager(object):
 
     """ RViZ Visuals """
     def get_markers_cb(self, empty):
+        #print('request for marker details')
         """ Request from RViz to resend all markers """
         for a in self.agent_details.values():
+            #print(a)
             if 'marker' in a.modules['base'].details:
+                #print('marker')
                 m = a.modules['base'].details['marker']
                 self.set_marker_pub.publish(m)
 
@@ -232,7 +235,7 @@ class AgentDetails(object):
         global Publisher
         self.colour = None
         self.modules['base'].details['default_colour'] = lp['rviz_default_colour'] if 'rviz_default_colour' in lp else ''
-        self.set_marker_pub = GlobalNode.create_publisher(MarkerDetails, '~/agent/set_marker', 0)
+        self.set_marker_pub = GlobalNode.create_publisher(MarkerDetails, '~/agent_management/set_marker', 0)
 
         #Debug
         self.speaker_pub = GlobalNode.create_publisher(Str, f"/{self.agent_id}/verbal_speaker", 0)

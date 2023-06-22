@@ -10,6 +10,7 @@ import yaml
 
 import rclpy
 from rclpy.node import Node
+from rclpy.time import Duration
 
 import time
 
@@ -35,14 +36,16 @@ class MarkerPublisher(Node):
         with open(components_path,'r') as f: self.component_dict = yaml.safe_load(f)
         with open(structures_path,'r') as f: self.structures_dict = yaml.safe_load(f)
         self.agents_to_render, self.agents_to_pop = [], []
-        self.publish_time = time.time()
+        self.publish_time = self.get_clock().now().to_msg()
 
-        self.marker_set_sub = self.create_subscription(MarkerDetails, "/rasberry_coordination/set_marker", self.set_marker_cb, 10)
-        self.get_marker_pub = self.create_publisher(Empty, "/rasberry_coordination/get_markers", 5)
+        print('marker sub created')
+        self.marker_set_sub = self.create_subscription(MarkerDetails, "/coordinator/agent_management/set_marker", self.set_marker_cb, 10)
+
+        self.get_marker_pub = self.create_publisher(Empty, "/coordinator/agent_management/get_markers", 5)
         self.marker_pub_all = self.create_publisher(MarkerArray, "/vis_all/all", 10)
 
     def set_marker_cb(self, msg):
-    
+        print("marker details arrived")
         # If agent does not exist, create new container with marker directories
         if msg.id not in self.agents:
             print("%s new %s: %s | %s (%s)"%(msg.id, msg.structure, str(msg.colour).replace('\n',''), msg.tf_source_topic, msg.tf_source_type))
@@ -85,7 +88,7 @@ class MarkerPublisher(Node):
         while rclpy.ok():
 
             #if there are any pending updates
-            if (self.agents_to_render or self.agents_to_pop) or (time.time() - self.publish_time > 5):
+            if (self.agents_to_render or self.agents_to_pop) or (self.get_clock().now().to_msg().sec - self.publish_time.sec > 5):
                 print("Cycle: %s"%i)
                 i+=1
 
@@ -105,15 +108,13 @@ class MarkerPublisher(Node):
                     marker_array.markers += a.marker_array.markers
 
                 #set the timeouts
-                self.publish_time = time.time()
+                self.publish_time = self.get_clock().now().to_msg()
                 for m in marker_array.markers:
                     m.header.stamp = self.publish_time
-                    m.lifetime = 10
-
+                    m.lifetime = Duration(seconds=10).to_msg()
                 self.marker_pub_all.publish(marker_array)
 
-            time.sleep(0.5)
-
+            rclpy.spin_once(self, timeout_sec=0.5)
 
 def main(args=None):
     rclpy.init(args=args)

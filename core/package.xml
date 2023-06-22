@@ -18,7 +18,6 @@
 
   <depend>tf2</depend>
 
-  <depend>strands_navigation_msgs</depend>
   <depend>topological_navigation_msgs</depend>
   <depend>topological_navigation</depend>
 

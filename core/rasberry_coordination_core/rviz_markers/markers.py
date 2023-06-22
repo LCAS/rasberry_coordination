@@ -56,21 +56,36 @@ class AgentMarker(object):
         component.type = getattr(component, component_dict['type'])
         component.action = getattr(component, component_dict['action'])
 
-        component.pose.position = Point(position[0], position[1], position[2])
+        component.pose.position = Point()
+        component.pose.position.x = float(position[0])
+        component.pose.position.y = float(position[1])
+        component.pose.position.z = float(position[2])
 
         q = component_dict['quat']
         quat = quaternion_from_euler(q[0],q[1],q[2])
-        component.pose.orientation = Quaternion(quat[0], quat[1], quat[2], quat[3])
+        component.pose.orientation = Quaternion()
+        component.pose.orientation.x = float(quat[0])
+        component.pose.orientation.y = float(quat[1])
+        component.pose.orientation.z = float(quat[2])
+        component.pose.orientation.w = float(quat[3])
 
         scale = component_dict['scale']
-        component.scale = Vector3(scale[0], scale[1], scale[2])
+        print(scale)
+        component.scale = Vector3()
+        component.scale.x = float(scale[0])
+        component.scale.y = float(scale[1])
+        component.scale.z = float(scale[2])
 
         colour = component_dict['colour']
         if self.colour != '':
-            print(self.colour)
-            print(component_dict['colour_multiplier'])
+            #print(self.colour)
+            #print(component_dict['colour_multiplier'])
             colour = [c*m for c,m in zip(self.colour, component_dict['colour_multiplier'])]
-        component.color = ColorRGBA(colour[0], colour[1], colour[2], colour[3])
+        component.color = ColorRGBA()
+        component.color.r = colour[0]
+        component.color.g = colour[1]
+        component.color.b = colour[2]
+        component.color.a = colour[3]
 
         component.frame_locked = component_dict['frame_locked']
 

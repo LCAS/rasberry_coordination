@@ -9,7 +9,7 @@ debug_agents:
     setup: general_robot_debug
     local_properties:
         rviz_default_colour: '0000FF'
-        initial_location: WayPoint140
+        initial_location: WayPoint142
 
   - agent_id: robot_02
     setup: general_robot_debug

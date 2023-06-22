@@ -1,4 +1,0 @@
-- name: storage_agent
-  panes:
-  - 'rostopic pub /STD_v2_30c6f7e65af8/localisation/disable std_msgs/String "data: r13.5-ca"'
-  - 'rostopic pub /STD_v2_246f284a6c94/localisation/disable std_msgs/String "data: r15.5-c1"'

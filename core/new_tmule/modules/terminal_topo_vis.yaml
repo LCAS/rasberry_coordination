@@ -1,4 +1,0 @@
-- name: tui_topo_vis
-  panes:
-  - rosrun rasberry_topological_utils tui_topo_vis.py
-  tags: [coord]
