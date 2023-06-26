@@ -5,13 +5,13 @@ debug_agents:
 #  - agent_id: scheduler
 #    setup: scheduler
 #
-  - agent_id: robot_01
+  - agent_id: tom
     setup: general_robot_debug
     local_properties:
         rviz_default_colour: '0000FF'
         initial_location: WayPoint142
 
-  - agent_id: robot_02
+  - agent_id: barry
     setup: general_robot_debug
     local_properties:
         rviz_default_colour: '00FF00'
