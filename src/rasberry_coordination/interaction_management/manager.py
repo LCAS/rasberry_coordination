@@ -118,6 +118,28 @@ class InteractionManager(object):
             # Filter list by filtering out ones not accepting new tasks
             L = {k:v for k,v in L.items() if (v.registration) and (v().accepting_new_tasks)}
 
+        elif GR == 'forced_agent_descriptor':
+            # Generate list of agents based on some characteristics
+            descriptor = interaction.descriptor
+
+            # Format some shorthand
+            m = descriptor['module']
+            r = descriptor['interface']
+            descriptor['interface'] = r if type(r) == type([]) else [r]
+            r = descriptor['interface']
+
+            # Generate list of all agents which could be of interest
+            L = {a.agent_id: a for a in self.AllAgentsList.values() if (a is not agent)} #not making the call
+
+            # Filter list by filtering out ones of invalid forms
+            L = {k:v for k,v in L.items() if m in v.modules and (str(v.modules[m].interface) in r)}
+
+            # Return here, if no viable agents in the system, rather than none currently avaiable
+            if not L: return "empty"
+
+            # Filter list by filtering out ones not accepting new tasks
+            L = {k:v for k,v in L.items()}
+
         elif GR == 'head_nodes':
             # Generate list of nodes based on format of name
             L = [float(n.split("-c")[0][1:]) for n in agent.map_handler.empty_node_list if n.endswith('ca')]

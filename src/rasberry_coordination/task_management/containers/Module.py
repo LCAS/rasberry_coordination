@@ -17,7 +17,7 @@ class ModuleObj(object):
     def __repr__(self):
         return "Module( name:%s | interface:%s )" % (self.name, self.interface or None)
 
-    def __init__(self, agent, name, interface, details):
+    def __init__(self, agent, name, interface, details=None):
         logmsg(category="module", msg="   | %s (%s)"%(name.upper(),interface.upper()))
         self.agent = agent
         self.name = name
