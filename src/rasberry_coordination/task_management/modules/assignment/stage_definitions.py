@@ -27,7 +27,7 @@ class InteractionResponse(StageBase):
         self.contact = None
     def _query(self):
         """Complete once action has generated a result"""
-        success_conditions = [self.interaction.response != None]
+        success_conditions = [self.interaction.response != None and self.interaction.response != 'empty']
         self.flag(any(success_conditions))
     def _end(self, contact_type='responder_id'):
         """Save interaction response to contacts"""

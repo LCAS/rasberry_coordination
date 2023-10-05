@@ -1,59 +1,64 @@
 #Marker Components:
 
-short_robot: &short_robot
+# Model Groups
+wheel_marker: &wheel_marker
+  - [wheel0, 0, [0.65, 0.3, 0.15]]
+  - [wheel1, 1, [0.65, -0.3, 0.15]]
+  - [wheel2, 2, [-0.65, -0.3, 0.15]]
+  - [wheel3, 3, [-0.65, 0.3, 0.15]]
+tower_marker: &tower_marker
+  - [tower0, 4, [0.6, 0.3, 0.45]]
+  - [tower1, 5, [0.6, -0.3, 0.45]]
+  - [tower2, 6, [-0.6, -0.3, 0.45]]
+  - [tower3, 7, [-0.6, 0.3, 0.45]]
+front_back_pipe_marker: &front_back_pipe_marker
+  - [pipe0, 8, [0.0, 0.32, 0.5]]
+  - [pipe1, 9, [0.0, 0.32, 0.4]]
+  - [pipe2, 10, [0.0, -0.32, 0.5]]
+  - [pipe3, 11, [0.0, -0.32, 0.4]]
+left_right_pipe_marker: &left_right_pipe_marker
+  - [pipe4, 12, [0.65, 0.0, 0.5]]
+  - [pipe5, 13, [0.65, 0.0, 0.4]]
+  - [pipe6, 14, [-0.65, 0.0, 0.5]]
+  - [pipe7, 15, [-0.65, 0.0, 0.4]]
+name_marker: &name_marker
+  - [name, 16, [0, 0, 0.6]]
+bed_marker: &bed_marker
+  - [bed, 17, [0,0,0.575]]
+
+
+hunter_robot:
   wheel_marker:
-    - [wheel0, 0, [0.65, 0.3, 0.15]]
-    - [wheel1, 1, [0.65, -0.3, 0.15]]
-    - [wheel2, 2, [-0.65, -0.3, 0.15]]
-    - [wheel3, 3, [-0.65, 0.3, 0.15]]
-  tower_marker:
-    - [tower0, 4, [0.6, 0.3, 0.45]]
-    - [tower1, 5, [0.6, -0.3, 0.45]]
-    - [tower2, 6, [-0.6, -0.3, 0.45]]
-    - [tower3, 7, [-0.6, 0.3, 0.45]]
-  front_back_pipe_marker:
-    - [pipe0, 8, [0.0, 0.32, 0.5]]
-    - [pipe1, 9, [0.0, 0.32, 0.4]]
-    - [pipe2, 10, [0.0, -0.32, 0.5]]
-    - [pipe3, 11, [0.0, -0.32, 0.4]]
-  left_right_pipe_marker:
-    - [pipe4, 12, [0.65, 0.0, 0.5]]
-    - [pipe5, 13, [0.65, 0.0, 0.4]]
-    - [pipe6, 14, [-0.65, 0.0, 0.5]]
-    - [pipe7, 15, [-0.65, 0.0, 0.4]]
+    - [wheel0, 0, [0.4, 0.2, 0.15]]
+    - [wheel1, 1, [0.4, -0.2, 0.15]]
+    - [wheel2, 2, [-0.4, -0.2, 0.15]]
+    - [wheel3, 3, [-0.4, 0.2, 0.15]]
   name_marker:
-    - [name, 16, [0, 0, 0.6]]
+    - [name, 4, [0, 0, 0.25]]
   bed_marker:
-    - [bed, 17, [0,0,0.575]]
+    - [bed, 5, [0,0,0.31]]
+
+
+
+# Agent Models
+short_robot: &short_robot
+  wheel_marker: *wheel_marker
+  tower_marker: *tower_marker
+  front_back_pipe_marker: *front_back_pipe_marker
+  left_right_pipe_marker: *left_right_pipe_marker
+  name_marker: *name_marker
+  bed_marker: *bed_marker
 short_transportation: *short_robot
 short_sprayer: *short_robot
 
 
 short_robot_load_1:
-  wheel_marker:
-    - [wheel0, 0, [0.65, 0.3, 0.15]]
-    - [wheel1, 1, [0.65, -0.3, 0.15]]
-    - [wheel2, 2, [-0.65, -0.3, 0.15]]
-    - [wheel3, 3, [-0.65, 0.3, 0.15]]
-  tower_marker:
-    - [tower0, 4, [0.6, 0.3, 0.45]]
-    - [tower1, 5, [0.6, -0.3, 0.45]]
-    - [tower2, 6, [-0.6, -0.3, 0.45]]
-    - [tower3, 7, [-0.6, 0.3, 0.45]]
-  front_back_pipe_marker:
-    - [pipe0, 8, [0.0, 0.32, 0.5]]
-    - [pipe1, 9, [0.0, 0.32, 0.4]]
-    - [pipe2, 10, [0.0, -0.32, 0.5]]
-    - [pipe3, 11, [0.0, -0.32, 0.4]]
-  left_right_pipe_marker:
-    - [pipe4, 12, [0.65, 0.0, 0.5]]
-    - [pipe5, 13, [0.65, 0.0, 0.4]]
-    - [pipe6, 14, [-0.65, 0.0, 0.5]]
-    - [pipe7, 15, [-0.65, 0.0, 0.4]]
-  name_marker:
-    - [name, 16, [0, 0, 0.7]]
-  bed_marker:
-    - [bed, 17, [0,0,0.575]]
+  wheel_marker: *wheel_marker
+  tower_marker: *tower_marker
+  front_back_pipe_marker: *front_back_pipe_marker
+  left_right_pipe_marker: *left_right_pipe_marker
+  name_marker: *name_marker
+  bed_marker: *bed_marker
   empty_tray_marker:
     - [etray1, 18, [0.25, 0, 0.65]]
   full_tray_marker:
@@ -61,30 +66,12 @@ short_robot_load_1:
 
 
 short_robot_load_2:
-  wheel_marker:
-    - [wheel0, 0, [0.65, 0.3, 0.15]]
-    - [wheel1, 1, [0.65, -0.3, 0.15]]
-    - [wheel2, 2, [-0.65, -0.3, 0.15]]
-    - [wheel3, 3, [-0.65, 0.3, 0.15]]
-  tower_marker:
-    - [tower0, 4, [0.6, 0.3, 0.45]]
-    - [tower1, 5, [0.6, -0.3, 0.45]]
-    - [tower2, 6, [-0.6, -0.3, 0.45]]
-    - [tower3, 7, [-0.6, 0.3, 0.45]]
-  front_back_pipe_marker:
-    - [pipe0, 8, [0.0, 0.32, 0.5]]
-    - [pipe1, 9, [0.0, 0.32, 0.4]]
-    - [pipe2, 10, [0.0, -0.32, 0.5]]
-    - [pipe3, 11, [0.0, -0.32, 0.4]]
-  left_right_pipe_marker:
-    - [pipe4, 12, [0.65, 0.0, 0.5]]
-    - [pipe5, 13, [0.65, 0.0, 0.4]]
-    - [pipe6, 14, [-0.65, 0.0, 0.5]]
-    - [pipe7, 15, [-0.65, 0.0, 0.4]]
-  name_marker:
-    - [name, 16, [0, 0, 0.7]]
-  bed_marker:
-    - [bed, 17, [0,0,0.575]]
+  wheel_marker: *wheel_marker
+  tower_marker: *tower_marker
+  front_back_pipe_marker: *front_back_pipe_marker
+  left_right_pipe_marker: *left_right_pipe_marker
+  name_marker: *name_marker
+  bed_marker: *bed_marker
   empty_tray_marker:
     - [etray1, 18, [0.25, 0, 0.65]]
     - [etray2, 19, [-0.25, 0, 0.65]]
@@ -94,30 +81,12 @@ short_robot_load_2:
 
 
 short_robot_load_3:
-  wheel_marker:
-    - [wheel0, 0, [0.65, 0.3, 0.15]]
-    - [wheel1, 1, [0.65, -0.3, 0.15]]
-    - [wheel2, 2, [-0.65, -0.3, 0.15]]
-    - [wheel3, 3, [-0.65, 0.3, 0.15]]
-  tower_marker:
-    - [tower0, 4, [0.6, 0.3, 0.45]]
-    - [tower1, 5, [0.6, -0.3, 0.45]]
-    - [tower2, 6, [-0.6, -0.3, 0.45]]
-    - [tower3, 7, [-0.6, 0.3, 0.45]]
-  front_back_pipe_marker:
-    - [pipe0, 8, [0.0, 0.32, 0.5]]
-    - [pipe1, 9, [0.0, 0.32, 0.4]]
-    - [pipe2, 10, [0.0, -0.32, 0.5]]
-    - [pipe3, 11, [0.0, -0.32, 0.4]]
-  left_right_pipe_marker:
-    - [pipe4, 12, [0.65, 0.0, 0.5]]
-    - [pipe5, 13, [0.65, 0.0, 0.4]]
-    - [pipe6, 14, [-0.65, 0.0, 0.5]]
-    - [pipe7, 15, [-0.65, 0.0, 0.4]]
-  name_marker:
-    - [name, 16, [0, 0, 0.7]]
-  bed_marker:
-    - [bed, 17, [0,0,0.575]]
+  wheel_marker: *wheel_marker
+  tower_marker: *tower_marker
+  front_back_pipe_marker: *front_back_pipe_marker
+  left_right_pipe_marker: *left_right_pipe_marker
+  name_marker: *name_marker
+  bed_marker: *bed_marker
   empty_tray_marker:
     - [etray1, 18, [0.25, 0, 0.65]]
     - [etray2, 19, [-0.25, 0, 0.65]]
@@ -129,30 +98,12 @@ short_robot_load_3:
 
 
 short_robot_load_4:
-  wheel_marker:
-    - [wheel0, 0, [0.65, 0.3, 0.15]]
-    - [wheel1, 1, [0.65, -0.3, 0.15]]
-    - [wheel2, 2, [-0.65, -0.3, 0.15]]
-    - [wheel3, 3, [-0.65, 0.3, 0.15]]
-  tower_marker:
-    - [tower0, 4, [0.6, 0.3, 0.45]]
-    - [tower1, 5, [0.6, -0.3, 0.45]]
-    - [tower2, 6, [-0.6, -0.3, 0.45]]
-    - [tower3, 7, [-0.6, 0.3, 0.45]]
-  front_back_pipe_marker:
-    - [pipe0, 8, [0.0, 0.32, 0.5]]
-    - [pipe1, 9, [0.0, 0.32, 0.4]]
-    - [pipe2, 10, [0.0, -0.32, 0.5]]
-    - [pipe3, 11, [0.0, -0.32, 0.4]]
-  left_right_pipe_marker:
-    - [pipe4, 12, [0.65, 0.0, 0.5]]
-    - [pipe5, 13, [0.65, 0.0, 0.4]]
-    - [pipe6, 14, [-0.65, 0.0, 0.5]]
-    - [pipe7, 15, [-0.65, 0.0, 0.4]]
-  name_marker:
-    - [name, 16, [0, 0, 0.7]]
-  bed_marker:
-    - [bed, 17, [0,0,0.575]]
+  wheel_marker: *wheel_marker
+  tower_marker: *tower_marker
+  front_back_pipe_marker: *front_back_pipe_marker
+  left_right_pipe_marker: *left_right_pipe_marker
+  name_marker: *name_marker
+  bed_marker: *bed_marker
   empty_tray_marker:
     - [etray1, 18, [0.25, 0, 0.65]]
     - [etray2, 19, [-0.25, 0, 0.65]]
@@ -166,26 +117,14 @@ short_robot_load_4:
 
 
 
+
 tall_robot: &tall_robot
-  wheel_marker:
-    - [wheel0, 0, [0.65, 0.3, 0.15]]
-    - [wheel1, 1, [0.65, -0.3, 0.15]]
-    - [wheel2, 2, [-0.65, -0.3, 0.15]]
-    - [wheel3, 3, [-0.65, 0.3, 0.15]]
-  tower_marker:
-    - [tower0, 4, [0.6, 0.3, 0.45]]
-    - [tower1, 5, [0.6, -0.3, 0.45]]
-    - [tower2, 6, [-0.6, -0.3, 0.45]]
-    - [tower3, 7, [-0.6, 0.3, 0.45]]
-  front_back_pipe_marker:
-    - [pipe0, 8, [0.0, 0.32, 0.5]]
-    - [pipe1, 9, [0.0, 0.32, 0.4]]
-    - [pipe2, 10, [0.0, -0.32, 0.5]]
-    - [pipe3, 11, [0.0, -0.32, 0.4]]
+  wheel_marker: *wheel_marker
+  tower_marker: *tower_marker
+  front_back_pipe_marker: *front_back_pipe_marker
+  name_marker: *name_marker
   arch_marker:
     - [arch, 12, [-0.68, -0.37, 0.4]]
-  name_marker:
-    - [name, 16, [0, 0, 0.7]]
 tall_data_collection: *tall_robot
 tall_sprayer: *tall_robot
 tall_uv: *tall_robot
@@ -206,8 +145,9 @@ human: &human
     - [name, 6, [0, 0, 1.8]]
 picker: *human
 
-special_node:
+disc: &disc
   node_marker:
     - [flat, 0, [0, 0, 0.01]]
   name_marker:
     - [name, 2, [0, 0, 0.5]]
+special_node: *disc

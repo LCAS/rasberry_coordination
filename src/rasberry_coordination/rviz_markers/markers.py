@@ -37,8 +37,8 @@ class AgentMarker(object):
         logmsg(category="rviz", id=self.id, msg="generating marker")
         marker_array = MarkerArray()
         if self.structure not in self.structure_dict:
-            logmsg(category="rviz", msg="    | %s not found, generating short_robot_load_4"%self.structure)
-            self.structure = 'short_robot_load_4'
+            logmsg(category="rviz", msg="    | %s not found, generating disc"%self.structure)
+            self.structure = 'disc'
         for component_type,items in self.structure_dict[self.structure].items():
             for i in items:
                 c = self.get_component(component_type, ns=i[0], marker_index=i[1], position=i[2])
@@ -66,9 +66,9 @@ class AgentMarker(object):
         component.scale = Vector3(scale[0], scale[1], scale[2])
 
         colour = component_dict['colour']
-        if self.colour != '':
-            print(self.colour)
-            print(component_dict['colour_multiplier'])
+        if self.colour[3] != 0.0:
+            #print(self.colour)
+            #print(component_dict['colour_multiplier'])
             colour = [c*m for c,m in zip(self.colour, component_dict['colour_multiplier'])]
         component.color = ColorRGBA(colour[0], colour[1], colour[2], colour[3])
 

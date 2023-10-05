@@ -355,6 +355,7 @@ class AgentDetails(object):
         if 'rviz' not in self.modules['base'].details: return
 
         rviz = self.modules['base'].details['rviz']
+        rviz['colour'] = '' if 'colour' not in rviz else rviz['colour']
         local = self.local_properties
         local['rviz_default_colour'] = local['rviz_default_colour'] if 'rviz_default_colour' in local else ''
         local['rviz_structure'] = local['rviz_structure'] if 'rviz_structure' in local else ''

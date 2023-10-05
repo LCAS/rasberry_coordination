@@ -1,17 +1,34 @@
 <?xml version="1.0" ?>
 <launch>
   <group ns="restricted_topological_map_generators">
-
     <node pkg="topological_navigation" name="short" type="restrictions_manager.py" output="screen" respawn="true" >
       <param name="out_topic" type="str" value="short_topological_map"/>
       <remap from="type" to="short_agent_type" />
       <remap from="task" to="short_task_type" />
+    </node>
+    <node pkg="topological_navigation" type="visualise_map.py" name="visualise_short_map" args="-e" respawn="false">
+      <remap from="topological_map" to="short_topological_map"/>
+      <remap from="topological_map_visualisation" to="short_topological_vis"/>
     </node>
 
     <node pkg="topological_navigation" name="tall" type="restrictions_manager.py" output="screen" respawn="true" >
       <param name="out_topic" type="str" value="tall_topological_map"/>
       <remap from="type" to="tall_agent_type" />
       <remap from="task" to="tall_task_type" />
+    </node>
+    <node pkg="topological_navigation" type="visualise_map.py" name="visualise_tall_map" args="-e" respawn="false">
+      <remap from="topological_map" to="tall_topological_map"/>
+      <remap from="topological_map_visualisation" to="tall_topological_vis"/>
+    </node>
+
+    <node pkg="topological_navigation" name="hunter" type="restrictions_manager.py" output="screen" respawn="true" >
+      <param name="out_topic" type="str" value="hunter_topological_map"/>
+      <remap from="type" to="hunter_agent_type" />
+      <remap from="task" to="hunter_task_type" />
+    </node>
+    <node pkg="topological_navigation" type="visualise_map.py" name="visualise_hunter_map" args="-e" respawn="false">
+      <remap from="topological_map" to="hunter_topological_map"/>
+      <remap from="topological_map_visualisation" to="hunter_topological_vis"/>
     </node>
 
   </group>

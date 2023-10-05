@@ -33,7 +33,7 @@ class MarkerPublisher(object):
 
         self.marker_set_sub = rospy.Subscriber('/rasberry_coordination/set_marker', MarkerDetails, self.set_marker_cb)
         self.get_marker_pub = rospy.Publisher('/rasberry_coordination/get_markers', Empty, queue_size=5)
-        self.marker_pub_all = rospy.Publisher("/vis_all/all", MarkerArray, queue_size=10)
+        self.marker_pub_all = rospy.Publisher("/vis_all/all", MarkerArray, queue_size=10, latch=True)
 
     def set_marker_cb(self, msg):
 
