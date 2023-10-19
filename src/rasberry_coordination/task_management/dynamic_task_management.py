@@ -98,7 +98,7 @@ class DTM(object):
         logmsg(category="DTM", id="DTM", msg="Interruption made on DTM channels of type: %s" % m.interrupt)
         A = {a.agent_id:a for a in self.coordinator.get_agents()}
 
-        if m.scope in [0, "Coord", "Coordinator"] or m.scope.upper() == 'C':
+        if m.scope in [0, "Coord", "Coordinator"] or m.scope[0].upper() == 'C':
             # Modify all tasks
             logmsg(category="DTM", msg="    - to affect all agents.")
             if m.interrupt == "reset":
@@ -110,7 +110,7 @@ class DTM(object):
                 [a.set_interrupt(m.interrupt, a['module'], a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id']]
 
 
-        elif m.scope in [1, "Task"] or m.scope.upper() == 'T':
+        elif m.scope in [1, "Task"] or m.scope[0].upper() == 'T':
             # Modify all agents on specific task
             logmsg(category="DTM", msg="    - to affect task: %s." % m.target)
             # [a.set_interrupt(m.interrupt, a.module, a['task_id'], m.scope, quiet=True) for a in A.values() if a['task_id'] and a['task_id'] == m.target]
@@ -125,7 +125,7 @@ class DTM(object):
 
 
 
-        elif m.scope in [2, "Agent"] or m.scope.upper() == 'A':
+        elif m.scope in [2, "Agent"] or m.scope[0].upper() == 'A':
             # Modify specific agent's task
             logmsg(category="DTM", msg="    - to affect agent: %s." % m.target)
             A[m.target].set_interrupt(m.interrupt, A[m.target]['module'], A[m.target]['task_id'], m.scope, quiet=True)
