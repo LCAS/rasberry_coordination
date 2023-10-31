@@ -49,7 +49,7 @@ class iFACE(GeneralNavigator):
 
         # Set step-delay param
         param = '~/task_modules/navigation/debug_robot_step_delay'
-        default = fetch_property(param, 0.5)
+        default = fetch_property(param, 1)
 
         # Route Publishers
         goal_topic = f"/{aid}/topological_navigation/execute_policy_mode/goal"
@@ -127,7 +127,7 @@ class iFACE(GeneralNavigator):
         # Check goal is valid
         if not self.execpolicy_goal.route.source and not self.execpolicy_goal.route.edge_id:
             return
-        print("\n\n")
+        #print("\n\n")
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='Execpolicy Goal:')
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Route:')
         self.path_gen(self.execpolicy_goal.route, format='   :   | %s')
@@ -139,7 +139,7 @@ class iFACE(GeneralNavigator):
 
             # Begin navigation to start of edge
             logmsg(category='vr_rob', id=self.agent.agent_id, msg='Moving to edge start: %s'%edge)
-            delay = self.wait(percentage=1/3)
+            delay = self.wait(percentage=1/3, edge_id=edge)
             self.subgoal1_timer = GlobalNode.create_timer(delay, self.subgoal2)
             return
         else:
@@ -158,7 +158,7 @@ class iFACE(GeneralNavigator):
 
             # Begin navigation to end of edge
             logmsg(category='vr_rob', id=self.agent.agent_id, msg='Moving to edge end: %s'%edge)
-            delay = self.wait(percentage=1/3)
+            delay = self.wait(percentage=1/3, edge_id=edge)
             self.subgoal2_timer = GlobalNode.create_timer(delay, self.subgoal3)
             return
         else:
@@ -168,6 +168,7 @@ class iFACE(GeneralNavigator):
     def subgoal3(self):
         self.subgoal2_timer.cancel()
         # Complete traversal to end of edge (unless next node is already reached)
+        edge = None
         goal = self.execpolicy_goal
         if goal and goal.route.edge_id and goal.route.source and not goal.route.edge_id[0].startswith(goal.route.source[0]):
             edge = goal.route.edge_id[0]
@@ -187,7 +188,7 @@ class iFACE(GeneralNavigator):
 
             # Begin navigation to node
             logmsg(category='vr_rob', id=self.agent.agent_id, msg='Moving to node: %s'%node)
-            delay = self.wait(percentage=1/3)
+            delay = self.wait(percentage=1/3, edge_id=edge)
             self.subgoal3_timer = GlobalNode.create_timer(delay, self.subgoal4)
             return
         else:
@@ -224,9 +225,12 @@ class iFACE(GeneralNavigator):
 ############################################################################################
 
 
-    def wait(self, percentage=1/2):
-        #if self.details['smart_delay']: delay = get_smart_travel_time(route.edge) / 2
-        delay = percentage * float(fetch_property('navigation', 'debug_robot_step_delay', 2).double_value)
+    def wait(self, percentage=1/2, edge_id=None):
+        if edge_id == None:
+            #delay = self.get_smart_travel_time(route.edge) / 2
+            delay = percentage * float(fetch_property('navigation', 'debug_robot_step_delay', 2).double_value)
+        else:
+            delay = percentage * self.agent.map_handler.get_edge_id_length(edge_id)
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Travel time: %s seconds' % round(delay,3))
         return delay
 

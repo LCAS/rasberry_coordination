@@ -43,7 +43,7 @@ categories:
   - name: "ROB_PY"
   - name: "VR_ROB"
     colour: '45m'
-#    reject: true
+    reject: true
   - name: "VR_ROC"
     colour: '45m'
     reject: true

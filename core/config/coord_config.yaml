@@ -5,17 +5,23 @@ debug_agents:
 #  - agent_id: scheduler
 #    setup: scheduler
 #
-  - agent_id: tom
-    setup: general_robot_debug
-    local_properties:
-        rviz_default_colour: '0000FF'
-        initial_location: WayPoint142
+#  - agent_id: tom
+#    setup: general_robot_debug
+#    local_properties:
+#        rviz_default_colour: '0000FF'
+#        initial_location: WayPoint13
 
   - agent_id: barry
     setup: general_robot_debug
     local_properties:
         rviz_default_colour: '00FF00'
-        initial_location: WayPoint141
+        initial_location: WayPoint12
+
+#  - agent_id: arnold
+#    setup: general_robot_debug
+#    local_properties:
+#        rviz_default_colour: 'FF0000'
+#        initial_location: WayPoint11
 
 #TOPOLOGY (Node Descriptors)
 special_nodes:
