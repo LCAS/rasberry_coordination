@@ -136,6 +136,10 @@ class MapObj(object):
         """ get length of edge """
         return GetNodeDist(self.get_node(from_node), self.get_node(to_node))
 
+    def get_edge_id_length(self, edge_id):
+        """ get length of edge given edge id"""
+        return self.get_edge_length(edge_id.split('_')[0], edge_id.split('_')[1])
+
     def get_edge_distances(self):
         """find edge lengths of route """
         self.agent.route_dists = []

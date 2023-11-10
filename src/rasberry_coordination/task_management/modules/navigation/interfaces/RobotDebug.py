@@ -121,6 +121,7 @@ subgoal()
 
     def subgoal(self, msg):
         try:
+            edge = None
             aid = self.agent.agent_id
             if not self.execpolicy_goal.route.source and not self.execpolicy_goal.route.edge_id:
                 return
@@ -135,19 +136,19 @@ subgoal()
             if goal and goal.route.edge_id and goal.route.source and not goal.route.edge_id[0].startswith(goal.route.source[0]):
                 edge = goal.route.edge_id[0]
                 logmsg(category='vr_rob', id=aid, msg='Moving to edge: %s'%edge)
-                self.wait()
+                self.wait(edge)
                 logmsg(category='vr_rob', id=aid, msg='Moved to edge: %s'%edge)
                 self.telemove(edge)
                 logmsg(category='vr_rob', id=aid, msg='   | Remaining Route:')
                 self.filter_edge(edge)
                 self.path_gen(goal.route, format='   :   | %s')
 
-            # Move to next node in route
+            # Move to next node in route / complete edge traversal
             goal = self.execpolicy_goal
             if goal and goal.route.source:
                 node = goal.route.source[0]
                 logmsg(category='vr_rob', id=aid, msg='Moving to node: %s'%node)
-                self.wait()
+                self.wait(edge)
                 logmsg(category='vr_rob', id=aid, msg='Moved to node: %s'%node)
                 self.teleport(node)
                 logmsg(category='vr_rob', id=aid, msg='   | Remaining Route:')
@@ -183,11 +184,11 @@ subgoal()
     filter()
     """
 
-    def wait(self):
-        #if self.details['smart_delay']:
-        #    get_smart_travel_time(route.edge)/2
-        delay = rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2)/2
-        logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Travel time: %s seconds'%delay)
+    def wait(self, edge=None):
+        if edge:
+            delay = 0.5 * self.agent.map_handler.get_edge_id_length(edge_id)
+        delay = delay * rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2)
+        logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Travel time: %s seconds' % delay)
         rospy.sleep(delay)
 
     def telemove(self, edge):
