@@ -61,7 +61,7 @@ class InteractionManager(object):
             logmsg(category="action", id='MEDIATOR', msg="Performing Interaction Search")
             [logmsg(category="action",    msg="   | %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
             logmsg(category="action",     msg="   | Interaction result not found, will notify when result found")
-            interaction.silence = False #True
+            interaction.silence = True
 
         self.AllAgentsList = None
 
