@@ -125,7 +125,7 @@ subgoal()
             aid = self.agent.agent_id
             if not self.execpolicy_goal.route.source and not self.execpolicy_goal.route.edge_id:
                 return
-            print("\n\n")
+            #print("\n\n")
 
             logmsg(category='vr_rob', id=aid, msg='Execpolicy Goal:')
             logmsg(category='vr_rob', id=aid, msg='   | Route:')
@@ -185,8 +185,9 @@ subgoal()
     """
 
     def wait(self, edge=None):
+        delay = 1
         if edge:
-            delay = 0.5 * self.agent.map_handler.get_edge_id_length(edge_id)
+            delay = 0.5 * self.agent.map_handler.get_edge_id_length(edge)
         delay = delay * rospy.get_param('/rasberry_coordination/task_modules/navigation/debug_robot_step_delay', 2)
         logmsg(category='vr_rob', id=self.agent.agent_id, msg='   | Travel time: %s seconds' % delay)
         rospy.sleep(delay)
