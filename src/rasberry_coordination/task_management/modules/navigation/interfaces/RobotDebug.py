@@ -109,21 +109,24 @@ subgoal()
             self.execpolicy_goal, self.buffer = self.buffer[-1], []
 
         # Print route details
-        if self.execpolicy_goal:
+        if self.execpolicy_goal and not self.buffer:
             self.path_gen(self.execpolicy_goal.route)
 
         # Publish route to execute
-        self.goal_publisher.publish(self.execpolicy_goal)
+        if not self.buffer:
+            self.goal_publisher.publish(self.execpolicy_goal)
 
-        # Publish path to rviz
-        if self.execpolicy_goal:
-            self.publish_path(self.execpolicy_goal.route)
+            # Publish path to rviz
+            if self.execpolicy_goal:
+                self.publish_path(self.execpolicy_goal.route)
 
     def subgoal(self, msg):
         try:
             edge = None
             aid = self.agent.agent_id
-            if not self.execpolicy_goal.route.source and not self.execpolicy_goal.route.edge_id:
+
+
+            if not self.execpolicy_goal or (not self.execpolicy_goal.route.source and not self.execpolicy_goal.route.edge_id):
                 return
             #print("\n\n")
 
@@ -137,6 +140,7 @@ subgoal()
                 edge = goal.route.edge_id[0]
                 logmsg(category='vr_rob', id=aid, msg='Moving to edge: %s'%edge)
                 self.wait(edge)
+                if self.buffer: return
                 logmsg(category='vr_rob', id=aid, msg='Moved to edge: %s'%edge)
                 self.telemove(edge)
                 logmsg(category='vr_rob', id=aid, msg='   | Remaining Route:')
@@ -149,6 +153,7 @@ subgoal()
                 node = goal.route.source[0]
                 logmsg(category='vr_rob', id=aid, msg='Moving to node: %s'%node)
                 self.wait(edge)
+                if self.buffer: return
                 logmsg(category='vr_rob', id=aid, msg='Moved to node: %s'%node)
                 self.teleport(node)
                 logmsg(category='vr_rob', id=aid, msg='   | Remaining Route:')
@@ -323,7 +328,12 @@ subgoal()
 
         # List 1 should be longer than List 2
         if len(list_2) > len(list_1):
-            print("we have a problem here...")
+            print("we have a problem here...\n\n\n\n\n\n\n")
+            print('list_1')
+            print(list_1)
+            print('list_2')
+            print(list_2)
+            return
 
         # Loop through all of smaller lists elements:
         for i in range(len(list_2)):
