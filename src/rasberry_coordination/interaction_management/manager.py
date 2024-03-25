@@ -52,16 +52,16 @@ class InteractionManager(object):
             interaction.response = resp
 
         if interaction.response:
-            logmsg(category="action", id='MEDIATOR', msg="Performing Interaction Search")
+            logmsg(category="action", id='MEDIATOR', msg="Performing Interaction Search for %s"%agent.agent_id)
             [logmsg(category="action",    msg="   | %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
             if TP=="search":
                 logmsg(category="action", msg="   | list: %s" % str(list))
             logmsg(category="action",     msg="   | RESULT: %s" % interaction.response)
         elif not interaction.silence:
-            logmsg(category="action", id='MEDIATOR', msg="Performing Interaction Search")
+            logmsg(category="action", id='MEDIATOR', msg="Performing Interaction Search %s"%agent.agent_id)
             [logmsg(category="action",    msg="   | %s: %s"%(k,v)) for k,v in interaction.__dict__.items() if v]
             logmsg(category="action",     msg="   | Interaction result not found, will notify when result found")
-            interaction.silence = False #True
+            interaction.silence = True
 
         self.AllAgentsList = None
 
@@ -116,7 +116,10 @@ class InteractionManager(object):
             if not L: return "empty"
 
             # Filter list by filtering out ones not accepting new tasks
+            #print('\n\nChecking if agent is accepting new tasks...')
+            #print([[k,v().accepting_new_tasks] for k,v in L.items()])
             L = {k:v for k,v in L.items() if (v.registration) and (v().accepting_new_tasks)}
+            #print([[k,v().accepting_new_tasks] for k,v in L.items()])
 
         elif GR == 'forced_agent_descriptor':
             # Generate list of agents based on some characteristics
@@ -171,6 +174,11 @@ class InteractionManager(object):
             new_list = {k: self.dist(v, v.location(), location) for k, v in list.items()}
             i = self.get_dist(new_list)
             I = self.AllAgentsList[i] if i in self.AllAgentsList else None
+
+            #TODO: this will still result in an error if the agent goes into another idle task directly after
+            if I:
+                print('Preventing agent %s from being assigned to multiple tasks.'% I.agent_id)
+                I().accepting_new_tasks = False
 
         elif ST == 'closest_node':
             # Find closet node in list
