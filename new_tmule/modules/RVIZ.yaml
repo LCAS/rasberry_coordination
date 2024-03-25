@@ -18,3 +18,7 @@
   - rosrun rasberry_core visualize_count.py
   tags: [coord]
 
+- name: audioviz
+  panes:
+  - rosrun rasberry_coordination robot_speakers.py
+  tags: [coord]

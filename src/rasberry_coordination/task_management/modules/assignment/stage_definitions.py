@@ -102,3 +102,49 @@ class FindStartNode(InteractionResponse):
         self.agent['contacts']['end_node'] = self.agent['contacts']['row_ends'][0]
         logmsg(category="stage", msg="Task to move from %s to %s" % (self.agent['contacts']['start_node'], self.agent['contacts']['end_node']))
 
+
+
+
+
+
+
+
+
+
+
+"""
+class FindAgentStartNode(InteractionResponse):
+    def __init__(self, agent, contact_id):
+        super(FindAgentStartNode, self).__init__(agent)
+        self.contact_id = contact_id
+        self.interaction = InteractionDetails(type='info', info='find_row_ends', descriptor=row)
+
+    def _start(self):
+        super(FindStartNode, self)._start()
+        lst = self.agent['contacts'][self.contact_id]
+        self.interaction = InteractionDetails(type='search', grouping='node_list', list=lst, style='closest_node')
+
+    def _end(self):
+        super(FindStartNode, self)._end()
+        self.agent['contacts']['start_node'] = self.interaction.response
+        self.agent['contacts']['row_ends'].remove(self.interaction.response)
+        self.agent['contacts']['end_node'] = self.agent['contacts']['row_ends'][0]
+        logmsg(category="stage", msg="Task to move from %s to %s" % (self.agent['contacts']['start_node'], self.agent['contacts']['end_node']))
+
+
+
+
+
+class FindRowEnds(InteractionResponse):
+    def __init__(self, agent, row):
+        super(FindRowEnds, self).__init__(agent)
+        self.interaction = InteractionDetails(type='info', info='find_row_ends', descriptor=row)
+        self.contact = 'row_ends'
+"""
+
+
+
+
+
+
+
